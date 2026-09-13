@@ -1,9 +1,5 @@
 # 🌀 CycloneNet AI — Intelligent Tropical Cyclone Tracking & Satellite Intensity Estimation Platform
 
-<div align="center">
-  <img width="100%" alt="CycloneNet Platform Preview" src="https://github.com/user-attachments/assets/d715b95d-1567-4539-8943-a385ff2d7a44" />
-</div>
-
 > **Next-Generation Meteorological Intelligence Platform combining Deep Learning Computer Vision, Geospatial Trajectory Modeling, and Dvorak Intensity Estimation for Tropical Cyclones.**
 
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.110+-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
@@ -72,10 +68,10 @@ Meteorologists can upload live infrared/visible satellite imagery (e.g., INSAT-3
 flowchart TB
     classDef clientStyle fill:#4F46E5,stroke:#3730A3,stroke-width:2px,color:#FFFFFF,font-weight:bold
     classDef apiStyle fill:#0EA5E9,stroke:#0284C7,stroke-width:2px,color:#FFFFFF,font-weight:bold
-    classDef mlStyle fill:#EE4C2C,stroke:#C0392B,stroke-width:2px,color:#FFFFFF,font-weight:bold
-    classDef mapStyle fill:#16A34A,stroke:#15803D,stroke-width:2px,color:#FFFFFF
-    classDef dbStyle fill:#1E40AF,stroke:#1D4ED8,stroke-width:2px,color:#FFFFFF
-    classDef extStyle fill:#8B5CF6,stroke:#6D28D9,stroke-width:2px,color:#FFFFFF
+    classDef mlStyle fill:#E11D48,stroke:#BE123C,stroke-width:2px,color:#FFFFFF,font-weight:bold
+    classDef mapStyle fill:#0D9488,stroke:#0F766E,stroke-width:2px,color:#FFFFFF,font-weight:bold
+    classDef dbStyle fill:#1E40AF,stroke:#1D4ED8,stroke-width:2px,color:#FFFFFF,font-weight:bold
+    classDef extStyle fill:#7C3AED,stroke:#6D28D9,stroke-width:2px,color:#FFFFFF,font-weight:bold
 
     subgraph ClientLayer["🖥️ CLIENT PRESENTATION LAYER (Next.js 14)"]
         Dashboard["Dashboard & Active Storm Monitor"]:::clientStyle
@@ -99,14 +95,14 @@ flowchart TB
     end
 
     subgraph DLModel["🧠 DEEP LEARNING MODEL ASSETS"]
-        Backbone["ResNet-50 Pretrained Backbone<br/><i>(2048-dim Deep Feature Embeddings)</i>"]:::mlStyle
+        Backbone["ResNet-50 Pretrained Backbone<br/><i>(2048-dim Deep Feature Embeddings)</i>"]:::extStyle
         ClassifierHead["Trained CycloneClassifierHead<br/><i>(cyclone_classifier.pth ~4.5 MB)</i>"]:::mlStyle
         MLService --> Backbone --> ClassifierHead
     end
 
     subgraph StorageLayer["🗄️ PERSISTENCE & DATA STORAGE"]
         DB[("🗄️ SQLite Database<br/><i>(cyclone_tracker.db)</i>")]:::dbStyle
-        DemoFrames["🛰️ INSAT-3DR Satellite Frames<br/><i>(public/demo_frames/)</i>"]:::extStyle
+        DemoFrames["🛰️ INSAT-3DR Satellite Frames<br/><i>(public/demo_frames/)</i>"]:::mapStyle
         DataIngest --> DB
         MLService --> DB
     end
@@ -116,38 +112,39 @@ flowchart TB
 
 ```mermaid
 flowchart TD
-    classDef stage1 fill:#0F766E,stroke:#0D9488,stroke-width:2px,color:#FFFFFF
-    classDef stage2 fill:#1D4ED8,stroke:#2563EB,stroke-width:2px,color:#FFFFFF
-    classDef stage3 fill:#EE4C2C,stroke:#C0392B,stroke-width:2px,color:#FFFFFF
-    classDef stage4 fill:#C2410C,stroke:#EA580C,stroke-width:2px,color:#FFFFFF
-    classDef stage5 fill:#15803D,stroke:#16A34A,stroke-width:2px,color:#FFFFFF
+    classDef stage1 fill:#0F766E,stroke:#0D9488,stroke-width:2px,color:#FFFFFF,font-weight:bold
+    classDef stage2 fill:#1D4ED8,stroke:#2563EB,stroke-width:2px,color:#FFFFFF,font-weight:bold
+    classDef stage3 fill:#6D28D9,stroke:#7C3AED,stroke-width:2px,color:#FFFFFF,font-weight:bold
+    classDef stage4 fill:#C2410C,stroke:#EA580C,stroke-width:2px,color:#FFFFFF,font-weight:bold
+    classDef stage5 fill:#15803D,stroke:#16A34A,stroke-width:2px,color:#FFFFFF,font-weight:bold
+    classDef rejectStyle fill:#BE123C,stroke:#9F1239,stroke-width:2px,color:#FFFFFF,font-weight:bold
 
     subgraph Stage1["📥 STAGE 1: Satellite Image Ingestion"]
-        InputFrame[Raw Satellite Frame / IR Imagery] --> Validator{MIME / Integrity Check}:::stage1
-        Validator -->|Valid Image| Preprocess[Resize 224x224 & Normalize ImageNet Stats]:::stage1
+        InputFrame["Raw Satellite Frame / IR Imagery"] --> Validator{"MIME / Integrity Check"}:::stage1
+        Validator -->|Valid Image| Preprocess["Resize 224x224 & Normalize ImageNet Stats"]:::stage1
     end
 
     subgraph Stage2["🔍 STAGE 2: Deep Feature Extraction"]
-        Preprocess --> ResNet[ResNet-50 Convolutional Backbone]:::stage2
-        ResNet --> LatentPool[Global Average Pooling -> 2048-dim Vector]:::stage2
+        Preprocess --> ResNet["ResNet-50 Convolutional Backbone"]:::stage2
+        ResNet --> LatentPool["Global Average Pooling -> 2048-dim Vector"]:::stage2
     end
 
     subgraph Stage3["🧠 STAGE 3: Intensity Classification & Softmax"]
-        LatentPool --> MLPHead[PyTorch CycloneClassifierHead]:::stage3
-        MLPHead --> Softmax[Softmax Probability Distribution]:::stage3
-        Softmax --> ConfidenceCheck{Top Predicted Class}:::stage3
+        LatentPool --> MLPHead["PyTorch CycloneClassifierHead"]:::stage3
+        MLPHead --> Softmax["Softmax Probability Distribution"]:::stage3
+        Softmax --> ConfidenceCheck{"Top Predicted Class"}:::stage3
     end
 
     subgraph Stage4["📐 STAGE 4: Meteorological Calibration"]
-        ConfidenceCheck -->|NOT A CYCLONE| Reject[Suppress Vortex Overlay & Flag Non-Storm]:::stage4
-        ConfidenceCheck -->|CS / SCS / VSCS / ESCS| MetricMap[Compute Dvorak T-Number & Wind Knots]:::stage4
-        MetricMap --> DBLog[Persist Prediction to SQLite History]:::stage4
+        ConfidenceCheck -->|NOT A CYCLONE| Reject["Suppress Vortex Overlay & Flag Non-Storm"]:::rejectStyle
+        ConfidenceCheck -->|CS / SCS / VSCS / ESCS| MetricMap["Compute Dvorak T-Number & Wind Knots"]:::stage4
+        MetricMap --> DBLog["Persist Prediction to SQLite History"]:::stage4
     end
 
     subgraph Stage5["🖥️ STAGE 5: Geospatial Visualization & Alerts"]
-        Reject & DBLog --> UIResult[Interactive Results Badge & Probabilities]:::stage5
-        MetricMap --> MapRender[Plot Trajectory & Cone of Uncertainty on Leaflet Map]:::stage5
-        MetricMap --> Bulletin[Generate Meteorological Warning Bulletin]:::stage5
+        Reject & DBLog --> UIResult["Interactive Results Badge & Probabilities"]:::stage5
+        MetricMap --> MapRender["Plot Trajectory & Cone of Uncertainty on Leaflet Map"]:::stage5
+        MetricMap --> Bulletin["Generate Meteorological Warning Bulletin"]:::stage5
     end
 ```
 
@@ -155,10 +152,11 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    classDef inputStyle fill:#3B82F6,stroke:#1D4ED8,color:#FFF,font-weight:bold
-    classDef mlStyle fill:#EE4C2C,stroke:#C0392B,color:#FFF,font-weight:bold
-    classDef dvorakStyle fill:#CA8A04,stroke:#A16207,color:#FFF
-    classDef outStyle fill:#10B981,stroke:#059669,color:#FFF,font-weight:bold
+    classDef inputStyle fill:#3B82F6,stroke:#1D4ED8,stroke-width:2px,color:#FFFFFF,font-weight:bold
+    classDef mlStyle fill:#8B5CF6,stroke:#6D28D9,stroke-width:2px,color:#FFFFFF,font-weight:bold
+    classDef dvorakStyle fill:#CA8A04,stroke:#A16207,stroke-width:2px,color:#FFFFFF,font-weight:bold
+    classDef outStyle fill:#10B981,stroke:#059669,stroke-width:2px,color:#FFFFFF,font-weight:bold
+    classDef rejectStyle fill:#E11D48,stroke:#BE123C,stroke-width:2px,color:#FFFFFF,font-weight:bold
 
     Img["Satellite Image Upload<br/>(INSAT-3DR / GOES / NOAA)"]:::inputStyle --> Tensor["Transform Pipeline<br/>(Resize, Tensor, Normalize)"]:::inputStyle
     Tensor --> ResNet["ResNet-50 Backbone<br/>(Latent Space 2048-D)"]:::mlStyle
@@ -170,7 +168,7 @@ flowchart LR
     Softmax --> OutOfDist{"Is Cyclone?"}:::dvorakStyle
 
     OutOfDist -->|Yes| ValidOut["IMD Category + Wind Speed + Advisory"]:::outStyle
-    OutOfDist -->|No| RejectOut["No Cyclone Detected (Non-Meteorological)"]:::outStyle
+    OutOfDist -->|No| RejectOut["No Cyclone Detected (Non-Meteorological)"]:::rejectStyle
 
     ValidOut & RejectOut --> UI["Next.js Web Dashboard & History Log"]:::outStyle
 ```
