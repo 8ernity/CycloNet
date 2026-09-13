@@ -1,0 +1,216 @@
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@1,700;1,900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains-mono);
+  --font-heading: var(--font-space-grotesk);
+  --font-cursive: var(--font-cursive);
+  --font-serif: var(--font-serif);
+  
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  
+  /* Brand Colors adapted for weather */
+  --color-brand-teal: var(--brand-teal);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-slate: var(--brand-slate);
+  --color-brand-storm: var(--brand-storm);
+  
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+}
+
+:root {
+  /* Dark mode by default for that premium dashboard look */
+  --background: #0f172a; /* Deep slate */
+  --foreground: #f8fafc;
+  --card: #1e293b;
+  --card-foreground: #f8fafc;
+  --popover: #1e293b;
+  --popover-foreground: #f8fafc;
+  --primary: #0ea5e9; /* Sky blue */
+  --primary-foreground: #ffffff;
+  --secondary: #334155;
+  --secondary-foreground: #f8fafc;
+  --muted: #334155;
+  --muted-foreground: #94a3b8;
+  --accent: #334155;
+  --accent-foreground: #f8fafc;
+  --destructive: #ef4444;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #0ea5e9;
+  --radius: 0.75rem;
+
+  /* Weather-adapted Brand Colors */
+  --brand-teal: #0d9488;
+  --brand-blue: #0284c7;
+  --brand-slate: #64748b;
+  --brand-storm: #334155;
+  --brand-cyan: #06b6d4;
+  
+  /* Glass Card Settings */
+  --glass-bg: rgba(30, 41, 59, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 60px rgba(14, 165, 233, 0.05);
+  --glass-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 80px rgba(14, 165, 233, 0.15);
+  --glass-aurora-1: rgba(14, 165, 233, 0.15); /* Blue */
+  --glass-aurora-2: rgba(13, 148, 136, 0.15); /* Teal */
+  --headline-gradient-start: #f8fafc;
+  --headline-gradient-end: #38bdf8;
+}
+
+.light {
+  --background: #f1f5f9;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0ea5e9;
+  --primary-foreground: #ffffff;
+  --secondary: #e2e8f0;
+  --secondary-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #e2e8f0;
+  --accent-foreground: #0f172a;
+  --destructive: #ef4444;
+  --border: rgba(0, 0, 0, 0.1);
+  --input: rgba(0, 0, 0, 0.1);
+  --ring: #0ea5e9;
+  
+  /* Glass Card Settings (Light) */
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.7);
+  --glass-shadow: 0 8px 30px rgba(14, 165, 233, 0.08), 0 0 60px rgba(13, 148, 136, 0.06);
+  --glass-shadow-hover: 0 12px 40px rgba(14, 165, 233, 0.12), 0 0 80px rgba(13, 148, 136, 0.08);
+  --glass-aurora-1: rgba(186, 230, 253, 0.25);
+  --glass-aurora-2: rgba(153, 246, 228, 0.25);
+  --headline-gradient-start: #0f172a;
+  --headline-gradient-end: #0369a1;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* Glassmorphism card utility */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  box-shadow: var(--glass-shadow);
+  transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.glass-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 20% 20%, var(--glass-aurora-1), transparent 40%),
+    radial-gradient(circle at 80% 70%, var(--glass-aurora-2), transparent 40%);
+  filter: blur(20px);
+  pointer-events: none;
+}
+
+.glass-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--glass-shadow-hover);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--brand-teal), var(--brand-blue));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.headline-gradient {
+  background: linear-gradient(135deg, var(--headline-gradient-start) 0%, var(--headline-gradient-end) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Custom Mesh Gradient for Sidebar */
+.sidebar-mesh {
+  background-color: #f1f5f9;
+  background-image: 
+    radial-gradient(at 0% 0%, #bae6fd 0px, transparent 70%),
+    radial-gradient(at 100% 0%, #99f6e4 0px, transparent 70%),
+    radial-gradient(at 0% 100%, #bae6fd 0px, transparent 60%);
+}
+.dark .sidebar-mesh {
+  background-color: #0f172a;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(14, 165, 233, 0.08) 0px, transparent 70%),
+    radial-gradient(at 100% 0%, rgba(13, 148, 136, 0.05) 0px, transparent 70%),
+    radial-gradient(at 0% 100%, rgba(14, 165, 233, 0.05) 0px, transparent 60%);
+}
+
+/* Custom Mesh Gradient for Main Dashboard Content */
+.main-mesh {
+  background-color: #f8fafc;
+  background-image: 
+    radial-gradient(at 20% 0%, rgba(186, 230, 253, 0.5) 0px, transparent 80%),
+    radial-gradient(at 80% 0%, rgba(204, 253, 246, 0.5) 0px, transparent 80%),
+    radial-gradient(at 80% 100%, rgba(224, 242, 254, 0.5) 0px, transparent 80%),
+    radial-gradient(at 20% 100%, rgba(241, 245, 249, 0.5) 0px, transparent 80%);
+}
+.dark .main-mesh {
+  background-color: #020617;
+  background-image: 
+    radial-gradient(at 20% 0%, rgba(14, 165, 233, 0.12) 0px, transparent 80%),
+    radial-gradient(at 80% 0%, rgba(13, 148, 136, 0.08) 0px, transparent 80%),
+    radial-gradient(at 80% 100%, rgba(3, 105, 161, 0.12) 0px, transparent 80%),
+    radial-gradient(at 20% 100%, rgba(15, 23, 42, 0.08) 0px, transparent 80%);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(14, 165, 233, 0.2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(14, 165, 233, 0.4);
+}
