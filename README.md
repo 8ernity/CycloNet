@@ -1,9 +1,10 @@
-# 🌀 CycloneNet AI — Intelligent Tropical Cyclone Tracking & Satellite Intensity Estimation Platform
+# 🌪️ CycloNet — Intelligent Tropical Cyclone Tracking & Satellite Intensity Estimation Platform
 
 > **Next-Generation Meteorological Intelligence Platform combining Deep Learning Computer Vision, Geospatial Trajectory Modeling, and Dvorak Intensity Estimation for Tropical Cyclones.**
 
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.110+-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2014-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2016-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
+[![Framer Motion](https://img.shields.io/badge/Animations-Framer_Motion-black?style=for-the-badge&logo=framer)](https://www.framer.com/motion/)
 [![PyTorch](https://img.shields.io/badge/Deep_Learning-PyTorch%202.2-EE4C2C?style=for-the-badge&logo=pytorch)](https://pytorch.org)
 [![Torchvision](https://img.shields.io/badge/Computer_Vision-Torchvision%200.17-EE4C2C?style=for-the-badge&logo=pytorch)](https://pytorch.org)
 [![TypeScript](https://img.shields.io/badge/Language-TypeScript%205-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
@@ -14,7 +15,7 @@
 
 ---
 
-**CycloneNet AI** is an enterprise-grade meteorological analysis and disaster-response decision support platform. Designed for meteorological departments, disaster management authorities, and climate researchers, the platform unifies **Deep Convolutional Neural Networks (ResNet-50)**, **Dvorak intensity feature extraction**, **interactive geospatial tracking (Leaflet)**, and **real-time alerting systems**.
+**CycloNet** is an enterprise-grade meteorological analysis and disaster-response decision support platform. Designed for meteorological departments, disaster management authorities, and climate researchers, the platform unifies **Deep Convolutional Neural Networks (ResNet-50)**, **Dvorak intensity feature extraction**, **interactive geospatial tracking (Leaflet)**, and **real-time alerting systems**.
 
 Meteorologists can upload live infrared/visible satellite imagery (e.g., INSAT-3DR, GOES, Himawari) to receive instant intensity classifications, continuous softmax probability distributions, estimated sustained wind speeds (knots), Dvorak T-numbers, and track coordinates with predictive cone-of-uncertainty projections.
 
@@ -300,7 +301,7 @@ Cyclones spin counter-clockwise in the Northern Hemisphere and clockwise in the 
 
 Traditional color-based heuristics (such as checking for green pixels) fail on infrared satellite imagery because false-color palettes (NOAA/IMD rainbow curves) legitimately use green and yellow to designate cold cloud tops ($-60^\circ\text{C}$ to $-75^\circ\text{C}$). 
 
-CycloneNet AI relies strictly on deep latent space separation: non-meteorological images (landscapes, anime, documents) project into an out-of-distribution cluster, receiving $\approx 99.8\%$ probability for `NOT_A_CYCLONE` and suppressing spurious storm alerts.
+CycloNet relies strictly on deep latent space separation: non-meteorological images (landscapes, anime, documents) project into an out-of-distribution cluster, receiving $\approx 99.8\%$ probability for `NOT_A_CYCLONE` and suppressing spurious storm alerts.
 
 ---
 
@@ -367,6 +368,7 @@ All backend REST API endpoints are served by FastAPI. Interactive Swagger / Open
 | **Geospatial Mapping** | Leaflet & React-Leaflet | Latest | Interactive mapping for storm coordinates and trajectory cones |
 | **Icons & Visuals** | Lucide React | Latest | Modern iconography |
 | **Theme Engine** | next-themes | Latest | Smooth Dark / Light mode switching |
+| **Animations & Motion** | Framer Motion | 13.2+ | Fluid micro-interactions, layout transitions, and glassmorphic UI motion |
 
 ---
 
@@ -376,7 +378,7 @@ All backend REST API endpoints are served by FastAPI. Interactive Swagger / Open
 
 ```env
 # ── Application Settings ──────────────────────────────────────
-APP_NAME=CycloneNet AI
+APP_NAME=CycloNet
 PORT=8000
 DEBUG=True
 

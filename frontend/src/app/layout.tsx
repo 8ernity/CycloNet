@@ -24,7 +24,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cyclone Tracker | AI-Based Tracking System",
+  title: "CycloNet | AI-Based Cyclone Tracking System",
   description: "AI/ML-Based System for Identification, Classification, and Prediction of Tropical Cyclone Patterns",
 };
 

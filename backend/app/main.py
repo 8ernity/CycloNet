@@ -17,7 +17,7 @@ except ImportError:
     pass # In case data_ingestion is not fully implemented yet
 
 app = FastAPI(
-    title="Cyclone Tracker Prediction API",
+    title="CycloNet Prediction API",
     description="API for identifying, classifying, and predicting tropical cyclones using ML.",
     version="1.0.0"
 )
@@ -35,4 +35,4 @@ app.include_router(router, prefix="/api")
 
 @app.get("/")
 def root():
-    return {"status": "ok", "message": "Cyclone Tracker API is running"}
+    return {"status": "ok", "message": "CycloNet API is running"}
