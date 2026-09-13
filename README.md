@@ -1,4 +1,4 @@
-# 🌀 CycloneTracker AI — Tropical Cyclone Tracking & Intensity Classification Platform
+# 🌀 CycloneNet AI — Tropical Cyclone Tracking & Intensity Classification Platform
 
 [![Next.js](https://img.shields.io/badge/Frontend-Next.js%2014-black?style=for-the-badge&logo=next.js)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
@@ -7,7 +7,7 @@
 [![TypeScript](https://img.shields.io/badge/Language-TypeScript-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Python](https://img.shields.io/badge/Python-3.10+-yellow?style=for-the-badge&logo=python)](https://www.python.org/)
 
-**CycloneTracker AI** is an intelligent meteorological monitoring and analysis platform. It combines real-time geospatial tracking with deep learning inference to classify tropical cyclones and estimate intensity stages from satellite imagery based on the IMD (India Meteorological Department) and Dvorak scales.
+**CycloneNet AI** is an intelligent meteorological monitoring and analysis platform. It combines real-time geospatial tracking with deep learning inference to classify tropical cyclones and estimate intensity stages from satellite imagery based on the IMD (India Meteorological Department) and Dvorak scales.
 
 ---
 
@@ -16,11 +16,11 @@
 - 🛰️ **Deep Learning Intensity Classifier**:
   - Fine-tuned **ResNet-50 + Multi-Layer Perceptron Head** trained in PyTorch.
   - Generates dynamic, continuous softmax probabilities across 5 classes:
-    - No Cyclone Detected (Non-Meteorological Image)
-    - Cyclonic Storm (CS)
-    - Severe Cyclonic Storm (SCS)
-    - Very Severe Cyclonic Storm (VSCS)
-    - Extremely Severe Cyclonic Storm (ESCS)
+    - `No Cyclone Detected (Non-Meteorological Image)`
+    - `Cyclonic Storm (CS)`
+    - `Severe Cyclonic Storm (SCS)`
+    - `Very Severe Cyclonic Storm (VSCS)`
+    - `Extremely Severe Cyclonic Storm (ESCS)`
   - Out-of-distribution rejection for non-meteorological images.
   - Automatic estimation of **Dvorak T-Numbers** (T3.0 to T5.5+) and sustained wind speeds (knots).
 - 🗺️ **Interactive Geospatial Dashboard**:
@@ -37,7 +37,7 @@
 
 ## 🏗️ System Architecture
 
-`	ext
+```text
 CycloneTracker/
 ├── backend/
 │   ├── app/
@@ -65,7 +65,7 @@ CycloneTracker/
 │   ├── public/demo_frames/            # Curated INSAT-3DR satellite imagery
 │   └── package.json                   # Frontend dependencies (Next.js, Lucide, Tailwind)
 └── start_all.bat                      # One-click Windows startup script
-`
+```
 
 ---
 
@@ -73,44 +73,43 @@ CycloneTracker/
 
 ### Prerequisites
 - **Python 3.10+**
-- **Node.js 18+** & 
-pm
+- **Node.js 18+** & `npm`
 
 ---
 
 ### Option 1: One-Click Launch (Windows)
-Double-click start_all.bat or run:
-`cmd
+Double-click `start_all.bat` or run:
+```cmd
 start_all.bat
-`
-This launches both the FastAPI backend on http://localhost:8000 and the Next.js frontend on http://localhost:3000.
+```
+This launches both the FastAPI backend on `http://localhost:8000` and the Next.js frontend on `http://localhost:3000`.
 
 ---
 
 ### Option 2: Manual Setup
 
 #### 1. Backend Setup
-`ash
+```bash
 cd backend
 python -m venv venv
 
 # Windows
-.\venv\Scripts\activate
+.\\venv\\Scripts\\activate
 # Linux/macOS
 source venv/bin/activate
 
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
-`
-Backend API docs will be available at: http://localhost:8000/docs
+```
+Backend API docs will be available at: `http://localhost:8000/docs`
 
 #### 2. Frontend Setup
-`ash
+```bash
 cd frontend
 npm install
 npm run dev
-`
-Open your browser at: http://localhost:3000
+```
+Open your browser at: `http://localhost:3000`
 
 ---
 
@@ -118,21 +117,21 @@ Open your browser at: http://localhost:3000
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | /api/cyclones | Returns all active cyclones and coordinates |
-| GET | /api/cyclones/{id} | Detailed telemetry and track history for a specific storm |
-| POST | /api/classify | Uploads satellite image; returns PyTorch intensity classification & probabilities |
-| GET | /api/history/classifications | Fetches logged classification records from SQLite |
+| `GET` | `/api/cyclones` | Returns all active cyclones and coordinates |
+| `GET` | `/api/cyclones/{id}` | Detailed telemetry and track history for a specific storm |
+| `POST` | `/api/classify` | Uploads satellite image; returns PyTorch intensity classification & probabilities |
+| `GET` | `/api/history/classifications` | Fetches logged classification records from SQLite |
 
 ---
 
 ## 🧪 Model Training & Retraining
 
 To retrain the PyTorch classifier head on additional satellite imagery:
-`ash
+```bash
 cd backend
 python train_classifier.py
-`
-The script applies 360° rotational invariance, flips, crops, and color jitter to augment satellite frames and exports the weights directly to ackend/app/models/cyclone_classifier.pth.
+```
+The script applies 360° rotational invariance, flips, crops, and color jitter to augment satellite frames and exports the weights directly to `backend/app/models/cyclone_classifier.pth`.
 
 ---
 
