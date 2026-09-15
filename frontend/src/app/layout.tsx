@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
+import { ChatbotWidget } from "@/components/ChatbotWidget";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -55,6 +57,8 @@ export default function RootLayout({
               </main>
             </div>
           </div>
+          <ChatbotWidget />
+          <Script src="/liquid-glass.js" strategy="beforeInteractive" />
         </ThemeProvider>
       </body>
     </html>

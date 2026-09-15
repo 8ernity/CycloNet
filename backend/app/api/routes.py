@@ -1,10 +1,12 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
-from typing import List
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from geopy.distance import distance
 
 from app.services.ml_service import ml_service
+from app.services.chat_service import chat_service
+from app.services.best_tracks import get_cyclone_trajectory
 from app.core.database import get_db
 from app.models.domain import CycloneArchive, ClassificationHistory
 
@@ -17,6 +19,7 @@ class TrackPoint(BaseModel):
     category: str
     intensity_knots: int
     is_forecast: bool = False
+    label: Optional[str] = None
 
 class SystemResponse(BaseModel):
     id: str
@@ -28,66 +31,44 @@ class SystemResponse(BaseModel):
     category: str
     track_forecast: List[TrackPoint] = []
 
+class ChatMessageRequest(BaseModel):
+    message: str
+    history: Optional[List[Dict[str, str]]] = None
+    ui_context: Optional[Dict[str, Any]] = None
+
+class ChatMessageResponse(BaseModel):
+    response: str
+    category: str
+    sources: List[str]
+    timestamp: str
+
 @router.get("/active-systems", response_model=List[SystemResponse])
-async def get_active_systems():
-    """Returns currently active systems with computed kinematic forward tracking."""
-    track = []
-    current_lat = 11.0
-    current_lon = 65.5
-    
-    # 1. Past Track (14 points, every 12 hours)
-    for i in range(-14, 0):
-        offset_hours = i * 12
-        current_lat += 0.7
-        current_lon += 0.15
-        knots = 35 + (14 + i) * 4
-        if knots < 48: cat = "Cyclonic Storm"
-        elif knots < 64: cat = "Severe Cyclonic Storm"
-        elif knots < 90: cat = "Very Severe Cyclonic Storm"
-        else: cat = "Extremely Severe Cyclonic Storm"
-        
-        track.append({
-            "lat": current_lat, "lon": current_lon,
-            "time_offset_hours": offset_hours,
-            "category": cat, "intensity_knots": knots, "is_forecast": False
-        })
-        
-    # 2. Current Point
-    current_point_lat = current_lat + 0.7
-    current_point_lon = current_lon + 0.15
-    track.append({
-        "lat": current_point_lat, "lon": current_point_lon,
-        "time_offset_hours": 0, "category": "Extremely Severe Cyclonic Storm",
-        "intensity_knots": 95, "is_forecast": False
-    })
-    
-    # 3. Forecast Track (5 points, every 12 hours)
-    f_lat = current_point_lat
-    f_lon = current_point_lon
-    for i in range(1, 6):
-        offset_hours = i * 12
-        f_lat += 0.6
-        f_lon += 0.4
-        knots = 95 - (i * 10)
-        cat = "Very Severe Cyclonic Storm" if knots >= 64 else "Severe Cyclonic Storm"
-        track.append({
-            "lat": f_lat, "lon": f_lon,
-            "time_offset_hours": offset_hours,
-            "category": cat, "intensity_knots": knots, "is_forecast": True
-        })
-        
-    return [
-        {
-            "id": "ARB01-2023",
-            "name": "Biparjoy",
-            "basin": "Arabian Sea",
-            "lat": current_point_lat,
-            "lon": current_point_lon,
-            "intensity_knots": 95,
-            "category": "Extremely Severe Cyclonic Storm",
-            "track_forecast": track
-        }
-    ]
+async def get_active_systems(simulate: bool = False, cyclone_id: Optional[str] = None, db: Session = Depends(get_db)):
+    """
+    Returns currently active cyclonic systems in the North Indian Ocean basin.
+    When simulate is False and no cyclone_id is passed, returns real-time active systems (empty when calm).
+    When simulate is True or cyclone_id is passed, returns real historical best-track data from IBTrACS/IMD.
+    """
+    if not simulate and not cyclone_id:
+        # True Live State: Currently NO active cyclones in the Arabian Sea or Bay of Bengal.
+        return []
+
+    # Look up cyclone if cyclone_id passed, else default to Biparjoy
+    target = None
+    if cyclone_id:
+        target = db.query(CycloneArchive).filter(
+            (CycloneArchive.id == cyclone_id) | (CycloneArchive.name.ilike(cyclone_id))
+        ).first()
+    if not target:
+        target = db.query(CycloneArchive).filter_by(id="ARB01-2023").first()
+
+    name = target.name if target else "Biparjoy"
+    c_id = target.id if target else "ARB01-2023"
+    basin = target.basin if target else "Arabian Sea"
+    cat = target.max_category if target else "Extremely Severe Cyclonic Storm"
+
+    result = get_cyclone_trajectory(c_id, name, basin, cat)
+    return [result]
 
 @router.post("/classify")
 async def classify_image(file: UploadFile = File(...), db: Session = Depends(get_db)):
@@ -121,15 +102,45 @@ async def classify_image(file: UploadFile = File(...), db: Session = Depends(get
 @router.get("/history/search")
 async def search_history(query: str = "", db: Session = Depends(get_db)):
     """Fetches historical cyclones from SQLite database populated via imdtrack."""
-    cyclones = db.query(CycloneArchive).filter(CycloneArchive.name.contains(query)).all()
+    q = db.query(CycloneArchive)
+    if query.strip():
+        term = f"%{query.strip()}%"
+        q = q.filter(
+            CycloneArchive.name.ilike(term) | 
+            CycloneArchive.basin.ilike(term) |
+            CycloneArchive.id.ilike(term) |
+            CycloneArchive.dates.ilike(term)
+        )
+    cyclones = q.all()
+    
+    MONTHS_MAP = {
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+        'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12
+    }
+    
+    def get_sort_key(c):
+        y = c.year or 0
+        m = 0
+        d = 0
+        parts = (c.dates or '').split('-')[0].strip().split()
+        for p in parts:
+            p_clean = p.lower()[:3]
+            if p_clean in MONTHS_MAP:
+                m = MONTHS_MAP[p_clean]
+            elif p.isdigit():
+                d = int(p)
+        return (y, m, d)
+        
+    cyclones_sorted = sorted(cyclones, key=get_sort_key, reverse=True)
     return [
         {
             "id": c.id,
             "name": c.name,
             "year": str(c.year),
             "maxCategory": c.max_category,
-            "basin": c.basin
-        } for c in cyclones
+            "basin": c.basin,
+            "dates": c.dates or str(c.year)
+        } for c in cyclones_sorted
     ]
 
 @router.get("/history/classifications")
@@ -145,3 +156,12 @@ async def get_classification_history(db: Session = Depends(get_db)):
             "timestamp": r.timestamp.isoformat() if r.timestamp else None
         } for r in records
     ]
+
+@router.post("/chat", response_model=ChatMessageResponse)
+async def chat_with_cyclonet(request: ChatMessageRequest, db: Session = Depends(get_db)):
+    """AI chatbot endpoint for answering questions on tropical cyclones, Dvorak analysis, and platform data."""
+    if not request.message or not request.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty.")
+    
+    result = chat_service.ask(request.message, history=request.history, db=db, ui_context=request.ui_context)
+    return result

@@ -19,3 +19,4 @@ class CycloneArchive(Base):
     year = Column(Integer)
     basin = Column(String)
     max_category = Column(String)
+    dates = Column(String, nullable=True)

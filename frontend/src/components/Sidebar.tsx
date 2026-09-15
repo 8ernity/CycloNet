@@ -26,8 +26,8 @@ export function Sidebar() {
   return (
     <aside className="w-64 hidden lg:flex flex-col h-screen fixed left-0 top-0 sidebar-mesh border-r border-border">
       <div className="p-6 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-          <Wind className="w-5 h-5 text-primary" />
+        <div className="w-8 h-8 rounded-full bg-slate-900/10 dark:bg-white/10 border border-slate-900/15 dark:border-white/10 flex items-center justify-center shadow-xs">
+          <Wind className="w-5 h-5 text-slate-800 dark:text-white" />
         </div>
         <span className="font-heading font-bold text-xl gradient-text tracking-tight">
           CycloNet
@@ -45,27 +45,27 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden",
                 isActive
-                  ? "text-primary shadow-sm"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-secondary/50"
+                  ? "text-slate-900 dark:text-white bg-slate-900/10 dark:bg-white/10 shadow-xs font-semibold"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-900/5 dark:hover:bg-white/5"
               )}
             >
               {isActive && (
-                <div className="absolute inset-0 bg-primary/10 rounded-lg -z-10" />
+                <div className="absolute inset-0 bg-slate-900/[0.08] dark:bg-white/[0.08] rounded-lg -z-10" />
               )}
               {isActive && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full" />
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-slate-900 dark:bg-white rounded-r-full" />
               )}
-              <Icon className={cn("w-5 h-5", isActive ? "text-primary" : "text-slate-500 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-100")} />
-              {item.name}
+              <Icon className={cn("w-5 h-5 transition-colors", isActive ? "text-slate-900 dark:text-white" : "text-slate-500 group-hover:text-slate-900 dark:text-zinc-400 dark:group-hover:text-white")} />
+              <span>{item.name}</span>
             </Link>
           );
         })}
       </nav>
 
       <div className="p-4 border-t border-border">
-        <div className="glass-card p-4 flex flex-col gap-2">
-          <p className="text-xs font-semibold text-primary uppercase tracking-wider">MoES Prototype</p>
-          <p className="text-xs text-muted-foreground">Version 1.0 - SIH26070</p>
+        <div className="glass-card p-4 flex flex-col gap-1.5">
+          <p className="text-xs font-semibold text-slate-800 dark:text-zinc-300 uppercase tracking-wider">MoES Prototype</p>
+          <p className="text-xs text-slate-600 dark:text-muted-foreground font-medium">Version 1.0 - SIH26070</p>
         </div>
       </div>
     </aside>

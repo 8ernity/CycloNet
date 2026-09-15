@@ -35,7 +35,24 @@ export function Header() {
         <h1 className="font-heading font-semibold text-lg">{getPageTitle()}</h1>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
+        {/* Ask AI Trigger Button */}
+        <button
+          onClick={() => {
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("cyclonet:open-chat"));
+            }
+          }}
+          className="buttonupgrade"
+          title="Open CycloNet AI Meteorological Intelligence"
+          aria-label="Ask AI"
+        >
+          <svg viewBox="0 0 36 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="m18 0 8 12 10-8-4 20H4L0 4l10 8 8-12z" />
+          </svg>
+          Ask AI
+        </button>
+
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           className="w-9 h-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
@@ -48,8 +65,8 @@ export function Header() {
           )}
         </button>
         
-        <div className="h-8 w-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
-          <span className="text-xs font-bold text-primary">FA</span>
+        <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 flex items-center justify-center">
+          <span className="text-xs font-bold text-slate-700 dark:text-zinc-200">FA</span>
         </div>
       </div>
     </header>
