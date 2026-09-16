@@ -37,14 +37,37 @@ interface ActiveSystem {
   track_forecast: TrackPoint[];
 }
 
-const CYCLONE_PRESETS = [
-  { id: "ARB01-2023", name: "Cyclone Biparjoy (2023)" },
-  { id: "BOB02-2023", name: "Cyclone Mocha (2023)" },
-  { id: "BOB01-2020", name: "Super Cyclone Amphan (2020)" },
-  { id: "BOB02-2019", name: "Extremely Severe Cyclone Fani (2019)" },
-  { id: "ARB01-2021", name: "Extremely Severe Cyclone Tauktae (2021)" },
-  { id: "BOB06-2024", name: "Severe Cyclone Dana (2024)" },
-  { id: "BOB01-2024", name: "Severe Cyclone Remal (2024)" },
+interface CycloneCatalogItem {
+  id: string;
+  name: string;
+  year?: string;
+  basin?: string;
+  maxCategory?: string;
+  dates?: string;
+}
+
+const FALLBACK_CYCLONES: CycloneCatalogItem[] = [
+  { id: "BOB03-2020", name: "Amphan", year: "2020", basin: "Bay of Bengal" },
+  { id: "ARB01-2023", name: "Biparjoy", year: "2023", basin: "Arabian Sea" },
+  { id: "BOB02-2023", name: "Mocha", year: "2023", basin: "Bay of Bengal" },
+  { id: "BOB02-2019", name: "Fani", year: "2019", basin: "Bay of Bengal" },
+  { id: "ARB01-2021", name: "Tauktae", year: "2021", basin: "Arabian Sea" },
+  { id: "BOB04-2024", name: "Dana", year: "2024", basin: "Bay of Bengal" },
+  { id: "BOB01-2024", name: "Remal", year: "2024", basin: "Bay of Bengal" },
+  { id: "BOB09-2024", name: "Fengal", year: "2024", basin: "Bay of Bengal" },
+  { id: "ARB01-2024", name: "Asna", year: "2024", basin: "Arabian Sea" },
+  { id: "BOB06-2023", name: "Michaung", year: "2023", basin: "Bay of Bengal" },
+  { id: "BOB03-2014", name: "Hudhud", year: "2014", basin: "Bay of Bengal" },
+  { id: "BOB06-1999", name: "Odisha Super Cyclone", year: "1999", basin: "Bay of Bengal" },
+  { id: "BOB04-2013", name: "Phailin", year: "2013", basin: "Bay of Bengal" },
+  { id: "ARB01-2007", name: "Gonu", year: "2007", basin: "Arabian Sea" },
+  { id: "BOB04-2007", name: "Sidr", year: "2007", basin: "Bay of Bengal" },
+  { id: "ARB03-2019", name: "Kyarr", year: "2019", basin: "Arabian Sea" },
+  { id: "BOB01-2021", name: "Yaas", year: "2021", basin: "Bay of Bengal" },
+  { id: "BOB04-2020", name: "Nivar", year: "2020", basin: "Bay of Bengal" },
+  { id: "ARB05-2017", name: "Ockhi", year: "2017", basin: "Arabian Sea" },
+  { id: "BOB01-2008", name: "Nargis", year: "2008", basin: "Bay of Bengal" },
+  { id: "BOB02-2009", name: "Aila", year: "2009", basin: "Bay of Bengal" },
 ];
 
 const getCategoryBadgeClass = (knots: number) => {
@@ -57,12 +80,13 @@ const getCategoryBadgeClass = (knots: number) => {
 };
 
 export default function ForecastPage() {
-  const [selectedId, setSelectedId] = useState<string>("ARB01-2023");
+  const [selectedId, setSelectedId] = useState<string>("BOB03-2020");
+  const [cyclonesList, setCyclonesList] = useState<CycloneCatalogItem[]>(FALLBACK_CYCLONES);
   const [system, setSystem] = useState<ActiveSystem | null>(null);
   const [loading, setLoading] = useState(true);
   const [hoveredPoint, setHoveredPoint] = useState<any | null>(null);
 
-  const fetchSystem = async (cycloneId: string = "ARB01-2023") => {
+  const fetchSystem = async (cycloneId: string) => {
     setLoading(true);
     try {
       const res = await fetch(`http://localhost:8000/api/active-systems?simulate=true&cyclone_id=${encodeURIComponent(cycloneId)}`);
@@ -83,20 +107,77 @@ export default function ForecastPage() {
   };
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const cId = params.get("cyclone_id") || "ARB01-2023";
-      setSelectedId(cId);
-      fetchSystem(cId);
-    } else {
-      fetchSystem("ARB01-2023");
-    }
+    const init = async () => {
+      let initialId = "BOB03-2020";
+
+      // 1. Check URL parameters and localStorage
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const paramId = params.get("cyclone_id");
+        const storedId = localStorage.getItem("cyclonet_selected_cyclone_id");
+        if (paramId) {
+          initialId = paramId;
+        } else if (storedId) {
+          initialId = storedId;
+        }
+      }
+
+      // 2. Fetch full catalog from backend
+      try {
+        const res = await fetch("http://localhost:8000/api/history/search");
+        if (res.ok) {
+          const list = await res.json();
+          if (Array.isArray(list) && list.length > 0) {
+            setCyclonesList(list);
+            // Verify if initialId exists in list (or match by name)
+            const match = list.find((c: any) => c.id === initialId || c.name.toLowerCase() === initialId.toLowerCase());
+            if (match) {
+              initialId = match.id;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error loading historical catalogue:", err);
+      }
+
+      setSelectedId(initialId);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("cyclonet_selected_cyclone_id", initialId);
+      }
+      fetchSystem(initialId);
+    };
+
+    init();
   }, []);
 
   const handleSelectCyclone = (cId: string) => {
     setSelectedId(cId);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("cyclonet_selected_cyclone_id", cId);
+      const url = new URL(window.location.href);
+      url.searchParams.set("cyclone_id", cId);
+      window.history.replaceState({}, "", url.toString());
+    }
     fetchSystem(cId);
   };
+
+  // Synchronize AI assistant context with active forecast system
+  useEffect(() => {
+    if (typeof window !== "undefined" && system) {
+      (window as any).__cyclonet_current_context = {
+        page: "Track Forecast",
+        activeSystem: {
+          id: system.id,
+          name: system.name,
+          basin: system.basin,
+          category: system.category,
+          intensity_knots: system.intensity_knots,
+          lat: system.lat,
+          lon: system.lon,
+        }
+      };
+    }
+  }, [system]);
 
   // Feature 5: Rapid Intensification (RI) Analysis (Surge >= 30 KT in 24h)
   const riAnalysis = useMemo(() => {
@@ -196,7 +277,7 @@ export default function ForecastPage() {
 
   const pastPoints = system.track_forecast.filter(p => !p.is_forecast && p.time_offset_hours < 0).reverse();
   const currentPoint = system.track_forecast.find(p => p.time_offset_hours === 0) || system.track_forecast[0];
-  const futurePoints = system.track_forecast.filter(p => p.is_forecast);
+  const futurePoints = [...system.track_forecast.filter(p => p.is_forecast)].reverse();
 
   // SVG Chart Geometry Constants
   const chartW = 860;
@@ -249,11 +330,11 @@ export default function ForecastPage() {
             <select
               value={selectedId}
               onChange={(e) => handleSelectCyclone(e.target.value)}
-              className="bg-transparent text-xs font-semibold text-foreground focus:outline-none cursor-pointer"
+              className="bg-transparent text-xs font-semibold text-foreground focus:outline-none cursor-pointer max-w-[240px]"
             >
-              {CYCLONE_PRESETS.map((c) => (
-                <option key={c.id} value={c.id} className="bg-background text-foreground">
-                  {c.name}
+              {cyclonesList.map((c) => (
+                <option key={c.id} value={c.id} className="bg-zinc-900 text-zinc-100">
+                  {c.name.startsWith("Cyclone") ? c.name : `Cyclone ${c.name}`} {c.year ? `(${c.year})` : ""}
                 </option>
               ))}
             </select>

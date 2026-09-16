@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { MapContainer, TileLayer, Polyline, CircleMarker, Circle, Tooltip, Marker } from "react-leaflet";
+import { MapContainer, TileLayer, Polyline, CircleMarker, Circle, Tooltip, Marker, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
@@ -15,6 +15,14 @@ interface TrackPoint {
 
 interface MapWidgetProps {
   points: TrackPoint[];
+}
+
+function MapReCenter({ center }: { center: [number, number] }) {
+  const map = useMap();
+  React.useEffect(() => {
+    map.setView(center, 5);
+  }, [center, map]);
+  return null;
 }
 
 export default function MapWidget({ points }: MapWidgetProps) {
@@ -59,6 +67,7 @@ export default function MapWidget({ points }: MapWidgetProps) {
       `}</style>
       
       <MapContainer center={[currentPoint.lat, currentPoint.lon]} zoom={5} className="w-full h-full min-h-[500px]">
+        <MapReCenter center={[currentPoint.lat, currentPoint.lon]} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

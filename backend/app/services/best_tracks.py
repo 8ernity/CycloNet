@@ -288,6 +288,238 @@ REAL_CYCLONE_TRACKS: Dict[str, Dict[str, Any]] = {
             {"lat": 20.5, "lon": 85.9, "time_offset_hours": 24, "category": "Severe Cyclonic Storm", "intensity_knots": 55},
             {"lat": 20.7, "lon": 85.7, "time_offset_hours": 36, "category": "Cyclonic Storm", "intensity_knots": 40},
         ]
+    },
+
+    # -------------------------------------------------------------
+    # 10. Cyclone Mocha (May 2023) - Bay of Bengal
+    # -------------------------------------------------------------
+    "BOB02-2023": {
+        "name": "Mocha",
+        "basin": "Bay of Bengal",
+        "category": "Extremely Severe Cyclonic Storm",
+        "peak_knots": 115,
+        "peak_index": 6,
+        "points": [
+            {"lat": 8.8, "lon": 89.5, "time_offset_hours": -72, "category": "Deep Depression", "intensity_knots": 30},
+            {"lat": 10.1, "lon": 88.8, "time_offset_hours": -60, "category": "Cyclonic Storm", "intensity_knots": 35},
+            {"lat": 11.4, "lon": 88.0, "time_offset_hours": -48, "category": "Severe Cyclonic Storm", "intensity_knots": 50},
+            {"lat": 13.0, "lon": 87.8, "time_offset_hours": -36, "category": "Very Severe Cyclonic Storm", "intensity_knots": 65},
+            {"lat": 14.8, "lon": 88.5, "time_offset_hours": -24, "category": "Very Severe Cyclonic Storm", "intensity_knots": 85},
+            {"lat": 16.2, "lon": 89.8, "time_offset_hours": -12, "category": "Extremely Severe Cyclonic Storm", "intensity_knots": 105},
+            # Peak near Myanmar coast
+            {"lat": 17.6, "lon": 91.0, "time_offset_hours": 0, "category": "Extremely Severe Cyclonic Storm", "intensity_knots": 115},
+            # Landfall near Sittwe
+            {"lat": 19.8, "lon": 92.6, "time_offset_hours": 12, "category": "Extremely Severe Cyclonic Storm", "intensity_knots": 110},
+            {"lat": 21.8, "lon": 94.5, "time_offset_hours": 24, "category": "Severe Cyclonic Storm", "intensity_knots": 55},
+            {"lat": 23.5, "lon": 97.0, "time_offset_hours": 36, "category": "Depression", "intensity_knots": 25},
+        ]
+    },
+
+    # -------------------------------------------------------------
+    # 11. Cyclone Phailin (October 2013) - Bay of Bengal
+    # -------------------------------------------------------------
+    "BOB04-2013": {
+        "name": "Phailin",
+        "basin": "Bay of Bengal",
+        "category": "Extremely Severe Cyclonic Storm",
+        "peak_knots": 115,
+        "peak_index": 6,
+        "points": [
+            {"lat": 10.5, "lon": 93.0, "time_offset_hours": -72, "category": "Deep Depression", "intensity_knots": 30},
+            {"lat": 12.0, "lon": 91.0, "time_offset_hours": -60, "category": "Cyclonic Storm", "intensity_knots": 45},
+            {"lat": 13.5, "lon": 89.0, "time_offset_hours": -48, "category": "Very Severe Cyclonic Storm", "intensity_knots": 65},
+            {"lat": 14.5, "lon": 87.8, "time_offset_hours": -36, "category": "Very Severe Cyclonic Storm", "intensity_knots": 90},
+            {"lat": 15.5, "lon": 86.8, "time_offset_hours": -24, "category": "Extremely Severe Cyclonic Storm", "intensity_knots": 110},
+            {"lat": 16.5, "lon": 85.8, "time_offset_hours": -12, "category": "Extremely Severe Cyclonic Storm", "intensity_knots": 115},
+            # Current center off Odisha coast
+            {"lat": 17.8, "lon": 85.0, "time_offset_hours": 0, "category": "Extremely Severe Cyclonic Storm", "intensity_knots": 115},
+            # Landfall Gopalpur
+            {"lat": 19.2, "lon": 84.9, "time_offset_hours": 12, "category": "Extremely Severe Cyclonic Storm", "intensity_knots": 105},
+            {"lat": 20.8, "lon": 84.5, "time_offset_hours": 24, "category": "Severe Cyclonic Storm", "intensity_knots": 50},
+            {"lat": 22.5, "lon": 84.0, "time_offset_hours": 36, "category": "Depression", "intensity_knots": 25},
+        ]
+    },
+
+    # -------------------------------------------------------------
+    # 12. Super Cyclone Gonu (June 2007) - Arabian Sea
+    # -------------------------------------------------------------
+    "ARB01-2007": {
+        "name": "Gonu",
+        "basin": "Arabian Sea",
+        "category": "Super Cyclonic Storm",
+        "peak_knots": 130,
+        "peak_index": 5,
+        "points": [
+            {"lat": 13.5, "lon": 69.0, "time_offset_hours": -60, "category": "Deep Depression", "intensity_knots": 30},
+            {"lat": 14.8, "lon": 67.5, "time_offset_hours": -48, "category": "Cyclonic Storm", "intensity_knots": 45},
+            {"lat": 16.0, "lon": 66.0, "time_offset_hours": -36, "category": "Very Severe Cyclonic Storm", "intensity_knots": 75},
+            {"lat": 17.5, "lon": 64.5, "time_offset_hours": -24, "category": "Extremely Severe Cyclonic Storm", "intensity_knots": 110},
+            {"lat": 18.7, "lon": 63.2, "time_offset_hours": -12, "category": "Super Cyclonic Storm", "intensity_knots": 130},
+            # Current fix off Ras Al Hadd, Oman
+            {"lat": 19.8, "lon": 61.8, "time_offset_hours": 0, "category": "Extremely Severe Cyclonic Storm", "intensity_knots": 115},
+            {"lat": 20.8, "lon": 60.5, "time_offset_hours": 12, "category": "Very Severe Cyclonic Storm", "intensity_knots": 90},
+            {"lat": 22.0, "lon": 59.8, "time_offset_hours": 24, "category": "Severe Cyclonic Storm", "intensity_knots": 65},
+            {"lat": 23.5, "lon": 59.2, "time_offset_hours": 36, "category": "Cyclonic Storm", "intensity_knots": 45},
+            {"lat": 25.0, "lon": 58.5, "time_offset_hours": 48, "category": "Deep Depression", "intensity_knots": 30},
+        ]
+    },
+
+    # -------------------------------------------------------------
+    # 13. Cyclone Sidr (November 2007) - Bay of Bengal
+    # -------------------------------------------------------------
+    "BOB04-2007": {
+        "name": "Sidr",
+        "basin": "Bay of Bengal",
+        "category": "Super Cyclonic Storm",
+        "peak_knots": 115,
+        "peak_index": 5,
+        "points": [
+            {"lat": 10.0, "lon": 92.5, "time_offset_hours": -60, "category": "Deep Depression", "intensity_knots": 30},
+            {"lat": 11.5, "lon": 90.5, "time_offset_hours": -48, "category": "Cyclonic Storm", "intensity_knots": 45},
+            {"lat": 13.0, "lon": 89.0, "time_offset_hours": -36, "category": "Very Severe Cyclonic Storm", "intensity_knots": 70},
+            {"lat": 15.0, "lon": 88.5, "time_offset_hours": -24, "category": "Extremely Severe Cyclonic Storm", "intensity_knots": 95},
+            {"lat": 17.0, "lon": 88.8, "time_offset_hours": -12, "category": "Super Cyclonic Storm", "intensity_knots": 115},
+            # Current fix in northern Bay
+            {"lat": 19.0, "lon": 89.3, "time_offset_hours": 0, "category": "Super Cyclonic Storm", "intensity_knots": 115},
+            # Landfall Bangladesh
+            {"lat": 21.2, "lon": 89.8, "time_offset_hours": 12, "category": "Super Cyclonic Storm", "intensity_knots": 110},
+            {"lat": 23.0, "lon": 90.5, "time_offset_hours": 24, "category": "Severe Cyclonic Storm", "intensity_knots": 60},
+            {"lat": 25.5, "lon": 92.0, "time_offset_hours": 36, "category": "Depression", "intensity_knots": 25},
+        ]
+    },
+
+    # -------------------------------------------------------------
+    # 14. Super Cyclone Kyarr (October 2019) - Arabian Sea
+    # -------------------------------------------------------------
+    "ARB03-2019": {
+        "name": "Kyarr",
+        "basin": "Arabian Sea",
+        "category": "Super Cyclonic Storm",
+        "peak_knots": 130,
+        "peak_index": 4,
+        "points": [
+            {"lat": 15.0, "lon": 72.0, "time_offset_hours": -48, "category": "Deep Depression", "intensity_knots": 30},
+            {"lat": 15.8, "lon": 70.5, "time_offset_hours": -36, "category": "Cyclonic Storm", "intensity_knots": 45},
+            {"lat": 16.5, "lon": 69.0, "time_offset_hours": -24, "category": "Very Severe Cyclonic Storm", "intensity_knots": 80},
+            {"lat": 17.5, "lon": 67.2, "time_offset_hours": -12, "category": "Extremely Severe Cyclonic Storm", "intensity_knots": 110},
+            # Peak Super Cyclone in central Arabian Sea
+            {"lat": 18.5, "lon": 65.0, "time_offset_hours": 0, "category": "Super Cyclonic Storm", "intensity_knots": 130},
+            {"lat": 19.0, "lon": 63.5, "time_offset_hours": 12, "category": "Extremely Severe Cyclonic Storm", "intensity_knots": 110},
+            {"lat": 18.2, "lon": 61.8, "time_offset_hours": 24, "category": "Very Severe Cyclonic Storm", "intensity_knots": 80},
+            {"lat": 16.5, "lon": 59.5, "time_offset_hours": 36, "category": "Severe Cyclonic Storm", "intensity_knots": 50},
+            {"lat": 14.5, "lon": 56.5, "time_offset_hours": 48, "category": "Deep Depression", "intensity_knots": 30},
+        ]
+    },
+
+    # -------------------------------------------------------------
+    # 15. Cyclone Yaas (May 2021) - Bay of Bengal
+    # -------------------------------------------------------------
+    "BOB01-2021": {
+        "name": "Yaas",
+        "basin": "Bay of Bengal",
+        "category": "Very Severe Cyclonic Storm",
+        "peak_knots": 75,
+        "peak_index": 4,
+        "points": [
+            {"lat": 14.5, "lon": 89.5, "time_offset_hours": -48, "category": "Deep Depression", "intensity_knots": 30},
+            {"lat": 16.0, "lon": 89.0, "time_offset_hours": -36, "category": "Cyclonic Storm", "intensity_knots": 40},
+            {"lat": 17.5, "lon": 88.5, "time_offset_hours": -24, "category": "Severe Cyclonic Storm", "intensity_knots": 55},
+            {"lat": 19.0, "lon": 88.0, "time_offset_hours": -12, "category": "Very Severe Cyclonic Storm", "intensity_knots": 65},
+            # Current position off Balasore coast
+            {"lat": 20.4, "lon": 87.4, "time_offset_hours": 0, "category": "Very Severe Cyclonic Storm", "intensity_knots": 75},
+            # Landfall near Dhamra / Balasore
+            {"lat": 21.3, "lon": 87.0, "time_offset_hours": 12, "category": "Very Severe Cyclonic Storm", "intensity_knots": 70},
+            {"lat": 22.4, "lon": 86.2, "time_offset_hours": 24, "category": "Cyclonic Storm", "intensity_knots": 45},
+            {"lat": 23.5, "lon": 85.0, "time_offset_hours": 36, "category": "Depression", "intensity_knots": 25},
+        ]
+    },
+
+    # -------------------------------------------------------------
+    # 16. Cyclone Nivar (November 2020) - Bay of Bengal
+    # -------------------------------------------------------------
+    "BOB04-2020": {
+        "name": "Nivar",
+        "basin": "Bay of Bengal",
+        "category": "Very Severe Cyclonic Storm",
+        "peak_knots": 65,
+        "peak_index": 3,
+        "points": [
+            {"lat": 9.5, "lon": 84.5, "time_offset_hours": -36, "category": "Deep Depression", "intensity_knots": 30},
+            {"lat": 10.3, "lon": 83.2, "time_offset_hours": -24, "category": "Cyclonic Storm", "intensity_knots": 45},
+            {"lat": 11.2, "lon": 82.0, "time_offset_hours": -12, "category": "Severe Cyclonic Storm", "intensity_knots": 55},
+            # Approaching Puducherry coast
+            {"lat": 11.8, "lon": 80.8, "time_offset_hours": 0, "category": "Very Severe Cyclonic Storm", "intensity_knots": 65},
+            # Landfall near Puducherry / Marakkanam
+            {"lat": 12.1, "lon": 80.0, "time_offset_hours": 12, "category": "Very Severe Cyclonic Storm", "intensity_knots": 65},
+            {"lat": 12.8, "lon": 79.2, "time_offset_hours": 24, "category": "Cyclonic Storm", "intensity_knots": 40},
+            {"lat": 13.5, "lon": 78.5, "time_offset_hours": 36, "category": "Depression", "intensity_knots": 25},
+        ]
+    },
+
+    # -------------------------------------------------------------
+    # 17. Cyclone Ockhi (Nov-Dec 2017) - Arabian Sea
+    # -------------------------------------------------------------
+    "ARB05-2017": {
+        "name": "Ockhi",
+        "basin": "Arabian Sea",
+        "category": "Very Severe Cyclonic Storm",
+        "peak_knots": 85,
+        "peak_index": 4,
+        "points": [
+            {"lat": 6.5, "lon": 80.0, "time_offset_hours": -48, "category": "Deep Depression", "intensity_knots": 30},
+            {"lat": 7.5, "lon": 77.5, "time_offset_hours": -36, "category": "Cyclonic Storm", "intensity_knots": 45},
+            {"lat": 8.8, "lon": 74.5, "time_offset_hours": -24, "category": "Severe Cyclonic Storm", "intensity_knots": 60},
+            {"lat": 10.2, "lon": 72.5, "time_offset_hours": -12, "category": "Very Severe Cyclonic Storm", "intensity_knots": 85},
+            # Central Arabian Sea recurvature
+            {"lat": 12.5, "lon": 69.5, "time_offset_hours": 0, "category": "Very Severe Cyclonic Storm", "intensity_knots": 80},
+            {"lat": 15.0, "lon": 68.5, "time_offset_hours": 12, "category": "Very Severe Cyclonic Storm", "intensity_knots": 65},
+            {"lat": 18.0, "lon": 70.0, "time_offset_hours": 24, "category": "Cyclonic Storm", "intensity_knots": 45},
+            {"lat": 20.5, "lon": 72.0, "time_offset_hours": 36, "category": "Depression", "intensity_knots": 25},
+        ]
+    },
+
+    # -------------------------------------------------------------
+    # 18. Cyclone Nargis (April-May 2008) - Bay of Bengal
+    # -------------------------------------------------------------
+    "BOB01-2008": {
+        "name": "Nargis",
+        "basin": "Bay of Bengal",
+        "category": "Extremely Severe Cyclonic Storm",
+        "peak_knots": 90,
+        "peak_index": 5,
+        "points": [
+            {"lat": 11.8, "lon": 86.5, "time_offset_hours": -60, "category": "Deep Depression", "intensity_knots": 30},
+            {"lat": 13.0, "lon": 85.5, "time_offset_hours": -48, "category": "Cyclonic Storm", "intensity_knots": 45},
+            {"lat": 14.2, "lon": 85.2, "time_offset_hours": -36, "category": "Severe Cyclonic Storm", "intensity_knots": 60},
+            {"lat": 15.0, "lon": 86.5, "time_offset_hours": -24, "category": "Very Severe Cyclonic Storm", "intensity_knots": 75},
+            {"lat": 15.8, "lon": 89.0, "time_offset_hours": -12, "category": "Extremely Severe Cyclonic Storm", "intensity_knots": 90},
+            # Eastward track across central Bay
+            {"lat": 16.0, "lon": 92.0, "time_offset_hours": 0, "category": "Extremely Severe Cyclonic Storm", "intensity_knots": 90},
+            # Landfall in Ayeyarwady Delta
+            {"lat": 16.1, "lon": 94.5, "time_offset_hours": 12, "category": "Extremely Severe Cyclonic Storm", "intensity_knots": 90},
+            {"lat": 16.5, "lon": 97.0, "time_offset_hours": 24, "category": "Cyclonic Storm", "intensity_knots": 45},
+        ]
+    },
+
+    # -------------------------------------------------------------
+    # 19. Cyclone Aila (May 2009) - Bay of Bengal
+    # -------------------------------------------------------------
+    "BOB02-2009": {
+        "name": "Aila",
+        "basin": "Bay of Bengal",
+        "category": "Severe Cyclonic Storm",
+        "peak_knots": 60,
+        "peak_index": 2,
+        "points": [
+            {"lat": 16.5, "lon": 88.0, "time_offset_hours": -24, "category": "Deep Depression", "intensity_knots": 30},
+            {"lat": 18.5, "lon": 88.5, "time_offset_hours": -12, "category": "Cyclonic Storm", "intensity_knots": 40},
+            # Approaching Sagar Island / Sundarbans
+            {"lat": 20.5, "lon": 88.3, "time_offset_hours": 0, "category": "Severe Cyclonic Storm", "intensity_knots": 55},
+            # Landfall near Sagar Island / Kolkata
+            {"lat": 21.8, "lon": 88.1, "time_offset_hours": 12, "category": "Severe Cyclonic Storm", "intensity_knots": 60},
+            {"lat": 23.2, "lon": 88.4, "time_offset_hours": 24, "category": "Cyclonic Storm", "intensity_knots": 40},
+            {"lat": 25.5, "lon": 89.0, "time_offset_hours": 36, "category": "Depression", "intensity_knots": 25},
+        ]
     }
 }
 
@@ -297,16 +529,19 @@ def get_cyclone_trajectory(cyclone_id: str, cyclone_name: str, basin: str, categ
     otherwise synthesizes an authentic meteorologically curved trajectory
     exhibiting beta drift (Coriolis curvature and coastal deflection).
     """
-    # 1. Match by exact ID or case-insensitive name
+    # 1. Match by exact ID
     if cyclone_id in REAL_CYCLONE_TRACKS:
         data = REAL_CYCLONE_TRACKS[cyclone_id]
         return _format_track_response(data, cyclone_id)
     
+    # 2. Match by case-insensitive name or partial name
+    clean_target_name = cyclone_name.lower().replace("cyclone", "").strip()
     for k, v in REAL_CYCLONE_TRACKS.items():
-        if v["name"].lower() == cyclone_name.lower():
-            return _format_track_response(v, k)
+        v_clean = v["name"].lower().replace("cyclone", "").strip()
+        if v_clean in clean_target_name or clean_target_name in v_clean:
+            return _format_track_response(v, cyclone_id)
     
-    # 2. For other cyclones, compute authentic meteorological curve
+    # 3. For other cyclones, compute authentic meteorological curve
     return _generate_curved_meteorological_track(cyclone_id, cyclone_name, basin, category)
 
 
@@ -321,7 +556,7 @@ IMD_ABBR = {
 }
 
 def _format_track_response(data: Dict[str, Any], cyclone_id: str) -> Dict[str, Any]:
-    peak_idx = data["peak_index"]
+    peak_idx = min(data["peak_index"], len(data["points"]) - 1)
     peak_pt = data["points"][peak_idx]
 
     formatted_points = []
@@ -347,7 +582,7 @@ def _format_track_response(data: Dict[str, Any], cyclone_id: str) -> Dict[str, A
 
     return {
         "id": cyclone_id,
-        "name": f"{data['name']} (Simulation)",
+        "name": f"Cyclone {data['name']}" if not data['name'].lower().startswith("cyclone") else data['name'],
         "basin": data["basin"],
         "lat": peak_pt["lat"],
         "lon": peak_pt["lon"],
@@ -430,10 +665,11 @@ def _generate_curved_meteorological_track(
         })
 
     peak_pt = points[peak_step]
+    display_name = f"Cyclone {name}" if not name.lower().startswith("cyclone") else name
 
     return {
         "id": cyclone_id,
-        "name": f"{name} (Simulation)",
+        "name": display_name,
         "basin": basin,
         "lat": peak_pt["lat"],
         "lon": peak_pt["lon"],

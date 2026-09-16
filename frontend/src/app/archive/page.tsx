@@ -157,6 +157,18 @@ export default function ArchivePage() {
       return sortOrder === "newest" ? timeB - timeA : timeA - timeB;
     });
 
+  const handleSelectCyclone = (cyclone: CycloneHistory) => {
+    if (selectedCyclone?.id === cyclone.id) {
+      setSelectedCyclone(null);
+    } else {
+      setSelectedCyclone(cyclone);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("cyclonet_selected_cyclone_id", cyclone.id);
+        localStorage.setItem("cyclonet_selected_cyclone_name", cyclone.name);
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-10">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -435,9 +447,9 @@ export default function ArchivePage() {
                 return (
                   <div
                     key={cyclone.id}
-                    onClick={() => setSelectedCyclone(prev => prev?.id === cyclone.id ? null : cyclone)}
+                    onClick={() => handleSelectCyclone(cyclone)}
                     onDoubleClick={() => {
-                      window.location.href = `/?simulate=${encodeURIComponent(cyclone.id)}`;
+                      window.location.href = `/forecast?cyclone_id=${encodeURIComponent(cyclone.id)}`;
                     }}
                     className={`border rounded-xl p-5 transition-all group cursor-pointer relative select-none ${
                       isSelected
@@ -492,14 +504,27 @@ export default function ArchivePage() {
                       </div>
                     </div>
 
-                    {/* Clean card footer */}
-                    <div className="pt-3 mt-3 border-t border-white/10 flex items-center justify-between text-[11px]">
-                      <span className="font-mono text-zinc-400">
+                    {/* Card action buttons footer */}
+                    <div className="pt-3 mt-3 border-t border-white/10 flex items-center justify-between text-[11px] gap-2">
+                      <span className="font-mono text-zinc-400 text-[11px] truncate">
                         {cyclone.id}
                       </span>
-                      <span className={`transition-colors flex items-center gap-1 ${isSelected ? "text-emerald-400 font-semibold" : "text-zinc-500 group-hover:text-zinc-300"}`}>
-                        {isSelected ? "Double-click to simulate" : "Click to select"}
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => {
+                            if (typeof window !== "undefined") {
+                              localStorage.setItem("cyclonet_selected_cyclone_id", cyclone.id);
+                              localStorage.setItem("cyclonet_selected_cyclone_name", cyclone.name);
+                            }
+                            window.location.href = `/forecast?cyclone_id=${encodeURIComponent(cyclone.id)}`;
+                          }}
+                          className="px-2.5 py-1 rounded-md bg-primary/15 hover:bg-primary/25 text-primary text-[11px] font-semibold border border-primary/20 transition-colors cursor-pointer flex items-center gap-1"
+                          title="Open in Track Forecast"
+                        >
+                          <Activity className="w-3 h-3" />
+                          <span>Track Forecast</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -570,9 +595,9 @@ export default function ArchivePage() {
         </div>
       </div>
 
-      {/* Floating Simulation Action Dock (Option B: Single global button for selected cyclone) */}
+      {/* Floating Action Dock when cyclone is selected */}
       {selectedCyclone && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-xl bg-zinc-950/95 border border-emerald-500/30 backdrop-blur-2xl rounded-2xl shadow-2xl p-3 px-5 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in slide-in-from-bottom-5 duration-200">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-2xl bg-zinc-950/95 border border-emerald-500/40 backdrop-blur-2xl rounded-2xl shadow-2xl p-3 px-5 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in slide-in-from-bottom-5 duration-200">
           <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
             <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner">
               <Activity className="w-4 h-4 animate-pulse" />
@@ -592,15 +617,28 @@ export default function ArchivePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end shrink-0">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0">
+            <button
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  localStorage.setItem("cyclonet_selected_cyclone_id", selectedCyclone.id);
+                  localStorage.setItem("cyclonet_selected_cyclone_name", selectedCyclone.name);
+                }
+                window.location.href = `/forecast?cyclone_id=${encodeURIComponent(selectedCyclone.id)}`;
+              }}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-bold text-xs transition-all shadow-md shadow-primary/20 hover:scale-[1.02] cursor-pointer whitespace-nowrap"
+            >
+              <Activity className="w-3.5 h-3.5" />
+              <span>Track Forecast</span>
+            </button>
             <button
               onClick={() => {
                 window.location.href = `/?simulate=${encodeURIComponent(selectedCyclone.id)}`;
               }}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs transition-all shadow-md shadow-emerald-500/25 hover:scale-[1.02] cursor-pointer whitespace-nowrap"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs transition-all shadow-md shadow-emerald-500/25 hover:scale-[1.02] cursor-pointer whitespace-nowrap"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
-              <span>Simulate in Live Map</span>
+              <span>Simulate Map</span>
             </button>
             <button
               onClick={() => setSelectedCyclone(null)}
