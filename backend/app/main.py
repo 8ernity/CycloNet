@@ -33,6 +33,13 @@ app.add_middleware(
 
 app.include_router(router, prefix="/api")
 
+@app.on_event("startup")
+async def startup_event():
+    import asyncio
+    from app.services.live_ingestion import live_ingestion_service
+    # Spawn background periodic ingestion worker (every 15 mins)
+    asyncio.create_task(live_ingestion_service.start_periodic_worker(interval_seconds=900))
+
 @app.get("/")
 def root():
     return {"status": "ok", "message": "CycloNet API is running"}

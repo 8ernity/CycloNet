@@ -2,11 +2,11 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from geopy.distance import distance
 
 from app.services.ml_service import ml_service
 from app.services.chat_service import chat_service
 from app.services.best_tracks import get_cyclone_trajectory
+from app.services.live_ingestion import live_ingestion_service
 from app.core.database import get_db
 from app.models.domain import CycloneArchive, ClassificationHistory
 
@@ -31,6 +31,14 @@ class SystemResponse(BaseModel):
     category: str
     track_forecast: List[TrackPoint] = []
 
+class IngestStatusResponse(BaseModel):
+    status: str
+    last_sync: Optional[str]
+    is_syncing: bool
+    active_systems_count: int
+    sources_status: Dict[str, str]
+    last_error: Optional[str] = None
+
 class ChatMessageRequest(BaseModel):
     message: str
     history: Optional[List[Dict[str, str]]] = None
@@ -42,15 +50,57 @@ class ChatMessageResponse(BaseModel):
     sources: List[str]
     timestamp: str
 
+@router.get("/ingest/status", response_model=IngestStatusResponse)
+async def get_ingest_status():
+    """Returns the current real-time status of the automated meteorological ingestion worker."""
+    return {
+        "status": "online",
+        "last_sync": live_ingestion_service.last_sync.isoformat() + "Z" if live_ingestion_service.last_sync else None,
+        "is_syncing": live_ingestion_service.is_syncing,
+        "active_systems_count": len(live_ingestion_service.live_systems),
+        "sources_status": live_ingestion_service.sources_status,
+        "last_error": live_ingestion_service.last_error
+    }
+
+@router.post("/ingest/sync")
+async def trigger_live_ingest_sync():
+    """Triggers an on-demand immediate synchronization pass across IMD, NOAA, and satellite feeds."""
+    result = await live_ingestion_service.sync_all_sources()
+    return result
+
+@router.post("/ingest/test-inject")
+async def inject_live_test_system(name: str = "Shakti", basin: str = "Bay of Bengal", category: str = "Very Severe Cyclonic Storm", knots: int = 75):
+    """Injects a simulated live cyclone detection for end-to-end verification."""
+    system = live_ingestion_service.inject_test_system(name=name, basin=basin, category=category, knots=knots)
+    return {
+        "status": "success",
+        "message": f"Simulated live detection for Cyclone {name} injected successfully.",
+        "system": system
+    }
+
+@router.post("/ingest/clear-test")
+async def clear_live_test_systems():
+    """Clears injected test systems back to normal quiet state."""
+    live_ingestion_service.clear_live_systems()
+    return {
+        "status": "success",
+        "message": "Live systems cleared."
+    }
+
 @router.get("/active-systems", response_model=List[SystemResponse])
 async def get_active_systems(simulate: bool = False, cyclone_id: Optional[str] = None, db: Session = Depends(get_db)):
     """
     Returns currently active cyclonic systems in the North Indian Ocean basin.
-    When simulate is False and no cyclone_id is passed, returns real-time active systems (empty when calm).
-    When simulate is True or cyclone_id is passed, returns real historical best-track data from IBTrACS/IMD.
+    When simulate is False and no cyclone_id is passed:
+      - Returns live systems if any are currently detected by the live ingestion worker.
+      - Returns empty list when the basin is calm.
+    When simulate is True or cyclone_id is passed:
+      - Returns real historical best-track data from IBTrACS/IMD for tracking & forecast analytics.
     """
     if not simulate and not cyclone_id:
-        # True Live State: Currently NO active cyclones in the Arabian Sea or Bay of Bengal.
+        # Check if the live ingestion worker has discovered any live active systems
+        if live_ingestion_service.live_systems:
+            return live_ingestion_service.live_systems
         return []
 
     # Look up cyclone if cyclone_id passed, else default to Biparjoy

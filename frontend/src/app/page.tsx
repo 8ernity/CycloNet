@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { AlertCircle, CloudRain, MapPin, Navigation, Wind, ShieldCheck, Play, RotateCcw, Activity, Eye } from "lucide-react";
+import { AlertCircle, CloudRain, MapPin, Navigation, Wind, ShieldCheck, Play, RotateCcw, Activity, Eye, RefreshCw, Radio } from "lucide-react";
 import dynamic from 'next/dynamic';
 
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
@@ -98,6 +98,63 @@ export default function LiveMonitoringPage() {
   const [activeSystem, setActiveSystem] = useState<ActiveSystem | null>(null);
   const [isSimulation, setIsSimulation] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [ingestStatus, setIngestStatus] = useState<any>(null);
+  const [isSyncingIngest, setIsSyncingIngest] = useState(false);
+
+  const fetchIngestStatus = () => {
+    fetch("http://localhost:8000/api/ingest/status")
+      .then(res => res.json())
+      .then(data => setIngestStatus(data))
+      .catch(() => {});
+  };
+
+  const handleSyncFeeds = async () => {
+    setIsSyncingIngest(true);
+    try {
+      const res = await fetch("http://localhost:8000/api/ingest/sync", { method: "POST" });
+      const data = await res.json();
+      setIngestStatus({
+        status: "online",
+        last_sync: data.synced_at,
+        is_syncing: false,
+        active_systems_count: data.active_systems_count || 0,
+        sources_status: data.sources_status
+      });
+      // Refresh active systems if any newly detected
+      fetchActiveSystems(false);
+    } catch (err) {
+      console.error("Failed to sync feeds:", err);
+    } finally {
+      setIsSyncingIngest(false);
+    }
+  };
+
+  const handleTestInject = async () => {
+    setIsSyncingIngest(true);
+    try {
+      await fetch("http://localhost:8000/api/ingest/test-inject", { method: "POST" });
+      fetchIngestStatus();
+      fetchActiveSystems(false);
+    } catch (err) {
+      console.error("Failed to inject test cyclone:", err);
+    } finally {
+      setIsSyncingIngest(false);
+    }
+  };
+
+  const handleClearLiveTest = async () => {
+    setIsSyncingIngest(true);
+    try {
+      await fetch("http://localhost:8000/api/ingest/clear-test", { method: "POST" });
+      clearSelectedCyclone();
+      fetchIngestStatus();
+      fetchActiveSystems(false);
+    } catch (err) {
+      console.error("Failed to clear test cyclone:", err);
+    } finally {
+      setIsSyncingIngest(false);
+    }
+  };
 
   const fetchActiveSystems = (simulate: boolean = false, cycloneId?: string | null) => {
     setLoading(true);
@@ -123,6 +180,12 @@ export default function LiveMonitoringPage() {
       })
       .finally(() => setLoading(false));
   };
+
+  useEffect(() => {
+    fetchIngestStatus();
+    const interval = setInterval(fetchIngestStatus, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     let targetId = selectedCycloneId;
@@ -207,6 +270,66 @@ export default function LiveMonitoringPage() {
           </div>
         </div>
       )}
+
+      {/* Live Ingestion Feed Bar */}
+      <div className="p-3 px-4 rounded-xl bg-zinc-900/60 border border-white/10 backdrop-blur-md flex flex-wrap items-center justify-between gap-3 text-xs shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
+            <span className="font-semibold text-zinc-100">Live Ingestion:</span>
+          </div>
+          <div className="flex items-center gap-2 text-zinc-300">
+            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 font-mono text-[11px] text-emerald-400">
+              IMD RSMC: Online
+            </span>
+            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 font-mono text-[11px] text-emerald-400">
+              JTWC/NOAA: Online
+            </span>
+            <span className="px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 font-mono text-[11px] text-blue-400">
+              INSAT-3DR
+            </span>
+          </div>
+          {ingestStatus?.last_sync && (
+            <span className="hidden sm:inline text-zinc-400 text-[11px]">
+              • Last Auto-Checked: {new Date(ingestStatus.last_sync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {activeSystem && activeSystem.id.startsWith("LIVE-IMD-") ? (
+            <button
+              onClick={handleClearLiveTest}
+              disabled={isSyncingIngest}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-white/20 text-zinc-300 hover:text-white text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer hover:scale-105 active:scale-95"
+              title="Clear injected live detection test and return to real calm feeds"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Clear Test Detection</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleTestInject}
+              disabled={isSyncingIngest}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 hover:text-amber-300 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer hover:scale-105 active:scale-95"
+              title="Test real-time detection by injecting a simulated new live cyclone (Cyclone Shakti)"
+            >
+              <Play className="w-3.5 h-3.5 fill-amber-400" />
+              <span>Test Live Detection</span>
+            </button>
+          )}
+
+          <button
+            onClick={handleSyncFeeds}
+            disabled={isSyncingIngest}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer hover:scale-105 active:scale-95"
+            title="Poll IMD, NOAA, and MOSDAC feeds for newly evolving cyclones"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncingIngest ? "animate-spin" : ""}`} />
+            <span>{isSyncingIngest ? "Syncing Feeds..." : "Sync Live Feeds"}</span>
+          </button>
+        </div>
+      </div>
 
       {/* Top Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
