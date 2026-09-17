@@ -7,7 +7,8 @@ import {
   Polyline, 
   Polygon, 
   Tooltip, 
-  useMap 
+  useMap,
+  ZoomControl 
 } from 'react-leaflet';
 import { Layers, Tag, ShieldAlert, Compass, Eye } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
@@ -336,12 +337,52 @@ export default function MapComponent({ activeSystem }: MapProps) {
         </div>
       )}
 
+      <style>{`
+        .leaflet-top.leaflet-right {
+          top: 60px !important;
+          right: 16px !important;
+        }
+        .leaflet-control-zoom {
+          margin: 0 !important;
+          border: 1px solid rgba(255, 255, 255, 0.18) !important;
+          background: rgba(9, 9, 11, 0.88) !important;
+          backdrop-filter: blur(12px) !important;
+          -webkit-backdrop-filter: blur(12px) !important;
+          border-radius: 12px !important;
+          overflow: hidden !important;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+        }
+        .leaflet-control-zoom a {
+          background: transparent !important;
+          color: #f4f4f5 !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+          width: 38px !important;
+          height: 34px !important;
+          line-height: 34px !important;
+          font-size: 16px !important;
+          font-weight: 600 !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          transition: all 0.15s ease !important;
+        }
+        .leaflet-control-zoom a:last-child {
+          border-bottom: none !important;
+        }
+        .leaflet-control-zoom a:hover {
+          background: rgba(255, 255, 255, 0.18) !important;
+          color: #ffffff !important;
+        }
+      `}</style>
+
       <MapContainer 
         center={center} 
         zoom={zoomLevel} 
+        zoomControl={false}
         style={{ height: '100%', width: '100%' }}
         className={`z-0 ${!showLabels ? "hide-imd-labels" : ""}`}
       >
+        <ZoomControl position="topright" />
         <ChangeView center={center} zoom={zoomLevel} />
         <TileLayer
           key={currentStyle}

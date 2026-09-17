@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Activity, UploadCloud, History, FileText, Settings, Wind } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { CycloneLogo } from "@/components/CycloneLogo";
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -25,14 +26,14 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 hidden lg:flex flex-col h-screen fixed left-0 top-0 sidebar-mesh border-r border-border">
-      <div className="p-6 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-slate-900/10 dark:bg-white/10 border border-slate-900/15 dark:border-white/10 flex items-center justify-center shadow-xs">
-          <Wind className="w-5 h-5 text-slate-800 dark:text-white" />
+      <Link href="/" className="p-6 flex items-center gap-3 group">
+        <div className="relative flex items-center justify-center group-hover:scale-105 transition-transform">
+          <CycloneLogo size={32} />
         </div>
-        <span className="font-heading font-bold text-xl gradient-text tracking-tight">
+        <span className="font-heading font-extrabold text-xl bg-gradient-to-r from-blue-400 via-sky-300 to-indigo-400 bg-clip-text text-transparent tracking-tight">
           CycloNet
         </span>
-      </div>
+      </Link>
 
       <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto scrollbar-hide">
         {navItems.map((item) => {

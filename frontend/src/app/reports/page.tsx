@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { FileText, Bell, AlertOctagon, AlertTriangle, Info, Download, Filter } from "lucide-react";
+import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 
 interface ActiveSystem {
   id: string;
@@ -13,6 +14,7 @@ interface ActiveSystem {
 }
 
 export default function ReportsPage() {
+  const { selectedCycloneId } = useActiveCyclone();
   const [system, setSystem] = useState<ActiveSystem | null>(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
@@ -24,12 +26,19 @@ export default function ReportsPage() {
 
   useEffect(() => {
     const fetchSystem = async () => {
+      setLoading(true);
       try {
-        const res = await fetch("http://localhost:8000/api/active-systems");
+        let url = "http://localhost:8000/api/active-systems";
+        if (selectedCycloneId) {
+          url += `?simulate=true&cyclone_id=${encodeURIComponent(selectedCycloneId)}`;
+        }
+        const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
           if (data && data.length > 0) {
             setSystem(data[0]);
+          } else {
+            setSystem(null);
           }
         }
       } catch (err) {
@@ -39,7 +48,7 @@ export default function ReportsPage() {
       }
     };
     fetchSystem();
-  }, []);
+  }, [selectedCycloneId]);
 
   const getAlertLevel = (knots: number) => {
     if (knots >= 120) return { level: "RED", title: "Take Action", desc: "Super Cyclonic Storm - High risk of severe damage. Immediate evacuation required in coastal areas.", color: "text-red-500", bg: "bg-red-500/10", border: "border-red-500/30", icon: <AlertOctagon className="w-8 h-8 text-red-500" /> };

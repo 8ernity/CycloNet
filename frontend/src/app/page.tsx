@@ -3,6 +3,8 @@ import React, { useState, useEffect } from "react";
 import { AlertCircle, CloudRain, MapPin, Navigation, Wind, ShieldCheck, Play, RotateCcw, Activity, Eye } from "lucide-react";
 import dynamic from 'next/dynamic';
 
+import { useActiveCyclone } from "@/hooks/useActiveCyclone";
+
 const MapComponent = dynamic(() => import('../components/MapComponent'), { 
   ssr: false,
   loading: () => <div className="w-full h-full bg-zinc-950 flex items-center justify-center text-muted-foreground animate-pulse">Loading Live Map...</div>
@@ -92,6 +94,7 @@ const getStormDetails = (sys: ActiveSystem | null) => {
 };
 
 export default function LiveMonitoringPage() {
+  const { selectedCycloneId, selectCyclone, clearSelectedCyclone } = useActiveCyclone();
   const [activeSystem, setActiveSystem] = useState<ActiveSystem | null>(null);
   const [isSimulation, setIsSimulation] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -99,8 +102,9 @@ export default function LiveMonitoringPage() {
   const fetchActiveSystems = (simulate: boolean = false, cycloneId?: string | null) => {
     setLoading(true);
     let url = "http://localhost:8000/api/active-systems";
-    if (simulate || cycloneId) {
-      url += `?simulate=true${cycloneId ? `&cyclone_id=${encodeURIComponent(cycloneId)}` : ""}`;
+    const targetId = cycloneId || (simulate ? selectedCycloneId : null);
+    if (simulate || targetId) {
+      url += `?simulate=true${targetId ? `&cyclone_id=${encodeURIComponent(targetId)}` : ""}`;
     }
     fetch(url)
       .then(res => res.json())
@@ -121,16 +125,21 @@ export default function LiveMonitoringPage() {
   };
 
   useEffect(() => {
+    let targetId = selectedCycloneId;
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const simParam = params.get("simulate");
-      if (simParam) {
-        fetchActiveSystems(true, simParam === "true" ? null : simParam);
-        return;
+      if (simParam && simParam !== "true") {
+        targetId = simParam;
+        selectCyclone(simParam);
       }
     }
-    fetchActiveSystems(false);
-  }, []);
+    if (targetId) {
+      fetchActiveSystems(true, targetId);
+    } else {
+      fetchActiveSystems(false);
+    }
+  }, [selectedCycloneId]);
 
   const stormMeta = getStormDetails(activeSystem);
 
@@ -166,26 +175,36 @@ export default function LiveMonitoringPage() {
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       
-      {/* Simulation Banner (If user explicitly triggered simulation mode) */}
-      {isSimulation && (
-        <div className="p-3.5 px-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between text-xs text-amber-200 shadow-md">
+      {/* Simulation / Selected Cyclone Banner */}
+      {activeSystem && (
+        <div className="p-3.5 px-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs text-emerald-200 shadow-md">
           <div className="flex items-center gap-2.5">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-            <span className="font-semibold text-amber-300 uppercase tracking-wider text-[11px]">Simulation Mode Active:</span>
-            <span>Displaying <strong>{activeSystem?.name || "Historical Cyclone"}</strong> best-track replay & forecast cone.</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            <span className="font-semibold text-emerald-300 uppercase tracking-wider text-[11px]">Active Focus:</span>
+            <span>Displaying <strong>Cyclone {activeSystem.name}</strong> ({activeSystem.id}) • Synced across all tabs.</span>
           </div>
-          <button
-            onClick={() => {
-              if (typeof window !== "undefined") {
-                window.history.replaceState({}, '', '/');
-              }
-              fetchActiveSystems(false);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-200 transition-colors font-medium text-xs cursor-pointer"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Return to True Live State
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href={`/forecast?cyclone_id=${encodeURIComponent(activeSystem.id)}`}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-200 transition-colors font-medium text-xs cursor-pointer"
+            >
+              <Activity className="w-3.5 h-3.5" />
+              Track Forecast
+            </a>
+            <button
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  window.history.replaceState({}, '', '/');
+                }
+                clearSelectedCyclone();
+                fetchActiveSystems(false);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-zinc-300 transition-colors font-medium text-xs cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Reset to Live
+            </button>
+          </div>
         </div>
       )}
 
@@ -338,24 +357,54 @@ export default function LiveMonitoringPage() {
             </h3>
             <div className="space-y-4">
               {activeSystem ? (
-                [
-                  { time: "14:30 IST", text: "System moved north-northeastwards with speed of 8 kmph during past 6 hours.", type: "info" },
-                  { time: "11:00 IST", text: "Storm intensity upgraded to Extremely Severe. Evacuation recommended for coastal Kutch.", type: "alert" },
-                  { time: "08:15 IST", text: "INSAT-3D imagery indicates well-defined eye structure.", type: "update" },
-                ].map((bulletin, i) => (
-                  <div key={i} className="flex gap-3 relative">
-                    <div className="mt-1">
-                      {bulletin.type === 'alert' ? 
-                        <AlertCircle className="w-4 h-4 text-destructive" /> : 
-                        <CloudRain className="w-4 h-4 text-zinc-300" />
-                      }
+                (() => {
+                  const kmh = Math.round((activeSystem.intensity_knots || 0) * 1.852);
+                  const isSuperOrExtreme = (activeSystem.intensity_knots || 0) >= 90;
+                  const isSevere = (activeSystem.intensity_knots || 0) >= 48;
+                  const basinName = activeSystem.basin || "North Indian Ocean";
+                  const isArabian = basinName.toLowerCase().includes("arabian");
+
+                  const dynamicBulletins = [
+                    { 
+                      time: "14:30 IST", 
+                      text: `${activeSystem.name} centered near ${activeSystem.lat?.toFixed(1) || "15.0"}°N, ${activeSystem.lon?.toFixed(1) || "80.0"}°E over the ${basinName}. Sustained core winds: ${activeSystem.intensity_knots || 45} KT (${kmh} km/h).`, 
+                      type: "info" 
+                    },
+                    { 
+                      time: "11:00 IST", 
+                      text: isSuperOrExtreme 
+                        ? `System classified as ${activeSystem.category || "Super Cyclone"}. Severe storm surge and coastal emergency alerts active.`
+                        : isSevere
+                          ? `System classified as ${activeSystem.category || "Severe Cyclonic Storm"}. Squally weather and heavy rainfall warnings in effect.`
+                          : `System classified as ${activeSystem.category || "Cyclonic Storm"}. Moderate convective bands active over the ${isArabian ? 'Arabian Sea' : 'Bay of Bengal'}.`, 
+                      type: (isSuperOrExtreme || isSevere ? "alert" : "info") 
+                    },
+                    { 
+                      time: "08:15 IST", 
+                      text: isSuperOrExtreme
+                        ? "INSAT-3D / Dvorak analysis indicates distinct eye structure with intense central dense overcast (CDO)."
+                        : isSevere
+                          ? "INSAT-3D IR imagery indicates tightly wrapped curved convective banding into the circulation center."
+                          : "INSAT-3D multispectral imagery indicates moderate cloud cluster with sheared convective banding.", 
+                      type: "update" 
+                    },
+                  ];
+
+                  return dynamicBulletins.map((bulletin, i) => (
+                    <div key={i} className="flex gap-3 relative">
+                      <div className="mt-1">
+                        {bulletin.type === 'alert' ? 
+                          <AlertCircle className="w-4 h-4 text-destructive" /> : 
+                          <CloudRain className="w-4 h-4 text-zinc-300" />
+                        }
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground font-medium">{bulletin.time}</span>
+                        <p className="text-sm text-foreground/90 mt-0.5">{bulletin.text}</p>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground font-medium">{bulletin.time}</span>
-                      <p className="text-sm text-foreground/90 mt-0.5">{bulletin.text}</p>
-                    </div>
-                  </div>
-                ))
+                  ));
+                })()
               ) : (
                 [
                   { time: "Current", text: "No cyclogenesis likely over the North Indian Ocean during the next 120 hours.", type: "calm" },
@@ -374,8 +423,11 @@ export default function LiveMonitoringPage() {
                 ))
               )}
             </div>
-            <a href="/reports" className="w-full mt-6 py-2 rounded-lg bg-white/[0.05] hover:bg-white/10 border border-white/10 text-sm font-medium transition-colors text-zinc-200 block text-center">
-              View Complete Meteorological Bulletins
+            <a 
+              href={activeSystem ? `/forecast?cyclone_id=${encodeURIComponent(activeSystem.id)}` : "/forecast"} 
+              className="w-full mt-6 py-2.5 rounded-lg bg-white/[0.05] hover:bg-white/10 border border-white/10 text-sm font-semibold transition-all text-zinc-200 hover:text-white flex items-center justify-center gap-2 text-center cursor-pointer shadow-xs hover:scale-[1.005]"
+            >
+              <span>View complete analytics & forecast</span>
             </a>
           </div>
 

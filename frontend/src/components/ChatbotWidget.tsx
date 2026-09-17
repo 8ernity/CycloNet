@@ -3,23 +3,26 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Bot, 
   X, 
   Send, 
   Minimize2, 
   Maximize2, 
   RotateCcw, 
   Sparkles, 
-  Wind, 
-  ShieldAlert, 
+  Cloud,
+  Satellite,
+  BarChart3,
+  ShieldCheck,
+  ChevronRight,
+  Mic,
+  MicOff,
+  MoreHorizontal,
   Copy, 
   Check, 
-  ChevronRight,
-  ExternalLink,
-  Radar,
   GripHorizontal
 } from "lucide-react";
 import { useLiquidGlass } from "@/hooks/useLiquidGlass";
+import { CycloneLogo } from "@/components/CycloneLogo";
 
 interface Message {
   id: string;
@@ -30,13 +33,41 @@ interface Message {
   timestamp: string;
 }
 
-const QUICK_PROMPTS = [
-  { label: "🌪️ Explain Dvorak Scale", query: "How does the Dvorak technique estimate cyclone intensity from satellite imagery?" },
-  { label: "📊 IMD vs Saffir-Simpson", query: "What is the difference between the IMD cyclone classification and the Saffir-Simpson Hurricane scale?" },
-  { label: "⚠️ Disaster Safety Tips", query: "What safety precautions and emergency steps should coastal residents take during a cyclone warning?" },
-  { label: "📜 Cyclone Amphan Stats", query: "Tell me about Super Cyclone Amphan: its peak wind speed, pressure, and landfall." },
-  { label: "🛰️ How CycloNet Works", query: "How does CycloNet's deep learning model classify satellite images and reject non-cyclone frames?" }
+const FEATURE_CARDS = [
+  {
+    title: "Tropical Cyclogenesis",
+    desc: "Track and understand cyclone formation",
+    icon: Cloud,
+    color: "blue",
+    iconBg: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+    query: "Explain tropical cyclogenesis: how warm sea surface temperatures, low vertical wind shear, and Coriolis force trigger cyclone formation in the North Indian Ocean."
+  },
+  {
+    title: "Dvorak T-number",
+    desc: "Estimate cyclone intensity",
+    icon: Satellite,
+    color: "rose",
+    iconBg: "bg-rose-500/20 text-rose-400 border-rose-500/30",
+    query: "How does the Dvorak technique estimate tropical cyclone intensity and T-numbers from INSAT-3D satellite cloud patterns?"
+  },
+  {
+    title: "IMD & Saffir-Simpson",
+    desc: "Compare and interpret scales",
+    icon: BarChart3,
+    color: "purple",
+    iconBg: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+    query: "Compare the IMD 3-minute sustained wind classification (Depression to Super Cyclone) with the Saffir-Simpson Hurricane Wind Scale."
+  },
+  {
+    title: "Disaster Safety",
+    desc: "Stay informed and prepared",
+    icon: ShieldCheck,
+    color: "emerald",
+    iconBg: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    query: "What are the essential disaster safety protocols, coastal evacuation guidelines, and emergency precautions during an active cyclone warning?"
+  }
 ];
+
 
 export function ChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -45,6 +76,61 @@ export function ChatbotWidget() {
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [screenContext, setScreenContext] = useState<any>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  const toggleVoiceInput = () => {
+    if (typeof window === "undefined") return;
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("Voice input is not supported in this browser. Please use Chrome or Edge.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = "en-US";
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0].transcript)
+          .join("");
+        setInput(transcript);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn("Speech recognition error:", event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.warn("Error starting speech recognition:", err);
+      setIsListening(false);
+    }
+  };
 
   // Sync live UI telemetry from window.__cyclonet_current_context
   useEffect(() => {
@@ -58,26 +144,17 @@ export function ChatbotWidget() {
     return () => clearInterval(interval);
   }, [isOpen]);
 
-  // Dynamic context-aware suggestion prompts
-  const activePrompts = screenContext?.activeSystem ? [
-    { label: `🌪️ Tell me about this cyclone`, query: "Tell me about this cyclone." },
-    { label: `📍 Where is it heading?`, query: `Where is ${screenContext.activeSystem.name} heading and when will it make landfall?` },
-    { label: `💨 Analyze Wind & Category`, query: `Analyze the current intensity, category, and sustained winds of ${screenContext.activeSystem.name}.` },
-    { label: `🌊 Storm Surge & Coastal Threat`, query: `What coastal impacts and storm surge are expected from ${screenContext.activeSystem.name}?` },
-    { label: `📐 Satellite Dvorak Analysis`, query: `How is the Dvorak technique applied to estimate the intensity of ${screenContext.activeSystem.name}?` }
-  ] : QUICK_PROMPTS;
-
   // Liquid Glass Background hook from nebula-map
   const glassRef = useLiquidGlass<HTMLDivElement>(isOpen);
 
   // Draggable position & resizable size state
   const [hasMounted, setHasMounted] = useState(false);
   const [pos, setPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [size, setSize] = useState<{ width: number; height: number }>({ width: 500, height: 700 });
+  const [size, setSize] = useState<{ width: number; height: number }>({ width: 520, height: 740 });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [resizeStart, setResizeStart] = useState({ clientX: 0, clientY: 0, width: 500, height: 700 });
+  const [resizeStart, setResizeStart] = useState({ clientX: 0, clientY: 0, width: 520, height: 740 });
 
   const SAFE_MARGIN = 16;
 
@@ -85,23 +162,21 @@ export function ChatbotWidget() {
   useEffect(() => {
     setHasMounted(true);
     if (typeof window !== "undefined") {
-      // Restore or initialize size (larger default: 500x700)
-      let initialWidth = Math.min(500, window.innerWidth - 32);
-      let initialHeight = Math.min(700, window.innerHeight - 80);
-      const savedSize = localStorage.getItem("cyclonet_chat_size_v3");
+      let initialWidth = Math.min(520, window.innerWidth - 32);
+      let initialHeight = Math.min(740, window.innerHeight - 60);
+      const savedSize = localStorage.getItem("cyclonet_chat_size_v4");
       if (savedSize) {
         try {
           const parsed = JSON.parse(savedSize);
           if (typeof parsed.width === "number" && typeof parsed.height === "number") {
             initialWidth = Math.max(380, Math.min(parsed.width, window.innerWidth - 32));
-            initialHeight = Math.max(340, Math.min(parsed.height, window.innerHeight - 80));
+            initialHeight = Math.max(400, Math.min(parsed.height, window.innerHeight - 60));
           }
         } catch (_) {}
       }
       setSize({ width: initialWidth, height: initialHeight });
 
-      // Restore or initialize position
-      const savedPos = localStorage.getItem("cyclonet_chat_pos_v3");
+      const savedPos = localStorage.getItem("cyclonet_chat_pos_v4");
       if (savedPos) {
         try {
           const parsed = JSON.parse(savedPos);
@@ -116,28 +191,26 @@ export function ChatbotWidget() {
           }
         } catch (_) {}
       }
-      // Default to right side above dock
       setPos({
         x: Math.max(SAFE_MARGIN, window.innerWidth - initialWidth - 24),
-        y: Math.max(SAFE_MARGIN, window.innerHeight - initialHeight - 80)
+        y: Math.max(SAFE_MARGIN, window.innerHeight - initialHeight - 60)
       });
     }
   }, []);
 
-  // Persist position and size when updated
   useEffect(() => {
     if (hasMounted && typeof window !== "undefined") {
-      localStorage.setItem("cyclonet_chat_pos_v3", JSON.stringify(pos));
+      localStorage.setItem("cyclonet_chat_pos_v4", JSON.stringify(pos));
     }
   }, [pos, hasMounted]);
 
   useEffect(() => {
     if (hasMounted && typeof window !== "undefined") {
-      localStorage.setItem("cyclonet_chat_size_v3", JSON.stringify(size));
+      localStorage.setItem("cyclonet_chat_size_v4", JSON.stringify(size));
     }
   }, [size, hasMounted]);
 
-  // Listen for external open trigger (e.g. Header Ask AI button)
+  // Listen for external open trigger
   useEffect(() => {
     const handleExternalOpen = () => {
       setIsOpen(true);
@@ -180,7 +253,6 @@ export function ChatbotWidget() {
     });
   };
 
-  // Resizing start listener
   const handleResizeStart = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -215,7 +287,7 @@ export function ChatbotWidget() {
         const maxAllowedH = window.innerHeight - pos.y - SAFE_MARGIN;
 
         const newW = Math.max(380, Math.min(resizeStart.width + deltaX, maxAllowedW));
-        const newH = Math.max(340, Math.min(resizeStart.height + deltaY, maxAllowedH));
+        const newH = Math.max(400, Math.min(resizeStart.height + deltaY, maxAllowedH));
         setSize({ width: newW, height: newH });
       }
     };
@@ -237,7 +309,7 @@ export function ChatbotWidget() {
         const maxAllowedH = window.innerHeight - pos.y - SAFE_MARGIN;
 
         const newW = Math.max(380, Math.min(resizeStart.width + deltaX, maxAllowedW));
-        const newH = Math.max(340, Math.min(resizeStart.height + deltaY, maxAllowedH));
+        const newH = Math.max(400, Math.min(resizeStart.height + deltaY, maxAllowedH));
         setSize({ width: newW, height: newH });
       }
     };
@@ -260,26 +332,15 @@ export function ChatbotWidget() {
     };
   }, [isDragging, isResizing, dragOffset, resizeStart, size.width, size.height, isMinimized, pos.x, pos.y]);
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome-1",
-      role: "assistant",
-      content: "### 🌪️ Welcome to CycloNet AI Assistant!\n\nI am your specialized meteorological intelligence companion. Powered by **Google Gemini 3.6 Flash** and CycloNet's meteorological knowledge base, I can help you with:\n\n- **Tropical cyclogenesis** and atmospheric physics (SST, shear, Coriolis)\n- **Dvorak T-number** satellite intensity analysis\n- **IMD & Saffir-Simpson** scale interpretations\n- **Disaster safety protocols** and storm surge dynamics\n- **Historical storm telemetry** (Amphan, Biparjoy, Tauktae)\n\nAsk any question or select a quick topic below to get started!",
-      category: "welcome",
-      sources: ["CycloNet Meteorological Knowledge Base", "IMD & WMO Standards"],
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-  ]);
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
-    if (isOpen && !isMinimized) {
+    if (isOpen && !isMinimized && messages.length > 0) {
       scrollToBottom();
     }
   }, [messages, isOpen, isMinimized, loading]);
@@ -301,13 +362,11 @@ export function ChatbotWidget() {
 
     try {
       const historyPayload = messages
-        .filter(m => m.id !== "welcome-1")
         .slice(-6)
         .map(m => ({ role: m.role, content: m.content }));
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
       
-      // Capture live interface context at time of message send
       let uiContext: any = null;
       if (typeof window !== "undefined") {
         const stored = (window as any).__cyclonet_current_context;
@@ -365,14 +424,8 @@ export function ChatbotWidget() {
   };
 
   const handleClear = () => {
-    setMessages([
-      {
-        id: Date.now().toString(),
-        role: "assistant",
-        content: "Conversation history cleared. How else can I assist your meteorological analysis today?",
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
-    ]);
+    setMessages([]);
+    setIsMenuOpen(false);
   };
 
   const formatContent = (text: string, isUser: boolean = false) => {
@@ -473,82 +526,77 @@ export function ChatbotWidget() {
               left: `${pos.x}px`,
               top: `${pos.y}px`,
               width: `${size.width}px`,
-              height: isMinimized ? "56px" : `${size.height}px`,
+              height: isMinimized ? "64px" : `${size.height}px`,
               zIndex: 9999,
               touchAction: (isDragging || isResizing) ? "none" : "auto",
               cursor: isDragging ? "grabbing" : isResizing ? "nwse-resize" : "default",
               userSelect: (isDragging || isResizing) ? "none" : "auto",
               boxShadow: (isDragging || isResizing)
-                ? "0 30px 70px rgba(0,0,0,0.6), 0 0 30px rgba(255,255,255,0.12)" 
+                ? "0 30px 70px rgba(0,0,0,0.7), 0 0 30px rgba(59,130,246,0.2)" 
                 : undefined
             }}
-            className="liquid-glass-panel flex flex-col rounded-2xl overflow-hidden transition-[box-shadow,height] duration-200 relative"
+            className="liquid-glass-panel flex flex-col rounded-[26px] overflow-hidden transition-[box-shadow,height] duration-200 relative border border-white/15"
           >
-            {/* Drag Handle & Header */}
+            {/* Header: CycloNet AI • Gemini 3.6 • Meteorological Intelligence */}
             <div 
               onMouseDown={handleDragStart}
               onTouchStart={handleDragStart}
-              className="chat-drag-handle p-3.5 px-4 bg-zinc-950/40 border-b border-white/10 flex items-center justify-between relative select-none"
+              className="chat-drag-handle p-3.5 px-5 bg-zinc-950/50 border-b border-white/10 flex items-center justify-between relative select-none shrink-0"
               title="Click and drag to move chat window"
             >
-              <div className="flex items-center gap-2.5 pointer-events-none select-none">
+              <div className="flex items-center gap-3 pointer-events-none select-none">
                 <div className="relative">
-                  <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-white shadow-inner">
-                    <Bot className="w-4 h-4" />
-                  </div>
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-background animate-pulse" />
+                  <CycloneLogo size={32} />
                 </div>
                 <div>
-                  <div className="flex items-center gap-1.5">
-                    <h3 className="font-heading font-semibold text-xs text-zinc-100 tracking-tight">CycloNet AI</h3>
-                    <span className="px-1.5 py-0.2 text-[8.5px] font-mono rounded bg-white/10 text-zinc-300 border border-white/15 font-medium">
-                      Gemini 3.6
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                    {screenContext?.activeSystem ? (
-                      <>
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
-                        <span className="text-amber-300 font-medium truncate max-w-[200px]">
-                          Active: {screenContext.activeSystem.name}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                        <span>Meteorological Intelligence</span>
-                      </>
-                    )}
+                  <h3 className="font-heading font-bold text-sm text-white tracking-tight">CycloNet AI</h3>
+                  <p className="text-[11px] text-zinc-400">
+                    Meteorological Intelligence
                   </p>
                 </div>
               </div>
 
               {/* Drag Grip Indicator */}
               <div className="hidden sm:flex items-center gap-0.5 text-zinc-500 hover:text-zinc-300 transition-colors pointer-events-none">
-                <GripHorizontal className="w-4 h-4" />
+                <GripHorizontal className="w-4 h-4 opacity-60" />
               </div>
 
               {/* Controls */}
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleClear();
-                  }}
-                  title="Clear Conversation"
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
+              <div className="flex items-center gap-1.5 relative">
+                <div className="relative">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsMenuOpen(!isMenuOpen);
+                    }}
+                    title="More Options"
+                    className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+
+                  {isMenuOpen && (
+                    <div className="absolute right-0 top-full mt-1.5 w-44 bg-zinc-950/95 backdrop-blur-xl border border-white/15 rounded-xl shadow-2xl overflow-hidden py-1 z-50 text-xs">
+                      <button
+                        onClick={handleClear}
+                        className="w-full text-left px-3.5 py-2 text-zinc-300 hover:bg-white/10 flex items-center gap-2 cursor-pointer transition-colors"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>New Conversation</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsMinimized(!isMinimized);
                   }}
                   title={isMinimized ? "Maximize" : "Minimize"}
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors"
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                 >
-                  {isMinimized ? <Maximize2 className="w-3.5 h-3.5" /> : <Minimize2 className="w-3.5 h-3.5" />}
+                  {isMinimized ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
                 </button>
                 <button
                   onClick={(e) => {
@@ -556,141 +604,213 @@ export function ChatbotWidget() {
                     setIsOpen(false);
                   }}
                   title="Close Assistant"
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-rose-400 hover:bg-rose-500/20 transition-colors"
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-500/20 transition-colors cursor-pointer"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
             {/* Body Content (Hidden when minimized) */}
             {!isMinimized && (
-              <>
-                {/* Message Scroll Area */}
-                <div className="flex-1 p-4 overflow-y-auto space-y-4 scrollbar-thin bg-transparent">
-                  {messages.map((msg) => (
-                    <motion.div
-                      key={msg.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
-                    >
-                      <div
-                        className={`group relative max-w-[88%] rounded-2xl p-3.5 text-sm leading-relaxed ${
-                          msg.role === "user"
-                            ? "bg-white text-zinc-950 font-semibold rounded-tr-sm shadow-md"
-                            : "bg-zinc-900/60 border border-white/15 text-zinc-100 rounded-tl-sm shadow-sm"
-                        }`}
-                      >
-                        {formatContent(msg.content, msg.role === "user")}
-
-                        {/* Copy button on assistant answers */}
-                        {msg.role === "assistant" && (
-                          <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-muted-foreground">
-                            <span className="font-mono">{msg.timestamp}</span>
-                            <button
-                              onClick={() => handleCopy(msg.content, msg.id)}
-                              className="flex items-center gap-1 hover:text-foreground transition-colors"
-                            >
-                              {copiedId === msg.id ? (
-                                <>
-                                  <Check className="w-3 h-3 text-emerald-500" />
-                                  <span className="text-emerald-500">Copied</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="w-3 h-3" />
-                                  <span>Copy</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Source Citation Badges */}
-                      {msg.sources && msg.sources.length > 0 && (
-                        <div className="mt-1 flex flex-wrap gap-1 px-1">
-                          {msg.sources.map((src, sIdx) => (
-                            <span
-                              key={sIdx}
-                              className="text-[9px] px-2 py-0.5 rounded-full bg-white/[0.08] text-muted-foreground border border-white/15 font-mono"
-                            >
-                              📚 {src}
-                            </span>
-                          ))}
+              <div className="flex-1 flex flex-col justify-between overflow-hidden relative">
+                
+                {/* Scrollable Container (Hero OR Messages) */}
+                <div className="flex-1 p-5 overflow-y-auto space-y-4 scrollbar-thin bg-transparent">
+                  
+                  {/* Hero Initial Screen when no messages */}
+                  {messages.length === 0 ? (
+                    <div className="flex flex-col items-center text-center py-2 animate-in fade-in duration-300">
+                      
+                      {/* Big Glowing Cyclone Emblem */}
+                      <div className="relative my-3 flex items-center justify-center">
+                        <div className="absolute w-28 h-28 rounded-full bg-blue-500/25 blur-2xl pointer-events-none" />
+                        <div className="w-20 h-20 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center relative shadow-lg shadow-blue-500/10">
+                          <CycloneLogo size={54} />
                         </div>
-                      )}
-                    </motion.div>
-                  ))}
-
-                  {/* Typing Indicator */}
-                  {loading && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="flex items-start gap-2"
-                    >
-                      <div className="rounded-2xl rounded-tl-sm p-3 bg-zinc-900/60 border border-white/15 flex items-center gap-1.5 shadow-sm">
-                        <span className="w-2 h-2 rounded-full bg-zinc-300 animate-bounce [animation-delay:-0.3s]" />
-                        <span className="w-2 h-2 rounded-full bg-zinc-300 animate-bounce [animation-delay:-0.15s]" />
-                        <span className="w-2 h-2 rounded-full bg-zinc-300 animate-bounce" />
-                        <span className="text-[11px] text-muted-foreground font-mono ml-2">
-                          Reasoning...
-                        </span>
                       </div>
-                    </motion.div>
+
+                      {/* Main Greeting */}
+                      <h2 className="text-2xl sm:text-3xl font-heading font-extrabold text-white mt-2 tracking-tight">
+                        Hi, I&apos;m <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-indigo-400 bg-clip-text text-transparent">CycloNet AI</span>
+                      </h2>
+                      <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-sm">
+                        Your meteorological intelligence companion.
+                      </p>
+
+                      {/* Powered by divider */}
+                      <div className="flex items-center gap-3 my-4 w-full max-w-xs">
+                        <div className="h-px bg-white/10 flex-1" />
+                        <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-mono">
+                          Powered by Google Gemini 3.6 Flash
+                        </span>
+                        <div className="h-px bg-white/10 flex-1" />
+                      </div>
+
+                      {/* 4 Feature Cards (2x2 Grid) */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-md my-1 text-left">
+                        {FEATURE_CARDS.map((card, idx) => {
+                          const Icon = card.icon;
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => handleSend(card.query)}
+                              className="p-3.5 rounded-2xl bg-zinc-950/40 hover:bg-zinc-900/60 border border-white/10 hover:border-white/20 transition-all flex items-center justify-between gap-3 group cursor-pointer shadow-sm hover:scale-[1.01]"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${card.iconBg} group-hover:scale-105 transition-transform`}>
+                                  <Icon className="w-5 h-5" />
+                                </div>
+                                <div className="min-w-0">
+                                  <h4 className="font-heading font-bold text-xs text-white group-hover:text-blue-300 transition-colors truncate">
+                                    {card.title}
+                                  </h4>
+                                  <p className="text-[10.5px] text-zinc-400 leading-tight truncate">
+                                    {card.desc}
+                                  </p>
+                                </div>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors shrink-0" />
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                    </div>
+                  ) : (
+                    /* Active Chat Stream */
+                    <div className="space-y-4">
+                      {messages.map((msg) => (
+                        <motion.div
+                          key={msg.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
+                        >
+                          <div
+                            className={`group relative max-w-[88%] rounded-2xl p-3.5 text-sm leading-relaxed ${
+                              msg.role === "user"
+                                ? "bg-white text-zinc-950 font-semibold rounded-tr-sm shadow-md"
+                                : "bg-zinc-900/60 border border-white/15 text-zinc-100 rounded-tl-sm shadow-sm"
+                            }`}
+                          >
+                            {formatContent(msg.content, msg.role === "user")}
+
+                            {/* Copy button on assistant answers */}
+                            {msg.role === "assistant" && (
+                              <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-muted-foreground">
+                                <span className="font-mono">{msg.timestamp}</span>
+                                <button
+                                  onClick={() => handleCopy(msg.content, msg.id)}
+                                  className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer"
+                                >
+                                  {copiedId === msg.id ? (
+                                    <>
+                                      <Check className="w-3 h-3 text-emerald-500" />
+                                      <span className="text-emerald-500">Copied</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="w-3 h-3" />
+                                      <span>Copy</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Source Citation Badges */}
+                          {msg.sources && msg.sources.length > 0 && (
+                            <div className="mt-1 flex flex-wrap gap-1 px-1">
+                              {msg.sources.map((src, sIdx) => (
+                                <span
+                                  key={sIdx}
+                                  className="text-[9px] px-2 py-0.5 rounded-full bg-white/[0.08] text-muted-foreground border border-white/15 font-mono"
+                                >
+                                  📚 {src}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </motion.div>
+                      ))}
+
+                      {/* Typing Indicator */}
+                      {loading && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="flex items-start gap-2"
+                        >
+                          <div className="rounded-2xl rounded-tl-sm p-3 bg-zinc-900/60 border border-white/15 flex items-center gap-1.5 shadow-sm">
+                            <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce [animation-delay:-0.3s]" />
+                            <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce [animation-delay:-0.15s]" />
+                            <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" />
+                            <span className="text-[11px] text-zinc-300 font-mono ml-2">
+                              Analyzing meteorological telemetry...
+                            </span>
+                          </div>
+                        </motion.div>
+                      )}
+
+                      <div ref={messagesEndRef} />
+                    </div>
                   )}
 
-                  <div ref={messagesEndRef} />
                 </div>
 
-                {/* Quick Suggestion Pills */}
-                {messages.length <= 3 && !loading && (
-                  <div className="px-3 py-2 border-t border-white/10 bg-white/[0.02] flex flex-wrap gap-1.5 overflow-x-auto scrollbar-none">
-                    {activePrompts.map((p, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleSend(p.query)}
-                        className="text-[11px] px-2.5 py-1 rounded-full bg-white/[0.08] hover:bg-white/20 hover:text-white border border-white/15 transition-all text-zinc-200 whitespace-nowrap shadow-xs flex items-center gap-1"
-                      >
-                        {p.label}
-                        <ChevronRight className="w-3 h-3 opacity-50" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Input Bar */}
-                <div className="p-3 border-t border-white/15 bg-zinc-950/40 relative">
-                  <div className="flex items-center gap-2 rounded-xl bg-white/[0.05] border border-white/15 focus-within:border-white/40 focus-within:ring-2 focus-within:ring-white/10 px-3 py-1.5 transition-all">
-                    <textarea
+                {/* Bottom Input Section */}
+                <div className="p-4 border-t border-white/10 bg-zinc-950/50 backdrop-blur-md">
+                  
+                  {/* Sleek Input Bar */}
+                  <div className="flex items-center gap-2.5 rounded-full bg-zinc-900/80 border border-white/15 focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/20 px-4 py-2.5 shadow-inner transition-all">
+                    <Sparkles className="w-4 h-4 text-blue-400 shrink-0" />
+                    
+                    <input
                       ref={inputRef}
+                      type="text"
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
+                        if (e.key === "Enter") {
                           e.preventDefault();
                           handleSend();
                         }
                       }}
-                      placeholder="Ask any question about cyclones, Dvorak scale, safety..."
-                      rows={1}
-                      className="flex-1 bg-transparent border-none outline-none resize-none text-xs text-foreground placeholder:text-muted-foreground/70 max-h-24 py-1.5 leading-relaxed"
+                      placeholder="Ask me anything about cyclones..."
+                      className="flex-1 bg-transparent border-none outline-none text-xs text-white placeholder:text-zinc-400 leading-normal"
                     />
+
+                    {/* Voice Input Mic Button */}
+                    <button
+                      type="button"
+                      onClick={toggleVoiceInput}
+                      title={isListening ? "Listening... Click to stop" : "Voice Input (Speak to CycloNet AI)"}
+                      className={`p-1.5 rounded-full transition-all cursor-pointer ${
+                        isListening
+                          ? "bg-rose-500/20 text-rose-400 border border-rose-500/40 animate-pulse scale-110"
+                          : "text-zinc-400 hover:text-white hover:bg-white/10"
+                      }`}
+                    >
+                      {isListening ? (
+                        <MicOff className="w-4 h-4 text-rose-400" />
+                      ) : (
+                        <Mic className="w-4 h-4" />
+                      )}
+                    </button>
+
                     <button
                       onClick={() => handleSend()}
                       disabled={!input.trim() || loading}
-                      className="p-2 rounded-lg bg-zinc-100 text-zinc-950 hover:bg-white disabled:opacity-40 disabled:pointer-events-none transition-all shadow-sm"
+                      className="w-8 h-8 rounded-full bg-blue-500 hover:bg-blue-400 text-white disabled:opacity-30 disabled:pointer-events-none transition-all shadow-md shadow-blue-500/25 flex items-center justify-center shrink-0 cursor-pointer hover:scale-105"
+                      title="Send Message"
                     >
-                      <Send className="w-3.5 h-3.5" />
+                      <Send className="w-3.5 h-3.5 fill-current" />
                     </button>
                   </div>
-                  <div className="flex items-center justify-between mt-2 px-1 text-[10px] text-muted-foreground">
-                    <span>Press <kbd className="px-1 py-0.5 rounded bg-white/10 text-[9px] font-mono">Enter</kbd> to send</span>
-                    <span className="font-mono text-zinc-400">Google Gemini 3.6 Flash</span>
-                  </div>
+
                 </div>
 
                 {/* Corner Resize Handle */}
@@ -705,7 +825,8 @@ export function ChatbotWidget() {
                     <line x1="21" y1="16" x2="16" y2="21" />
                   </svg>
                 </div>
-              </>
+
+              </div>
             )}
           </motion.div>
         )}

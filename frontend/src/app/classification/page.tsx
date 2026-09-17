@@ -1,8 +1,10 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
-import { Upload, ImageIcon, Scan, CheckCircle2, ShieldAlert, Loader2 } from "lucide-react";
+import { Upload, ImageIcon, Scan, CheckCircle2, ShieldAlert, Loader2, Activity } from "lucide-react";
+import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 
 export default function ClassificationPage() {
+  const { selectedCycloneId, selectedCycloneName } = useActiveCyclone();
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -81,11 +83,19 @@ export default function ClassificationPage() {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
-      <div className="glass-card p-6">
-        <h2 className="text-xl font-heading font-semibold text-foreground mb-2">Automated Intensity Classification</h2>
-        <p className="text-sm text-muted-foreground">
-          Upload an INSAT-3DR IR frame or select a recent image from MOSDAC to run the AI classification model.
-        </p>
+      <div className="glass-card p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-heading font-semibold text-foreground mb-1">Automated Intensity Classification</h2>
+          <p className="text-sm text-muted-foreground">
+            Upload an INSAT-3DR IR frame or select a recent image from MOSDAC to run the AI classification model.
+          </p>
+        </div>
+        {selectedCycloneId && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs shrink-0">
+            <Activity className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Target Context: <strong>{selectedCycloneName || selectedCycloneId}</strong></span>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

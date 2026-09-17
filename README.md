@@ -1,6 +1,6 @@
-# 🌪️ CycloNet — Intelligent Tropical Cyclone Tracking & Satellite Intensity Estimation Platform
+# <img src="frontend/public/logo.svg" width="32" height="32" style="vertical-align: middle; display: inline-block; margin-right: 8px;" alt="CycloNet Logo" /> CycloNet — Intelligent Tropical Cyclone Tracking & Satellite Intensity Estimation Platform
 
-> **Next-Generation Meteorological Intelligence Platform combining Deep Learning Computer Vision, Geospatial Trajectory Modeling, and Dvorak Intensity Estimation for Tropical Cyclones.**
+> **Next-Generation Meteorological Intelligence Platform combining Deep Learning Computer Vision, Geospatial Trajectory Modeling, Dvorak Intensity Estimation, and Generative AI Meteorological Assistance.**
 
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.110+-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Frontend-Next.js%2016-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
@@ -15,7 +15,7 @@
 
 ---
 
-**CycloNet** is an enterprise-grade meteorological analysis and disaster-response decision support platform. Designed for meteorological departments, disaster management authorities, and climate researchers, the platform unifies **Deep Convolutional Neural Networks (ResNet-50)**, **Dvorak intensity feature extraction**, **interactive geospatial tracking (Leaflet)**, and **real-time alerting systems**.
+**CycloNet** is an enterprise-grade meteorological analysis and disaster-response decision support platform. Designed for meteorological departments, disaster management authorities, and climate researchers, the platform unifies **Deep Convolutional Neural Networks (ResNet-50)**, **Dvorak intensity feature extraction**, **interactive geospatial tracking (Leaflet)**, **ensemble trajectory forecasting**, and **CycloNet AI — a context-aware Meteorological Intelligence Copilot with live voice recognition**.
 
 Meteorologists can upload live infrared/visible satellite imagery (e.g., INSAT-3DR, GOES, Himawari) to receive instant intensity classifications, continuous softmax probability distributions, estimated sustained wind speeds (knots), Dvorak T-numbers, and track coordinates with predictive cone-of-uncertainty projections.
 
@@ -24,6 +24,7 @@ Meteorologists can upload live infrared/visible satellite imagery (e.g., INSAT-3
 ## 📋 Table of Contents
 
 - [✨ Key Features](#-key-features)
+- [🤖 CycloNet AI Assistant & Liquid Glass](#-cyclonet-ai-assistant--liquid-glass)
 - [🏗️ System Architecture & Pipelines](#️-system-architecture--pipelines)
   - [High-Level Architecture](#high-level-architecture)
   - [5-Stage Meteorological Processing Pipeline](#5-stage-meteorological-processing-pipeline)
@@ -55,9 +56,23 @@ Meteorologists can upload live infrared/visible satellite imagery (e.g., INSAT-3
 | 🛡️ **Out-of-Distribution (OOD) Guard** | Detects and rejects non-meteorological images (landscapes, wallpapers, anime) with high-confidence `NOT A CYCLONE` verdicts. | ResNet-50 2048-dim Latent Space Separation |
 | 📐 **Dvorak T-Number & Wind Estimation** | Automatic mapping of structural vortex signatures to **Dvorak T-Numbers** ($T3.0 - T5.5+$) and sustained wind speeds ($45 - 105+$ kt). | Automated Dvorak Heuristic Engine |
 | 🗺️ **Geospatial Trajectory Tracking** | Interactive map dashboard displaying active storm centers, historical path waypoints, wind radiuses, and predicted forecast cones. | Leaflet.js + GeoJSON GIS Layers |
+| 🌀 **Global Cyclone Synchronization** | Selecting any cyclone from the Archive or Live Map automatically updates active storm telemetry across all tabs and components. | Custom React Hook (`useActiveCyclone`) + Broadcast Events |
+| 🤖 **CycloNet AI Meteorological Copilot** | Draggable, resizable AI assistant with **Liquid Glass refraction**, **real-time voice input**, live UI telemetry context, and domain expertise. | Google Gemini / FastAPI AI Service + Web Speech API |
 | 📜 **Historical Cyclone Archive** | Searchable database of past historical cyclones (Amphan, Tauktae, Biparjoy, Irma, Dorian) with complete meteorological telemetry. | SQLite + SQLAlchemy ORM |
 | 📑 **Automated Warning Bulletins** | Generates real-time disaster advisories, danger-zone classifications, and exportable PDF case reports for emergency officials. | Next.js Dynamic Report Generator |
-| 🌓 **Glassmorphic Modern UI** | Polished dark/light theme with Tailwind CSS, Lucide icons, interactive toast feedback, and mobile responsiveness. | Next.js 14 App Router + next-themes |
+| 🌓 **Glassmorphic Modern UI** | Polished dark/light theme with Tailwind CSS, unified brand logo, animated gradient triggers, Lucide icons, and mobile responsiveness. | Next.js 16 App Router + next-themes + Framer Motion |
+
+---
+
+## 🤖 CycloNet AI Assistant & Liquid Glass
+
+CycloNet includes an intelligent meteorological copilot designed for emergency responders and meteorologists:
+
+- **Liquid Glass Background**: Built with dynamic chromatic aberration, frosted refraction shaders, and fluid motion via the `useLiquidGlass` canvas engine.
+- **Voice-Enabled Querying**: Integrated with the browser **Web Speech API** for hands-free speech-to-text querying directly in the field.
+- **Context-Aware Reasoning**: Continuously ingests active UI telemetry, active cyclone IDs, wind speeds, and route parameters to answer situational questions (*e.g., "What is the expected landfall for the currently selected cyclone?"*).
+- **Interactive Knowledge Cards**: Quick-start prompts for **Tropical Cyclogenesis**, **Dvorak T-number estimation**, **IMD vs. Saffir-Simpson scale comparisons**, and **Disaster Safety protocols**.
+- **Window Flexibility**: Freely draggable via header grip, corner-resizable, minimizable, and persists window coordinates across page reloads.
 
 ---
 
@@ -74,14 +89,15 @@ flowchart TB
     classDef dbStyle fill:#1E40AF,stroke:#1D4ED8,stroke-width:2px,color:#FFFFFF,font-weight:bold
     classDef extStyle fill:#7C3AED,stroke:#6D28D9,stroke-width:2px,color:#FFFFFF,font-weight:bold
 
-    subgraph ClientLayer["🖥️ CLIENT PRESENTATION LAYER (Next.js 14)"]
+    subgraph ClientLayer["🖥️ CLIENT PRESENTATION LAYER (Next.js 16 + React)"]
         Dashboard["Dashboard & Active Storm Monitor"]:::clientStyle
         ClassifierUI["AI Satellite Frame Classifier"]:::clientStyle
         MapView["Leaflet Geospatial Map Explorer"]:::clientStyle
         ArchiveUI["Historical Storm Records & Reports"]:::clientStyle
+        ChatbotUI["CycloNet AI Meteorological Assistant"]:::clientStyle
     end
 
-    Dashboard & ClassifierUI & MapView & ArchiveUI -->|REST API / JSON / Multipart Form| Gateway
+    Dashboard & ClassifierUI & MapView & ArchiveUI & ChatbotUI -->|REST API / JSON / Multipart Form| Gateway
 
     subgraph BackendLayer["⚡ FASTAPI SERVICE LAYER (Python 3.10+)"]
         Gateway["FastAPI Gateway & CORS Middleware"]:::apiStyle
@@ -90,9 +106,10 @@ flowchart TB
             MLService["🧠 ML Inference Service<br/><i>(PyTorch Forward Pass)</i>"]:::mlStyle
             GISService["🗺️ GIS & Trajectory Engine<br/><i>(Geopy & Waypoint Projections)</i>"]:::mapStyle
             DataIngest["📥 Historical Data Ingestion<br/><i>(Telemetry Seeder)</i>"]:::dbStyle
+            ChatService["🤖 AI Chat Service<br/><i>(Gemini / Domain Intelligence)</i>"]:::extStyle
         end
 
-        Gateway --> MLService & GISService & DataIngest
+        Gateway --> MLService & GISService & DataIngest & ChatService
     end
 
     subgraph DLModel["🧠 DEEP LEARNING MODEL ASSETS"]
@@ -184,7 +201,7 @@ CycloneTracker/
 │   ├── app/
 │   │   ├── main.py                     # FastAPI application factory, CORS, and route bindings
 │   │   ├── api/
-│   │   │   └── routes.py               # REST API endpoints (/api/cyclones, /api/classify, etc.)
+│   │   │   └── routes.py               # REST API endpoints (/api/cyclones, /api/classify, /api/chat, etc.)
 │   │   ├── core/
 │   │   │   └── database.py             # SQLite engine, SessionLocal, and declarative Base
 │   │   ├── models/
@@ -192,6 +209,8 @@ CycloneTracker/
 │   │   │   └── domain.py               # SQLAlchemy ORM models (Cyclone, Coordinates, Logs)
 │   │   └── services/
 │   │       ├── ml_service.py           # PyTorch inference engine & continuous softmax calculation
+│   │       ├── chat_service.py         # AI Meteorological Assistant integration (Gemini / RAG)
+│   │       ├── best_tracks.py          # Best-track interpolation and IBTrACS telemetry loader
 │   │       └── data_ingestion.py       # Historical cyclone database seeder
 │   ├── notebooks/
 │   │   └── Model_Finetuning.ipynb      # Exploration and transfer learning research notebook
@@ -199,7 +218,7 @@ CycloneTracker/
 │   ├── test_api.py                     # Automated API inference test suite
 │   └── requirements.txt                # Backend Python dependencies
 │
-├── frontend/                           # Next.js 14 modern web application
+├── frontend/                           # Next.js 16 modern web application
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── layout.tsx              # Root HTML layout with theme provider & navigation
@@ -208,20 +227,27 @@ CycloneTracker/
 │   │   │   ├── classification/
 │   │   │   │   └── page.tsx            # AI Satellite Classifier with live image upload & demo selector
 │   │   │   ├── forecast/
-│   │   │   │   └── page.tsx            # Storm trajectory & predictive cone-of-uncertainty
+│   │   │   │   └── page.tsx            # Storm trajectory, multi-model ensemble & cone-of-uncertainty
 │   │   │   ├── archive/
-│   │   │   │   └── page.tsx            # Searchable historical storm database
+│   │   │   │   └── page.tsx            # Searchable historical storm database & synchronized selection
 │   │   │   ├── reports/
 │   │   │   │   └── page.tsx            # Meteorological bulletins, advisories & PDF export
 │   │   │   └── settings/
 │   │   │       └── page.tsx            # Theme settings (Dark/Light), alerts & data feeds
-│   │   └── components/
-│   │       ├── Header.tsx              # Application header bar with system status
-│   │       ├── Sidebar.tsx             # Responsive sidebar navigation
-│   │       ├── MapComponent.tsx        # Leaflet dynamic map wrapper
-│   │       ├── MapWidget.tsx           # Dashboard mini-map widget
-│   │       └── theme-provider.tsx      # Next-themes dark/light context provider
+│   │   ├── components/
+│   │   │   ├── CycloneLogo.tsx         # Unified vector Cyclone Spiral logo
+│   │   │   ├── ChatbotWidget.tsx       # CycloNet AI Assistant with Liquid Glass & Voice Input
+│   │   │   ├── Header.tsx              # Application header bar with animated trigger & active storm pill
+│   │   │   ├── Sidebar.tsx             # Responsive sidebar navigation with brand identity
+│   │   │   ├── MapComponent.tsx        # Leaflet dynamic map wrapper with IMD track styling
+│   │   │   ├── MapWidget.tsx           # Dashboard mini-map widget
+│   │   │   └── theme-provider.tsx      # Next-themes dark/light context provider
+│   │   └── hooks/
+│   │       ├── useActiveCyclone.ts     # Cross-tab synchronized active storm state management
+│   │       └── useLiquidGlass.ts       # Canvas liquid glass refraction shader hook
 │   ├── public/
+│   │   ├── logo.svg                    # Scalable vector brand logo
+│   │   ├── liquid-glass.js             # Liquid glass shader engine
 │   │   └── demo_frames/                # High-res authentic INSAT-3DR satellite storm imagery
 │   │       ├── demo_1.jpg              # Cyclonic Storm (CS)
 │   │       ├── demo_2.jpg              # Severe Cyclonic Storm (SCS)
@@ -287,27 +313,11 @@ The platform aligns predicted classes with the official **India Meteorological D
 | `VSCS` | **Very Severe Cyclonic Storm** | $64 - 89\text{ kt}$ | $T4.5$ | Closed central core, ragged or emerging eye structure. |
 | `ESCS` | **Extremely Severe Cyclonic Storm** | $90 - 119\text{ kt}$ | $T5.5+$ | Distinct, circular pinhole eye surrounded by intense symmetric eyewall. |
 
-> **Meteorological Note**: Intense storms (such as Hurricane Dorian or Super Cyclone Amphan) feature clear circular eyes with high eye-to-eyewall thermal contrast. The ResNet-50 feature representations capture these distinct eyewall spatial rings, correctly mapping them into the upper **ESCS** tier with continuous softmax confidence.
-
-### Rotational Invariance & Augmentation
-
-Cyclones spin counter-clockwise in the Northern Hemisphere and clockwise in the Southern Hemisphere, and can be viewed from any satellite orbital perspective. The training pipeline enforces strict physical rotational invariance:
-- **360° Random Rotations** (`transforms.RandomRotation(180)`)
-- **Random Horizontal & Vertical Flips**
-- **Random Resized Crops** (`scale=(0.8, 1.0)`)
-- **Photometric Jitter** (`brightness=0.15, contrast=0.15`)
-
-### Adversarial & Non-Meteorological Rejection
-
-Traditional color-based heuristics (such as checking for green pixels) fail on infrared satellite imagery because false-color palettes (NOAA/IMD rainbow curves) legitimately use green and yellow to designate cold cloud tops ($-60^\circ\text{C}$ to $-75^\circ\text{C}$). 
-
-CycloNet relies strictly on deep latent space separation: non-meteorological images (landscapes, anime, documents) project into an out-of-distribution cluster, receiving $\approx 99.8\%$ probability for `NOT_A_CYCLONE` and suppressing spurious storm alerts.
-
 ---
 
 ## 🔌 Comprehensive REST API Reference
 
-All backend REST API endpoints are served by FastAPI. Interactive Swagger / OpenAPI documentation is accessible at `http://localhost:8000/docs`.
+All backend REST API endpoints are served by FastAPI. Interactive Swagger documentation is accessible at `http://localhost:8000/docs`.
 
 ### 1. Active Cyclone Monitoring (`/api/cyclones`)
 
@@ -322,30 +332,13 @@ All backend REST API endpoints are served by FastAPI. Interactive Swagger / Open
 |---|---|---|---|
 | `POST` | `/api/classify` | `multipart/form-data (file)` | Uploads a satellite image. Executes PyTorch forward pass and returns category, confidence %, wind speed, Dvorak T-number, and complete softmax probability distribution. |
 
-**Example API Response**:
-```json
-{
-  "status": "success",
-  "prediction": {
-    "is_cyclone": true,
-    "category": "Extremely Severe Cyclonic Storm (ESCS)",
-    "category_short": "ESCS",
-    "confidence": 99.7,
-    "dvorak_t": "T5.5",
-    "wind_speed_knots": 105,
-    "overlay_url": "/mock-overlay.png",
-    "probabilities": {
-      "NOT_A_CYCLONE": 0.05,
-      "CS": 0.11,
-      "SCS": 0.10,
-      "VSCS": 0.05,
-      "ESCS": 99.70
-    }
-  }
-}
-```
+### 3. AI Meteorological Copilot Chat (`/api/chat`)
 
-### 3. Classification History & Audit Logs (`/api/history`)
+| Method | Endpoint | Request Payload | Description |
+|---|---|---|---|
+| `POST` | `/api/chat` | `JSON Object { message, history, ui_context }` | Submits meteorological user queries alongside real-time UI screen telemetry, active cyclone state, and past message history to generate grounded AI responses. |
+
+### 4. Classification History & Audit Logs (`/api/history`)
 
 | Method | Endpoint | Response Type | Description |
 |---|---|---|---|
@@ -362,13 +355,13 @@ All backend REST API endpoints are served by FastAPI. Interactive Swagger / Open
 | **Deep Learning Framework** | PyTorch | `2.2.1` | Neural network forward pass, autograd, and training |
 | **Computer Vision** | Torchvision & Pillow | `0.17.1` | Pretrained ResNet-50 backbone, image transforms |
 | **Relational Database** | SQLite & SQLAlchemy | `2.0.28` | Persistent storage for storm telemetry and classification logs |
-| **Frontend Framework** | Next.js | `14.2+` (App Router) | React application framework with Server Components |
+| **AI / NLP Services** | Google Gemini / OpenAI | API-Ready | Meteorological natural language reasoning & contextual assistance |
+| **Frontend Framework** | Next.js | `16.0+` (App Router) | React application framework with Server Components |
 | **Frontend Language** | TypeScript | `5.0+` | Static typing across UI components and API contracts |
 | **Styling & Design** | Tailwind CSS | Latest | Utility-first CSS styling and glassmorphic themes |
 | **Geospatial Mapping** | Leaflet & React-Leaflet | Latest | Interactive mapping for storm coordinates and trajectory cones |
-| **Icons & Visuals** | Lucide React | Latest | Modern iconography |
-| **Theme Engine** | next-themes | Latest | Smooth Dark / Light mode switching |
-| **Animations & Motion** | Framer Motion | 13.2+ | Fluid micro-interactions, layout transitions, and glassmorphic UI motion |
+| **Speech Recognition** | Web Speech API | Native Browser | Real-time voice speech-to-text input in the chatbot |
+| **Animations & Motion** | Framer Motion | Latest | Fluid micro-interactions, drag/resize mechanics, and glassmorphic UI motion |
 
 ---
 
@@ -389,6 +382,9 @@ DATABASE_URL=sqlite:///./cyclone_tracker.db
 MODEL_CHECKPOINT_PATH=app/models/cyclone_classifier.pth
 DEVICE=cpu                              # Options: "cpu" or "cuda"
 
+# ── AI Chat Assistant (Optional) ──────────────────────────────
+GEMINI_API_KEY=your_gemini_api_key_here
+
 # ── CORS Configuration ────────────────────────────────────────
 CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
@@ -402,12 +398,6 @@ NEXT_PUBLIC_API_URL=http://localhost:8000/api
 ---
 
 ## 🚀 Quickstart & Installation
-
-### Prerequisites
-- **Python 3.10+** & `pip`
-- **Node.js 18+** & `npm`
-
----
 
 ### Option 1: One-Click Windows Launch (Recommended)
 
@@ -441,7 +431,7 @@ pip install -r requirements.txt
 # Start backend server
 uvicorn app.main:app --reload --port 8000
 ```
-Interactive API docs will be live at: `http://localhost:8000/docs`
+Interactive API docs: `http://localhost:8000/docs`
 
 #### 2. Frontend Setup (Next.js)
 ```bash
@@ -454,44 +444,6 @@ npm install
 npm run dev
 ```
 Open your browser at: `http://localhost:3000`
-
----
-
-## 🧪 Model Training & Fine-Tuning Pipeline
-
-To retrain or fine-tune the classifier head on additional satellite feeds:
-
-```bash
-cd backend
-python train_classifier.py
-```
-
-### Training Pipeline Overview:
-1. **Backbone Feature Extraction**: Frozen ResNet-50 weights extract 2048-dimensional feature vectors.
-2. **Data Augmentation**: Generates 30 augmented variants per seed frame via 360° rotations, flips, and crops.
-3. **Optimization**: Trains `CycloneClassifierHead` using **AdamW** optimizer ($lr = 0.001$, $weight\_decay = 1e-4$) with a **Cosine Annealing Learning Rate Scheduler**.
-4. **Validation Checkpointing**: Automatically exports the best validation model directly to `backend/app/models/cyclone_classifier.pth` (**~4.5 MB**).
-
----
-
-## 📊 Historical Storm Archives & Bulletins
-
-The platform comes pre-seeded with historical storm telemetry across the North Indian Ocean and Atlantic basins:
-- **Cyclone Amphan (2020)**: Super Cyclonic Storm ($140\text{ kt}, 907\text{ hPa}$)
-- **Cyclone Tauktae (2021)**: Extremely Severe Cyclonic Storm ($120\text{ kt}, 950\text{ hPa}$)
-- **Cyclone Biparjoy (2023)**: Extremely Severe Cyclonic Storm ($90\text{ kt}, 960\text{ hPa}$)
-- **Hurricane Dorian (2019)**: Category 5 Hurricane ($160\text{ kt}, 910\text{ hPa}$)
-
-Officials can review historical tracks, replay storm paths, and generate audit-ready meteorological summary bulletins with danger-zone advisories.
-
----
-
-## 🔐 Security & Production Hardening
-
-1. **Deterministic OOD Rejection**: Protects the decision pipeline against non-meteorological adversarial inputs.
-2. **CORS Isolation**: Restricts API calls to authorized frontend domains.
-3. **Lightweight Model Serving**: Self-contained ~4.5 MB MLP head checkpoint enables instant sub-100ms CPU inference without demanding expensive GPU infrastructure.
-4. **Non-Destructive Database Migrations**: SQLAlchemy automatic schema provisioning on application startup.
 
 ---
 

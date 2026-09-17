@@ -16,6 +16,8 @@ import {
   RotateCcw
 } from "lucide-react";
 
+import { useActiveCyclone } from "@/hooks/useActiveCyclone";
+
 interface CycloneHistory {
   id: string;
   name: string;
@@ -48,6 +50,18 @@ export default function ArchivePage() {
   const [cyclones, setCyclones] = useState<CycloneHistory[]>([]);
   const [classifications, setClassifications] = useState<AIClassification[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const { selectedCycloneId, selectCyclone } = useActiveCyclone();
+
+  // Sync selectedCyclone with global selectedCycloneId when cyclones list loads
+  useEffect(() => {
+    if (cyclones.length > 0 && selectedCycloneId) {
+      const match = cyclones.find(c => c.id === selectedCycloneId || c.name.toLowerCase() === selectedCycloneId.toLowerCase());
+      if (match) {
+        setSelectedCyclone(match);
+      }
+    }
+  }, [cyclones, selectedCycloneId]);
 
   // Close filter dropdown on outside click
   useEffect(() => {
@@ -113,10 +127,16 @@ export default function ArchivePage() {
         basinFilter,
         categoryFilter,
         sortOrder,
-        activeSystem: null
+        activeSystem: selectedCyclone ? {
+          id: selectedCyclone.id,
+          name: selectedCyclone.name,
+          basin: selectedCyclone.basin,
+          category: selectedCyclone.maxCategory,
+          dates: selectedCyclone.dates
+        } : null
       };
     }
-  }, [activeTab, cyclones.length, searchQuery, basinFilter, categoryFilter, sortOrder]);
+  }, [activeTab, cyclones.length, searchQuery, basinFilter, categoryFilter, sortOrder, selectedCyclone]);
 
   // Helper to extract timestamp from cyclone dates for precise chronological ordering
   const getCycloneTimestamp = (c: CycloneHistory): number => {
@@ -158,15 +178,8 @@ export default function ArchivePage() {
     });
 
   const handleSelectCyclone = (cyclone: CycloneHistory) => {
-    if (selectedCyclone?.id === cyclone.id) {
-      setSelectedCyclone(null);
-    } else {
-      setSelectedCyclone(cyclone);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("cyclonet_selected_cyclone_id", cyclone.id);
-        localStorage.setItem("cyclonet_selected_cyclone_name", cyclone.name);
-      }
-    }
+    setSelectedCyclone(cyclone);
+    selectCyclone(cyclone.id, cyclone.name);
   };
 
   return (
@@ -504,27 +517,14 @@ export default function ArchivePage() {
                       </div>
                     </div>
 
-                    {/* Card action buttons footer */}
-                    <div className="pt-3 mt-3 border-t border-white/10 flex items-center justify-between text-[11px] gap-2">
-                      <span className="font-mono text-zinc-400 text-[11px] truncate">
+                    {/* Clean card footer */}
+                    <div className="pt-3 mt-3 border-t border-white/10 flex items-center justify-between text-[11px]">
+                      <span className="font-mono text-zinc-400">
                         {cyclone.id}
                       </span>
-                      <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => {
-                            if (typeof window !== "undefined") {
-                              localStorage.setItem("cyclonet_selected_cyclone_id", cyclone.id);
-                              localStorage.setItem("cyclonet_selected_cyclone_name", cyclone.name);
-                            }
-                            window.location.href = `/forecast?cyclone_id=${encodeURIComponent(cyclone.id)}`;
-                          }}
-                          className="px-2.5 py-1 rounded-md bg-primary/15 hover:bg-primary/25 text-primary text-[11px] font-semibold border border-primary/20 transition-colors cursor-pointer flex items-center gap-1"
-                          title="Open in Track Forecast"
-                        >
-                          <Activity className="w-3 h-3" />
-                          <span>Track Forecast</span>
-                        </button>
-                      </div>
+                      <span className={`transition-colors flex items-center gap-1 ${isSelected ? "text-emerald-400 font-semibold" : "text-zinc-500 group-hover:text-zinc-300"}`}>
+                        {isSelected ? "Selected" : "Click to select"}
+                      </span>
                     </div>
                   </div>
                 );

@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 
+import { useActiveCyclone } from "@/hooks/useActiveCyclone";
+
 const MapWidget = dynamic(() => import("@/components/MapWidget"), {
   ssr: false,
   loading: () => (
@@ -80,7 +82,8 @@ const getCategoryBadgeClass = (knots: number) => {
 };
 
 export default function ForecastPage() {
-  const [selectedId, setSelectedId] = useState<string>("BOB03-2020");
+  const { selectedCycloneId, selectCyclone } = useActiveCyclone("BOB03-2020");
+  const [selectedId, setSelectedId] = useState<string>(selectedCycloneId || "BOB03-2020");
   const [cyclonesList, setCyclonesList] = useState<CycloneCatalogItem[]>(FALLBACK_CYCLONES);
   const [system, setSystem] = useState<ActiveSystem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -106,19 +109,24 @@ export default function ForecastPage() {
     }
   };
 
+  // Sync with global hook when selectedCycloneId changes from other tabs
+  useEffect(() => {
+    if (selectedCycloneId && selectedCycloneId !== selectedId) {
+      setSelectedId(selectedCycloneId);
+      fetchSystem(selectedCycloneId);
+    }
+  }, [selectedCycloneId]);
+
   useEffect(() => {
     const init = async () => {
-      let initialId = "BOB03-2020";
+      let initialId = selectedCycloneId || "BOB03-2020";
 
-      // 1. Check URL parameters and localStorage
+      // 1. Check URL parameters
       if (typeof window !== "undefined") {
         const params = new URLSearchParams(window.location.search);
         const paramId = params.get("cyclone_id");
-        const storedId = localStorage.getItem("cyclonet_selected_cyclone_id");
         if (paramId) {
           initialId = paramId;
-        } else if (storedId) {
-          initialId = storedId;
         }
       }
 
@@ -129,7 +137,6 @@ export default function ForecastPage() {
           const list = await res.json();
           if (Array.isArray(list) && list.length > 0) {
             setCyclonesList(list);
-            // Verify if initialId exists in list (or match by name)
             const match = list.find((c: any) => c.id === initialId || c.name.toLowerCase() === initialId.toLowerCase());
             if (match) {
               initialId = match.id;
@@ -141,9 +148,7 @@ export default function ForecastPage() {
       }
 
       setSelectedId(initialId);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("cyclonet_selected_cyclone_id", initialId);
-      }
+      selectCyclone(initialId);
       fetchSystem(initialId);
     };
 
@@ -152,8 +157,9 @@ export default function ForecastPage() {
 
   const handleSelectCyclone = (cId: string) => {
     setSelectedId(cId);
+    const match = cyclonesList.find(c => c.id === cId);
+    selectCyclone(cId, match?.name);
     if (typeof window !== "undefined") {
-      localStorage.setItem("cyclonet_selected_cyclone_id", cId);
       const url = new URL(window.location.href);
       url.searchParams.set("cyclone_id", cId);
       window.history.replaceState({}, "", url.toString());
@@ -350,24 +356,10 @@ export default function ForecastPage() {
       {/* TOP SECTION: Map at Very First Place (Left 2 cols) + 3 Cards Stacked Vertically (Right 1 col) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
         
-        {/* 1. Map at Very First Place (Left Side) */}
-        <div className="glass-card lg:col-span-2 p-5 border border-border flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h3 className="font-heading font-bold text-base flex items-center gap-2 text-foreground">
-                <MapPin className="w-4 h-4 text-primary" />
-                Live Trajectory Waypoint Tracker
-              </h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Ensemble multi-model cones and chronological storm track plotted on Leaflet
-              </p>
-            </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-secondary text-muted-foreground border border-border">
-              INSAT / RSMC Best-Track
-            </span>
-          </div>
-          <div className="w-full flex-1 min-h-[500px] rounded-xl overflow-hidden border border-border/60 z-0">
-            <MapWidget key={system.id} points={system.track_forecast} />
+        {/* 1. Map at Very First Place (Left Side) - Full Card Map */}
+        <div className="glass-card lg:col-span-2 p-0 overflow-hidden border border-border flex flex-col min-h-[520px] relative z-0">
+          <div className="w-full h-full min-h-[520px] flex-1">
+            <MapWidget key={system.id} points={system.track_forecast} systemName={system.name} />
           </div>
         </div>
 

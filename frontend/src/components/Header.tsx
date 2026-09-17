@@ -1,14 +1,17 @@
 "use client";
 
 import React from "react";
-import { Menu, Sun, Moon } from "lucide-react";
+import { Menu, Sun, Moon, Wind } from "lucide-react";
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
+import { useActiveCyclone } from "@/hooks/useActiveCyclone";
+import { CycloneLogo } from "@/components/CycloneLogo";
 
 export function Header() {
   const [mounted, setMounted] = React.useState(false);
   const { theme, setTheme } = useTheme();
   const pathname = usePathname();
+  const { selectedCycloneId, selectedCycloneName } = useActiveCyclone();
 
   React.useEffect(() => {
     setMounted(true);
@@ -33,24 +36,34 @@ export function Header() {
           <Menu className="w-5 h-5" />
         </button>
         <h1 className="font-heading font-semibold text-lg">{getPageTitle()}</h1>
+        {selectedCycloneId && mounted && (
+          <a
+            href={`/forecast?cyclone_id=${encodeURIComponent(selectedCycloneId)}`}
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-medium transition-all shadow-xs"
+            title="Active Cyclone Synchronized Across All Tabs"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Active: {selectedCycloneName ? (selectedCycloneName.startsWith("Cyclone") ? selectedCycloneName : `Cyclone ${selectedCycloneName}`) : selectedCycloneId}</span>
+          </a>
+        )}
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Ask AI Trigger Button */}
+        {/* Ask CycloNet AI Button with Animated Green Gradient Effect */}
         <button
           onClick={() => {
             if (typeof window !== "undefined") {
               window.dispatchEvent(new CustomEvent("cyclonet:open-chat"));
             }
           }}
-          className="buttonupgrade"
+          className="buttonupgrade group"
           title="Open CycloNet AI Meteorological Intelligence"
-          aria-label="Ask AI"
+          aria-label="Ask CycloNet AI"
         >
-          <svg viewBox="0 0 36 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="m18 0 8 12 10-8-4 20H4L0 4l10 8 8-12z" />
-          </svg>
-          Ask AI
+          <div className="relative flex items-center justify-center shrink-0">
+            <CycloneLogo size={20} className="group-hover:rotate-45 transition-transform duration-500" />
+          </div>
+          <span>Ask CycloNet AI</span>
         </button>
 
         <button
