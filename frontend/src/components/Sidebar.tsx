@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, UploadCloud, History, FileText, Settings, Wind } from "lucide-react";
+import { Activity, UploadCloud, History, FileText, Settings, Wind, Rocket, Layers } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { CycloneLogo } from "@/components/CycloneLogo";
@@ -14,6 +14,7 @@ function cn(...inputs: ClassValue[]) {
 
 const navItems = [
   { name: "Live Monitoring", href: "/", icon: Activity },
+  { name: "Landing Page", href: "/landing-parallax", icon: Rocket },
   { name: "Classification", href: "/classification", icon: UploadCloud },
   { name: "Historical Archive", href: "/archive", icon: History },
   { name: "Track Forecast", href: "/forecast", icon: Wind },

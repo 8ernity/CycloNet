@@ -27,6 +27,30 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   
+  /* Landing Page Design System (Cosmic Planetary Intelligence Theme from FullUI.png) */
+  --color-bg-base: #040714;
+  --color-bg-elevated: #090e24;
+  --color-surface-glass: rgba(13, 20, 42, 0.65);
+  --color-surface-border: rgba(56, 189, 248, 0.16);
+  --color-accent: #0090FF;
+  --color-accent-hover: #0077E6;
+  --color-accent-glow: rgba(0, 144, 255, 0.40);
+  --color-text-primary: #F8FAFC;
+  --color-text-muted: #94A3B8;
+  --color-text-faint: #64748B;
+  --color-lavender: #93C5FD;
+
+  --animate-marquee: marquee 25s linear infinite;
+
+  @keyframes marquee {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
   /* Brand Colors adapted for weather */
   --color-brand-teal: var(--brand-teal);
   --color-brand-blue: var(--brand-blue);
@@ -36,6 +60,27 @@
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
+}
+
+.hero-headline {
+  font-family: 'Space Grotesk', var(--font-sans), sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.brand-logo {
+  font-family: 'Space Grotesk', var(--font-sans), sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.mesh-pipeline {
+  background-color: #040714;
+  background-image: 
+    radial-gradient(at 15% 15%, rgba(0, 144, 255, 0.12) 0px, transparent 60%),
+    radial-gradient(at 85% 20%, rgba(99, 102, 241, 0.10) 0px, transparent 60%),
+    radial-gradient(at 80% 80%, rgba(14, 165, 233, 0.08) 0px, transparent 60%),
+    radial-gradient(at 20% 85%, rgba(59, 130, 246, 0.10) 0px, transparent 60%);
 }
 
 :root {

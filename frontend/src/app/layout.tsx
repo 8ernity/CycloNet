@@ -3,9 +3,7 @@ import Script from "next/script";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Sidebar } from "@/components/Sidebar";
-import { Header } from "@/components/Header";
-import { ChatbotWidget } from "@/components/ChatbotWidget";
+import { AppShell } from "@/components/AppShell";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -48,16 +46,7 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          <div className="flex min-h-screen">
-            <Sidebar />
-            <div className="flex-1 lg:pl-64 flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-1 p-6 overflow-x-hidden">
-                {children}
-              </main>
-            </div>
-          </div>
-          <ChatbotWidget />
+          <AppShell>{children}</AppShell>
           <Script src="/liquid-glass.js" strategy="beforeInteractive" />
         </ThemeProvider>
       </body>
