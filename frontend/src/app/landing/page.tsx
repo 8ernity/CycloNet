@@ -30,14 +30,14 @@ export default function LandingPage() {
       {/* GSAP & Lenis Multi-Layered Depth Parallax Hero */}
       <ParallaxComponent
         title="CYCLONET"
-        pretitle="A SAFER TOMORROW FROM SPACE"
-        subtitle="GLOBAL INTELLIGENCE FOR A RESILIENT TOMORROW"
+        pretitle="NEVER MISS A CYCLONE"
+        subtitle="AI TROPICAL CYCLONE TRAJECTORY & LANDFALL INTELLIGENCE"
         layer1Src="/Earth.png"
         layer2Src="/NobgEarth.png"
         layer4Src="/Astronaut.png"
       />
 
-      {/* CrimeRakshak-Themed Interactive Intelligence Hero with Mesh Background */}
+      {/* Interactive Intelligence Hero with Mesh Background */}
       <MeshGradientBackground>
         <Hero />
       </MeshGradientBackground>

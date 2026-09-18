@@ -59,7 +59,7 @@ export function Hero() {
 
   return (
     <section 
-      className="relative pt-24 pb-16 lg:pt-32 lg:pb-24 overflow-hidden flex flex-col items-center min-h-screen group justify-center bg-[#040714]"
+      className="relative pt-24 pb-16 lg:pt-32 lg:pb-24 overflow-hidden flex flex-col items-center min-h-screen group justify-center bg-bg-base text-text-primary transition-colors duration-300"
       onMouseMove={handleMouseMove}
     >
       {/* Interactive Spotlight Glow */}
@@ -87,31 +87,31 @@ export function Hero() {
         >
           <motion.h1 
             variants={itemVariants}
-            className="text-4xl sm:text-5xl lg:text-[3.5rem] xl:text-[4.25rem] tracking-tight leading-[1.05] hero-headline mb-6 text-white font-extrabold"
+            className="text-4xl sm:text-5xl lg:text-[3.5rem] xl:text-[4.25rem] tracking-tight leading-[1.05] hero-headline mb-6 text-text-primary font-extrabold"
           >
             Predict the next cyclone.
             <br className="hidden sm:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-400 to-indigo-300 drop-shadow-[0_0_25px_rgba(56,189,248,0.4)]">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 drop-shadow-[0_0_25px_rgba(56,189,248,0.3)]">
               Before it makes landfall.
             </span>
           </motion.h1>
 
           <motion.div 
             variants={itemVariants}
-            className="flex items-center justify-center gap-4 text-xs sm:text-sm text-slate-400 mb-8 flex-wrap font-medium"
+            className="flex items-center justify-center gap-4 text-xs sm:text-sm text-text-muted mb-8 flex-wrap font-medium"
           >
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-sky-300">
-              <Satellite className="h-4 w-4 text-sky-400" />
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-sky-500 dark:text-sky-300">
+              <Satellite className="h-4 w-4 text-sky-500 dark:text-sky-400" />
               <span>IMD RSMC Integrated</span>
             </div>
-            <span className="text-slate-600">·</span>
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">
-              <Radio className="h-4 w-4 text-indigo-400" />
+            <span className="text-slate-400 dark:text-slate-600">·</span>
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 dark:text-indigo-300">
+              <Radio className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
               <span>INSAT-3DR Stream</span>
             </div>
-            <span className="text-slate-600">·</span>
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
-              <ShieldCheck className="h-4 w-4 text-emerald-400" />
+            <span className="text-slate-400 dark:text-slate-600">·</span>
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-300">
+              <ShieldCheck className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
               <span>Data Sovereign (India)</span>
             </div>
           </motion.div>
@@ -152,7 +152,7 @@ export function Hero() {
             <PillButton
               variant="ghost"
               onClick={scrollToIllustration}
-              className="px-8 py-4 bg-slate-900/80 hover:bg-slate-800 border-white/15 text-slate-200 hover:text-white shadow-lg font-semibold cursor-pointer backdrop-blur-md"
+              className="px-8 py-4 bg-card/80 hover:bg-card border-border text-foreground hover:text-foreground shadow-lg font-semibold cursor-pointer backdrop-blur-md"
             >
               Explore Telemetry
             </PillButton>
@@ -173,14 +173,14 @@ export function Hero() {
              <motion.div 
                style={!shouldReduceMotion ? { y: floatingY1 } : undefined}
                whileHover={{ scale: 1.05, y: -5 }}
-               className="hidden lg:flex absolute left-0 lg:-left-4 xl:-left-8 top-16 z-20 items-center gap-3 px-5 py-3 rounded-2xl bg-slate-900/90 border border-rose-500/30 shadow-[0_12px_40px_rgba(0,0,0,0.6)] backdrop-blur-xl cursor-pointer group/float hover:shadow-[0_20px_40px_rgba(239,68,68,0.25)] hover:border-rose-400/60 transition-all duration-300"
+               className="hidden lg:flex absolute left-0 lg:-left-4 xl:-left-8 top-16 z-20 items-center gap-3 px-5 py-3 rounded-2xl bg-surface-glass border border-rose-500/30 shadow-xl backdrop-blur-xl cursor-pointer group/float hover:border-rose-400/60 transition-all duration-300"
              >
-               <div className="bg-rose-500/20 p-2 rounded-xl group-hover/float:bg-rose-500 transition-colors duration-300 shadow-sm border border-rose-500/30">
-                 <Wind className="h-4 w-4 text-rose-400 group-hover/float:text-white transition-colors duration-300" />
+               <div className="bg-rose-500/20 p-2 rounded-xl group-hover/float:bg-rose-500 transition-colors duration-300 shadow-xs border border-rose-500/30">
+                 <Wind className="h-4 w-4 text-rose-500 dark:text-rose-400 group-hover/float:text-white transition-colors duration-300" />
                </div>
                <div className="flex flex-col">
-                 <span className="text-[13px] font-bold text-white leading-tight mb-0.5">Vortex Intensifying</span>
-                 <span className="text-[11px] font-medium text-slate-400">85 KT (157 km/h) • Cat 2</span>
+                 <span className="text-[13px] font-bold text-text-primary leading-tight mb-0.5">Vortex Intensifying</span>
+                 <span className="text-[11px] font-medium text-text-muted">85 KT (157 km/h) • Cat 2</span>
                </div>
              </motion.div>
 
@@ -188,14 +188,14 @@ export function Hero() {
              <motion.div 
                style={!shouldReduceMotion ? { y: floatingY2 } : undefined}
                whileHover={{ scale: 1.05, y: -5 }}
-               className="hidden lg:flex absolute right-0 lg:-right-4 xl:-right-8 bottom-16 z-20 items-center gap-3 px-5 py-3 rounded-2xl bg-slate-900/90 border border-sky-500/30 shadow-[0_12px_40px_rgba(0,0,0,0.6)] backdrop-blur-xl cursor-pointer group/float hover:shadow-[0_20px_40px_rgba(56,189,248,0.25)] hover:border-sky-400/60 transition-all duration-300"
+               className="hidden lg:flex absolute right-0 lg:-right-4 xl:-right-8 bottom-16 z-20 items-center gap-3 px-5 py-3 rounded-2xl bg-surface-glass border border-sky-500/30 shadow-xl backdrop-blur-xl cursor-pointer group/float hover:border-sky-400/60 transition-all duration-300"
              >
-               <div className="bg-sky-500/20 p-2 rounded-xl group-hover/float:bg-sky-500 transition-colors duration-300 shadow-sm border border-sky-500/30">
-                 <Compass className="h-4 w-4 text-sky-400 group-hover/float:text-white transition-colors duration-300" />
+               <div className="bg-sky-500/20 p-2 rounded-xl group-hover/float:bg-sky-500 transition-colors duration-300 shadow-xs border border-sky-500/30">
+                 <Compass className="h-4 w-4 text-sky-500 dark:text-sky-400 group-hover/float:text-white transition-colors duration-300" />
                </div>
                <div className="flex flex-col">
-                 <span className="text-[13px] font-bold text-white leading-tight mb-0.5">Cone Forecast Locked</span>
-                 <span className="text-[11px] font-medium text-slate-400">Landfall ETA: 28 hrs</span>
+                 <span className="text-[13px] font-bold text-text-primary leading-tight mb-0.5">Cone Forecast Locked</span>
+                 <span className="text-[11px] font-medium text-text-muted">Landfall ETA: 28 hrs</span>
                </div>
              </motion.div>
            </div>

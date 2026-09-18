@@ -30,7 +30,7 @@ export function StatsTicker() {
   const { tier1 } = useMotionTokens();
 
   return (
-    <section className="py-20 relative overflow-hidden bg-[#040714]">
+    <section className="py-20 relative overflow-hidden bg-bg-base transition-colors duration-300">
       <div className="container max-w-[1200px] mx-auto px-4 relative z-10">
         <motion.div 
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"

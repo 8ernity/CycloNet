@@ -17,8 +17,8 @@ export interface ParallaxComponentProps {
 
 export function ParallaxComponent({
   title = "CYCLONET",
-  pretitle = "A SAFER TOMORROW FROM SPACE",
-  subtitle = "GLOBAL INTELLIGENCE FOR A RESILIENT TOMORROW",
+  pretitle = "NEVER MISS A CYCLONE",
+  subtitle = "AI TROPICAL CYCLONE TRAJECTORY & LANDFALL INTELLIGENCE",
   layer1Src = "/Earth.png",
   layer2Src = "/NobgEarth.png",
   layer4Src = "/Astronaut.png",
@@ -102,31 +102,55 @@ export function ParallaxComponent({
               className="parallax__layer-img absolute top-0 left-0 w-full h-full object-cover pointer-events-none z-1"
             />
 
-            {/* Layer 3: CYCLONET 3D Depth Typography matching FullUI.png */}
+            {/* Layer 3: CYCLONET 3D Depth Typography matching Reference Images */}
             <div
               data-parallax-layer="3"
-              className="parallax__layer-title absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-4 text-center z-10 pb-28 sm:pb-36"
+              className="parallax__layer-title absolute inset-0 flex flex-col items-center justify-start pt-[10vh] sm:pt-[11vh] md:pt-[12vh] lg:pt-[13vh] pointer-events-none px-4 text-center z-10"
             >
               {/* Pre-title */}
-              <p className="text-[11px] sm:text-xs md:text-sm font-bold uppercase tracking-[0.38em] text-blue-100/90 mb-3 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+              <p 
+                className="text-[10px] sm:text-[11px] md:text-xs font-semibold uppercase tracking-[0.44em] text-[#93c5fd] mb-2 sm:mb-2.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] select-none"
+                style={{ fontFamily: "'Montserrat', var(--font-sans), sans-serif" }}
+              >
                 {pretitle}
               </p>
 
               {/* Main Glowing Metallic Title */}
-              <div className="relative flex items-center justify-center my-1">
-                {/* Radial Aurora Glow behind letters */}
-                <div className="absolute w-[120%] h-[150%] bg-blue-500/20 blur-[90px] rounded-full pointer-events-none -z-10" />
-
-                <h1 className="parallax__title text-6xl sm:text-8xl md:text-[8.5rem] lg:text-[10rem] font-black font-heading uppercase tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white via-[#f0f9ff] to-[#93c5fd] drop-shadow-[0_15px_45px_rgba(0,0,0,0.95)] text-center leading-none">
+              <div className="relative flex items-center justify-center my-0.5 select-none">
+                <h1 
+                  className="parallax__title text-4xl sm:text-6xl md:text-7xl lg:text-[5.4rem] xl:text-[6.2rem] font-extrabold uppercase tracking-[0.02em] text-center leading-none drop-shadow-[0_10px_24px_rgba(0,0,0,0.95)]"
+                  style={{
+                    fontFamily: "'Montserrat', var(--font-sans), sans-serif",
+                    backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 36%, #E8F3FD 46%, #79AFEB 72%, #3878BE 95%, #2563EB 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
                   {title}
                 </h1>
 
-                {/* Horizontal Lens Flare Accent */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 sm:w-80 h-1 bg-gradient-to-r from-transparent via-cyan-300 to-transparent blur-[1px] opacity-80 pointer-events-none" />
+                {/* Optical Starburst Gleam resting on the horizontal foot of the letter L */}
+                <div className="absolute left-[47.2%] top-[77%] -translate-x-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center z-20">
+                  {/* Central Bright White Diamond / Core */}
+                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 bg-white rounded-full shadow-[0_0_10px_#38bdf8,0_0_20px_#0284c7,0_0_30px_#38bdf8] blur-[0.2px]" />
+                  {/* Anamorphic Horizontal Ray Flare */}
+                  <div className="absolute w-32 sm:w-48 md:w-64 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-300 to-transparent blur-[0.4px]" />
+                  {/* Vertical Ray Flare */}
+                  <div className="absolute h-10 sm:h-14 w-[1.5px] bg-gradient-to-b from-transparent via-cyan-200 to-transparent blur-[0.4px]" />
+                  {/* Diagonal Sparkle 1 */}
+                  <div className="absolute w-10 sm:w-14 h-[1px] bg-gradient-to-r from-transparent via-white to-transparent rotate-45 blur-[0.3px] opacity-80" />
+                  {/* Diagonal Sparkle 2 */}
+                  <div className="absolute w-10 sm:w-14 h-[1px] bg-gradient-to-r from-transparent via-white to-transparent -rotate-45 blur-[0.3px] opacity-80" />
+                  {/* Soft Cyan Bloom Aura */}
+                  <div className="absolute w-10 h-10 bg-cyan-400/35 rounded-full blur-lg" />
+                </div>
               </div>
 
               {/* Subtitle */}
-              <p className="text-[10px] sm:text-xs md:text-sm font-semibold uppercase tracking-[0.32em] text-blue-200/75 mt-3 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] max-w-2xl">
+              <p 
+                className="text-[9px] sm:text-[10.5px] md:text-[11.5px] font-semibold uppercase tracking-[0.38em] text-[#74aadb] mt-2 sm:mt-2.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)] max-w-2xl select-none"
+                style={{ fontFamily: "'Montserrat', var(--font-sans), sans-serif" }}
+              >
                 {subtitle}
               </p>
             </div>
@@ -141,22 +165,25 @@ export function ParallaxComponent({
             />
           </div>
 
-          {/* Scroll to Explore Mouse Indicator (at the bottom) */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2 pointer-events-none">
-            <div className="w-5 h-8 rounded-full border-2 border-slate-400/50 flex items-start justify-center p-1 backdrop-blur-xs">
+          {/* Scroll to Explore Mouse Indicator (positioned comfortably above the blend) */}
+          <div className="absolute bottom-12 sm:bottom-14 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2 pointer-events-none select-none">
+            <div className="w-5 h-8 rounded-full border-2 border-slate-300/80 flex items-start justify-center p-1 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
               <motion.div
                 animate={{ y: [0, 8, 0], opacity: [1, 0.2, 1] }}
                 transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                className="w-1 h-2 rounded-full bg-slate-200"
+                className="w-1 h-2 rounded-full bg-cyan-300 shadow-[0_0_8px_#38bdf8]"
               />
             </div>
-            <span className="text-[9px] uppercase font-bold tracking-[0.32em] text-slate-400/90 drop-shadow-sm">
+            <span 
+              className="text-[9px] uppercase font-bold tracking-[0.32em] text-slate-200 drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]"
+              style={{ fontFamily: "'Montserrat', var(--font-sans), sans-serif" }}
+            >
               Scroll to Explore
             </span>
           </div>
 
-          {/* Smooth Bottom Blend into the Deep Cosmic Content Sections */}
-          <div className="parallax__fade absolute bottom-0 left-0 right-0 h-36 bg-gradient-to-t from-[#040714] via-[#040714]/70 to-transparent pointer-events-none z-20" />
+          {/* Smooth Bottom Atmospheric Feather Blend into the Content Sections */}
+          <div className="parallax__fade absolute bottom-0 left-0 right-0 h-36 bg-gradient-to-t from-bg-base via-bg-base/70 via-35% to-transparent pointer-events-none z-20 transition-colors duration-500" />
         </div>
       </section>
     </div>

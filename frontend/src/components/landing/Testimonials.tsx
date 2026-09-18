@@ -78,15 +78,15 @@ export function Testimonials() {
   const { tier1, tier1Variants } = useMotionTokens();
 
   return (
-    <section className="py-24 bg-[#040714] overflow-hidden border-t border-white/5">
+    <section className="py-24 bg-bg-base text-text-primary overflow-hidden border-t border-surface-border transition-colors duration-300">
       <div className="container max-w-[1200px] mx-auto px-4">
         
         <div className="text-center max-w-2xl mx-auto mb-16">
           <MicroLabel className="mb-4 inline-block">Command Citations</MicroLabel>
-          <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-white mb-4">
+          <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-text-primary mb-4">
             Trusted across coastal commands.
           </h2>
-          <p className="text-slate-400 text-sm md:text-base leading-relaxed">
+          <p className="text-text-muted text-sm md:text-base leading-relaxed">
             See how predictive meteorological intelligence transforms reactive disaster response into proactive coastal safety.
           </p>
         </div>
@@ -105,20 +105,20 @@ export function Testimonials() {
               className="h-full"
             >
               <TiltCard>
-                <GlassPanel hoverEffect={false} className="p-8 h-full flex flex-col relative overflow-hidden group bg-[#090e28]/85 border-white/10">
-                  <Quote className="absolute top-4 right-4 w-20 h-20 text-white/5 -rotate-12 group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-500 pointer-events-none" />
+                <GlassPanel hoverEffect={false} className="p-8 h-full flex flex-col relative overflow-hidden group bg-surface-glass border-surface-border">
+                  <Quote className="absolute top-4 right-4 w-20 h-20 text-text-primary/5 -rotate-12 group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-500 pointer-events-none" />
                   
-                  <p className="text-sm text-slate-200 leading-relaxed mb-8 relative z-10 font-medium">
+                  <p className="text-sm text-text-primary leading-relaxed mb-8 relative z-10 font-medium">
                     &quot;{t.quote}&quot;
                   </p>
                   
                   <div className="mt-auto flex items-center gap-3 relative z-10">
-                    <div className="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-300 font-bold text-xs shadow-sm">
+                    <div className="w-10 h-10 rounded-full bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-500 dark:text-sky-300 font-bold text-xs shadow-sm">
                       {t.initials}
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-white">{t.name}</h4>
-                      <p className="text-xs text-slate-400">{t.role}</p>
+                      <h4 className="text-sm font-bold text-text-primary">{t.name}</h4>
+                      <p className="text-xs text-text-muted">{t.role}</p>
                     </div>
                   </div>
                 </GlassPanel>

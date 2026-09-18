@@ -272,25 +272,25 @@ export default function LiveMonitoringPage() {
       )}
 
       {/* Live Ingestion Feed Bar */}
-      <div className="p-3 px-4 rounded-xl bg-zinc-900/60 border border-white/10 backdrop-blur-md flex flex-wrap items-center justify-between gap-3 text-xs shadow-sm">
+      <div className="p-3 px-4 rounded-xl bg-surface-glass border border-border backdrop-blur-md flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
-            <span className="font-semibold text-zinc-100">Live Ingestion:</span>
+            <Radio className="w-4 h-4 text-emerald-500 dark:text-emerald-400 animate-pulse" />
+            <span className="font-semibold text-foreground">Live Ingestion:</span>
           </div>
-          <div className="flex items-center gap-2 text-zinc-300">
-            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 font-mono text-[11px] text-emerald-400">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 font-mono text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
               IMD RSMC: Online
             </span>
-            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 font-mono text-[11px] text-emerald-400">
+            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 font-mono text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
               JTWC/NOAA: Online
             </span>
-            <span className="px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 font-mono text-[11px] text-blue-400">
+            <span className="px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 font-mono text-[11px] text-blue-600 dark:text-blue-400 font-medium">
               INSAT-3DR
             </span>
           </div>
           {ingestStatus?.last_sync && (
-            <span className="hidden sm:inline text-zinc-400 text-[11px]">
+            <span className="hidden sm:inline text-muted-foreground text-[11px]">
               • Last Auto-Checked: {new Date(ingestStatus.last_sync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
           )}
@@ -301,7 +301,7 @@ export default function LiveMonitoringPage() {
             <button
               onClick={handleClearLiveTest}
               disabled={isSyncingIngest}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-white/20 text-zinc-300 hover:text-white text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer hover:scale-105 active:scale-95"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-foreground text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer hover:scale-105 active:scale-95 shadow-xs"
               title="Clear injected live detection test and return to real calm feeds"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -311,10 +311,10 @@ export default function LiveMonitoringPage() {
             <button
               onClick={handleTestInject}
               disabled={isSyncingIngest}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 hover:text-amber-300 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer hover:scale-105 active:scale-95"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer hover:scale-105 active:scale-95 shadow-xs"
               title="Test real-time detection by injecting a simulated new live cyclone (Cyclone Shakti)"
             >
-              <Play className="w-3.5 h-3.5 fill-amber-400" />
+              <Play className="w-3.5 h-3.5 fill-amber-500 dark:fill-amber-400" />
               <span>Test Live Detection</span>
             </button>
           )}
@@ -322,7 +322,7 @@ export default function LiveMonitoringPage() {
           <button
             onClick={handleSyncFeeds}
             disabled={isSyncingIngest}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 hover:text-blue-300 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer hover:scale-105 active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-600 dark:text-blue-400 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer hover:scale-105 active:scale-95 shadow-xs"
             title="Poll IMD, NOAA, and MOSDAC feeds for newly evolving cyclones"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncingIngest ? "animate-spin" : ""}`} />
@@ -345,7 +345,7 @@ export default function LiveMonitoringPage() {
                 {activeSystem ? activeSystem.name : "No Active Cyclones"}
               </h3>
             </div>
-            <div className={`p-2 rounded-lg ${activeSystem ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-400"}`}>
+            <div className={`p-2 rounded-lg ${activeSystem ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-500 dark:text-emerald-400"}`}>
               {activeSystem ? <AlertCircle className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
             </div>
           </div>
@@ -356,8 +356,8 @@ export default function LiveMonitoringPage() {
                 {activeSystem.category}
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 font-semibold text-xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold text-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Basin Quiet • Calm Conditions
               </span>
             )}
@@ -377,15 +377,15 @@ export default function LiveMonitoringPage() {
                   : "15 - 25 km/h"}
               </h3>
             </div>
-            <div className="p-2 bg-white/10 rounded-lg border border-white/10">
-              <Wind className="w-5 h-5 text-zinc-100" />
+            <div className="p-2 bg-secondary rounded-lg border border-border">
+              <Wind className="w-5 h-5 text-foreground" />
             </div>
           </div>
           <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
             {activeSystem ? (
-              <span className="text-emerald-500 font-medium">Gusting to 190 km/h</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-medium">Gusting to 190 km/h</span>
             ) : (
-              <span className="text-emerald-400 font-medium">Beaufort Scale 3–4 (Gentle)</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-medium">Beaufort Scale 3–4 (Gentle)</span>
             )}
             <span>over open seas</span>
           </div>
@@ -404,8 +404,8 @@ export default function LiveMonitoringPage() {
                   : "Arabian Sea & BoB"}
               </h3>
             </div>
-            <div className="p-2 bg-white/10 rounded-lg border border-white/10">
-              <MapPin className="w-5 h-5 text-zinc-100" />
+            <div className="p-2 bg-secondary rounded-lg border border-border">
+              <MapPin className="w-5 h-5 text-foreground" />
             </div>
           </div>
           <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
@@ -424,8 +424,8 @@ export default function LiveMonitoringPage() {
                 {stormMeta.landfall}
               </h3>
             </div>
-            <div className="p-2 bg-white/10 rounded-lg border border-white/10">
-              <Navigation className="w-5 h-5 text-zinc-100" />
+            <div className="p-2 bg-secondary rounded-lg border border-border">
+              <Navigation className="w-5 h-5 text-foreground" />
             </div>
           </div>
           <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
@@ -439,11 +439,11 @@ export default function LiveMonitoringPage() {
         
         {/* Map Container */}
         <div className="glass-card lg:col-span-2 min-h-[520px] flex flex-col p-1 relative overflow-hidden">
-          <div className="absolute top-4 left-4 z-10 bg-zinc-950/85 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/15 shadow-lg flex items-center gap-3">
+          <div className="absolute top-4 left-4 z-10 bg-card/90 backdrop-blur-md px-4 py-2.5 rounded-xl border border-border shadow-lg flex items-center gap-3">
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             <div>
-              <h4 className="font-heading font-semibold text-xs text-zinc-100">INSAT-3DR Satellite Live Surveillance</h4>
-              <p className="text-[10.5px] text-zinc-400">
+              <h4 className="font-heading font-semibold text-xs text-foreground">INSAT-3DR Satellite Live Surveillance</h4>
+              <p className="text-[10.5px] text-muted-foreground">
                 {activeSystem ? "Tracking Active Vortex: " + activeSystem.name : "North Indian Ocean Basin • Real-Time Nominal"}
               </p>
             </div>
@@ -456,16 +456,16 @@ export default function LiveMonitoringPage() {
 
           {/* Bottom Simulation Prompt when no storm is active */}
           {!activeSystem && (
-            <div className="absolute bottom-4 left-4 right-4 z-10 p-3 px-4 rounded-xl bg-zinc-950/90 backdrop-blur-md border border-white/15 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl">
-              <div className="flex items-center gap-2.5 text-xs text-zinc-300">
-                <Activity className="w-4 h-4 text-emerald-400 shrink-0" />
+            <div className="absolute bottom-4 left-4 right-4 z-10 p-3 px-4 rounded-xl bg-card/95 backdrop-blur-md border border-border flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl">
+              <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
+                <Activity className="w-4 h-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
                 <span>No active cyclonic storms right now. Want to test the tracking and forecast visualization?</span>
               </div>
               <button
                 onClick={() => fetchActiveSystems(true)}
-                className="px-3.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap shadow-sm hover:scale-[1.02]"
+                className="px-3.5 py-1.5 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-foreground text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap shadow-xs hover:scale-[1.02]"
               >
-                <Play className="w-3.5 h-3.5 fill-current text-amber-400" />
+                <Play className="w-3.5 h-3.5 fill-current text-amber-500 dark:text-amber-400" />
                 Load Biparjoy (2023) Simulation
               </button>
             </div>
@@ -518,7 +518,7 @@ export default function LiveMonitoringPage() {
                       <div className="mt-1">
                         {bulletin.type === 'alert' ? 
                           <AlertCircle className="w-4 h-4 text-destructive" /> : 
-                          <CloudRain className="w-4 h-4 text-zinc-300" />
+                          <CloudRain className="w-4 h-4 text-blue-500" />
                         }
                       </div>
                       <div>
@@ -548,7 +548,7 @@ export default function LiveMonitoringPage() {
             </div>
             <a 
               href={activeSystem ? `/forecast?cyclone_id=${encodeURIComponent(activeSystem.id)}` : "/forecast"} 
-              className="w-full mt-6 py-2.5 rounded-lg bg-white/[0.05] hover:bg-white/10 border border-white/10 text-sm font-semibold transition-all text-zinc-200 hover:text-white flex items-center justify-center gap-2 text-center cursor-pointer shadow-xs hover:scale-[1.005]"
+              className="w-full mt-6 py-2.5 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-sm font-semibold transition-all text-foreground flex items-center justify-center gap-2 text-center cursor-pointer shadow-xs hover:scale-[1.005]"
             >
               <span>View complete analytics & forecast</span>
             </a>
@@ -564,7 +564,7 @@ export default function LiveMonitoringPage() {
                     <span className="text-muted-foreground">
                       {activeSystem ? "Intensity Classification" : "Satellite Ingestion Status"}
                     </span>
-                    <span className="font-semibold text-emerald-500">
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                       {activeSystem ? "94.2%" : "Operational (100%)"}
                     </span>
                   </div>
@@ -577,12 +577,12 @@ export default function LiveMonitoringPage() {
                     <span className="text-muted-foreground">
                       {activeSystem ? "Center Fix (Lat/Lon)" : "Organized Vortex Anomaly"}
                     </span>
-                    <span className="font-semibold text-zinc-200">
+                    <span className="font-semibold text-foreground">
                       {activeSystem ? "88.5%" : "0 Detected"}
                     </span>
                   </div>
                   <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                    <div className="h-full bg-zinc-400 w-[0%] rounded-full" />
+                    <div className="h-full bg-primary/40 w-[0%] rounded-full" />
                   </div>
                 </div>
                 <div>
@@ -590,7 +590,7 @@ export default function LiveMonitoringPage() {
                     <span className="text-muted-foreground">
                       {activeSystem ? "Track Forecast (24h)" : "5-Day Cyclogenesis Risk"}
                     </span>
-                    <span className="font-semibold text-emerald-400">
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">
                       {activeSystem ? "76.0%" : "Very Low (< 5%)"}
                     </span>
                   </div>

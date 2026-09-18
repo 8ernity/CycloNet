@@ -1,8 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,wght@1,700;1,900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --color-background: var(--background);
@@ -12,6 +13,11 @@
   --font-heading: var(--font-space-grotesk);
   --font-cursive: var(--font-cursive);
   --font-serif: var(--font-serif);
+  
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
   
   --color-border: var(--border);
   --color-input: var(--input);
@@ -27,18 +33,18 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   
-  /* Landing Page Design System (Cosmic Planetary Intelligence Theme from FullUI.png) */
-  --color-bg-base: #040714;
-  --color-bg-elevated: #090e24;
-  --color-surface-glass: rgba(13, 20, 42, 0.65);
-  --color-surface-border: rgba(56, 189, 248, 0.16);
-  --color-accent: #0090FF;
-  --color-accent-hover: #0077E6;
-  --color-accent-glow: rgba(0, 144, 255, 0.40);
-  --color-text-primary: #F8FAFC;
-  --color-text-muted: #94A3B8;
-  --color-text-faint: #64748B;
-  --color-lavender: #93C5FD;
+  /* Landing Page Design System (Dynamic Dark/Light Tokens) */
+  --color-bg-base: var(--bg-base);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-surface-glass: var(--surface-glass);
+  --color-surface-border: var(--surface-border);
+  --color-accent-theme: var(--accent-theme);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-glow: var(--accent-glow);
+  --color-text-primary: var(--text-primary);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --color-lavender: var(--lavender);
 
   --animate-marquee: marquee 25s linear infinite;
 
@@ -75,7 +81,7 @@
 }
 
 .mesh-pipeline {
-  background-color: #040714;
+  background-color: var(--bg-base);
   background-image: 
     radial-gradient(at 15% 15%, rgba(0, 144, 255, 0.12) 0px, transparent 60%),
     radial-gradient(at 85% 20%, rgba(99, 102, 241, 0.10) 0px, transparent 60%),
@@ -83,73 +89,101 @@
     radial-gradient(at 20% 85%, rgba(59, 130, 246, 0.10) 0px, transparent 60%);
 }
 
-:root {
-  /* Dark mode by default - Sophisticated Dark Grey & Black Aesthetic */
-  --background: #09090b; /* Pure deep black / zinc-950 */
-  --foreground: #fafafa; /* Crisp light silver / white */
-  --card: #121215;       /* Refined dark charcoal grey */
-  --card-foreground: #fafafa;
-  --popover: #121215;
-  --popover-foreground: #fafafa;
-  --primary: #f4f4f5;    /* High-contrast silver white */
-  --primary-foreground: #09090b; /* Pitch black for high contrast */
-  --secondary: #1e1e24;  /* Dark charcoal secondary */
+:root, .dark {
+  /* Dark mode by default */
+  --background: #040714;
+  --foreground: #f8fafc;
+  --card: #090e24;
+  --card-foreground: #f8fafc;
+  --popover: #090e24;
+  --popover-foreground: #f8fafc;
+  --primary: #0090FF;
+  --primary-foreground: #ffffff;
+  --secondary: #121938;
   --secondary-foreground: #f4f4f5;
-  --muted: #18181b;      /* Zinc-900 */
-  --muted-foreground: #a1a1aa; /* Zinc-400 neutral grey */
-  --accent: #27272a;     /* Zinc-800 */
+  --muted: #0d1533;
+  --muted-foreground: #94a3b8;
+  --accent: #1e2952;
   --accent-foreground: #fafafa;
   --destructive: #ef4444;
-  --border: rgba(255, 255, 255, 0.09); /* Delicately etched borders */
-  --input: rgba(255, 255, 255, 0.09);
-  --ring: #71717a;
+  --destructive-foreground: #fafafa;
+  --border: rgba(56, 189, 248, 0.16);
+  --input: rgba(56, 189, 248, 0.16);
+  --ring: #0090FF;
   --radius: 0.75rem;
 
-  /* Weather-adapted Brand Colors - sleek neutral palette */
+  /* Landing Page Design Tokens (Dark) */
+  --bg-base: #040714;
+  --bg-elevated: #090e24;
+  --surface-glass: rgba(13, 20, 42, 0.70);
+  --surface-border: rgba(56, 189, 248, 0.16);
+  --accent-theme: #0090FF;
+  --accent-hover: #0077E6;
+  --accent-glow: rgba(0, 144, 255, 0.40);
+  --text-primary: #F8FAFC;
+  --text-muted: #94A3B8;
+  --text-faint: #64748B;
+  --lavender: #93C5FD;
+
+  /* Weather-adapted Brand Colors */
   --brand-teal: #71717a;
   --brand-blue: #d4d4d8;
   --brand-slate: #52525b;
   --brand-storm: #27272a;
   --brand-cyan: #a1a1aa;
   
-  /* Glass Card Settings - Dark grey & black */
-  --glass-bg: rgba(18, 18, 22, 0.75);
-  --glass-border: rgba(255, 255, 255, 0.08);
+  /* Glass Card Settings */
+  --glass-bg: rgba(13, 20, 42, 0.75);
+  --glass-border: rgba(56, 189, 248, 0.16);
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
-  --glass-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.12);
-  --glass-aurora-1: rgba(255, 255, 255, 0.025);
-  --glass-aurora-2: rgba(255, 255, 255, 0.015);
+  --glass-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(56, 189, 248, 0.25);
+  --glass-aurora-1: rgba(0, 144, 255, 0.05);
+  --glass-aurora-2: rgba(99, 102, 241, 0.04);
   --headline-gradient-start: #ffffff;
   --headline-gradient-end: #a1a1aa;
 }
 
-.light {
-  --background: #f1f5f9;
+.light, :root.light, html.light, [data-theme="light"] {
+  --background: #f8fafc;
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
-  --primary: #0ea5e9;
+  --primary: #0070F3;
   --primary-foreground: #ffffff;
-  --secondary: #e2e8f0;
+  --secondary: #f1f5f9;
   --secondary-foreground: #0f172a;
   --muted: #f1f5f9;
   --muted-foreground: #475569;
   --accent: #e2e8f0;
   --accent-foreground: #0f172a;
   --destructive: #ef4444;
-  --border: rgba(0, 0, 0, 0.1);
-  --input: rgba(0, 0, 0, 0.1);
-  --ring: #0ea5e9;
+  --destructive-foreground: #ffffff;
+  --border: rgba(14, 165, 233, 0.22);
+  --input: rgba(14, 165, 233, 0.22);
+  --ring: #0070F3;
   
+  /* Landing Page Design Tokens (Light) */
+  --bg-base: #f8fafc;
+  --bg-elevated: #ffffff;
+  --surface-glass: rgba(255, 255, 255, 0.92);
+  --surface-border: rgba(14, 165, 233, 0.22);
+  --accent-theme: #0070F3;
+  --accent-hover: #005bb5;
+  --accent-glow: rgba(0, 112, 243, 0.25);
+  --text-primary: #0F172A;
+  --text-muted: #475569;
+  --text-faint: #64748B;
+  --lavender: #0284C7;
+
   /* Glass Card Settings (Light) */
-  --glass-bg: rgba(255, 255, 255, 0.75);
-  --glass-border: rgba(255, 255, 255, 0.7);
+  --glass-bg: rgba(255, 255, 255, 0.92);
+  --glass-border: rgba(14, 165, 233, 0.18);
   --glass-shadow: 0 8px 30px rgba(14, 165, 233, 0.08), 0 0 60px rgba(13, 148, 136, 0.06);
-  --glass-shadow-hover: 0 12px 40px rgba(14, 165, 233, 0.12), 0 0 80px rgba(13, 148, 136, 0.08);
-  --glass-aurora-1: rgba(186, 230, 253, 0.25);
-  --glass-aurora-2: rgba(153, 246, 228, 0.25);
+  --glass-shadow-hover: 0 12px 40px rgba(14, 165, 233, 0.14), 0 0 80px rgba(13, 148, 136, 0.08);
+  --glass-aurora-1: rgba(186, 230, 253, 0.35);
+  --glass-aurora-2: rgba(153, 246, 228, 0.35);
   --headline-gradient-start: #0f172a;
   --headline-gradient-end: #0369a1;
 }

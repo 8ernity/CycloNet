@@ -22,9 +22,9 @@ export function StatTile({ icon: Icon, value, label, tint = "accent", className 
   };
 
   return (
-    <GlassPanel hoverEffect className={cn("p-6 flex flex-col justify-between h-full bg-[#0b122e]/80 border-white/10", className)}>
+    <GlassPanel hoverEffect className={cn("p-6 flex flex-col justify-between h-full bg-surface-glass border-surface-border", className)}>
       <div className="flex items-center justify-between mb-4">
-        <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+        <span className="text-[11px] font-bold uppercase tracking-widest text-text-muted">
           {label}
         </span>
         <div className={cn("p-2 rounded-xl border flex items-center justify-center", tintMap[tint])}>
@@ -32,7 +32,7 @@ export function StatTile({ icon: Icon, value, label, tint = "accent", className 
         </div>
       </div>
       
-      <div className="text-3xl lg:text-4xl font-black font-heading tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
+      <div className="text-3xl lg:text-4xl font-black font-heading tracking-tight text-text-primary drop-shadow-sm dark:drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">
         {value}
       </div>
     </GlassPanel>

@@ -339,7 +339,7 @@ export default function ForecastPage() {
               className="bg-transparent text-xs font-semibold text-foreground focus:outline-none cursor-pointer max-w-[240px]"
             >
               {cyclonesList.map((c) => (
-                <option key={c.id} value={c.id} className="bg-zinc-900 text-zinc-100">
+                <option key={c.id} value={c.id} className="bg-card text-foreground">
                   {c.name.startsWith("Cyclone") ? c.name : `Cyclone ${c.name}`} {c.year ? `(${c.year})` : ""}
                 </option>
               ))}

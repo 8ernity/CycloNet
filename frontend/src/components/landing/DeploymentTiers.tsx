@@ -53,15 +53,15 @@ const tiers = [
 
 export function DeploymentTiers() {
   return (
-    <section className="py-24 bg-[#060a20] relative overflow-hidden border-t border-white/5" id="deployment">
+    <section className="py-24 bg-bg-elevated text-text-primary relative overflow-hidden border-t border-surface-border transition-colors duration-300" id="deployment">
       <div className="container max-w-[1200px] mx-auto px-4 relative z-10">
         
         <div className="text-center max-w-2xl mx-auto mb-16 md:mb-24">
           <MicroLabel className="mb-4 inline-block">Jurisdiction Deployment</MicroLabel>
-          <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-white mb-4">
+          <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-text-primary mb-4">
             Scaled for your operational jurisdiction.
           </h2>
-          <p className="text-slate-400 text-sm md:text-base leading-relaxed">
+          <p className="text-text-muted text-sm md:text-base leading-relaxed">
             From district emergency operation centers to national disaster headquarters, deploy the meteorological tools that match your operational scope.
           </p>
         </div>
@@ -78,10 +78,8 @@ export function DeploymentTiers() {
             >
               <GlassPanel 
                 className={cn(
-                  "p-8 h-full flex flex-col relative",
-                  tier.elevated 
-                    ? "border-sky-400/50 shadow-[0_0_50px_rgba(0,144,255,0.30)] bg-[#0e163b]/95" 
-                    : "border-white/10 bg-[#090f28]/80"
+                  "p-8 h-full flex flex-col relative bg-surface-glass border-surface-border",
+                  tier.elevated && "border-sky-400 shadow-xl dark:shadow-[0_0_50px_rgba(0,144,255,0.30)] bg-card"
                 )}
               >
                 {/* Ambient glow on middle tier */}
@@ -100,17 +98,17 @@ export function DeploymentTiers() {
                   </div>
                 )}
                 
-                <h3 className="text-xl font-bold font-heading text-white mb-1">{tier.name}</h3>
-                <p className="text-xs font-semibold text-sky-400 mb-4">{tier.scope}</p>
-                <p className="text-xs sm:text-sm text-slate-400 mb-8 leading-relaxed">{tier.desc}</p>
+                <h3 className="text-xl font-bold font-heading text-text-primary mb-1">{tier.name}</h3>
+                <p className="text-xs font-semibold text-sky-500 dark:text-sky-400 mb-4">{tier.scope}</p>
+                <p className="text-xs sm:text-sm text-text-muted mb-8 leading-relaxed">{tier.desc}</p>
                 
                 <ul className="flex flex-col gap-3.5 mb-8 flex-grow">
                   {tier.features.map(f => (
                     <li key={f} className="flex items-start gap-3">
                       <div className="mt-0.5 w-4 h-4 rounded-full bg-sky-500/20 border border-sky-500/30 flex items-center justify-center flex-shrink-0">
-                        <Check className="w-2.5 h-2.5 text-sky-400" />
+                        <Check className="w-2.5 h-2.5 text-sky-500 dark:text-sky-400" />
                       </div>
-                      <span className="text-xs sm:text-sm text-slate-300">{f}</span>
+                      <span className="text-xs sm:text-sm text-text-muted">{f}</span>
                     </li>
                   ))}
                 </ul>
@@ -119,7 +117,7 @@ export function DeploymentTiers() {
                   variant={tier.elevated ? "primary" : "ghost"} 
                   className={cn(
                     "w-full cursor-pointer text-xs font-bold",
-                    !tier.elevated && "bg-slate-900 border-white/10 text-slate-300 hover:text-white"
+                    !tier.elevated && "bg-card border-surface-border text-text-primary hover:bg-card/80"
                   )}
                   onClick={() => window.location.href = '/'}
                 >

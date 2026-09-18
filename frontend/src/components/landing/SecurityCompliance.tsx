@@ -12,17 +12,17 @@ const securityFeatures = [
 
 export function SecurityCompliance() {
   return (
-    <section className="py-24 bg-[#060a20] relative overflow-hidden border-t border-white/5">
+    <section className="py-24 bg-bg-elevated relative overflow-hidden border-t border-surface-border">
       <div className="container max-w-[1200px] mx-auto px-4 relative z-10">
         
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <MicroLabel className="mb-4 inline-block text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1 rounded-full">
+          <MicroLabel className="mb-4 inline-block text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1 rounded-full font-semibold">
             National Critical Infrastructure
           </MicroLabel>
-          <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-white mb-4">
+          <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-text-primary mb-4">
             Security and reliability at national scale.
           </h2>
-          <p className="text-slate-400 text-sm md:text-base leading-relaxed">
+          <p className="text-text-muted text-sm md:text-base leading-relaxed">
             Engineered to meet the mission-critical security and uptime requirements of state disaster authorities, IMD RSMC, and the Ministry of Earth Sciences.
           </p>
         </div>
@@ -31,28 +31,28 @@ export function SecurityCompliance() {
           {securityFeatures.map((feature) => {
             const Icon = feature.icon;
             return (
-              <GlassPanel key={feature.title} className="p-6 border-white/10 bg-[#090e26]/80">
-                <div className="w-10 h-10 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center mb-4 text-sky-400">
+              <GlassPanel key={feature.title} className="p-6 border-surface-border bg-surface-glass">
+                <div className="w-10 h-10 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center mb-4 text-sky-500 dark:text-sky-400">
                   <Icon className="w-5 h-5" />
                 </div>
-                <h3 className="text-sm font-bold text-white mb-2 tracking-tight">{feature.title}</h3>
-                <p className="text-xs text-slate-400 leading-relaxed">{feature.desc}</p>
+                <h3 className="text-sm font-bold text-text-primary mb-2 tracking-tight">{feature.title}</h3>
+                <p className="text-xs text-text-muted leading-relaxed">{feature.desc}</p>
               </GlassPanel>
             );
           })}
         </div>
 
         <div className="flex flex-wrap justify-center gap-4">
-          <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-slate-900/60 text-xs font-semibold text-slate-300">
-            <Shield className="w-4 h-4 text-emerald-400" />
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-surface-border bg-surface-glass text-xs font-semibold text-text-muted shadow-xs">
+            <Shield className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
             ISO 27001 Certified Architecture
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-slate-900/60 text-xs font-semibold text-slate-300">
-            <Shield className="w-4 h-4 text-emerald-400" />
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-surface-border bg-surface-glass text-xs font-semibold text-text-muted shadow-xs">
+            <Shield className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
             MeitY Sovereign Cloud Verified
           </div>
-          <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 bg-slate-900/60 text-xs font-semibold text-slate-300">
-            <Shield className="w-4 h-4 text-emerald-400" />
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-surface-border bg-surface-glass text-xs font-semibold text-text-muted shadow-xs">
+            <Shield className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
             99.99% Disaster Resilient Uptime
           </div>
         </div>

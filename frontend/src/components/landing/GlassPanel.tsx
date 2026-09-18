@@ -11,8 +11,8 @@ export function GlassPanel({ children, className, hoverEffect = false, ...props 
   return (
     <div
       className={cn(
-        "rounded-2xl bg-[#0b112c]/70 border border-sky-500/15 backdrop-blur-xl transition-all duration-300 shadow-[0_8px_32px_rgba(0,0,0,0.5)]",
-        hoverEffect && "hover:border-sky-400/40 hover:bg-[#101a40]/80 hover:shadow-[0_12px_40px_rgba(0,144,255,0.20)] hover:-translate-y-1",
+        "rounded-2xl bg-surface-glass border border-surface-border text-text-primary backdrop-blur-xl transition-all duration-300 shadow-md dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)]",
+        hoverEffect && "hover:border-sky-400/40 hover:shadow-lg dark:hover:shadow-[0_12px_40px_rgba(0,144,255,0.20)] hover:-translate-y-1",
         className
       )}
       {...props}

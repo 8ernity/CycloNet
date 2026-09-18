@@ -23,7 +23,7 @@ export function PredictPanel({ phase }: PanelProps) {
           exit={{ opacity: 0, transition: { duration: 0.25 } }}
           className="absolute inset-0 flex flex-col items-center justify-center p-4 sm:p-6"
         >
-          <div className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] overflow-hidden relative">
+          <div className="w-full max-w-lg bg-surface-glass border border-surface-border rounded-2xl shadow-xl overflow-hidden relative text-text-primary">
             
             {/* Background Grid & Radar rings */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
@@ -38,14 +38,14 @@ export function PredictPanel({ phase }: PanelProps) {
             </div>
 
             {/* Header */}
-            <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/80 backdrop-blur-sm z-10 relative">
+            <div className="px-5 py-4 border-b border-surface-border flex items-center justify-between bg-bg-base/60 backdrop-blur-sm z-10 relative">
               <div className="flex items-center gap-2.5">
-                <div className="p-1.5 bg-rose-500/20 rounded-md">
+                <div className="p-1.5 bg-rose-500/20 rounded-md border border-rose-500/30">
                   <AlertTriangle className="h-4 w-4 text-rose-500" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white leading-tight">Cyclone Vortex Classification</h3>
-                  <p className="text-[10px] font-medium text-slate-400">Deep Dvorak CNN • 48h Cone Forecast</p>
+                  <h3 className="text-sm font-bold text-text-primary leading-tight">Cyclone Vortex Classification</h3>
+                  <p className="text-[10px] font-medium text-text-muted">Deep Dvorak CNN • 48h Cone Forecast</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -64,41 +64,41 @@ export function PredictPanel({ phase }: PanelProps) {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 flex gap-4"
+                className="bg-bg-elevated/80 border border-surface-border rounded-xl p-4 flex gap-4 shadow-xs"
               >
-                <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center shrink-0 border border-slate-600">
-                  <Eye className="h-5 w-5 text-blue-400" />
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+                  <Eye className="h-5 w-5 text-primary" />
                 </div>
                 <div className="flex-1">
                   <div className="flex justify-between items-start mb-1">
-                    <h4 className="text-sm font-bold text-white">Rapid Intensification (T4.5)</h4>
-                    <span className="text-[10px] font-mono font-bold text-emerald-400">94.2% ACCURACY</span>
+                    <h4 className="text-sm font-bold text-text-primary">Rapid Intensification (T4.5)</h4>
+                    <span className="text-[10px] font-mono font-bold text-emerald-500 dark:text-emerald-400">94.2% ACCURACY</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 leading-relaxed mb-3">
+                  <p className="text-[11px] text-text-muted leading-relaxed mb-3">
                     CDO pattern tightly coiled over Bay of Bengal (16.4°N, 88.2°E). Sustained winds: 85 KT (157 km/h).
                   </p>
                   
                   {/* Progress Bars */}
                   <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+                    <div className="flex items-center justify-between text-[9px] text-text-muted font-bold uppercase tracking-wider">
                       <span>Dvorak Confidence Index</span>
-                      <span className="text-white">96%</span>
+                      <span className="text-text-primary">96%</span>
                     </div>
-                    <div className="h-1.5 w-full bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
                       <motion.div 
                         initial={{ width: 0 }} animate={{ width: '96%' }} transition={{ delay: 0.5, duration: 1 }}
-                        className="h-full bg-blue-500 rounded-full" 
+                        className="h-full bg-primary rounded-full" 
                       />
                     </div>
 
-                    <div className="flex items-center justify-between text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-1">
+                    <div className="flex items-center justify-between text-[9px] text-text-muted font-bold uppercase tracking-wider mt-1">
                       <span>Track Cone Convergence</span>
-                      <span className="text-white">88%</span>
+                      <span className="text-text-primary">88%</span>
                     </div>
-                    <div className="h-1.5 w-full bg-slate-700 rounded-full overflow-hidden">
+                    <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
                       <motion.div 
                         initial={{ width: 0 }} animate={{ width: '88%' }} transition={{ delay: 0.6, duration: 1 }}
-                        className="h-full bg-indigo-400 rounded-full" 
+                        className="h-full bg-indigo-500 rounded-full" 
                       />
                     </div>
                   </div>
@@ -111,14 +111,14 @@ export function PredictPanel({ phase }: PanelProps) {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 flex flex-col justify-between"
+                  className="bg-bg-elevated/80 border border-surface-border rounded-xl p-3 flex flex-col justify-between shadow-xs"
                 >
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Landfall Window</div>
+                  <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">Landfall Window</div>
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-slate-700 rounded text-slate-300"><Compass className="h-3 w-3" /></div>
+                    <div className="p-1.5 bg-secondary rounded text-text-primary"><Compass className="h-3 w-3" /></div>
                     <div>
-                      <div className="text-xs font-bold text-white">T+28 Hours</div>
-                      <div className="text-[9px] text-slate-400 font-medium">Odisha-WB Coast</div>
+                      <div className="text-xs font-bold text-text-primary">T+28 Hours</div>
+                      <div className="text-[9px] text-text-muted font-medium">Odisha-WB Coast</div>
                     </div>
                   </div>
                 </motion.div>
@@ -127,14 +127,14 @@ export function PredictPanel({ phase }: PanelProps) {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}
-                  className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 flex flex-col justify-between relative overflow-hidden"
+                  className="bg-bg-elevated/80 border border-surface-border rounded-xl p-3 flex flex-col justify-between relative overflow-hidden shadow-xs"
                 >
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 z-10 relative">Est. Storm Surge</div>
+                  <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2 z-10 relative">Est. Storm Surge</div>
                   <div className="flex items-center gap-2 z-10 relative">
                     <div className="p-1.5 bg-rose-500/20 rounded text-rose-500"><Wind className="h-3 w-3" /></div>
                     <div>
-                      <div className="text-xs font-bold text-white">3.8 - 4.5 Meters</div>
-                      <div className="text-[9px] text-rose-400 font-medium">Inundation Alert</div>
+                      <div className="text-xs font-bold text-text-primary">3.8 - 4.5 Meters</div>
+                      <div className="text-[9px] text-rose-500 dark:text-rose-400 font-medium">Inundation Alert</div>
                     </div>
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent to-rose-500/5" />

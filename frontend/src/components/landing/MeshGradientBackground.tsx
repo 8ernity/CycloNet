@@ -43,13 +43,16 @@ export function MeshGradientBackground({ children, className }: { children?: Rea
   const y3 = useTransform(smoothY, [-1, 1], [15, -15]);
 
   return (
-    <div className={cn("relative min-h-screen bg-[#040714] text-white overflow-hidden selection:bg-cyan-500/30 selection:text-white", className)}>
+    <div className={cn("relative min-h-screen bg-bg-base text-text-primary overflow-hidden selection:bg-cyan-500/30 selection:text-white transition-colors duration-300", className)}>
       <motion.div 
-        className="fixed inset-0 z-0 pointer-events-none overflow-hidden"
+        className="absolute inset-0 z-0 pointer-events-none overflow-hidden"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
       >
+        {/* Top Ambient Glow bridging the Hero Parallax */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-44 bg-gradient-to-b from-sky-500/10 via-cyan-500/5 to-transparent blur-3xl pointer-events-none z-0" />
+
         {/* Luminous Cosmic Plasma Blobs */}
         <motion.div 
           className="absolute top-[-10%] left-[-10%] w-[55vw] h-[55vw] rounded-full bg-blue-600/15 blur-[140px]"

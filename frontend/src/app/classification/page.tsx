@@ -202,11 +202,11 @@ export default function ClassificationPage() {
             </div>
           </div>
 
-          <div className="flex-1 min-h-[300px] bg-slate-900 rounded-xl border border-border relative overflow-hidden flex items-center justify-center group">
+          <div className="flex-1 min-h-[300px] bg-secondary/30 rounded-xl border border-border relative overflow-hidden flex items-center justify-center group">
              {previewUrl ? (
                 <img src={previewUrl} className="absolute inset-0 w-full h-full object-cover opacity-80" alt="Analyzed" />
              ) : (
-                <div className="absolute inset-0 bg-slate-800" />
+                <div className="absolute inset-0 bg-secondary/40" />
              )}
              
              {result && result.is_cyclone !== false && (

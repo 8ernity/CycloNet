@@ -8,11 +8,11 @@ import { ChatbotWidget } from "@/components/ChatbotWidget";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isFullScreenPage = pathname === "/landing-parallax";
+  const isFullScreenPage = pathname === "/landing-parallax" || pathname === "/landing";
 
   if (isFullScreenPage) {
     return (
-      <div className="min-h-screen w-full bg-[#05070d]">
+      <div className="min-h-screen w-full bg-bg-base text-text-primary">
         {children}
         <ChatbotWidget />
       </div>

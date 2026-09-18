@@ -146,13 +146,13 @@ export default function MapWidget({ points, systemName }: MapWidgetProps) {
       `}</style>
 
       {/* 1st Heading: INSAT-3DR Surveillance Badge (Top-Left) */}
-      <div className="absolute top-4 left-4 z-[1000] bg-zinc-950/85 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/15 shadow-lg flex items-center gap-3 pointer-events-auto">
+      <div className="absolute top-4 left-4 z-[1000] bg-card/90 backdrop-blur-md px-4 py-2.5 rounded-xl border border-border shadow-lg flex items-center gap-3 pointer-events-auto">
         <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
         <div>
-          <h4 className="font-heading font-semibold text-xs text-zinc-100">
+          <h4 className="font-heading font-semibold text-xs text-foreground">
             INSAT-3DR Satellite Live Surveillance
           </h4>
-          <p className="text-[10.5px] text-zinc-400">
+          <p className="text-[10.5px] text-muted-foreground">
             {systemName ? `Tracking Active Vortex: ${systemName}` : "North Indian Ocean Basin • Real-Time Nominal"}
           </p>
         </div>
@@ -163,14 +163,14 @@ export default function MapWidget({ points, systemName }: MapWidgetProps) {
         <div className="relative">
           <button 
             onClick={() => setIsLayerMenuOpen(!isLayerMenuOpen)}
-            className="bg-zinc-950/85 backdrop-blur-md p-2.5 rounded-xl border border-white/15 shadow-lg hover:bg-zinc-900 transition-colors flex items-center justify-center cursor-pointer text-zinc-200 hover:text-white"
+            className="bg-card/90 backdrop-blur-md p-2.5 rounded-xl border border-border shadow-lg hover:bg-secondary transition-colors flex items-center justify-center cursor-pointer text-foreground"
             title="Switch Map Layers"
           >
             <Layers className="w-4 h-4" />
           </button>
           {isLayerMenuOpen && (
-            <div className="absolute top-full right-0 mt-2 bg-zinc-950/95 backdrop-blur-xl border border-white/15 rounded-xl shadow-2xl overflow-hidden flex flex-col w-48 py-1 z-50 animate-in fade-in zoom-in-95 duration-150">
-              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-white/10">
+            <div className="absolute top-full right-0 mt-2 bg-card/95 backdrop-blur-xl border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col w-48 py-1 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
                 Base Map Theme
               </div>
               {Object.entries(MAP_STYLES).map(([key, style]) => (
@@ -183,7 +183,7 @@ export default function MapWidget({ points, systemName }: MapWidgetProps) {
                   className={`text-left px-3.5 py-2 text-xs transition-colors flex items-center justify-between cursor-pointer ${
                     currentStyle === key 
                       ? 'bg-primary/20 text-primary font-bold' 
-                      : 'text-zinc-300 hover:bg-white/10'
+                      : 'text-foreground hover:bg-secondary'
                   }`}
                 >
                   <span>{style.name}</span>

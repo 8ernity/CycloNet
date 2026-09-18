@@ -31,26 +31,26 @@ export function IllustrationStage() {
       className="w-full"
     >
       {/* ═══ PRODUCT PREVIEW CONTAINER ═══ */}
-      <div className="relative w-full rounded-2xl overflow-hidden border border-slate-200/60 bg-white shadow-[0_25px_80px_-12px_rgba(0,0,0,0.1),0_0_0_1px_rgba(0,0,0,0.03)]">
+      <div className="relative w-full rounded-2xl overflow-hidden border border-surface-border bg-bg-elevated/90 shadow-[0_25px_80px_-12px_rgba(0,0,0,0.25)] backdrop-blur-xl">
         
         {/* ─── Top Bar: Advanced Dashboard Header ─── */}
-        <div className="flex flex-col border-b border-slate-100 bg-slate-50/80">
+        <div className="flex flex-col border-b border-surface-border bg-bg-base/70">
           <div className="flex items-center justify-between px-4 sm:px-5 py-3">
             {/* Window dots & Search */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-slate-300/70" />
-                <div className="w-2.5 h-2.5 rounded-full bg-slate-300/70" />
-                <div className="w-2.5 h-2.5 rounded-full bg-slate-300/70" />
+                <div className="w-2.5 h-2.5 rounded-full bg-rose-500/70" />
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-500/70" />
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/70" />
               </div>
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-white border border-slate-200/60 shadow-sm w-52">
-                <Search className="h-3.5 w-3.5 text-slate-400" />
-                <span className="text-[10px] text-slate-400 font-medium">Search cyclone archives...</span>
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md bg-surface-glass border border-surface-border shadow-xs w-52">
+                <Search className="h-3.5 w-3.5 text-text-muted" />
+                <span className="text-[10px] text-text-muted font-medium">Search cyclone archives...</span>
               </div>
             </div>
 
             {/* Tabs */}
-            <div className="flex items-center gap-1 bg-slate-100/80 rounded-lg p-0.5">
+            <div className="flex items-center gap-1 bg-secondary/50 rounded-lg p-0.5 border border-surface-border">
               {TABS.map((tab) => {
                 const isActive = tab.index === sceneIndex;
                 const isDone = tab.index < sceneIndex;
@@ -58,12 +58,12 @@ export function IllustrationStage() {
                 return (
                   <motion.div
                     key={tab.label}
-                    className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors cursor-default ${
+                    className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors cursor-default ${
                       isActive
-                        ? 'text-accent bg-white shadow-sm'
+                        ? 'text-primary bg-bg-elevated shadow-xs border border-surface-border'
                         : isDone
-                        ? 'text-emerald-600'
-                        : 'text-slate-400'
+                        ? 'text-emerald-500 dark:text-emerald-400'
+                        : 'text-text-muted'
                     }`}
                     layout
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
@@ -83,16 +83,16 @@ export function IllustrationStage() {
 
             {/* Status & Filters */}
             <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-2 px-2 py-1 bg-white rounded-md border border-slate-200/60 shadow-sm text-[10px] font-medium text-slate-500">
-                <Activity className="h-3 w-3 text-accent" />
+              <div className="hidden sm:flex items-center gap-2 px-2 py-1 bg-surface-glass rounded-md border border-surface-border shadow-xs text-[10px] font-medium text-text-muted">
+                <Activity className="h-3 w-3 text-primary" />
                 28.4 MB/s stream
               </div>
-              <div className="hidden sm:flex p-1.5 rounded-md text-slate-400 hover:bg-slate-200/50 cursor-pointer transition-colors">
+              <div className="hidden sm:flex p-1.5 rounded-md text-text-muted hover:bg-secondary/60 cursor-pointer transition-colors">
                 <Filter className="h-3.5 w-3.5" />
               </div>
-              <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
+              <div className="flex items-center gap-1.5 pl-2 border-l border-surface-border">
                 <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[10px] font-medium text-slate-400 hidden sm:inline">RSMC Live</span>
+                <span className="text-[10px] font-medium text-text-muted hidden sm:inline">RSMC Live</span>
               </div>
             </div>
           </div>
@@ -101,13 +101,13 @@ export function IllustrationStage() {
         {/* ─── Main Content Area ─── */}
         <div className="relative min-h-[320px] sm:min-h-[380px] overflow-hidden group/stage">
           {/* Subtle grid background */}
-          <div className="absolute inset-0 opacity-[0.03]" style={{
-            backgroundImage: 'radial-gradient(circle, var(--color-accent) 1px, transparent 1px)',
+          <div className="absolute inset-0 opacity-[0.05]" style={{
+            backgroundImage: 'radial-gradient(circle, var(--color-accent-theme) 1px, transparent 1px)',
             backgroundSize: '24px 24px',
           }} />
           
           {/* Glowing Inner Border */}
-          <div className="absolute inset-0 shadow-[inset_0_0_40px_rgba(99,102,241,0.03)] pointer-events-none" />
+          <div className="absolute inset-0 shadow-[inset_0_0_40px_rgba(0,144,255,0.05)] pointer-events-none" />
 
           {/* Scene content */}
           <AnimatePresence mode="wait">
@@ -134,7 +134,7 @@ function BottomBar({ sceneIndex }: { sceneIndex: number }) {
   const current = metrics[sceneIndex] ?? metrics[0];
 
   return (
-    <div className="flex items-center justify-between px-4 sm:px-5 py-2.5 border-t border-slate-100 bg-slate-50/50">
+    <div className="flex items-center justify-between px-4 sm:px-5 py-2.5 border-t border-surface-border bg-bg-base/70">
       <div className="flex items-center gap-4 sm:gap-6">
         {current.map((text, i) => (
           <AnimatePresence key={`${sceneIndex}-${i}`} mode="wait">
@@ -144,7 +144,7 @@ function BottomBar({ sceneIndex }: { sceneIndex: number }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ delay: i * 0.06, duration: 0.25 }}
-              className="text-[10px] sm:text-xs font-medium text-slate-400"
+              className="text-[10px] sm:text-xs font-medium text-text-muted"
             >
               {text}
             </motion.span>
@@ -157,7 +157,7 @@ function BottomBar({ sceneIndex }: { sceneIndex: number }) {
           <div
             key={i}
             className={`w-1.5 h-1.5 rounded-full transition-colors duration-300 ${
-              i === sceneIndex ? 'bg-accent' : i < sceneIndex ? 'bg-emerald-400' : 'bg-slate-200'
+              i === sceneIndex ? 'bg-primary' : i < sceneIndex ? 'bg-emerald-400' : 'bg-secondary'
             }`}
           />
         ))}

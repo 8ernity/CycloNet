@@ -24,22 +24,22 @@ export function IngestPanel({ phase }: PanelProps) {
           className="absolute inset-0 flex flex-col items-center justify-center p-4 sm:p-6"
         >
           {/* Main Dashboard Widget */}
-          <div className="w-full max-w-lg bg-white/85 backdrop-blur-xl border border-slate-200/60 rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.05)] overflow-hidden relative">
+          <div className="w-full max-w-lg bg-surface-glass backdrop-blur-xl border border-surface-border rounded-2xl shadow-xl overflow-hidden relative text-text-primary">
             
             {/* Header */}
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+            <div className="px-5 py-4 border-b border-surface-border flex items-center justify-between bg-bg-base/60">
               <div className="flex items-center gap-2.5">
-                <div className="p-1.5 bg-blue-100 rounded-md">
-                  <Satellite className="h-4 w-4 text-blue-600" />
+                <div className="p-1.5 bg-blue-500/10 border border-blue-500/20 rounded-md">
+                  <Satellite className="h-4 w-4 text-blue-500" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-800 leading-tight">Multi-Source Telemetry Pipeline</h3>
-                  <p className="text-[10px] font-medium text-slate-500">Live Ocean & Satellite Feeds</p>
+                  <h3 className="text-sm font-bold text-text-primary leading-tight">Multi-Source Telemetry Pipeline</h3>
+                  <p className="text-[10px] font-medium text-text-muted">Live Ocean & Satellite Feeds</p>
                 </div>
               </div>
               <div className="flex flex-col items-end">
-                <span className="text-[10px] text-slate-400 font-medium mb-0.5">NET THROUGHPUT</span>
-                <span className="text-xs font-mono font-bold text-slate-700">28.4 MB/s</span>
+                <span className="text-[10px] text-text-muted font-medium mb-0.5">NET THROUGHPUT</span>
+                <span className="text-xs font-mono font-bold text-text-primary">28.4 MB/s</span>
               </div>
             </div>
 
@@ -117,22 +117,22 @@ export function IngestPanel({ phase }: PanelProps) {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.4, type: 'spring' }}
-                className="relative z-10 w-[120px] h-[120px] rounded-full bg-white border border-slate-100 shadow-xl flex items-center justify-center mr-2"
+                className="relative z-10 w-[120px] h-[120px] rounded-full bg-surface-glass border border-surface-border shadow-xl flex items-center justify-center mr-2"
               >
                 {!shouldReduceMotion && (
                   <motion.div 
-                    className="absolute inset-[-15px] rounded-full border border-blue-600/20 border-dashed"
+                    className="absolute inset-[-15px] rounded-full border border-blue-500/20 border-dashed"
                     animate={{ rotate: 360 }}
                     transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                   />
                 )}
                 <div className="flex flex-col items-center text-center gap-1.5">
-                  <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                    <Server className="h-5 w-5 text-blue-600" />
+                  <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                    <Server className="h-5 w-5 text-blue-500" />
                   </div>
                   <div>
-                    <div className="text-[10px] font-bold text-slate-800 uppercase tracking-wider">CycloNet AI</div>
-                    <div className="text-[9px] text-emerald-600 font-medium flex items-center justify-center gap-1">
+                    <div className="text-[10px] font-bold text-text-primary uppercase tracking-wider">CycloNet AI</div>
+                    <div className="text-[9px] text-emerald-500 font-medium flex items-center justify-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       Streaming
                     </div>
@@ -143,11 +143,11 @@ export function IngestPanel({ phase }: PanelProps) {
             </div>
 
             {/* Bottom Status */}
-            <div className="px-5 py-3 bg-slate-900 flex items-center justify-between">
-              <span className="text-[10px] font-medium text-slate-400">Active Satellite & Radar Feeds</span>
+            <div className="px-5 py-3 bg-bg-base border-t border-surface-border flex items-center justify-between">
+              <span className="text-[10px] font-medium text-text-muted">Active Satellite & Radar Feeds</span>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-white">INSAT-3DR • Kalpana-1</span>
-                <span className="inline-flex items-center text-[10px] text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded">
+                <span className="text-xs font-bold text-text-primary">INSAT-3DR • Kalpana-1</span>
+                <span className="inline-flex items-center text-[10px] text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 font-semibold">
                   99.9% Nominal
                 </span>
               </div>
@@ -161,9 +161,9 @@ export function IngestPanel({ phase }: PanelProps) {
 
 function PipelineSource({ name, icon: Icon, rate, delay, color, shouldReduceMotion }: any) {
   const colorMap: any = {
-    blue: "bg-blue-50 text-blue-600 border-blue-100",
-    emerald: "bg-emerald-50 text-emerald-600 border-emerald-100",
-    indigo: "bg-indigo-50 text-indigo-600 border-indigo-100",
+    blue: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+    emerald: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+    indigo: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
   };
   
   const iconColorMap: any = {
@@ -177,22 +177,22 @@ function PipelineSource({ name, icon: Icon, rate, delay, color, shouldReduceMoti
       initial={{ opacity: 0, x: -15 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay, duration: 0.5, type: 'spring' }}
-      className="flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-100 shadow-sm relative z-10"
+      className="flex items-center gap-3 bg-surface-glass p-2 rounded-lg border border-surface-border shadow-xs relative z-10"
     >
-      <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${colorMap[color]}`}>
+      <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 border ${colorMap[color]}`}>
         <Icon className="h-3.5 w-3.5" />
       </div>
       <div className="flex flex-col">
-        <span className="text-[11px] font-bold text-slate-700 leading-tight">{name}</span>
+        <span className="text-[11px] font-bold text-text-primary leading-tight">{name}</span>
         <div className="flex items-center gap-1 mt-0.5">
           <Activity className={`h-2.5 w-2.5 ${iconColorMap[color]}`} />
-          <span className="text-[9px] font-mono text-slate-400">{rate}</span>
+          <span className="text-[9px] font-mono text-text-muted">{rate}</span>
         </div>
       </div>
       {!shouldReduceMotion && (
         <motion.div 
-          className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-white border-2 border-slate-300"
-          animate={{ borderColor: ['#cbd5e1', '#6366f1', '#cbd5e1'] }}
+          className="absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-bg-elevated border-2 border-surface-border"
+          animate={{ borderColor: ['rgba(56,189,248,0.2)', '#0090FF', 'rgba(56,189,248,0.2)'] }}
           transition={{ duration: 1.5, repeat: Infinity, delay: delay * 2 }}
         />
       )}

@@ -44,7 +44,7 @@ export function StoryDiagram() {
   ];
 
   return (
-    <section ref={containerRef} id="pipeline" className="relative bg-[#040714] overflow-hidden py-20 lg:py-32 border-t border-white/5">
+    <section ref={containerRef} id="pipeline" className="relative bg-bg-base text-text-primary overflow-hidden py-20 lg:py-32 border-t border-surface-border transition-colors duration-300">
       <div className="container max-w-[1200px] mx-auto px-4">
           
           <div className="text-center mb-6">
@@ -63,10 +63,10 @@ export function StoryDiagram() {
                   transition={{ duration: 0.4 }}
                   className="absolute inset-0"
                 >
-                  <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-white mb-4">
+                  <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-text-primary mb-4">
                     The danger of <span className="text-rose-500">fragmented</span> ocean intelligence.
                   </h2>
-                  <p className="text-sm md:text-base text-slate-400 leading-relaxed max-w-xl mx-auto">
+                  <p className="text-sm md:text-base text-text-muted leading-relaxed max-w-xl mx-auto">
                     Siloed satellite feeds. Manual Dvorak estimates. Delayed numerical forecasts. When disaster management relies on disconnected legacy systems, vulnerable coastlines are left exposed.
                   </p>
                 </motion.div>
@@ -79,11 +79,11 @@ export function StoryDiagram() {
                   transition={{ duration: 0.4 }}
                   className="absolute inset-0"
                 >
-                  <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-white mb-4">
-                    Centralized planetary intelligence. <br/>
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-400 to-indigo-300">Actionable cyclone predictions.</span>
+                  <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-text-primary mb-4">
+                    Centralized meteorological intelligence. <br/>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500">Actionable cyclone predictions.</span>
                   </h2>
-                  <p className="text-sm md:text-base text-slate-400 leading-relaxed max-w-xl mx-auto">
+                  <p className="text-sm md:text-base text-text-muted leading-relaxed max-w-xl mx-auto">
                     CycloNet unifies multi-spectral satellite imagery, Doppler radar networks, and ocean heat sensors into a single neural AI engine, delivering real-time landfall & intensity forecasts.
                   </p>
                 </motion.div>

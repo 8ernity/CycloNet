@@ -655,22 +655,22 @@ export function ChatbotWidget() {
                             <button
                               key={idx}
                               onClick={() => handleSend(card.query)}
-                              className="p-3.5 rounded-2xl bg-zinc-950/40 hover:bg-zinc-900/60 border border-white/10 hover:border-white/20 transition-all flex items-center justify-between gap-3 group cursor-pointer shadow-sm hover:scale-[1.01]"
+                              className="p-3.5 rounded-2xl bg-card/60 hover:bg-card border border-border hover:border-primary/40 transition-all flex items-center justify-between gap-3 group cursor-pointer shadow-xs hover:scale-[1.01]"
                             >
                               <div className="flex items-center gap-3 min-w-0">
                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${card.iconBg} group-hover:scale-105 transition-transform`}>
                                   <Icon className="w-5 h-5" />
                                 </div>
                                 <div className="min-w-0">
-                                  <h4 className="font-heading font-bold text-xs text-white group-hover:text-blue-300 transition-colors truncate">
+                                  <h4 className="font-heading font-bold text-xs text-foreground group-hover:text-primary transition-colors truncate">
                                     {card.title}
                                   </h4>
-                                  <p className="text-[10.5px] text-zinc-400 leading-tight truncate">
+                                  <p className="text-[10.5px] text-muted-foreground leading-tight truncate">
                                     {card.desc}
                                   </p>
                                 </div>
                               </div>
-                              <ChevronRight className="w-4 h-4 text-zinc-500 group-hover:text-white transition-colors shrink-0" />
+                              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
                             </button>
                           );
                         })}
@@ -691,15 +691,15 @@ export function ChatbotWidget() {
                           <div
                             className={`group relative max-w-[88%] rounded-2xl p-3.5 text-sm leading-relaxed ${
                               msg.role === "user"
-                                ? "bg-white text-zinc-950 font-semibold rounded-tr-sm shadow-md"
-                                : "bg-zinc-900/60 border border-white/15 text-zinc-100 rounded-tl-sm shadow-sm"
+                                ? "bg-primary text-primary-foreground font-semibold rounded-tr-sm shadow-md"
+                                : "bg-card/90 border border-border text-foreground rounded-tl-sm shadow-xs"
                             }`}
                           >
                             {formatContent(msg.content, msg.role === "user")}
 
                             {/* Copy button on assistant answers */}
                             {msg.role === "assistant" && (
-                              <div className="mt-2 pt-2 border-t border-white/10 flex items-center justify-between text-[10px] text-muted-foreground">
+                              <div className="mt-2 pt-2 border-t border-border flex items-center justify-between text-[10px] text-muted-foreground">
                                 <span className="font-mono">{msg.timestamp}</span>
                                 <button
                                   onClick={() => handleCopy(msg.content, msg.id)}
@@ -727,7 +727,7 @@ export function ChatbotWidget() {
                               {msg.sources.map((src, sIdx) => (
                                 <span
                                   key={sIdx}
-                                  className="text-[9px] px-2 py-0.5 rounded-full bg-white/[0.08] text-muted-foreground border border-white/15 font-mono"
+                                  className="text-[9px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground border border-border font-mono"
                                 >
                                   📚 {src}
                                 </span>
@@ -744,11 +744,11 @@ export function ChatbotWidget() {
                           animate={{ opacity: 1, y: 0 }}
                           className="flex items-start gap-2"
                         >
-                          <div className="rounded-2xl rounded-tl-sm p-3 bg-zinc-900/60 border border-white/15 flex items-center gap-1.5 shadow-sm">
-                            <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce [animation-delay:-0.3s]" />
-                            <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce [animation-delay:-0.15s]" />
-                            <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" />
-                            <span className="text-[11px] text-zinc-300 font-mono ml-2">
+                          <div className="rounded-2xl rounded-tl-sm p-3 bg-card/90 border border-border flex items-center gap-1.5 shadow-xs">
+                            <span className="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+                            <span className="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+                            <span className="w-2 h-2 rounded-full bg-primary animate-bounce" />
+                            <span className="text-[11px] text-muted-foreground font-mono ml-2">
                               Analyzing meteorological telemetry...
                             </span>
                           </div>

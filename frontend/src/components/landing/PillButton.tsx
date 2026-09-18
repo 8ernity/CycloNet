@@ -18,8 +18,8 @@ export const PillButton = React.forwardRef<HTMLButtonElement, PillButtonProps>(
     const baseStyles = "inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-bg-base cursor-pointer";
     
     const variants = {
-      primary: "bg-accent text-white hover:bg-accent-hover shadow-[0_0_15px_var(--color-accent-glow)] hover:shadow-[0_0_25px_var(--color-accent-glow)]",
-      ghost: "bg-surface-glass text-text-primary border border-surface-border hover:bg-white hover:border-slate-300 hover:shadow-md",
+      primary: "bg-gradient-to-r from-[#0090FF] to-[#0070F3] text-white hover:brightness-110 shadow-[0_0_20px_rgba(0,144,255,0.4)] hover:shadow-[0_0_30px_rgba(0,144,255,0.6)]",
+      ghost: "bg-surface-glass text-text-primary border border-surface-border hover:bg-bg-elevated hover:border-surface-border hover:shadow-md",
     };
 
     return (

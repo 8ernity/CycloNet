@@ -30,20 +30,20 @@ export function InteractiveWorkflow() {
   });
 
   return (
-    <section ref={containerRef} id="workflow" className="py-32 bg-[#060a20] relative border-t border-white/5">
+    <section ref={containerRef} id="workflow" className="py-32 bg-bg-elevated text-text-primary relative border-t border-surface-border transition-colors duration-300">
       <div className="container max-w-[1000px] mx-auto px-4">
         
         <div className="text-center mb-16 md:mb-24">
           <MicroLabel className="mb-4 inline-block">The Operational Loop</MicroLabel>
-          <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-white">
-            From raw satellite telemetry to <span className="text-sky-400">early warning</span>.
+          <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-text-primary">
+            From raw satellite telemetry to <span className="text-sky-500 dark:text-sky-400">early warning</span>.
           </h2>
         </div>
 
         <div className="relative">
           
           {/* Connecting Line (Desktop) */}
-          <div className="hidden md:block absolute top-12 left-12 right-12 h-1 bg-white/10 rounded-full overflow-hidden">
+          <div className="hidden md:block absolute top-12 left-12 right-12 h-1 bg-surface-border rounded-full overflow-hidden z-0 pointer-events-none">
             <motion.div 
               className="h-full bg-gradient-to-r from-sky-400 to-blue-500"
               style={{ scaleX: scrollYProgress, transformOrigin: "left" }}
@@ -51,7 +51,7 @@ export function InteractiveWorkflow() {
           </div>
           
           {/* Connecting Line (Mobile) */}
-          <div className="md:hidden absolute top-12 bottom-12 left-8 w-1 bg-white/10 rounded-full overflow-hidden">
+          <div className="md:hidden absolute top-12 bottom-12 left-8 w-1 bg-surface-border rounded-full overflow-hidden z-0 pointer-events-none">
              <motion.div 
               className="w-full bg-gradient-to-b from-sky-400 to-blue-500"
               style={{ scaleY: scrollYProgress, transformOrigin: "top" }}
@@ -70,17 +70,17 @@ export function InteractiveWorkflow() {
                   <motion.div 
                     animate={{ 
                       scale: isCurrent ? 1.1 : 1,
-                      backgroundColor: isActive ? "#0c1536" : "#080d22",
-                      borderColor: isActive ? "#38bdf8" : "rgba(255,255,255,0.1)"
                     }}
                     transition={{ duration: 0.3 }}
                     className={cn(
-                      "w-16 h-16 md:w-24 md:h-24 rounded-2xl flex items-center justify-center border-2 transition-colors relative shadow-[0_8px_30px_rgba(0,0,0,0.5)]",
-                      isActive ? "text-sky-400" : "text-slate-500"
+                      "w-16 h-16 md:w-24 md:h-24 rounded-2xl flex items-center justify-center border-2 transition-all relative z-10 shadow-md dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)]",
+                      isActive 
+                        ? "bg-card border-sky-400 text-sky-500 dark:text-sky-400 ring-2 ring-sky-400/30" 
+                        : "bg-card border-surface-border text-text-muted"
                     )}
                   >
                     {isCurrent && (
-                      <div className="absolute inset-0 bg-sky-400/20 blur-xl rounded-2xl" />
+                      <div className="absolute inset-0 bg-sky-400/20 blur-xl rounded-2xl -z-10" />
                     )}
                     <Icon className="w-8 h-8 md:w-10 md:h-10 relative z-10" />
                   </motion.div>
@@ -88,11 +88,11 @@ export function InteractiveWorkflow() {
                   <div className="text-left md:text-center">
                     <h3 className={cn(
                       "text-base md:text-lg font-bold tracking-tight transition-colors mb-1",
-                      isActive ? "text-white" : "text-slate-400"
+                      isActive ? "text-text-primary" : "text-text-muted"
                     )}>
                       {step.title}
                     </h3>
-                    <p className="text-xs sm:text-sm text-slate-500">{step.desc}</p>
+                    <p className="text-xs sm:text-sm text-text-muted">{step.desc}</p>
                   </div>
                   
                 </div>
@@ -100,12 +100,6 @@ export function InteractiveWorkflow() {
             })}
           </div>
 
-        </div>
-        
-        {/* Scroll affordance */}
-        <div className="mt-20 text-center text-slate-500 hidden md:block">
-          <p className="text-xs tracking-widest uppercase font-semibold">Scroll to progress operational loop</p>
-          <div className="w-px h-16 bg-gradient-to-b from-slate-500 to-transparent mx-auto mt-4" />
         </div>
 
       </div>

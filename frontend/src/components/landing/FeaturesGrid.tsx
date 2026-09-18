@@ -75,7 +75,7 @@ function SpotlightCard({ children }: { children: React.ReactNode }) {
       className="h-full relative group" 
       onMouseMove={handleMouseMove}
     >
-      <GlassPanel hoverEffect className="p-7 h-full flex flex-col relative overflow-hidden bg-[#0c132f]/80 border-white/10">
+      <GlassPanel hoverEffect className="p-7 h-full flex flex-col relative overflow-hidden bg-surface-glass border-surface-border">
         {/* Spotlight Effect overlay */}
         {isDesktop && (
           <div 
@@ -111,15 +111,15 @@ export function FeaturesGrid() {
   };
 
   return (
-    <section className="py-24 bg-[#040714] relative overflow-hidden" id="features">
+    <section className="py-24 bg-bg-base text-text-primary relative overflow-hidden transition-colors duration-300" id="features">
       <div className="container max-w-[1200px] mx-auto px-4 relative z-10">
         
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <MicroLabel className="mb-4 inline-block">Planetary Intelligence Suite</MicroLabel>
-          <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-white mb-4">
+          <MicroLabel className="mb-4 inline-block">Cyclone Intelligence Suite</MicroLabel>
+          <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-text-primary mb-4">
             Everything you need to track and protect.
           </h2>
-          <p className="text-slate-400 text-sm md:text-base leading-relaxed">
+          <p className="text-text-muted text-sm md:text-base leading-relaxed">
             A comprehensive suite of deep-learning meteorological tools designed specifically for tropical cyclone early warning operations.
           </p>
         </div>
@@ -143,10 +143,10 @@ export function FeaturesGrid() {
                   )}>
                     <Icon className="h-6 w-6" />
                   </div>
-                  <h3 className="text-lg font-bold text-white mb-2 tracking-tight">
+                  <h3 className="text-lg font-bold text-text-primary mb-2 tracking-tight">
                     {feature.title}
                   </h3>
-                  <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                  <p className="text-xs sm:text-sm text-text-muted leading-relaxed">
                     {feature.description}
                   </p>
                 </SpotlightCard>

@@ -257,20 +257,20 @@ export default function ArchivePage() {
 
                 {/* Filter Popover Panel */}
                 {isFilterOpen && (
-                  <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-80 p-4 rounded-2xl bg-zinc-950/95 border border-white/15 backdrop-blur-xl shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-4 text-xs">
+                  <div className="absolute left-0 sm:left-auto sm:right-0 mt-2 w-80 p-4 rounded-2xl bg-card/95 border border-border backdrop-blur-xl shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 flex flex-col gap-4 text-xs text-foreground">
                     
                     {/* Header */}
-                    <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                    <div className="flex items-center justify-between border-b border-border pb-2.5">
                       <div className="flex items-center gap-2">
-                        <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
-                        <span className="font-heading font-semibold text-zinc-100 text-xs tracking-wide uppercase">
+                        <SlidersHorizontal className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+                        <span className="font-heading font-semibold text-foreground text-xs tracking-wide uppercase">
                           Filter Cyclones
                         </span>
                       </div>
                       {activeFilterCount > 0 && (
                         <button
                           onClick={resetFilters}
-                          className="flex items-center gap-1 text-[11px] text-amber-400 hover:text-amber-300 transition-colors font-medium cursor-pointer"
+                          className="flex items-center gap-1 text-[11px] text-amber-500 dark:text-amber-400 hover:opacity-80 transition-colors font-medium cursor-pointer"
                         >
                           <RotateCcw className="w-3 h-3" />
                           Reset all
@@ -280,7 +280,7 @@ export default function ArchivePage() {
 
                     {/* Section 1: Timeline Recency */}
                     <div className="space-y-1.5">
-                      <label className="text-[10.5px] font-semibold text-zinc-400 uppercase tracking-wider block">
+                      <label className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wider block">
                         Chronology / Timeline
                       </label>
                       <div className="grid grid-cols-2 gap-1.5">
@@ -288,22 +288,22 @@ export default function ArchivePage() {
                           onClick={() => setSortOrder("newest")}
                           className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
                             sortOrder === "newest"
-                              ? "bg-white/15 text-white border-white/30 font-semibold shadow-inner"
-                              : "bg-white/[0.04] text-zinc-400 border-white/10 hover:bg-white/[0.08] hover:text-zinc-200"
+                              ? "bg-primary/20 text-primary border-primary/40 font-semibold shadow-xs"
+                              : "bg-secondary text-muted-foreground border-border hover:text-foreground"
                           }`}
                         >
-                          {sortOrder === "newest" && <Check className="w-3 h-3 text-amber-400" />}
+                          {sortOrder === "newest" && <Check className="w-3 h-3 text-amber-500 dark:text-amber-400" />}
                           <span>Most Recent</span>
                         </button>
                         <button
                           onClick={() => setSortOrder("oldest")}
                           className={`flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-lg border text-xs font-medium transition-all cursor-pointer ${
                             sortOrder === "oldest"
-                              ? "bg-white/15 text-white border-white/30 font-semibold shadow-inner"
-                              : "bg-white/[0.04] text-zinc-400 border-white/10 hover:bg-white/[0.08] hover:text-zinc-200"
+                              ? "bg-primary/20 text-primary border-primary/40 font-semibold shadow-xs"
+                              : "bg-secondary text-muted-foreground border-border hover:text-foreground"
                           }`}
                         >
-                          {sortOrder === "oldest" && <Check className="w-3 h-3 text-amber-400" />}
+                          {sortOrder === "oldest" && <Check className="w-3 h-3 text-amber-500 dark:text-amber-400" />}
                           <span>Least Recent</span>
                         </button>
                       </div>
@@ -311,7 +311,7 @@ export default function ArchivePage() {
 
                     {/* Section 2: Oceanic Basin */}
                     <div className="space-y-1.5">
-                      <label className="text-[10.5px] font-semibold text-zinc-400 uppercase tracking-wider block">
+                      <label className="text-[10.5px] font-semibold text-muted-foreground uppercase tracking-wider block">
                         Oceanic Basin
                       </label>
                       <div className="grid grid-cols-3 gap-1.5">
@@ -326,11 +326,11 @@ export default function ArchivePage() {
                             className={`py-1.5 px-2 rounded-lg border text-[11px] font-medium transition-all text-center cursor-pointer truncate ${
                               basinFilter === b.id
                                 ? b.id === "Bay of Bengal"
-                                  ? "bg-blue-500/20 text-blue-300 border-blue-500/40 font-semibold"
+                                  ? "bg-blue-500/20 text-blue-600 dark:text-blue-300 border-blue-500/40 font-semibold"
                                   : b.id === "Arabian Sea"
-                                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-semibold"
-                                  : "bg-white/15 text-white border-white/30 font-semibold"
-                                : "bg-white/[0.04] text-zinc-400 border-white/10 hover:bg-white/[0.08] hover:text-zinc-200"
+                                  ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/40 font-semibold"
+                                  : "bg-primary/20 text-primary border-primary/40 font-semibold"
+                                : "bg-secondary text-muted-foreground border-border hover:text-foreground"
                             }`}
                           >
                             {b.label}
@@ -597,22 +597,22 @@ export default function ArchivePage() {
 
       {/* Floating Action Dock when cyclone is selected */}
       {selectedCyclone && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-2xl bg-zinc-950/95 border border-emerald-500/40 backdrop-blur-2xl rounded-2xl shadow-2xl p-3 px-5 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in slide-in-from-bottom-5 duration-200">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-2xl bg-card/95 border border-emerald-500/40 backdrop-blur-2xl rounded-2xl shadow-2xl p-3 px-5 flex flex-col sm:flex-row items-center justify-between gap-3 animate-in slide-in-from-bottom-5 duration-200 text-foreground">
           <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0 shadow-inner">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-500 dark:text-emerald-400 shrink-0 shadow-inner">
               <Activity className="w-4 h-4 animate-pulse" />
             </div>
             <div className="min-w-0 text-left">
               <div className="flex items-center gap-2">
-                <h4 className="font-heading font-bold text-sm text-white truncate">
+                <h4 className="font-heading font-bold text-sm text-foreground truncate">
                   {selectedCyclone.name}
                 </h4>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold border border-emerald-500/30 shrink-0">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 text-[10px] font-semibold border border-emerald-500/30 shrink-0">
                   {selectedCyclone.basin}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground truncate">
-                <span className="text-emerald-400 font-medium">{selectedCyclone.dates || selectedCyclone.year}</span> • Peak: <span className="text-zinc-200 font-medium">{selectedCyclone.maxCategory}</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">{selectedCyclone.dates || selectedCyclone.year}</span> • Peak: <span className="text-foreground font-medium">{selectedCyclone.maxCategory}</span>
               </p>
             </div>
           </div>
@@ -635,15 +635,15 @@ export default function ArchivePage() {
               onClick={() => {
                 window.location.href = `/?simulate=${encodeURIComponent(selectedCyclone.id)}`;
               }}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs transition-all shadow-md shadow-emerald-500/25 hover:scale-[1.02] cursor-pointer whitespace-nowrap"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs transition-all shadow-md shadow-emerald-500/25 hover:scale-[1.02] cursor-pointer whitespace-nowrap"
             >
               <Play className="w-3.5 h-3.5 fill-current" />
               <span>Simulate Map</span>
             </button>
             <button
               onClick={() => setSelectedCyclone(null)}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer border border-white/10"
-              title="Deselect"
+              className="p-2 rounded-xl bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors cursor-pointer border border-border"
+              title="Close Dock"
             >
               <X className="w-4 h-4" />
             </button>
