@@ -46,12 +46,12 @@ export function Navbar() {
             : "bg-transparent border-b border-transparent"
           }`}
       >
-        <div className="max-w-[1440px] mx-auto px-6 h-full flex items-center justify-between">
+        <div className="max-w-[1440px] mx-auto px-6 h-full flex items-center justify-between gap-6 xl:gap-10">
 
           {/* Logo & Meteorological Wordmark */}
-          <Link href="/" className="flex items-center gap-3 group">
+          <Link href="/" className="flex items-center gap-3 group shrink-0">
             <div className="relative flex items-center justify-center">
-              <CycloneLogo size={30} className="group-hover:rotate-45 transition-transform duration-500" />
+              <CycloneLogo size={30} />
             </div>
             <div className="flex flex-col">
               <span className={`font-heading font-extrabold text-xl tracking-tight leading-none transition-colors ${isScrolledPast
@@ -67,15 +67,15 @@ export function Navbar() {
             </div>
           </Link>
 
-          {/* Center Nav Links */}
-          <nav className="hidden lg:flex items-center gap-2">
+          {/* Center Nav Links - Proportionately balanced between logo and action buttons */}
+          <nav className="hidden lg:flex items-center justify-center gap-1 xl:gap-2 flex-1 px-4">
             {NAV_ITEMS.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}
                 onMouseEnter={() => setActiveItem(item.name)}
                 onMouseLeave={() => setActiveItem(null)}
-                className={`relative px-4 py-2 text-xs font-semibold transition-colors rounded-full ${isScrolledPast
+                className={`relative px-3.5 py-1.5 text-xs font-semibold tracking-wide transition-colors rounded-full whitespace-nowrap ${isScrolledPast
                     ? "text-text-muted hover:text-text-primary"
                     : "text-slate-300 hover:text-white"
                   }`}
@@ -89,7 +89,7 @@ export function Navbar() {
           </nav>
 
           {/* Right Action Buttons */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3 shrink-0">
             {/* Ask CycloNet AI Lime-Green Button matching Dashboard */}
             <button
               onClick={() => {
@@ -104,7 +104,7 @@ export function Navbar() {
               aria-label="Ask CycloNet AI"
             >
               <div className="relative flex items-center justify-center shrink-0">
-                <CycloneLogo size={18} className="group-hover:rotate-45 transition-transform duration-500" />
+                <CycloneLogo size={18} />
               </div>
               <span>Ask CycloNet AI</span>
             </button>

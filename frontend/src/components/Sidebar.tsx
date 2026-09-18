@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, UploadCloud, History, FileText, Settings, Wind, Rocket, Layers } from "lucide-react";
+import { Activity, UploadCloud, History, FileText, Settings, Wind, LogOut } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { CycloneLogo } from "@/components/CycloneLogo";
@@ -14,7 +14,6 @@ function cn(...inputs: ClassValue[]) {
 
 const navItems = [
   { name: "Live Monitoring", href: "/", icon: Activity },
-  { name: "Landing Page", href: "/landing-parallax", icon: Rocket },
   { name: "Classification", href: "/classification", icon: UploadCloud },
   { name: "Historical Archive", href: "/archive", icon: History },
   { name: "Track Forecast", href: "/forecast", icon: Wind },
@@ -36,7 +35,7 @@ export function Sidebar() {
         </span>
       </Link>
 
-      <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto scrollbar-hide">
+      <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto scrollbar-hide">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -64,10 +63,42 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-border">
-        <div className="glass-card p-4 flex flex-col gap-1.5">
-          <p className="text-xs font-semibold text-slate-800 dark:text-zinc-300 uppercase tracking-wider">MoES Prototype</p>
-          <p className="text-xs text-slate-600 dark:text-muted-foreground font-medium">Version 1.0 - SIH26070</p>
+      {/* Officer Profile & Logout Bottom Bar (directs to landing page) */}
+      <div className="p-3 border-t border-border mt-auto">
+        <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/[0.03] dark:bg-white/[0.03] hover:bg-slate-900/[0.06] dark:hover:bg-white/[0.06] transition-colors">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0 ring-2 ring-indigo-500/20">
+              OF
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate leading-tight">
+                Officer
+              </span>
+              <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider truncate mt-0.5">
+                INVESTIGATOR
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0 ml-2">
+            <Link
+              href="/settings"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white hover:bg-slate-900/10 dark:hover:bg-white/10 transition-colors"
+              title="Settings"
+              aria-label="Settings"
+            >
+              <Settings className="w-4 h-4" />
+            </Link>
+            
+            <Link
+              href="/landing-parallax"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 dark:text-zinc-400 dark:hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+              title="Logout to Landing Page"
+              aria-label="Logout to Landing Page"
+            >
+              <LogOut className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
       </div>
     </aside>

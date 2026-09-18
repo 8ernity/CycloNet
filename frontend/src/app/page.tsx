@@ -238,39 +238,6 @@ export default function LiveMonitoringPage() {
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       
-      {/* Simulation / Selected Cyclone Banner */}
-      {activeSystem && (
-        <div className="p-3.5 px-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between text-xs text-emerald-200 shadow-md">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span className="font-semibold text-emerald-300 uppercase tracking-wider text-[11px]">Active Focus:</span>
-            <span>Displaying <strong>Cyclone {activeSystem.name}</strong> ({activeSystem.id}) • Synced across all tabs.</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <a
-              href={`/forecast?cyclone_id=${encodeURIComponent(activeSystem.id)}`}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-200 transition-colors font-medium text-xs cursor-pointer"
-            >
-              <Activity className="w-3.5 h-3.5" />
-              Track Forecast
-            </a>
-            <button
-              onClick={() => {
-                if (typeof window !== "undefined") {
-                  window.history.replaceState({}, '', '/');
-                }
-                clearSelectedCyclone();
-                fetchActiveSystems(false);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-zinc-300 transition-colors font-medium text-xs cursor-pointer"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Reset to Live
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Live Ingestion Feed Bar */}
       <div className="p-3 px-4 rounded-xl bg-surface-glass border border-border backdrop-blur-md flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
         <div className="flex items-center gap-3">
@@ -297,28 +264,6 @@ export default function LiveMonitoringPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {activeSystem && activeSystem.id.startsWith("LIVE-IMD-") ? (
-            <button
-              onClick={handleClearLiveTest}
-              disabled={isSyncingIngest}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-foreground text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer hover:scale-105 active:scale-95 shadow-xs"
-              title="Clear injected live detection test and return to real calm feeds"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Clear Test Detection</span>
-            </button>
-          ) : (
-            <button
-              onClick={handleTestInject}
-              disabled={isSyncingIngest}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer hover:scale-105 active:scale-95 shadow-xs"
-              title="Test real-time detection by injecting a simulated new live cyclone (Cyclone Shakti)"
-            >
-              <Play className="w-3.5 h-3.5 fill-amber-500 dark:fill-amber-400" />
-              <span>Test Live Detection</span>
-            </button>
-          )}
-
           <button
             onClick={handleSyncFeeds}
             disabled={isSyncingIngest}

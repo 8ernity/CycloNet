@@ -61,7 +61,7 @@ export function Header() {
           aria-label="Ask CycloNet AI"
         >
           <div className="relative flex items-center justify-center shrink-0">
-            <CycloneLogo size={20} className="group-hover:rotate-45 transition-transform duration-500" />
+            <CycloneLogo size={20} />
           </div>
           <span>Ask CycloNet AI</span>
         </button>
@@ -79,9 +79,14 @@ export function Header() {
           )}
         </button>
         
-        <div className="h-8 w-8 rounded-full bg-slate-200 dark:bg-zinc-800 border border-slate-300 dark:border-zinc-700 flex items-center justify-center">
-          <span className="text-xs font-bold text-slate-700 dark:text-zinc-200">FA</span>
-        </div>
+        <a
+          href="/settings"
+          className="h-8 w-8 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 text-white flex items-center justify-center font-bold text-xs shadow-xs ring-1 ring-indigo-500/20 hover:scale-105 transition-transform"
+          title="Officer Profile (Investigator)"
+          aria-label="Officer Profile"
+        >
+          <span>OF</span>
+        </a>
       </div>
     </header>
   );
