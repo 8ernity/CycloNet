@@ -468,13 +468,12 @@ html, body, * {
 }
 
 /* ═══════════════════════════════════════════
-   AeroGuard Auth UI Design System
+   AeroGuard Auth UI - Obsidian Black Theme
    ═══════════════════════════════════════════ */
 
 :root {
-  --auth-primary: #0090FF;
-  --auth-primary-hover: #0070F3;
-  --auth-accent-glow: rgba(0, 144, 255, 0.4);
+  --auth-primary: #0090ff;
+  --auth-primary-glow: rgba(0, 144, 255, 0.4);
 }
 
 .auth-page-bg {
@@ -482,9 +481,9 @@ html, body, * {
   width: 100%;
   background-color: #030712;
   background-image: 
-    radial-gradient(circle at 10% 20%, rgba(14, 165, 233, 0.15) 0%, transparent 50%),
-    radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.18) 0%, transparent 50%),
-    radial-gradient(circle at 50% 50%, rgba(2, 6, 23, 0.8) 0%, #030712 100%);
+    radial-gradient(circle at 80% 10%, rgba(0, 144, 255, 0.18) 0%, transparent 55%),
+    radial-gradient(circle at 20% 90%, rgba(147, 51, 234, 0.18) 0%, transparent 55%),
+    radial-gradient(circle at 50% 50%, rgba(4, 7, 20, 0.95) 0%, #030712 100%);
   background-attachment: fixed;
   background-size: cover;
   display: flex;
@@ -492,52 +491,115 @@ html, body, * {
   justify-content: center;
 }
 
-/* ───── Global Clerk Resets (all sizes) ───── */
+/* ───── Global Clerk Resets (Black Theme) ───── */
 .auth-form-container .cl-internal-b3fm6y,
 .auth-form-container [class*="cl-card"],
-.auth-form-container [class*="cl-rootBox"],
-.auth-form-container [class*="cl-rootBox"] > div,
 .auth-form-container [class*="cl-rootBox"] > div > div {
   border: none !important;
   box-shadow: none !important;
   background: transparent !important;
 }
 
-.auth-form-container .cl-footerAction,
-.auth-form-container .cl-footer {
+.auth-form-container .cl-footerAction {
   display: none !important;
 }
 
 .auth-form-container .cl-headerTitle {
-  display: none !important;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  color: #f8fafc !important;
+  letter-spacing: -0.01em;
 }
 
 .auth-form-container .cl-headerSubtitle {
-  display: none !important;
+  font-size: 13px !important;
+  color: #94a3b8 !important;
 }
 
 .auth-form-container .cl-socialButtonsBlockButton {
   border-radius: 12px !important;
-  border: 1px solid #e2e8f0 !important;
-  font-size: 12px !important;
-  font-weight: 600 !important;
-  padding: 8px 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background-color: rgba(15, 23, 42, 0.75) !important;
+  color: #f8fafc !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 8px 14px !important;
+  height: 42px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+  transition: all 0.2s ease !important;
 }
 
-.auth-form-container .cl-formButtonPrimary {
-  border-radius: 12px !important;
-  background: linear-gradient(to right, #0090FF, #0070F3) !important;
-  box-shadow: 0 4px 16px rgba(0, 144, 255, 0.35) !important;
+.auth-form-container .cl-socialButtonsBlockButton:hover {
+  background-color: rgba(30, 41, 59, 0.9) !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.2) !important;
+}
+
+.auth-form-container .cl-socialButtonsBlockButtonText {
+  color: #f8fafc !important;
+  font-weight: 500 !important;
   font-size: 13px !important;
-  font-weight: 700 !important;
-  padding: 10px 16px !important;
+}
+
+.auth-form-container .cl-dividerRow {
+  margin: 14px 0 !important;
+}
+
+.auth-form-container .cl-dividerLine {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.auth-form-container .cl-dividerText {
+  color: #64748b !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+.auth-form-container .cl-formFieldLabel {
+  color: #cbd5e1 !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  margin-bottom: 4px !important;
 }
 
 .auth-form-container .cl-formFieldInput {
   border-radius: 12px !important;
-  background-color: #f8fafc !important;
-  border: 1px solid #e2e8f0 !important;
-  font-size: 12px !important;
+  background-color: rgba(15, 23, 42, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  padding: 8px 12px !important;
+  height: 42px !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.auth-form-container .cl-formFieldInput:focus {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25) !important;
+  outline: none !important;
+}
+
+.auth-form-container .cl-formButtonPrimary {
+  border-radius: 12px !important;
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%) !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  padding: 10px 16px !important;
+  height: 42px !important;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35) !important;
+  transition: all 0.2s ease !important;
+  margin-top: 6px !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+.auth-form-container .cl-formButtonPrimary:hover {
+  background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 100%) !important;
+  box-shadow: 0 6px 20px rgba(2, 132, 199, 0.5) !important;
+  transform: translateY(-1px);
 }
 
 /* ==============================================
@@ -549,15 +611,19 @@ html, body, * {
   }
 
   .auth-container {
-    background-color: #ffffff;
+    background-color: #080c18;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 28px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      0 24px 64px -12px rgba(0, 0, 0, 0.9),
+      0 0 30px rgba(0, 144, 255, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
     position: relative;
     overflow: hidden;
     width: 100%;
     max-width: 920px;
-    min-height: 680px;
-    display: flex;
+    min-height: 750px;
+    backdrop-filter: blur(20px);
   }
 
   .auth-form-container {
@@ -569,7 +635,7 @@ html, body, * {
     flex-direction: column;
     justify-content: center;
     padding: 0 44px;
-    background-color: #ffffff;
+    background: #080c18;
   }
 
   .auth-form-container form {
@@ -623,33 +689,37 @@ html, body, * {
     overflow: hidden;
     z-index: 100;
     border-radius: 180px 0 0 180px;
-    transition: transform 0.6s ease-in-out, border-radius 0.6s ease-in-out;
+    transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1), border-radius 0.6s ease-in-out;
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
   }
 
   .auth-container.right-panel-active .auth-overlay-container {
     transform: translateX(-100%);
     border-radius: 0 180px 180px 0;
+    border-left: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.12);
   }
 
   .auth-overlay {
-    background-color: #030d22;
+    background-color: #030712;
     background-image: 
-      radial-gradient(circle at 20% 0%, rgba(0, 144, 255, 0.85) 0%, transparent 65%),
-      radial-gradient(circle at 80% 100%, rgba(99, 102, 241, 0.8) 0%, transparent 65%),
-      radial-gradient(circle at 80% 0%, rgba(14, 165, 233, 0.8) 0%, transparent 65%),
-      radial-gradient(circle at 20% 100%, rgba(30, 58, 138, 0.9) 0%, transparent 65%),
-      linear-gradient(rgba(4, 7, 20, 0.65), rgba(4, 7, 20, 0.65));
+      radial-gradient(circle at 20% 0%, rgba(14, 165, 233, 0.65) 0%, transparent 65%),
+      radial-gradient(circle at 80% 100%, rgba(139, 92, 246, 0.65) 0%, transparent 65%),
+      radial-gradient(circle at 80% 0%, rgba(59, 130, 246, 0.6) 0%, transparent 65%),
+      radial-gradient(circle at 20% 100%, rgba(147, 51, 234, 0.6) 0%, transparent 65%),
+      linear-gradient(rgba(3, 7, 18, 0.7), rgba(3, 7, 18, 0.7)),
+      url('/Earth.png');
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
     color: #ffffff;
-    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.8);
     position: relative;
     left: -100%;
     height: 100%;
     width: 200%;
     transform: translateX(0);
-    transition: transform 0.6s ease-in-out;
+    transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1);
   }
 
   .auth-container.right-panel-active .auth-overlay {
@@ -668,7 +738,7 @@ html, body, * {
     height: 100%;
     width: 50%;
     transform: translateX(0);
-    transition: transform 0.6s ease-in-out, opacity 0.4s ease-in-out;
+    transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1), opacity 0.4s ease-in-out;
   }
 
   .auth-overlay-panel h2 { animation: fadeSlideIn 0.5s ease-out 0.2s both; }
@@ -676,7 +746,7 @@ html, body, * {
   .auth-overlay-panel button { animation: fadeSlideIn 0.5s ease-out 0.4s both; }
 
   @keyframes fadeSlideIn {
-    from { opacity: 0; transform: translateY(14px); }
+    from { opacity: 0; transform: translateY(12px); }
     to   { opacity: 1; transform: translateY(0); }
   }
 
@@ -688,12 +758,12 @@ html, body, * {
 
   .auth-overlay-panel button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(255, 255, 255, 0.2);
   }
 
   .auth-overlay-panel button:active {
     transform: translateY(0) scale(0.97);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   }
 
   .auth-overlay-panel button::after {
@@ -703,7 +773,7 @@ html, body, * {
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
     transition: left 0.5s ease;
     pointer-events: none;
   }
@@ -731,12 +801,13 @@ html, body, * {
     align-items: start !important;
     min-height: auto !important;
     max-height: none !important;
-    background-color: #ffffff !important;
+    background-color: #080c18 !important;
     background-image: 
-      radial-gradient(circle at 0% 0%, rgba(224, 242, 254, 0.6) 0%, transparent 60%),
-      radial-gradient(circle at 100% 100%, rgba(219, 234, 254, 0.6) 0%, transparent 60%) !important;
+      radial-gradient(circle at 0% 0%, rgba(147, 51, 234, 0.2) 0%, transparent 60%),
+      radial-gradient(circle at 100% 100%, rgba(14, 165, 233, 0.2) 0%, transparent 60%) !important;
     border-radius: 24px !important;
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8) !important;
     overflow: hidden !important;
     position: relative !important;
     max-width: 100% !important;
@@ -751,14 +822,16 @@ html, body, * {
     height: 120% !important;
     z-index: 50 !important;
     border-radius: 0 0 50% 50% / 0 0 30px 30px !important;
-    background-color: #dbeafe !important;
+    background-color: #030712 !important;
     background-image: 
-      radial-gradient(circle at 20% 0%, #93c5fd 0%, transparent 65%),
-      radial-gradient(circle at 80% 100%, #60a5fa 0%, transparent 65%),
-      radial-gradient(circle at 80% 0%, #ffffff 0%, transparent 65%),
-      radial-gradient(circle at 20% 100%, #bfdbfe 0%, transparent 65%) !important;
+      radial-gradient(circle at 20% 0%, rgba(14, 165, 233, 0.7) 0%, transparent 65%),
+      radial-gradient(circle at 80% 100%, rgba(139, 92, 246, 0.7) 0%, transparent 65%),
+      linear-gradient(rgba(3, 7, 18, 0.75), rgba(3, 7, 18, 0.75)),
+      url('/Earth.png') !important;
+    background-size: cover !important;
+    background-position: center !important;
     transform: none !important;
-    transition: top 0.7s ease-in-out, border-radius 0.7s ease-in-out !important;
+    transition: top 0.7s cubic-bezier(0.65, 0, 0.35, 1), border-radius 0.7s ease-in-out !important;
     pointer-events: none !important;
     overflow: hidden !important;
   }
@@ -770,6 +843,7 @@ html, body, * {
   .auth-container.right-panel-active .auth-overlay-container {
     top: calc(100% - 30px) !important;
     border-radius: 50% 50% 0 0 / 30px 30px 0 0 !important;
+    animation: none !important;
     transform: none !important;
   }
 
@@ -780,16 +854,59 @@ html, body, * {
     height: auto !important;
     left: 0 !important;
     top: 0 !important;
-    padding: 36px 16px 40px !important;
-    background: transparent !important;
+    padding: 40px 16px 48px !important;
+    background: #080c18 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     border: none !important;
     transition: none !important;
+    animation: none;
   }
 
   .auth-form-container form {
     max-width: 100% !important;
+  }
+
+  .auth-form-container .cl-rootBox {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .auth-form-container .cl-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  .auth-form-container .cl-formButtonPrimary {
+    border-radius: 12px !important;
+  }
+
+  .auth-form-container .cl-formFieldRow,
+  .auth-form-container .cl-formFieldInput__password,
+  .auth-form-container .cl-formField,
+  .auth-form-container .cl-formFieldInputGroup {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .auth-form-container .cl-formFieldInputShowPasswordButton {
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    z-index: 5 !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    color: #94a3b8 !important;
+  }
+
+  .auth-form-container .cl-formFieldInputGroup {
+    position: relative !important;
+    overflow: visible !important;
   }
 
   @keyframes bubbleUp {
@@ -798,17 +915,15 @@ html, body, * {
     100% { opacity: 1; transform: translateY(0) scale(1); }
   }
 
-  /* Default: Sign In visible */
   .sign-in-container {
     opacity: 1 !important;
     pointer-events: auto !important;
     z-index: 5 !important;
     visibility: visible !important;
     transform: none !important;
-    animation: bubbleUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both;
+    animation: bubbleUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.25s both;
   }
 
-  /* Default: Sign Up hidden */
   .sign-up-container {
     opacity: 0 !important;
     pointer-events: none !important;
@@ -819,7 +934,6 @@ html, body, * {
     animation: none !important;
   }
 
-  /* Active: Sign In hides */
   .auth-container.right-panel-active .sign-in-container {
     opacity: 0 !important;
     pointer-events: none !important;
@@ -830,7 +944,6 @@ html, body, * {
     animation: none !important;
   }
 
-  /* Active: Sign Up shows */
   .auth-container.right-panel-active .sign-up-container {
     opacity: 1 !important;
     pointer-events: auto !important;
@@ -838,17 +951,18 @@ html, body, * {
     visibility: visible !important;
     transform: none !important;
     transition: none !important;
-    animation: bubbleUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both !important;
+    animation: bubbleUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.25s both !important;
   }
 }
 
 /* ─── Extra-small screens (< 400px) ─── */
 @media (max-width: 400px) {
   .auth-form-container {
-    padding: 28px 10px 32px !important;
+    padding: 32px 6px 40px !important;
   }
   .auth-container {
     border-radius: 18px !important;
   }
 }
+
 

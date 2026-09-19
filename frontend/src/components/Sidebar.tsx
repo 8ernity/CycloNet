@@ -64,9 +64,9 @@ export function Sidebar() {
       localStorage.removeItem("cyclonet_user");
       localStorage.removeItem("cyclonet_auth_token");
       if (clerkUser) {
-        await signOut({ redirectUrl: "/login" });
+        await signOut({ redirectUrl: "/landing" });
       } else {
-        window.location.href = "/login";
+        window.location.href = "/landing";
       }
     }
   };
@@ -148,8 +148,8 @@ export function Sidebar() {
             <button
               onClick={handleLogout}
               className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 dark:text-zinc-400 dark:hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
-              title="Sign Out / Change Persona"
-              aria-label="Sign Out"
+              title="Sign Out to Landing Page"
+              aria-label="Sign Out to Landing Page"
             >
               <LogOut className="w-4 h-4" />
             </button>
