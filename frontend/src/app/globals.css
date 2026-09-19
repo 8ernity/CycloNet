@@ -492,6 +492,54 @@ html, body, * {
   justify-content: center;
 }
 
+/* ───── Global Clerk Resets (all sizes) ───── */
+.auth-form-container .cl-internal-b3fm6y,
+.auth-form-container [class*="cl-card"],
+.auth-form-container [class*="cl-rootBox"],
+.auth-form-container [class*="cl-rootBox"] > div,
+.auth-form-container [class*="cl-rootBox"] > div > div {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.auth-form-container .cl-footerAction,
+.auth-form-container .cl-footer {
+  display: none !important;
+}
+
+.auth-form-container .cl-headerTitle {
+  display: none !important;
+}
+
+.auth-form-container .cl-headerSubtitle {
+  display: none !important;
+}
+
+.auth-form-container .cl-socialButtonsBlockButton {
+  border-radius: 12px !important;
+  border: 1px solid #e2e8f0 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  padding: 8px 12px !important;
+}
+
+.auth-form-container .cl-formButtonPrimary {
+  border-radius: 12px !important;
+  background: linear-gradient(to right, #0090FF, #0070F3) !important;
+  box-shadow: 0 4px 16px rgba(0, 144, 255, 0.35) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  padding: 10px 16px !important;
+}
+
+.auth-form-container .cl-formFieldInput {
+  border-radius: 12px !important;
+  background-color: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  font-size: 12px !important;
+}
+
 /* ==============================================
    DESKTOP LAYOUT (≥ 768px)
    ============================================== */

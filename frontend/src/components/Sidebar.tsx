@@ -8,6 +8,8 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { CycloneLogo } from "@/components/CycloneLogo";
 
+import { useUser, useClerk } from "@clerk/nextjs";
+
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -23,10 +25,14 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [user, setUser] = React.useState({
+  const { user: clerkUser, isLoaded } = useUser();
+  const { signOut } = useClerk();
+
+  const [localUser, setLocalUser] = React.useState({
     name: "Officer",
     roleTitle: "INVESTIGATOR",
     initials: "OF",
+    imageUrl: "",
   });
 
   React.useEffect(() => {
@@ -35,10 +41,11 @@ export function Sidebar() {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed.name) {
-          setUser({
+          setLocalUser({
             name: parsed.name,
             roleTitle: parsed.roleTitle || "INVESTIGATOR",
             initials: parsed.initials || parsed.name.slice(0, 2).toUpperCase(),
+            imageUrl: "",
           });
         }
       }
@@ -47,11 +54,20 @@ export function Sidebar() {
     }
   }, []);
 
-  const handleLogout = () => {
+  const displayName = isLoaded && clerkUser ? (clerkUser.fullName || clerkUser.primaryEmailAddress?.emailAddress?.split("@")[0] || "Officer") : localUser.name;
+  const displayRole = "OFFICER";
+  const displayInitials = isLoaded && clerkUser ? (displayName.slice(0, 2).toUpperCase()) : localUser.initials;
+  const avatarUrl = isLoaded && clerkUser ? clerkUser.imageUrl : null;
+
+  const handleLogout = async () => {
     if (typeof window !== "undefined") {
       localStorage.removeItem("cyclonet_user");
       localStorage.removeItem("cyclonet_auth_token");
-      window.location.href = "/login";
+      if (clerkUser) {
+        await signOut({ redirectUrl: "/login" });
+      } else {
+        window.location.href = "/login";
+      }
     }
   };
 
@@ -98,15 +114,23 @@ export function Sidebar() {
       <div className="p-3 border-t border-border mt-auto">
         <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/[0.03] dark:bg-white/[0.03] hover:bg-slate-900/[0.06] dark:hover:bg-white/[0.06] transition-colors">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0 ring-2 ring-indigo-500/20">
-              {user.initials}
-            </div>
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={displayName}
+                className="w-9 h-9 rounded-full object-cover shadow-xs shrink-0 ring-2 ring-indigo-500/20"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0 ring-2 ring-indigo-500/20">
+                {displayInitials}
+              </div>
+            )}
             <div className="flex flex-col min-w-0">
               <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate leading-tight">
-                {user.name}
+                {displayName}
               </span>
               <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider truncate mt-0.5">
-                {user.roleTitle}
+                {displayRole}
               </span>
             </div>
           </div>
