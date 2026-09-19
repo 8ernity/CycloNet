@@ -131,6 +131,18 @@ export function Navbar() {
               )}
             </button>
 
+            {/* Sign In Portal Link */}
+            <Link
+              href="/login"
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all border ${
+                isScrolledPast
+                  ? "text-text-primary hover:bg-secondary border-surface-border"
+                  : "text-white/90 hover:text-white hover:bg-white/10 border-white/20"
+              }`}
+            >
+              Sign In
+            </Link>
+
             {/* Launch Dashboard Primary Button */}
             <motion.button
               whileHover={{ scale: 1.04, filter: "brightness(1.1)" }}
@@ -189,6 +201,13 @@ export function Navbar() {
             </div>
 
             <div className="mt-auto pt-6 flex flex-col gap-3">
+              <Link
+                href="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full py-3 rounded-full border border-border bg-secondary text-text-primary text-sm font-semibold flex items-center justify-center gap-2"
+              >
+                <span>Sign In to Portal</span>
+              </Link>
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);

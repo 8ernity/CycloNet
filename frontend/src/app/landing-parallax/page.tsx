@@ -32,7 +32,7 @@ export default function LandingParallaxPage() {
         title="CYCLONET"
         pretitle="NEVER MISS A CYCLONE"
         subtitle="AI TROPICAL CYCLONE TRAJECTORY & LANDFALL INTELLIGENCE"
-        layer1Src="/Earth.png"
+        layer1Src="/Galaxy.mp4"
         layer2Src="/NobgEarth.png"
         layer4Src="/Astronaut.png"
       />

@@ -4,7 +4,15 @@ import React, { useEffect, useState } from 'react';
 import { motion, useSpring, useTransform } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-export function MeshGradientBackground({ children, className }: { children?: React.ReactNode, className?: string }) {
+export function MeshGradientBackground({ 
+  children, 
+  className,
+  videoSrc
+}: { 
+  children?: React.ReactNode, 
+  className?: string,
+  videoSrc?: string
+}) {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isDesktop, setIsDesktop] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -44,6 +52,16 @@ export function MeshGradientBackground({ children, className }: { children?: Rea
 
   return (
     <div className={cn("relative min-h-screen bg-bg-base text-text-primary overflow-hidden selection:bg-cyan-500/30 selection:text-white transition-colors duration-300", className)}>
+      {videoSrc && (
+        <video
+          src={videoSrc}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none opacity-40 mix-blend-screen"
+        />
+      )}
       <motion.div 
         className="absolute inset-0 z-0 pointer-events-none overflow-hidden"
         initial={{ opacity: 0 }}

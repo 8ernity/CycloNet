@@ -23,6 +23,37 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [user, setUser] = React.useState({
+    name: "Officer",
+    roleTitle: "INVESTIGATOR",
+    initials: "OF",
+  });
+
+  React.useEffect(() => {
+    try {
+      const stored = localStorage.getItem("cyclonet_user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.name) {
+          setUser({
+            name: parsed.name,
+            roleTitle: parsed.roleTitle || "INVESTIGATOR",
+            initials: parsed.initials || parsed.name.slice(0, 2).toUpperCase(),
+          });
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleLogout = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("cyclonet_user");
+      localStorage.removeItem("cyclonet_auth_token");
+      window.location.href = "/login";
+    }
+  };
 
   return (
     <aside className="w-64 hidden lg:flex flex-col h-screen fixed left-0 top-0 sidebar-mesh border-r border-border">
@@ -63,19 +94,19 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Officer Profile & Logout Bottom Bar (directs to landing page) */}
+      {/* Officer Profile & Logout Bottom Bar (directs to auth/login) */}
       <div className="p-3 border-t border-border mt-auto">
         <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/[0.03] dark:bg-white/[0.03] hover:bg-slate-900/[0.06] dark:hover:bg-white/[0.06] transition-colors">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-500 text-white font-bold text-xs flex items-center justify-center shadow-xs shrink-0 ring-2 ring-indigo-500/20">
-              OF
+              {user.initials}
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate leading-tight">
-                Officer
+                {user.name}
               </span>
               <span className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider truncate mt-0.5">
-                INVESTIGATOR
+                {user.roleTitle}
               </span>
             </div>
           </div>
@@ -90,14 +121,14 @@ export function Sidebar() {
               <Settings className="w-4 h-4" />
             </Link>
             
-            <Link
-              href="/landing-parallax"
-              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 dark:text-zinc-400 dark:hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-              title="Logout to Landing Page"
-              aria-label="Logout to Landing Page"
+            <button
+              onClick={handleLogout}
+              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 dark:text-zinc-400 dark:hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+              title="Sign Out / Change Persona"
+              aria-label="Sign Out"
             >
               <LogOut className="w-4 h-4" />
-            </Link>
+            </button>
           </div>
         </div>
       </div>

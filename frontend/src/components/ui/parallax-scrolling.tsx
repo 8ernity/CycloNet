@@ -19,7 +19,7 @@ export function ParallaxComponent({
   title = "CYCLONET",
   pretitle = "NEVER MISS A CYCLONE",
   subtitle = "AI TROPICAL CYCLONE TRAJECTORY & LANDFALL INTELLIGENCE",
-  layer1Src = "/Earth.png",
+  layer1Src = "/Galaxy.mp4",
   layer2Src = "/NobgEarth.png",
   layer4Src = "/Astronaut.png",
 }: ParallaxComponentProps) {
@@ -84,23 +84,47 @@ export function ParallaxComponent({
           <div className="parallax__black-line-overflow absolute top-0 left-0 right-0 h-[2px] bg-[#030712] z-20 pointer-events-none" />
           
           <div data-parallax-layers className="parallax__layers absolute inset-0 w-full h-full overflow-hidden">
-            {/* Layer 1: Background Starry Deep Space */}
-            <img
-              src={layer1Src}
-              loading="eager"
-              data-parallax-layer="1"
-              alt="Deep Space Background"
-              className="parallax__layer-img absolute top-0 left-0 w-full h-full object-cover pointer-events-none z-0"
-            />
+            {/* Layer 1: Background Starry Deep Space or Video */}
+            {layer1Src?.match(/\.(mp4|webm|mov|m4v|ogg)$/i) ? (
+              <video
+                src={layer1Src}
+                autoPlay
+                loop
+                muted
+                playsInline
+                data-parallax-layer="1"
+                className="parallax__layer-img absolute top-0 left-0 w-full h-full object-cover pointer-events-none z-0"
+              />
+            ) : (
+              <img
+                src={layer1Src}
+                loading="eager"
+                data-parallax-layer="1"
+                alt="Deep Space Background"
+                className="parallax__layer-img absolute top-0 left-0 w-full h-full object-cover pointer-events-none z-0"
+              />
+            )}
 
-            {/* Layer 2: Earth Atmosphere & Orbital Rim */}
-            <img
-              src={layer2Src}
-              loading="eager"
-              data-parallax-layer="2"
-              alt="Earth Orbital Layer"
-              className="parallax__layer-img absolute top-0 left-0 w-full h-full object-cover pointer-events-none z-1"
-            />
+            {/* Layer 2: Earth Atmosphere & Orbital Rim or Video */}
+            {layer2Src?.match(/\.(mp4|webm|mov|m4v|ogg)$/i) ? (
+              <video
+                src={layer2Src}
+                autoPlay
+                loop
+                muted
+                playsInline
+                data-parallax-layer="2"
+                className="parallax__layer-img absolute top-0 left-0 w-full h-full object-cover pointer-events-none z-1"
+              />
+            ) : (
+              <img
+                src={layer2Src}
+                loading="eager"
+                data-parallax-layer="2"
+                alt="Earth Orbital Layer"
+                className="parallax__layer-img absolute top-0 left-0 w-full h-full object-cover pointer-events-none z-1"
+              />
+            )}
 
             {/* Layer 3: CYCLONET 3D Depth Typography matching Reference Images */}
             <div
@@ -109,7 +133,7 @@ export function ParallaxComponent({
             >
               {/* Pre-title */}
               <p 
-                className="text-[10px] sm:text-[11px] md:text-xs font-semibold uppercase tracking-[0.44em] text-[#93c5fd] mb-2 sm:mb-2.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] select-none"
+                className="text-[10px] sm:text-[11px] md:text-xs font-bold uppercase tracking-[0.44em] text-[#67e8f9] mb-2 sm:mb-2.5 drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)] drop-shadow-[0_0_16px_rgba(34,211,238,0.6)] select-none"
                 style={{ fontFamily: "'Montserrat', var(--font-sans), sans-serif" }}
               >
                 {pretitle}
@@ -118,10 +142,10 @@ export function ParallaxComponent({
               {/* Main Glowing Metallic Title */}
               <div className="relative flex items-center justify-center my-0.5 select-none">
                 <h1 
-                  className="parallax__title text-4xl sm:text-6xl md:text-7xl lg:text-[5.4rem] xl:text-[6.2rem] font-extrabold uppercase tracking-[0.02em] text-center leading-none drop-shadow-[0_10px_24px_rgba(0,0,0,0.95)]"
+                  className="parallax__title text-4xl sm:text-6xl md:text-7xl lg:text-[5.4rem] xl:text-[6.2rem] font-extrabold uppercase tracking-[0.02em] text-center leading-none drop-shadow-[0_12px_28px_rgba(0,0,0,0.98)] drop-shadow-[0_0_40px_rgba(56,189,248,0.4)]"
                   style={{
                     fontFamily: "'Montserrat', var(--font-sans), sans-serif",
-                    backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 36%, #E8F3FD 46%, #79AFEB 72%, #3878BE 95%, #2563EB 100%)',
+                    backgroundImage: 'linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 42%, #F0F9FF 55%, #BAE6FD 75%, #38BDF8 92%, #0284C7 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                   }}
@@ -148,7 +172,7 @@ export function ParallaxComponent({
 
               {/* Subtitle */}
               <p 
-                className="text-[9px] sm:text-[10.5px] md:text-[11.5px] font-semibold uppercase tracking-[0.38em] text-[#74aadb] mt-2 sm:mt-2.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.95)] max-w-2xl select-none"
+                className="text-[9px] sm:text-[10.5px] md:text-[11.5px] font-semibold uppercase tracking-[0.38em] text-[#bae6fd] mt-2 sm:mt-2.5 drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)] drop-shadow-[0_0_16px_rgba(56,189,248,0.35)] max-w-2xl select-none"
                 style={{ fontFamily: "'Montserrat', var(--font-sans), sans-serif" }}
               >
                 {subtitle}
