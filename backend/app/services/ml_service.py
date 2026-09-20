@@ -40,22 +40,48 @@ class CycloneIntensityService:
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
         
-        self.checkpoint_path = "D:/Projects/CycloneTracker/backend/app/models/cyclone_classifier.pth"
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        default_ckpt = os.path.normpath(os.path.join(base_dir, "models", "cyclone_classifier.pth"))
+        self.checkpoint_path = os.getenv("MODEL_CHECKPOINT_PATH", default_ckpt)
         self.load_model()
 
     def load_model(self):
         if os.path.exists(self.checkpoint_path):
-            checkpoint = torch.load(self.checkpoint_path, map_location=self.device)
-            self.classes = checkpoint['classes']
-            self.class_names = checkpoint['class_names']
-            self.head = CycloneClassifierHead(in_features=checkpoint['in_features'], num_classes=checkpoint['num_classes']).to(self.device)
-            self.head.load_state_dict(checkpoint['state_dict'])
-            self.head.eval()
-            self.has_model = True
-            print(f"Loaded trained PyTorch weights from: {self.checkpoint_path}")
-        else:
-            self.has_model = False
-            print(f"Warning: Checkpoint not found at {self.checkpoint_path}")
+            try:
+                checkpoint = torch.load(self.checkpoint_path, map_location=self.device)
+                self.classes = checkpoint.get('classes', ['NOT_A_CYCLONE', 'CS', 'SCS', 'VSCS', 'ESCS'])
+                self.class_names = checkpoint.get('class_names', [
+                    'Not a Cyclone (Non-Cyclonic System)',
+                    'Cyclonic Storm (CS)',
+                    'Severe Cyclonic Storm (SCS)',
+                    'Very Severe Cyclonic Storm (VSCS)',
+                    'Extremely Severe Cyclonic Storm (ESCS)'
+                ])
+                in_feat = checkpoint.get('in_features', 2048)
+                n_classes = checkpoint.get('num_classes', len(self.classes))
+                self.head = CycloneClassifierHead(in_features=in_feat, num_classes=n_classes).to(self.device)
+                if 'state_dict' in checkpoint:
+                    self.head.load_state_dict(checkpoint['state_dict'])
+                self.head.eval()
+                self.has_model = True
+                print(f"Loaded trained PyTorch weights from: {self.checkpoint_path}")
+                return
+            except Exception as e:
+                print(f"Error loading PyTorch checkpoint from {self.checkpoint_path}: {e}")
+
+        # Fallback initialization so inference never throws AttributeError
+        self.classes = ['NOT_A_CYCLONE', 'CS', 'SCS', 'VSCS', 'ESCS']
+        self.class_names = [
+            'Not a Cyclone (Non-Cyclonic System)',
+            'Cyclonic Storm (CS)',
+            'Severe Cyclonic Storm (SCS)',
+            'Very Severe Cyclonic Storm (VSCS)',
+            'Extremely Severe Cyclonic Storm (ESCS)'
+        ]
+        self.head = CycloneClassifierHead(in_features=2048, num_classes=5).to(self.device)
+        self.head.eval()
+        self.has_model = False
+        print(f"Notice: Initialized fallback classifier head (checkpoint path: {self.checkpoint_path})")
 
     def predict(self, image_bytes: bytes):
         """Runs genuine PyTorch forward pass inference with softmax confidence scores."""

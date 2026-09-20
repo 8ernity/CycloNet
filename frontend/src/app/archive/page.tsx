@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
+import { API_BASE_URL } from "@/lib/api";
 
 interface CycloneHistory {
   id: string;
@@ -90,13 +91,13 @@ export default function ArchivePage() {
       setLoading(true);
       try {
         if (activeTab === "cyclones") {
-          const res = await fetch(`http://localhost:8000/api/history/search?query=${searchQuery}`);
+          const res = await fetch(`${API_BASE_URL}/api/history/search?query=${searchQuery}`);
           if (res.ok) {
             const data = await res.json();
             setCyclones(data);
           }
         } else {
-          const res = await fetch(`http://localhost:8000/api/history/classifications`);
+          const res = await fetch(`${API_BASE_URL}/api/history/classifications`);
           if (res.ok) {
             const data = await res.json();
             setClassifications(data);

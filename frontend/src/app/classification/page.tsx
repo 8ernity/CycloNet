@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Upload, ImageIcon, Scan, CheckCircle2, ShieldAlert, Loader2, Activity } from "lucide-react";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
+import { API_BASE_URL } from "@/lib/api";
 
 export default function ClassificationPage() {
   const { selectedCycloneId, selectedCycloneName } = useActiveCyclone();
@@ -25,7 +26,6 @@ export default function ClassificationPage() {
         }
       }
     };
-
     window.addEventListener("paste", handleGlobalPaste);
     return () => window.removeEventListener("paste", handleGlobalPaste);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -47,7 +47,7 @@ export default function ClassificationPage() {
       const formData = new FormData();
       formData.append("file", imageFile);
 
-      const response = await fetch("http://localhost:8000/api/classify", {
+      const response = await fetch(`${API_BASE_URL}/api/classify`, {
         method: "POST",
         body: formData,
       });

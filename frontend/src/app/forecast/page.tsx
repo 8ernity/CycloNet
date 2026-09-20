@@ -8,6 +8,7 @@ import {
 import dynamic from "next/dynamic";
 
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
+import { API_BASE_URL } from "@/lib/api";
 
 const MapWidget = dynamic(() => import("@/components/MapWidget"), {
   ssr: false,
@@ -92,7 +93,7 @@ export default function ForecastPage() {
   const fetchSystem = async (cycloneId: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:8000/api/active-systems?simulate=true&cyclone_id=${encodeURIComponent(cycloneId)}`);
+      const res = await fetch(`${API_BASE_URL}/api/active-systems?simulate=true&cyclone_id=${encodeURIComponent(cycloneId)}`);
       if (res.ok) {
         const data = await res.json();
         if (data && data.length > 0) {
@@ -132,7 +133,7 @@ export default function ForecastPage() {
 
       // 2. Fetch full catalog from backend
       try {
-        const res = await fetch("http://localhost:8000/api/history/search");
+        const res = await fetch(`${API_BASE_URL}/api/history/search`);
         if (res.ok) {
           const list = await res.json();
           if (Array.isArray(list) && list.length > 0) {

@@ -1,0 +1,49 @@
+services:
+  # ── CycloNet Backend (FastAPI + PyTorch + Gemini AI) ────────────────────────
+  - type: web
+    name: cyclonet-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    region: oregon
+    buildCommand: "pip install --upgrade pip && pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.12
+      - key: GEMINI_API_KEY
+        sync: false # Set securely in Render dashboard
+      - key: GEMINI_MODEL
+        value: gemini-3.6-flash
+      - key: CORS_ORIGINS
+        value: "*"
+
+  # ── CycloNet Frontend (Next.js 16 + Tailwind CSS) ───────────────────────────
+  - type: web
+    name: cyclonet-frontend
+    runtime: node
+    rootDir: frontend
+    plan: free
+    region: oregon
+    buildCommand: "npm install && npm run build"
+    startCommand: "npm run start"
+    envVars:
+      - key: NODE_VERSION
+        value: 20.11.0
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          name: cyclonet-backend
+          type: web
+          property: host
+      - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+        sync: false # Set securely in Render dashboard
+      - key: CLERK_SECRET_KEY
+        sync: false # Set securely in Render dashboard
+      - key: NEXT_PUBLIC_CLERK_SIGN_IN_URL
+        value: /login
+      - key: NEXT_PUBLIC_CLERK_SIGN_UP_URL
+        value: /login?mode=signup
+      - key: NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL
+        value: /
+      - key: NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL
+        value: /

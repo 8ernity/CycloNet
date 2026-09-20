@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useLiquidGlass } from "@/hooks/useLiquidGlass";
 import { CycloneLogo } from "@/components/CycloneLogo";
+import { API_BASE_URL } from "@/lib/api";
 
 interface Message {
   id: string;
@@ -364,8 +365,6 @@ export function ChatbotWidget() {
       const historyPayload = messages
         .slice(-6)
         .map(m => ({ role: m.role, content: m.content }));
-
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
       
       let uiContext: any = null;
       if (typeof window !== "undefined") {
@@ -377,7 +376,7 @@ export function ChatbotWidget() {
         };
       }
 
-      const res = await fetch(`${apiUrl}/chat`, {
+      const res = await fetch(`${API_BASE_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

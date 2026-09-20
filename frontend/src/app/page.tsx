@@ -4,6 +4,7 @@ import { AlertCircle, CloudRain, MapPin, Navigation, Wind, ShieldCheck, Play, Ro
 import dynamic from 'next/dynamic';
 
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
+import { API_BASE_URL } from "@/lib/api";
 
 const MapComponent = dynamic(() => import('../components/MapComponent'), { 
   ssr: false,
@@ -56,9 +57,9 @@ const getStormDetails = (sys: ActiveSystem | null) => {
     };
   } else if (name.includes("remal")) {
     return {
-      basinName: "North Bay of Bengal",
-      landfall: "26 May, 20:30 IST",
-      landfallLocation: "Adjacent to Sagar Island & Khepupara"
+      basinName: "North-central Bay of Bengal",
+      landfall: "26 May, 23:00 IST",
+      landfallLocation: "Near Khepupara / Sagar Island, WB"
     };
   } else if (name.includes("michaung")) {
     return {
@@ -102,7 +103,7 @@ export default function LiveMonitoringPage() {
   const [isSyncingIngest, setIsSyncingIngest] = useState(false);
 
   const fetchIngestStatus = () => {
-    fetch("http://localhost:8000/api/ingest/status")
+    fetch(`${API_BASE_URL}/api/ingest/status`)
       .then(res => res.json())
       .then(data => setIngestStatus(data))
       .catch(() => {});
@@ -111,7 +112,7 @@ export default function LiveMonitoringPage() {
   const handleSyncFeeds = async () => {
     setIsSyncingIngest(true);
     try {
-      const res = await fetch("http://localhost:8000/api/ingest/sync", { method: "POST" });
+      const res = await fetch(`${API_BASE_URL}/api/ingest/sync`, { method: "POST" });
       const data = await res.json();
       setIngestStatus({
         status: "online",
@@ -132,7 +133,7 @@ export default function LiveMonitoringPage() {
   const handleTestInject = async () => {
     setIsSyncingIngest(true);
     try {
-      await fetch("http://localhost:8000/api/ingest/test-inject", { method: "POST" });
+      await fetch(`${API_BASE_URL}/api/ingest/test-inject`, { method: "POST" });
       fetchIngestStatus();
       fetchActiveSystems(false);
     } catch (err) {
@@ -145,7 +146,7 @@ export default function LiveMonitoringPage() {
   const handleClearLiveTest = async () => {
     setIsSyncingIngest(true);
     try {
-      await fetch("http://localhost:8000/api/ingest/clear-test", { method: "POST" });
+      await fetch(`${API_BASE_URL}/api/ingest/clear-test`, { method: "POST" });
       clearSelectedCyclone();
       fetchIngestStatus();
       fetchActiveSystems(false);
@@ -158,7 +159,7 @@ export default function LiveMonitoringPage() {
 
   const fetchActiveSystems = (simulate: boolean = false, cycloneId?: string | null) => {
     setLoading(true);
-    let url = "http://localhost:8000/api/active-systems";
+    let url = `${API_BASE_URL}/api/active-systems`;
     const targetId = cycloneId || (simulate ? selectedCycloneId : null);
     if (simulate || targetId) {
       url += `?simulate=true${targetId ? `&cyclone_id=${encodeURIComponent(targetId)}` : ""}`;

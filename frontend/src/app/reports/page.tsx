@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { FileText, Bell, AlertOctagon, AlertTriangle, Info, Download, Filter } from "lucide-react";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
+import { API_BASE_URL } from "@/lib/api";
 
 interface ActiveSystem {
   id: string;
@@ -28,7 +29,7 @@ export default function ReportsPage() {
     const fetchSystem = async () => {
       setLoading(true);
       try {
-        let url = "http://localhost:8000/api/active-systems";
+        let url = `${API_BASE_URL}/api/active-systems`;
         if (selectedCycloneId) {
           url += `?simulate=true&cyclone_id=${encodeURIComponent(selectedCycloneId)}`;
         }
