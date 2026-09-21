@@ -4,6 +4,7 @@ import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AppShell } from "@/components/AppShell";
+import { BackendWarmup } from "@/components/BackendWarmup";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 
@@ -49,6 +50,7 @@ export default function RootLayout({
             enableSystem={false}
             disableTransitionOnChange
           >
+            <BackendWarmup />
             <AppShell>{children}</AppShell>
             <Script src="/liquid-glass.js" strategy="beforeInteractive" />
           </ThemeProvider>

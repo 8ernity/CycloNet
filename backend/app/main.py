@@ -43,3 +43,7 @@ async def startup_event():
 @app.get("/")
 def root():
     return {"status": "ok", "message": "CycloNet API is running"}
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
