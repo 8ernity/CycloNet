@@ -14,7 +14,7 @@ function UnifiedAuthPage() {
 
   useEffect(() => {
     if (isLoaded && userId) {
-      window.location.href = '/';
+      window.location.href = '/dashboard';
     }
   }, [isLoaded, userId]);
 
@@ -73,8 +73,8 @@ function UnifiedAuthPage() {
                   }}
                   routing="hash"
                   signInUrl="/login"
-                  fallbackRedirectUrl="/"
-                  forceRedirectUrl="/"
+                  fallbackRedirectUrl="/dashboard"
+                  forceRedirectUrl="/dashboard"
                 />
               )}
             </div>
@@ -111,8 +111,8 @@ function UnifiedAuthPage() {
                   }}
                   routing="hash"
                   signUpUrl="/login?mode=signup"
-                  fallbackRedirectUrl="/"
-                  forceRedirectUrl="/"
+                  fallbackRedirectUrl="/dashboard"
+                  forceRedirectUrl="/dashboard"
                 />
               )}
             </div>

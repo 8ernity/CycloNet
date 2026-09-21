@@ -15,7 +15,7 @@ function cn(...inputs: ClassValue[]) {
 }
 
 const navItems = [
-  { name: "Live Monitoring", href: "/", icon: Activity },
+  { name: "Live Monitoring", href: "/dashboard", icon: Activity },
   { name: "Classification", href: "/classification", icon: UploadCloud },
   { name: "Historical Archive", href: "/archive", icon: History },
   { name: "Track Forecast", href: "/forecast", icon: Wind },
@@ -64,16 +64,16 @@ export function Sidebar() {
       localStorage.removeItem("cyclonet_user");
       localStorage.removeItem("cyclonet_auth_token");
       if (clerkUser) {
-        await signOut({ redirectUrl: "/landing" });
+        await signOut({ redirectUrl: "/" });
       } else {
-        window.location.href = "/landing";
+        window.location.href = "/";
       }
     }
   };
 
   return (
     <aside className="w-64 hidden lg:flex flex-col h-screen fixed left-0 top-0 sidebar-mesh border-r border-border">
-      <Link href="/" className="p-6 flex items-center gap-3 group">
+      <Link href="/dashboard" className="p-6 flex items-center gap-3 group">
         <div className="relative flex items-center justify-center group-hover:scale-105 transition-transform">
           <CycloneLogo size={32} />
         </div>

@@ -19,7 +19,8 @@ export function Header() {
 
   const getPageTitle = () => {
     switch (pathname) {
-      case "/": return "Live Monitoring";
+      case "/":
+      case "/dashboard": return "Live Monitoring";
       case "/classification": return "Classification";
       case "/archive": return "Historical Archive";
       case "/forecast": return "Track Forecast";
