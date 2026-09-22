@@ -25,7 +25,13 @@ interface ActiveSystem {
 const getStormDetails = (sys: ActiveSystem | null) => {
   if (!sys) return { basinName: "RSMC New Delhi Jurisdiction", landfall: "Nil Expected", landfallLocation: "IMD Tropical Weather Outlook" };
   const name = sys.name.toLowerCase();
-  if (name.includes("amphan")) {
+  if (name.includes("bob") || name.includes("deep depression") || name.includes("depression") || name.includes("arnab")) {
+    return {
+      basinName: "West-central & Northwest Bay of Bengal",
+      landfall: "23-24 Sep, Night / Early Morning IST",
+      landfallLocation: "Between Kalingapatnam (AP) & Gopalpur (Odisha)"
+    };
+  } else if (name.includes("amphan")) {
     return {
       basinName: "North-central Bay of Bengal",
       landfall: "20 May, 14:30 IST",
@@ -267,6 +273,31 @@ export default function DashboardLiveMonitoringPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <select
+            value={selectedCycloneId || "LIVE"}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === "LIVE") {
+                clearSelectedCyclone();
+                fetchActiveSystems(false);
+              } else {
+                selectCyclone(val);
+                fetchActiveSystems(true, val);
+              }
+            }}
+            className="px-3 py-1.5 rounded-lg bg-secondary border border-border text-foreground text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-xs"
+          >
+            <option value="LIVE">🔴 Live Feed: Deep Depression (BOB-05)</option>
+            <option value="BOB05-2026">🌀 Deep Depression BOB-05 (2026 Active)</option>
+            <option value="ARB01-2023">📁 Cyclone Biparjoy (2023)</option>
+            <option value="BOB01-2024">📁 Cyclone Remal (2024)</option>
+            <option value="BOB04-2024">📁 Cyclone Dana (2024)</option>
+            <option value="BOB09-2024">📁 Cyclone Fengal (2024)</option>
+            <option value="BOB03-2020">📁 Super Cyclone Amphan (2020)</option>
+            <option value="BOB02-2019">📁 Cyclone Fani (2019)</option>
+            <option value="ARB01-2021">📁 Cyclone Tauktae (2021)</option>
+          </select>
+
           <button
             onClick={handleSyncFeeds}
             disabled={isSyncingIngest}
@@ -274,7 +305,7 @@ export default function DashboardLiveMonitoringPage() {
             title="Poll IMD, NOAA, and MOSDAC feeds for newly evolving cyclones"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncingIngest ? "animate-spin" : ""}`} />
-            <span>{isSyncingIngest ? "Syncing Feeds..." : "Sync Live Feeds"}</span>
+            <span>{isSyncingIngest ? "Syncing..." : "Sync Live Feeds"}</span>
           </button>
         </div>
       </div>

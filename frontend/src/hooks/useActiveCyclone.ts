@@ -5,11 +5,11 @@ export const STORAGE_KEY_ID = "cyclonet_selected_cyclone_id";
 export const STORAGE_KEY_NAME = "cyclonet_selected_cyclone_name";
 export const CYCLONET_EVENT_NAME = "cyclonet:selected-cyclone-changed";
 
-export function useActiveCyclone(defaultId: string = "BOB03-2020") {
+export function useActiveCyclone(defaultId: string = "BOB05-2026") {
   const [selectedCycloneId, setSelectedCycloneId] = useState<string>(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem(STORAGE_KEY_ID);
-      if (stored) return stored;
+      if (stored && stored !== "BOB03-2020") return stored;
     }
     return defaultId;
   });

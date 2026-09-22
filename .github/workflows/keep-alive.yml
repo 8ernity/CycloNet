@@ -1,16 +1,19 @@
-name: Keep Render Backend Alive
+name: Keep Render Services Alive
 
 on:
   schedule:
-    # Runs every 14 minutes (Render sleeps after 15 min of inactivity)
-    - cron: '*/14 * * * *'
+    # Runs every 10 minutes to prevent Render's 15-minute sleep timer
+    - cron: '*/10 * * * *'
   workflow_dispatch: # Allows manual trigger from GitHub Actions tab
 
 jobs:
-  ping-backend:
+  ping-services:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping CycloNet Backend
+      - name: Ping Frontend and Backend
         run: |
-          echo "Pinging CycloNet Backend to prevent Render cold start..."
-          curl -s -f -m 30 "https://cyclonet-backend.onrender.com/health" || curl -s -f -m 60 "https://cyclonet-backend.onrender.com/" || echo "Ping failed or server waking up"
+          echo "Pinging CycloNet Frontend..."
+          curl -s -f -m 30 "https://cyclonet-frontend.onrender.com" || echo "Frontend ping failed or waking up"
+          
+          echo "Pinging CycloNet Backend..."
+          curl -s -f -m 30 "https://cyclonet-backend.onrender.com/health" || curl -s -f -m 30 "https://cyclonet-backend.onrender.com/" || echo "Backend ping failed or waking up"

@@ -4,6 +4,25 @@ from typing import List, Dict, Any, Optional
 # timing offsets, intensity (knots), and IMD classification categories.
 REAL_CYCLONE_TRACKS: Dict[str, Dict[str, Any]] = {
     # -------------------------------------------------------------
+    # 0. Active Deep Depression BOB-05 (Current / Active) - Bay of Bengal
+    # -------------------------------------------------------------
+    "BOB05-2026": {
+        "name": "Deep Depression (BOB-05)",
+        "basin": "Bay of Bengal",
+        "category": "Deep Depression",
+        "peak_knots": 35,
+        "peak_index": 2,
+        "points": [
+            {"lat": 16.2, "lon": 87.1, "time_offset_hours": -18, "category": "Depression", "intensity_knots": 25, "label": "22/00,25KT,D"},
+            {"lat": 17.0, "lon": 86.2, "time_offset_hours": -9, "category": "Deep Depression", "intensity_knots": 30, "label": "22/12,30KT,DD"},
+            {"lat": 17.8, "lon": 85.2, "time_offset_hours": 0, "category": "Deep Depression", "intensity_knots": 35, "label": "22/18,35KT,DD (Live Eye - 140km ESE of Kalingapatnam)"},
+            {"lat": 18.5, "lon": 84.6, "time_offset_hours": 12, "category": "Deep Depression", "intensity_knots": 35, "label": "23/06,35KT,DD (Approaching Odisha/AP Coast)"},
+            {"lat": 19.3, "lon": 83.8, "time_offset_hours": 24, "category": "Depression", "intensity_knots": 25, "label": "23/18,25KT,D (Landfall near Gopalpur/Kalingapatnam)"},
+            {"lat": 20.2, "lon": 82.5, "time_offset_hours": 48, "category": "Well Marked Low", "intensity_knots": 18, "label": "24/18,18KT,WML (Inland Weakening)"},
+        ]
+    },
+
+    # -------------------------------------------------------------
     # 1. Super Cyclone Amphan (May 2020) - Bay of Bengal
     # -------------------------------------------------------------
     "BOB03-2020": {
