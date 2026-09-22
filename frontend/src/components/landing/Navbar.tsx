@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence, useMotionValueEvent } from 'framer-motion';
-import { Menu, X, ArrowRight, Sun, Moon, Activity } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import Link from 'next/link';
-import { useTheme } from 'next-themes';
 import { useMotionTokens } from '@/lib/motion-tokens';
 import { ConnectingPill } from './ConnectingPill';
 import { CycloneLogo } from '@/components/CycloneLogo';
+import { NeonThemeToggle } from '@/components/NeonThemeToggle';
 
 const NAV_ITEMS = [
   { name: 'Features', href: '#features' },
@@ -23,7 +23,6 @@ export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolledPast, setIsScrolledPast] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     setMounted(true);
@@ -110,50 +109,19 @@ export function Navbar() {
             </button>
 
             {/* Dark / Light Theme Toggle */}
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer border ${isScrolledPast
-                  ? "text-text-muted hover:text-text-primary hover:bg-secondary border-surface-border"
-                  : "text-slate-300 hover:text-white hover:bg-white/10 border-white/20"
-                }`}
-              title={mounted ? (theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode') : undefined}
-              aria-label="Toggle theme"
-              suppressHydrationWarning
-            >
-              {mounted ? (
-                theme === 'dark' ? (
-                  <Sun className="w-4 h-4 text-amber-300 animate-in fade-in duration-300" />
-                ) : (
-                  <Moon className={`w-4 h-4 animate-in fade-in duration-300 ${isScrolledPast ? "text-sky-600" : "text-sky-300"}`} />
-                )
-              ) : (
-                <Sun className="w-4 h-4 text-slate-400" />
-              )}
-            </button>
+            <NeonThemeToggle size="sm" />
 
             {/* Sign In Portal Link */}
             <Link
               href="/login"
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all border ${
+              className={`px-4 py-2 rounded-full text-xs font-semibold tracking-wide transition-all border shadow-xs ${
                 isScrolledPast
                   ? "text-text-primary hover:bg-secondary border-surface-border"
-                  : "text-white/90 hover:text-white hover:bg-white/10 border-white/20"
+                  : "text-white hover:bg-white/15 border-white/20 bg-white/5"
               }`}
             >
               Sign In
             </Link>
-
-            {/* Launch Dashboard Primary Button */}
-            <motion.button
-              whileHover={{ scale: 1.04, filter: "brightness(1.1)" }}
-              whileTap={{ scale: 0.96 }}
-              onClick={() => window.location.href = '/'}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-[#0090FF] to-[#0070F3] text-white text-xs font-bold shadow-[0_0_25px_rgba(0,144,255,0.45)] hover:shadow-[0_0_35px_rgba(0,144,255,0.65)] transition-all cursor-pointer"
-            >
-              <Activity className="w-3.5 h-3.5 animate-pulse" />
-              <span>Launch Dashboard</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
-            </motion.button>
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -204,20 +172,10 @@ export function Navbar() {
               <Link
                 href="/login"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full py-3 rounded-full border border-border bg-secondary text-text-primary text-sm font-semibold flex items-center justify-center gap-2"
+                className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#0090FF] to-[#0070F3] text-white text-sm font-bold shadow-lg flex items-center justify-center gap-2"
               >
                 <span>Sign In to Portal</span>
               </Link>
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  window.location.href = '/';
-                }}
-                className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#0090FF] to-[#0070F3] text-white text-sm font-bold shadow-lg flex items-center justify-center gap-2"
-              >
-                <span>Launch Dashboard</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
             </div>
           </motion.div>
         )}

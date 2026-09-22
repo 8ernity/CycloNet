@@ -1,15 +1,14 @@
 "use client";
 
 import React from "react";
-import { Menu, Sun, Moon, Wind } from "lucide-react";
-import { useTheme } from "next-themes";
+import { Menu, Wind } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { CycloneLogo } from "@/components/CycloneLogo";
+import { NeonThemeToggle } from "@/components/NeonThemeToggle";
 
 export function Header() {
   const [mounted, setMounted] = React.useState(false);
-  const { theme, setTheme } = useTheme();
   const pathname = usePathname();
   const { selectedCycloneId, selectedCycloneName } = useActiveCyclone();
 
@@ -67,18 +66,7 @@ export function Header() {
           <span>Ask CycloNet AI</span>
         </button>
 
-        <button
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="w-9 h-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          aria-label="Toggle theme"
-          suppressHydrationWarning
-        >
-          {mounted ? (
-            theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />
-          ) : (
-            <div className="w-5 h-5" />
-          )}
-        </button>
+        <NeonThemeToggle size="sm" />
         
         <a
           href="/settings"

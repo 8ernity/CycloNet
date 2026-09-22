@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Settings, Moon, Sun, Bell, Database, Check } from "lucide-react";
 import { useTheme } from "next-themes";
+import { NeonThemeToggle } from "@/components/NeonThemeToggle";
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
@@ -46,27 +47,18 @@ export default function SettingsPage() {
         {/* Appearance Settings */}
         <div className="glass-card p-6">
           <h3 className="text-lg font-medium mb-4 flex items-center gap-2">
-            {theme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />} 
-            Appearance
+            {theme === 'dark' ? <Moon className="w-5 h-5 text-emerald-400" /> : <Sun className="w-5 h-5 text-amber-500" />} 
+            Appearance & Radar Lighting
           </h3>
-          <div className="flex items-center justify-between p-4 bg-secondary/20 rounded-xl border border-border">
+          <div className="flex items-center justify-between p-4 bg-secondary/20 rounded-xl border border-border gap-4">
             <div>
-              <p className="font-medium text-foreground">Theme Mode</p>
-              <p className="text-sm text-muted-foreground">Toggle between Light and Dark mode.</p>
+              <p className="font-medium text-foreground">Cyberpunk Radar Theme</p>
+              <p className="text-sm text-muted-foreground">
+                {theme === "dark" ? "Neon Green Dark Mode (Power ON)" : "Standard Light Mode (Power OFF)"}
+              </p>
             </div>
-            <div className="flex bg-background border border-border rounded-lg p-1">
-              <button 
-                onClick={() => setTheme('light')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${theme === 'light' ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                Light
-              </button>
-              <button 
-                onClick={() => setTheme('dark')}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${theme === 'dark' ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                Dark
-              </button>
+            <div className="flex items-center gap-3">
+              <NeonThemeToggle size="md" />
             </div>
           </div>
         </div>

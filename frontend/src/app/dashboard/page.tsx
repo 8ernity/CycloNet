@@ -157,29 +157,31 @@ export default function DashboardLiveMonitoringPage() {
     }
   };
 
-  const fetchActiveSystems = (simulate: boolean = false, cycloneId?: string | null) => {
+  const fetchActiveSystems = async (simulate: boolean = false, cycloneId?: string | null) => {
     setLoading(true);
     let url = `${API_BASE_URL}/api/active-systems`;
     const targetId = cycloneId || (simulate ? selectedCycloneId : null);
     if (simulate || targetId) {
       url += `?simulate=true${targetId ? `&cyclone_id=${encodeURIComponent(targetId)}` : ""}`;
     }
-    fetch(url)
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.length > 0) {
-          setActiveSystem(data[0]);
-          setIsSimulation(true);
-        } else {
-          setActiveSystem(null);
-          setIsSimulation(false);
-        }
-      })
-      .catch(err => {
-        console.error("Failed to fetch active systems:", err);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        setActiveSystem(data[0]);
+        setIsSimulation(true);
+      } else {
         setActiveSystem(null);
-      })
-      .finally(() => setLoading(false));
+        setIsSimulation(false);
+      }
+    } catch (err) {
+      console.warn("Notice: Active systems feed temporarily unavailable or initializing:", err);
+      setActiveSystem(null);
+      setIsSimulation(false);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
