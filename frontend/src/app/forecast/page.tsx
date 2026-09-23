@@ -50,7 +50,7 @@ interface CycloneCatalogItem {
 }
 
 const FALLBACK_CYCLONES: CycloneCatalogItem[] = [
-  { id: "BOB05-2026", name: "Deep Depression (BOB-05)", year: "2026 (Active)", basin: "Bay of Bengal" },
+  { id: "BOB05-2026", name: "Deep Depression BOB-05 (Potential Cyclone Arnab)", year: "2026 (Active)", basin: "Bay of Bengal" },
   { id: "BOB03-2020", name: "Amphan", year: "2020", basin: "Bay of Bengal" },
   { id: "ARB01-2023", name: "Biparjoy", year: "2023", basin: "Arabian Sea" },
   { id: "BOB02-2023", name: "Mocha", year: "2023", basin: "Bay of Bengal" },

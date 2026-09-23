@@ -1,4 +1,4 @@
-﻿import os
+import os
 import sys
 import numpy as np
 import torch
@@ -38,8 +38,8 @@ CLASS_NAMES = [
 def load_seed_data():
     seed_images = {
         0: [
-            'D:/Projects/CycloneTracker/frontend/public/file.svg',
-            'D:/Projects/CycloneTracker/frontend/public/globe.svg',
+            'D:/Projects/CycloneTracker/frontend/public/cyclone-logo.svg',
+            'D:/Projects/CycloneTracker/frontend/public/logo.svg',
         ],
         1: [
             'D:/Projects/CycloneTracker/frontend/public/demo_frames/demo_1.jpg',

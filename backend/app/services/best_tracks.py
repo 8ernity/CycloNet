@@ -7,7 +7,7 @@ REAL_CYCLONE_TRACKS: Dict[str, Dict[str, Any]] = {
     # 0. Active Deep Depression BOB-05 (Current / Active) - Bay of Bengal
     # -------------------------------------------------------------
     "BOB05-2026": {
-        "name": "Deep Depression (BOB-05)",
+        "name": "Deep Depression BOB-05 (Potential Cyclone Arnab)",
         "basin": "Bay of Bengal",
         "category": "Deep Depression",
         "peak_knots": 35,

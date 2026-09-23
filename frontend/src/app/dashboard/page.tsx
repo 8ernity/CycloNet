@@ -291,8 +291,8 @@ export default function DashboardLiveMonitoringPage() {
             }}
             className="px-3 py-1.5 rounded-lg bg-secondary border border-border text-foreground text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-xs"
           >
-            <option value="LIVE">🔴 Live Feed: Deep Depression (BOB-05)</option>
-            <option value="BOB05-2026">🌀 Deep Depression BOB-05 (2026 Active)</option>
+            <option value="LIVE">🔴 Live Feed: Deep Depression BOB-05 (Cyclone Arnab)</option>
+            <option value="BOB05-2026">🌀 Deep Depression BOB-05 (Potential Cyclone Arnab)</option>
             <option value="ARB01-2023">📁 Cyclone Biparjoy (2023)</option>
             <option value="BOB01-2024">📁 Cyclone Remal (2024)</option>
             <option value="BOB04-2024">📁 Cyclone Dana (2024)</option>

@@ -9,7 +9,7 @@ import { ChatbotWidget } from "@/components/ChatbotWidget";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAuthPage = pathname === "/login" || pathname === "/signup";
-  const isFullScreenPage = pathname === "/" || pathname === "/landing" || pathname === "/landing-parallax";
+  const isFullScreenPage = pathname === "/";
 
   if (isAuthPage) {
     return <div className="min-h-screen w-full">{children}</div>;

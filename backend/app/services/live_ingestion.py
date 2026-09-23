@@ -124,6 +124,33 @@ class LiveIngestionService:
         finally:
             self.is_syncing = False
 
+    async def _fetch_meteorological_news_alerts(self) -> Optional[str]:
+        """
+        Scrapes meteorological news alerts and wire feeds across agencies
+        to dynamically detect discussed cyclone names (e.g. 'Cyclone Arnab').
+        """
+        url = "https://news.google.com/rss/search?q=Cyclone+Bay+of+Bengal+OR+Cyclone+Arabian+Sea+when:7d&hl=en-IN&gl=IN&ceid=IN:en"
+        wmo_upcoming_names = ["Arnab", "Montha", "Senyar", "Ditwah", "Aasif", "Lulu", "Mujtaba"]
+        try:
+            async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
+                resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+                if resp.status_code == 200:
+                    text_content = resp.text
+                    # Check for upcoming WMO naming matches
+                    for name in wmo_upcoming_names:
+                        if re.search(rf"\b(Cyclone\s+{name}|{name}\s+Cyclone|named\s+['\"]?{name}['\"]?)\b", text_content, re.IGNORECASE):
+                            return name
+                    
+                    # Generic regex for newly assigned cyclone names
+                    name_search = re.search(r"Cyclone\s+['\"]?([A-Z][a-z]{2,12})['\"]?", text_content)
+                    if name_search:
+                        candidate = name_search.group(1).strip()
+                        if candidate.lower() not in ["warning", "alert", "update", "track", "news", "storm", "today"]:
+                            return candidate
+        except Exception:
+            pass
+        return None
+
     async def _fetch_imd_bulletins(self) -> List[Dict[str, Any]]:
         """
         Polls IMD RSMC New Delhi and Mausam portals for active tropical cyclone advisories.
@@ -131,6 +158,9 @@ class LiveIngestionService:
         systems = []
         self.sources_status["IMD_RSMC"] = "Polling"
         url = "https://rsmcnewdelhi.imd.gov.in/"
+        
+        # Concurrently check news feeds for potential naming discussion
+        news_name = await self._fetch_meteorological_news_alerts()
         
         try:
             async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
@@ -165,7 +195,10 @@ class LiveIngestionService:
                                 final_name = f"Cyclone {name_match.group(1).strip().capitalize()}"
                                 sys_id = f"LIVE-IMD-{name_match.group(1).strip().upper()}"
                             else:
-                                final_name = "Deep Depression (BOB-05)" if "deep" in cat.lower() else "Depression (BOB)"
+                                if news_name:
+                                    final_name = f"Deep Depression BOB-05 (Potential Cyclone {news_name})" if "deep" in cat.lower() else f"Depression BOB ({news_name})"
+                                else:
+                                    final_name = "Deep Depression (BOB-05)" if "deep" in cat.lower() else "Depression (BOB)"
                                 sys_id = "LIVE-IMD-BOB05"
 
                             systems.append({
@@ -185,7 +218,10 @@ class LiveIngestionService:
                     
                     # If BoB Deep Depression is mentioned in general text
                     if not systems and ("deep depression" in text_content.lower() or "depression" in text_content.lower() or "bay of bengal" in text_content.lower()):
-                        systems.append(get_default_active_bob_system())
+                        def_sys = get_default_active_bob_system()
+                        if news_name:
+                            def_sys["name"] = f"Deep Depression BOB-05 (Potential Cyclone {news_name})"
+                        systems.append(def_sys)
                 else:
                     self.sources_status["IMD_RSMC"] = "Online (Active Monitoring)"
         except Exception:
@@ -354,14 +390,22 @@ class LiveIngestionService:
         self.live_systems = []
         self.last_sync = datetime.datetime.utcnow()
 
-    async def start_periodic_worker(self, interval_seconds: int = 900):
+    async def start_periodic_worker(self, interval_seconds: int = 480):
         """
-        Background loop executing sync passes every `interval_seconds` (default: 15 minutes).
+        Background loop executing sync passes and keep-alive heartbeats every `interval_seconds` (default: 8 minutes).
         """
         print(f"[Live Ingestion Worker] Background daemon started (polling every {interval_seconds}s).")
         while True:
             try:
                 await self.sync_all_sources()
+                
+                # Keep-alive ping to public endpoints to keep Render container active
+                try:
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        await client.get("https://cyclonet-backend.onrender.com/health")
+                        await client.get("https://cyclonet-frontend.onrender.com")
+                except Exception:
+                    pass
             except Exception as e:
                 print(f"[Live Ingestion Worker Exception] {e}")
             await asyncio.sleep(interval_seconds)

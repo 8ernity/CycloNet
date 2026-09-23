@@ -107,7 +107,7 @@ async def get_active_systems(simulate: bool = False, cyclone_id: Optional[str] =
     target = None
     if cyclone_id:
         target = db.query(CycloneArchive).filter(
-            (CycloneArchive.id == cyclone_id) | (CycloneArchive.name.ilike(cyclone_id))
+            (CycloneArchive.id.ilike(f"%{cyclone_id}%")) | (CycloneArchive.name.ilike(f"%{cyclone_id}%"))
         ).first()
     if not target:
         target = db.query(CycloneArchive).filter_by(id="ARB01-2023").first()
