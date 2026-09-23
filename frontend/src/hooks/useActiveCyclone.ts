@@ -10,27 +10,38 @@ export function useActiveCyclone(defaultId: string = "BOB05-2026") {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem(STORAGE_KEY_ID);
       if (stored && stored !== "BOB03-2020") return stored;
+      if (stored === "BOB03-2020") {
+        localStorage.removeItem(STORAGE_KEY_ID);
+        localStorage.removeItem(STORAGE_KEY_NAME);
+      }
     }
     return defaultId;
   });
 
   const [selectedCycloneName, setSelectedCycloneName] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem(STORAGE_KEY_NAME);
+      const storedId = localStorage.getItem(STORAGE_KEY_ID);
+      if (storedId && storedId !== "BOB03-2020") {
+        return localStorage.getItem(STORAGE_KEY_NAME);
+      }
+      return "Deep Depression (BOB-05)";
     }
-    return null;
+    return "Deep Depression (BOB-05)";
   });
 
   const syncState = useCallback(() => {
     if (typeof window !== "undefined") {
       const id = localStorage.getItem(STORAGE_KEY_ID);
       const name = localStorage.getItem(STORAGE_KEY_NAME);
-      if (id) {
+      if (id && id !== "BOB03-2020") {
         setSelectedCycloneId(id);
+        setSelectedCycloneName(name);
+      } else {
+        setSelectedCycloneId(defaultId);
+        setSelectedCycloneName("Deep Depression (BOB-05)");
       }
-      setSelectedCycloneName(name);
     }
-  }, []);
+  }, [defaultId]);
 
   useEffect(() => {
     syncState();

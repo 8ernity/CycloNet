@@ -84,8 +84,8 @@ const getCategoryBadgeClass = (knots: number) => {
 };
 
 export default function ForecastPage() {
-  const { selectedCycloneId, selectCyclone } = useActiveCyclone("BOB03-2020");
-  const [selectedId, setSelectedId] = useState<string>(selectedCycloneId || "BOB03-2020");
+  const { selectedCycloneId, selectCyclone } = useActiveCyclone("BOB05-2026");
+  const [selectedId, setSelectedId] = useState<string>(selectedCycloneId || "BOB05-2026");
   const [cyclonesList, setCyclonesList] = useState<CycloneCatalogItem[]>(FALLBACK_CYCLONES);
   const [system, setSystem] = useState<ActiveSystem | null>(null);
   const [loading, setLoading] = useState(true);

@@ -274,7 +274,11 @@ export default function DashboardLiveMonitoringPage() {
 
         <div className="flex items-center gap-2">
           <select
-            value={selectedCycloneId || "LIVE"}
+            value={
+              !activeSystem || activeSystem.id.startsWith("LIVE-")
+                ? "LIVE"
+                : (selectedCycloneId || activeSystem.id)
+            }
             onChange={(e) => {
               const val = e.target.value;
               if (val === "LIVE") {

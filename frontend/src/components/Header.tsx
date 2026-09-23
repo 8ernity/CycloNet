@@ -29,6 +29,21 @@ export function Header() {
     }
   };
 
+  const formatDisplayCycloneName = (name?: string | null) => {
+    if (!name) return "";
+    const n = name.trim();
+    const lower = n.toLowerCase();
+    if (
+      lower.startsWith("cyclone") ||
+      lower.startsWith("super cyclone") ||
+      lower.includes("depression") ||
+      lower.includes("low")
+    ) {
+      return n;
+    }
+    return `Cyclone ${n}`;
+  };
+
   return (
     <header className="h-16 border-b border-border bg-background/50 backdrop-blur-xl sticky top-0 z-30 flex items-center justify-between px-6">
       <div className="flex items-center gap-4">
@@ -43,7 +58,7 @@ export function Header() {
             title="Active Cyclone Synchronized Across All Tabs"
           >
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Active: {selectedCycloneName ? (selectedCycloneName.startsWith("Cyclone") ? selectedCycloneName : `Cyclone ${selectedCycloneName}`) : selectedCycloneId}</span>
+            <span>Active: {selectedCycloneName ? formatDisplayCycloneName(selectedCycloneName) : selectedCycloneId}</span>
           </a>
         )}
       </div>
