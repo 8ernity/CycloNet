@@ -13,7 +13,18 @@ from app.services.ml_service import ml_service
 def get_default_active_bob_system() -> Dict[str, Any]:
     """
     Returns telemetry for the active Bay of Bengal system (Deep Depression BOB-05).
+    Dynamically generates real-time timestamps and labels based on current UTC time.
     """
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    synoptic_hour = (now_utc.hour // 6) * 6
+    base_time = now_utc.replace(hour=synoptic_hour, minute=0, second=0, microsecond=0)
+    
+    def make_live_label(offset_h: int, knots: int, cat: str, desc: str) -> str:
+        pt_time = base_time + datetime.timedelta(hours=offset_h)
+        cat_l = cat.lower()
+        abbr = "DD" if "deep" in cat_l else ("D" if "depression" in cat_l else ("WML" if "low" in cat_l else "CS"))
+        return f"{pt_time.day:02d}/{pt_time.hour:02d},{knots}KT,{abbr} ({desc})"
+
     return {
         "id": "LIVE-IMD-BOB05",
         "name": "Deep Depression (BOB-05)",
@@ -28,12 +39,12 @@ def get_default_active_bob_system() -> Dict[str, Any]:
         "movement_direction": "WNW",
         "dvorak_t": "T2.5",
         "track_forecast": [
-            {"lat": 16.2, "lon": 87.1, "time_offset_hours": -18, "category": "Depression", "intensity_knots": 25, "is_forecast": False, "label": "T-18h (Origin in BoB)"},
-            {"lat": 17.0, "lon": 86.2, "time_offset_hours": -9, "category": "Deep Depression", "intensity_knots": 30, "is_forecast": False, "label": "T-9h (Intensification)"},
-            {"lat": 17.8, "lon": 85.2, "time_offset_hours": 0, "category": "Deep Depression", "intensity_knots": 35, "is_forecast": False, "label": "Live Eye (140km ESE of Kalingapatnam)"},
-            {"lat": 18.5, "lon": 84.6, "time_offset_hours": 12, "category": "Deep Depression", "intensity_knots": 35, "is_forecast": True, "label": "+12h (Near Gopalpur / Coast)"},
-            {"lat": 19.3, "lon": 83.8, "time_offset_hours": 24, "category": "Depression", "intensity_knots": 25, "is_forecast": True, "label": "+24h (Landfall Odisha / AP Coast)"},
-            {"lat": 20.2, "lon": 82.5, "time_offset_hours": 48, "category": "Well Marked Low", "intensity_knots": 18, "is_forecast": True, "label": "+48h (Inland Dissipation)"}
+            {"lat": 16.2, "lon": 87.1, "time_offset_hours": -18, "category": "Depression", "intensity_knots": 25, "is_forecast": False, "label": make_live_label(-18, 25, "Depression", "Origin in BoB")},
+            {"lat": 17.0, "lon": 86.2, "time_offset_hours": -9, "category": "Deep Depression", "intensity_knots": 30, "is_forecast": False, "label": make_live_label(-9, 30, "Deep Depression", "Intensification")},
+            {"lat": 17.8, "lon": 85.2, "time_offset_hours": 0, "category": "Deep Depression", "intensity_knots": 35, "is_forecast": False, "label": make_live_label(0, 35, "Deep Depression", "Live Eye - 140km ESE of Kalingapatnam")},
+            {"lat": 18.5, "lon": 84.6, "time_offset_hours": 12, "category": "Deep Depression", "intensity_knots": 35, "is_forecast": True, "label": make_live_label(12, 35, "Deep Depression", "Approaching Odisha/AP Coast")},
+            {"lat": 19.3, "lon": 83.8, "time_offset_hours": 24, "category": "Depression", "intensity_knots": 25, "is_forecast": True, "label": make_live_label(24, 25, "Depression", "Landfall near Gopalpur/Kalingapatnam")},
+            {"lat": 20.2, "lon": 82.5, "time_offset_hours": 48, "category": "Well Marked Low", "intensity_knots": 18, "is_forecast": True, "label": make_live_label(48, 18, "Well Marked Low", "Inland Dissipation")}
         ]
     }
 
@@ -126,27 +137,28 @@ class LiveIngestionService:
 
     async def _fetch_meteorological_news_alerts(self) -> Optional[str]:
         """
-        Scrapes meteorological news alerts and wire feeds across agencies
-        to dynamically detect discussed cyclone names (e.g. 'Cyclone Arnab').
+        Dynamically extracts active or prospective cyclone names discussed across
+        meteorological news feeds (e.g. Google News RSS, Disaster Alert wires)
+        using general regex patterns without hardcoded name lists.
         """
         url = "https://news.google.com/rss/search?q=Cyclone+Bay+of+Bengal+OR+Cyclone+Arabian+Sea+when:7d&hl=en-IN&gl=IN&ceid=IN:en"
-        wmo_upcoming_names = ["Arnab", "Montha", "Senyar", "Ditwah", "Aasif", "Lulu", "Mujtaba"]
+        excluded_words = {
+            "warning", "alert", "update", "track", "news", "storm", "today", 
+            "bay", "bengal", "arabian", "sea", "india", "odisha", "andhra",
+            "tamil", "nadu", "kerala", "gujarat", "live", "landfall", "depression",
+            "deep", "severe", "super", "coast", "coastal", "forecast", "imd", "rsmc"
+        }
         try:
             async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
                 resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
                 if resp.status_code == 200:
                     text_content = resp.text
-                    # Check for upcoming WMO naming matches
-                    for name in wmo_upcoming_names:
-                        if re.search(rf"\b(Cyclone\s+{name}|{name}\s+Cyclone|named\s+['\"]?{name}['\"]?)\b", text_content, re.IGNORECASE):
-                            return name
-                    
-                    # Generic regex for newly assigned cyclone names
-                    name_search = re.search(r"Cyclone\s+['\"]?([A-Z][a-z]{2,12})['\"]?", text_content)
-                    if name_search:
-                        candidate = name_search.group(1).strip()
-                        if candidate.lower() not in ["warning", "alert", "update", "track", "news", "storm", "today"]:
-                            return candidate
+                    # Match phrases like "Cyclone <Name>", "named <Name>", "called <Name>"
+                    matches = re.findall(r"(?:Cyclone|Cyclonic Storm|named as|named|called)\s+['\"]?([A-Z][a-z]{2,15})['\"]?", text_content)
+                    for candidate in matches:
+                        cand_clean = candidate.strip()
+                        if cand_clean.lower() not in excluded_words:
+                            return cand_clean.capitalize()
         except Exception:
             pass
         return None
@@ -323,13 +335,23 @@ class LiveIngestionService:
             lon = system["lon"]
             cat = system["category"]
             
+            now_utc = datetime.datetime.now(datetime.timezone.utc)
+            synoptic_hour = (now_utc.hour // 6) * 6
+            base_time = now_utc.replace(hour=synoptic_hour, minute=0, second=0, microsecond=0)
+            
+            def make_live_lbl(offset_h: int, knots_val: int, cat_name: str, desc_txt: str) -> str:
+                pt_time = base_time + datetime.timedelta(hours=offset_h)
+                cat_l = cat_name.lower()
+                abbr = "DD" if "deep" in cat_l else ("D" if "dep" in cat_l else ("WML" if "low" in cat_l else "CS"))
+                return f"{pt_time.day:02d}/{pt_time.hour:02d},{knots_val}KT,{abbr} ({desc_txt})"
+
             track = [
-                {"lat": round(lat - 1.2, 2), "lon": round(lon + 1.5, 2), "time_offset_hours": -18, "category": "Depression", "intensity_knots": max(25, knots - 10), "is_forecast": False, "label": "T-18h"},
-                {"lat": round(lat - 0.6, 2), "lon": round(lon + 0.8, 2), "time_offset_hours": -9, "category": cat, "intensity_knots": max(30, knots - 5), "is_forecast": False, "label": "T-9h"},
-                {"lat": round(lat, 2), "lon": round(lon, 2), "time_offset_hours": 0, "category": cat, "intensity_knots": knots, "is_forecast": False, "label": "Live Eye Center"},
-                {"lat": round(lat + 0.7, 2), "lon": round(lon - 0.6, 2), "time_offset_hours": 12, "category": cat, "intensity_knots": knots, "is_forecast": True, "label": "+12h Forecast"},
-                {"lat": round(lat + 1.5, 2), "lon": round(lon - 1.4, 2), "time_offset_hours": 24, "category": "Depression", "intensity_knots": max(25, knots - 10), "is_forecast": True, "label": "+24h Landfall Cone"},
-                {"lat": round(lat + 2.4, 2), "lon": round(lon - 2.7, 2), "time_offset_hours": 48, "category": "Well Marked Low", "intensity_knots": 18, "is_forecast": True, "label": "+48h Dissipation"}
+                {"lat": round(lat - 1.2, 2), "lon": round(lon + 1.5, 2), "time_offset_hours": -18, "category": "Depression", "intensity_knots": max(25, knots - 10), "is_forecast": False, "label": make_live_lbl(-18, max(25, knots - 10), "Depression", "Origin / Past Fix")},
+                {"lat": round(lat - 0.6, 2), "lon": round(lon + 0.8, 2), "time_offset_hours": -9, "category": cat, "intensity_knots": max(30, knots - 5), "is_forecast": False, "label": make_live_lbl(-9, max(30, knots - 5), cat, "Intensification")},
+                {"lat": round(lat, 2), "lon": round(lon, 2), "time_offset_hours": 0, "category": cat, "intensity_knots": knots, "is_forecast": False, "label": make_live_lbl(0, knots, cat, "Live Eye Center")},
+                {"lat": round(lat + 0.7, 2), "lon": round(lon - 0.6, 2), "time_offset_hours": 12, "category": cat, "intensity_knots": knots, "is_forecast": True, "label": make_live_lbl(12, knots, cat, "+12h Forecast")},
+                {"lat": round(lat + 1.5, 2), "lon": round(lon - 1.4, 2), "time_offset_hours": 24, "category": "Depression", "intensity_knots": max(25, knots - 10), "is_forecast": True, "label": make_live_lbl(24, max(25, knots - 10), "Depression", "+24h Landfall Cone")},
+                {"lat": round(lat + 2.4, 2), "lon": round(lon - 2.7, 2), "time_offset_hours": 48, "category": "Well Marked Low", "intensity_knots": 18, "is_forecast": True, "label": make_live_lbl(48, 18, "Well Marked Low", "+48h Dissipation")}
             ]
             system["track_forecast"] = track
 

@@ -200,11 +200,15 @@ export default function MapComponent({ activeSystem }: MapProps) {
   }, [currentPoint, forecastPoints]);
 
   // Helper to get formatted IMD Label
-  const getPointLabel = (pt: TrackPoint, defaultDay: number = 15) => {
+  const getPointLabel = (pt: TrackPoint) => {
     if (pt.label) return pt.label;
     const offsetH = pt.time_offset_hours || 0;
-    const day = Math.max(1, defaultDay + Math.floor(offsetH / 24));
-    const hr = ((6 + offsetH) % 24 + 24) % 24;
+    const now = new Date();
+    const synopticH = Math.floor(now.getUTCHours() / 6) * 6;
+    const baseDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), synopticH, 0, 0));
+    const ptDate = new Date(baseDate.getTime() + offsetH * 3600 * 1000);
+    const day = ptDate.getUTCDate();
+    const hr = ptDate.getUTCHours();
     const abbr = getCategoryAbbr(pt.category, pt.intensity_knots);
     return `${String(day).padStart(2, '0')}/${String(hr).padStart(2, '0')},${pt.intensity_knots}KT,${abbr}`;
   };

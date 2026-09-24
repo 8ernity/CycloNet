@@ -1,3 +1,4 @@
+import datetime
 from typing import List, Dict, Any, Optional
 
 # Real historical IMD/IBTrACS best-track datasets with authentic coordinates,
@@ -7,18 +8,19 @@ REAL_CYCLONE_TRACKS: Dict[str, Dict[str, Any]] = {
     # 0. Active Deep Depression BOB-05 (Current / Active) - Bay of Bengal
     # -------------------------------------------------------------
     "BOB05-2026": {
-        "name": "Deep Depression BOB-05 (Potential Cyclone Arnab)",
+        "name": "Deep Depression (BOB-05)",
         "basin": "Bay of Bengal",
         "category": "Deep Depression",
         "peak_knots": 35,
         "peak_index": 2,
+        "is_active": True,
         "points": [
-            {"lat": 16.2, "lon": 87.1, "time_offset_hours": -18, "category": "Depression", "intensity_knots": 25, "label": "22/00,25KT,D"},
-            {"lat": 17.0, "lon": 86.2, "time_offset_hours": -9, "category": "Deep Depression", "intensity_knots": 30, "label": "22/12,30KT,DD"},
-            {"lat": 17.8, "lon": 85.2, "time_offset_hours": 0, "category": "Deep Depression", "intensity_knots": 35, "label": "22/18,35KT,DD (Live Eye - 140km ESE of Kalingapatnam)"},
-            {"lat": 18.5, "lon": 84.6, "time_offset_hours": 12, "category": "Deep Depression", "intensity_knots": 35, "label": "23/06,35KT,DD (Approaching Odisha/AP Coast)"},
-            {"lat": 19.3, "lon": 83.8, "time_offset_hours": 24, "category": "Depression", "intensity_knots": 25, "label": "23/18,25KT,D (Landfall near Gopalpur/Kalingapatnam)"},
-            {"lat": 20.2, "lon": 82.5, "time_offset_hours": 48, "category": "Well Marked Low", "intensity_knots": 18, "label": "24/18,18KT,WML (Inland Weakening)"},
+            {"lat": 16.2, "lon": 87.1, "time_offset_hours": -18, "category": "Depression", "intensity_knots": 25, "desc": "Genesis in BoB"},
+            {"lat": 17.0, "lon": 86.2, "time_offset_hours": -9, "category": "Deep Depression", "intensity_knots": 30, "desc": "Intensification"},
+            {"lat": 17.8, "lon": 85.2, "time_offset_hours": 0, "category": "Deep Depression", "intensity_knots": 35, "desc": "Live Eye - 140km ESE of Kalingapatnam"},
+            {"lat": 18.5, "lon": 84.6, "time_offset_hours": 12, "category": "Deep Depression", "intensity_knots": 35, "desc": "Approaching Odisha/AP Coast"},
+            {"lat": 19.3, "lon": 83.8, "time_offset_hours": 24, "category": "Depression", "intensity_knots": 25, "desc": "Landfall near Gopalpur/Kalingapatnam"},
+            {"lat": 20.2, "lon": 82.5, "time_offset_hours": 48, "category": "Well Marked Low", "intensity_knots": 18, "desc": "Inland Weakening"},
         ]
     },
 
@@ -571,7 +573,10 @@ IMD_ABBR = {
     "Severe Cyclonic Storm": "SCS",
     "Cyclonic Storm": "CS",
     "Deep Depression": "DD",
-    "Depression": "D"
+    "Depression": "D",
+    "Well Marked Low": "WML",
+    "Low Pressure Area": "LPA",
+    "Remnant Low": "LPA"
 }
 
 def format_cyclone_display_name(name: str) -> str:
@@ -607,17 +612,34 @@ def get_cyclone_trajectory(cyclone_id: str, name: str, basin: str, category: str
 
     peak_idx = data.get("peak_index", 0)
     peak_pt = data["points"][peak_idx]
+    
+    is_active = data.get("is_active", False) or "2026" in cyclone_id or "LIVE" in cyclone_id
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    # Synoptic 6-hour reference block (00, 06, 12, 18 UTC)
+    synoptic_hour = (now_utc.hour // 6) * 6
+    base_live_time = now_utc.replace(hour=synoptic_hour, minute=0, second=0, microsecond=0)
 
     formatted_points = []
     for i, pt in enumerate(data["points"]):
         is_fc = (i > peak_idx)
-        label = pt.get("label")
-        if not label:
-            abbr = IMD_ABBR.get(pt.get("category", ""), "CS")
-            offset_h = pt.get("time_offset_hours", 0)
-            d = max(1, 15 + int(offset_h // 24))
-            h = int((6 + offset_h) % 24)
-            label = f"{d:02d}/{h:02d},{pt['intensity_knots']}KT,{abbr}"
+        offset_h = pt.get("time_offset_hours", 0)
+        abbr = IMD_ABBR.get(pt.get("category", ""), "CS")
+        desc = pt.get("desc", "")
+
+        if is_active:
+            # Dynamically compute real-time date/hour from current live UTC time
+            pt_time = base_live_time + datetime.timedelta(hours=offset_h)
+            d = pt_time.day
+            h = pt_time.hour
+            suffix = f" ({desc})" if desc else ""
+            label = f"{d:02d}/{h:02d},{pt['intensity_knots']}KT,{abbr}{suffix}"
+        else:
+            label = pt.get("label")
+            if not label:
+                d = max(1, 15 + int(offset_h // 24))
+                h = int((6 + offset_h) % 24)
+                suffix = f" ({desc})" if desc else ""
+                label = f"{d:02d}/{h:02d},{pt['intensity_knots']}KT,{abbr}{suffix}"
             
         formatted_points.append({
             "lat": pt["lat"],

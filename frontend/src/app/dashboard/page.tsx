@@ -25,7 +25,7 @@ interface ActiveSystem {
 const getStormDetails = (sys: ActiveSystem | null) => {
   if (!sys) return { basinName: "RSMC New Delhi Jurisdiction", landfall: "Nil Expected", landfallLocation: "IMD Tropical Weather Outlook" };
   const name = sys.name.toLowerCase();
-  if (name.includes("bob") || name.includes("deep depression") || name.includes("depression") || name.includes("arnab")) {
+  if (name.includes("bob") || name.includes("deep depression") || name.includes("depression")) {
     return {
       basinName: "West-central & Northwest Bay of Bengal",
       landfall: "23-24 Sep, Night / Early Morning IST",
@@ -107,6 +107,16 @@ export default function DashboardLiveMonitoringPage() {
   const [loading, setLoading] = useState(true);
   const [ingestStatus, setIngestStatus] = useState<any>(null);
   const [isSyncingIngest, setIsSyncingIngest] = useState(false);
+  const [cyclonesList, setCyclonesList] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/cyclones`)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setCyclonesList(data);
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchIngestStatus = () => {
     fetch(`${API_BASE_URL}/api/ingest/status`)
@@ -291,15 +301,19 @@ export default function DashboardLiveMonitoringPage() {
             }}
             className="px-3 py-1.5 rounded-lg bg-secondary border border-border text-foreground text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-xs"
           >
-            <option value="LIVE">🔴 Live Feed: Deep Depression BOB-05 (Cyclone Arnab)</option>
-            <option value="BOB05-2026">🌀 Deep Depression BOB-05 (Potential Cyclone Arnab)</option>
-            <option value="ARB01-2023">📁 Cyclone Biparjoy (2023)</option>
-            <option value="BOB01-2024">📁 Cyclone Remal (2024)</option>
-            <option value="BOB04-2024">📁 Cyclone Dana (2024)</option>
-            <option value="BOB09-2024">📁 Cyclone Fengal (2024)</option>
-            <option value="BOB03-2020">📁 Super Cyclone Amphan (2020)</option>
-            <option value="BOB02-2019">📁 Cyclone Fani (2019)</option>
-            <option value="ARB01-2021">📁 Cyclone Tauktae (2021)</option>
+            <option value="LIVE">
+              🔴 Live Feed: {activeSystem?.name || "Active Cyclone Detection"}
+            </option>
+            {cyclonesList.map((c) => {
+              const displayName = c.name.startsWith("Cyclone") || c.name.startsWith("Deep") || c.name.startsWith("Super") 
+                ? c.name 
+                : `Cyclone ${c.name}`;
+              return (
+                <option key={c.id} value={c.id}>
+                  📁 {displayName} ({c.year})
+                </option>
+              );
+            })}
           </select>
 
           <button
