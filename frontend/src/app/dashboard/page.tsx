@@ -24,79 +24,36 @@ interface ActiveSystem {
 
 const getStormDetails = (sys: ActiveSystem | null) => {
   if (!sys) return { basinName: "RSMC New Delhi Jurisdiction", landfall: "Nil Expected", landfallLocation: "IMD Tropical Weather Outlook" };
-  const name = sys.name.toLowerCase();
-  if (name.includes("bob") || name.includes("deep depression") || name.includes("depression")) {
+
+  const isBoB = sys.basin ? sys.basin.toLowerCase().includes("bengal") : (sys.lon > 78);
+  const defaultBasin = isBoB ? "West-central & Northwest Bay of Bengal" : "East-central Arabian Sea";
+
+  // Check if track_forecast has forecast points
+  const forecastPts = sys.track_forecast?.filter((p: any) => p.is_forecast) || [];
+  if (forecastPts.length > 0) {
+    const nextFix = forecastPts[0];
+    let timing = "+12h Outlook";
+    let location = isBoB ? "Approaching East Coast of India" : "Approaching West Coast of India";
+
+    if (nextFix.label) {
+      const parts = nextFix.label.split("(");
+      const datePart = parts[0].trim();
+      if (datePart) timing = `${datePart.split(",")[0]} UTC (+${nextFix.time_offset_hours || 12}h)`;
+      if (parts.length > 1) location = parts[1].replace(")", "").trim();
+    }
+
     return {
-      basinName: "West-central & Northwest Bay of Bengal",
-      landfall: "23-24 Sep, Night / Early Morning IST",
-      landfallLocation: "Between Kalingapatnam (AP) & Gopalpur (Odisha)"
-    };
-  } else if (name.includes("amphan")) {
-    return {
-      basinName: "North-central Bay of Bengal",
-      landfall: "20 May, 14:30 IST",
-      landfallLocation: "Near Sundarbans / Digha, WB"
-    };
-  } else if (name.includes("biparjoy")) {
-    return {
-      basinName: "East-central Arabian Sea",
-      landfall: "15 Jun, 18:30 IST",
-      landfallLocation: "Near Jakhau Port, Gujarat"
-    };
-  } else if (name.includes("fani")) {
-    return {
-      basinName: "West-central Bay of Bengal",
-      landfall: "03 May, 08:00 IST",
-      landfallLocation: "Near Puri, Odisha"
-    };
-  } else if (name.includes("tauktae")) {
-    return {
-      basinName: "East-central Arabian Sea",
-      landfall: "17 May, 20:30 IST",
-      landfallLocation: "Near Saurashtra Coast, Gujarat"
-    };
-  } else if (name.includes("dana")) {
-    return {
-      basinName: "North-west Bay of Bengal",
-      landfall: "25 Oct, 01:30 IST",
-      landfallLocation: "Between Dhamra & Habalikhati, Odisha"
-    };
-  } else if (name.includes("remal")) {
-    return {
-      basinName: "North-central Bay of Bengal",
-      landfall: "26 May, 23:00 IST",
-      landfallLocation: "Near Khepupara / Sagar Island, WB"
-    };
-  } else if (name.includes("michaung")) {
-    return {
-      basinName: "South-west Bay of Bengal",
-      landfall: "05 Dec, 12:30 IST",
-      landfallLocation: "Near Bapatla, Andhra Pradesh"
-    };
-  } else if (name.includes("fengal")) {
-    return {
-      basinName: "South-west Bay of Bengal",
-      landfall: "30 Nov, 22:30 IST",
-      landfallLocation: "Near Puducherry & Marakkanam, TN"
-    };
-  } else if (name.includes("asna")) {
-    return {
-      basinName: "Northeast Arabian Sea",
-      landfall: "01 Sep, 12:00 IST",
-      landfallLocation: "Off Gujarat / Sindh Coast"
-    };
-  } else if (name.includes("hudhud")) {
-    return {
-      basinName: "West-central Bay of Bengal",
-      landfall: "12 Oct, 11:30 IST",
-      landfallLocation: "Near Visakhapatnam, Andhra Pradesh"
+      basinName: sys.basin || defaultBasin,
+      landfall: timing,
+      landfallLocation: location
     };
   }
-  const isBoB = sys.basin ? sys.basin.toLowerCase().includes("bengal") : sys.lon > 78;
+
+  // Fallback for systems without active forecast points
   return {
-    basinName: isBoB ? "Bay of Bengal Basin" : "Arabian Sea Basin",
-    landfall: "Forecast Landfall",
-    landfallLocation: isBoB ? "Eastern Coastline of India" : "Western Coastline of India"
+    basinName: sys.basin || defaultBasin,
+    landfall: "Track Complete",
+    landfallLocation: sys.basin ? `Archived • ${sys.basin}` : "Regional Ocean Basin"
   };
 };
 
@@ -380,7 +337,9 @@ export default function DashboardLiveMonitoringPage() {
           </div>
           <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
             {activeSystem ? (
-              <span className="text-emerald-600 dark:text-emerald-400 font-medium">Gusting to 190 km/h</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                Gusting to {Math.round(activeSystem.intensity_knots * 1.852 * 1.25)} km/h
+              </span>
             ) : (
               <span className="text-emerald-600 dark:text-emerald-400 font-medium">Beaufort Scale 3–4 (Gentle)</span>
             )}

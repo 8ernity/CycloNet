@@ -12,15 +12,15 @@ REAL_CYCLONE_TRACKS: Dict[str, Dict[str, Any]] = {
         "basin": "Bay of Bengal",
         "category": "Deep Depression",
         "peak_knots": 35,
-        "peak_index": 2,
+        "peak_index": 3,
         "is_active": True,
         "points": [
-            {"lat": 16.2, "lon": 87.1, "time_offset_hours": -18, "category": "Depression", "intensity_knots": 25, "desc": "Genesis in BoB"},
-            {"lat": 17.0, "lon": 86.2, "time_offset_hours": -9, "category": "Deep Depression", "intensity_knots": 30, "desc": "Intensification"},
-            {"lat": 17.8, "lon": 85.2, "time_offset_hours": 0, "category": "Deep Depression", "intensity_knots": 35, "desc": "Live Eye - 140km ESE of Kalingapatnam"},
-            {"lat": 18.5, "lon": 84.6, "time_offset_hours": 12, "category": "Deep Depression", "intensity_knots": 35, "desc": "Approaching Odisha/AP Coast"},
-            {"lat": 19.3, "lon": 83.8, "time_offset_hours": 24, "category": "Depression", "intensity_knots": 25, "desc": "Landfall near Gopalpur/Kalingapatnam"},
-            {"lat": 20.2, "lon": 82.5, "time_offset_hours": 48, "category": "Well Marked Low", "intensity_knots": 18, "desc": "Inland Weakening"},
+            {"lat": 16.2, "lon": 87.1, "time_offset_hours": -48, "category": "Depression", "intensity_knots": 25, "desc": "Genesis in Central BoB"},
+            {"lat": 17.0, "lon": 86.2, "time_offset_hours": -24, "category": "Deep Depression", "intensity_knots": 30, "desc": "Intensification in West-Central BoB"},
+            {"lat": 17.8, "lon": 85.2, "time_offset_hours": -12, "category": "Deep Depression", "intensity_knots": 35, "desc": "Approach to North AP / Odisha Coast"},
+            {"lat": 18.1, "lon": 83.7, "time_offset_hours": 0, "category": "Deep Depression", "intensity_knots": 35, "desc": "Live Eye - Coastal Crossing near Kalingapatnam"},
+            {"lat": 19.2, "lon": 82.8, "time_offset_hours": 12, "category": "Depression", "intensity_knots": 25, "desc": "Inland over South Odisha / North AP"},
+            {"lat": 20.5, "lon": 81.5, "time_offset_hours": 24, "category": "Well Marked Low", "intensity_knots": 18, "desc": "Dissipation over Chhattisgarh"},
         ]
     },
 
