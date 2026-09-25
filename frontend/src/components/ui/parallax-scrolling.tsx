@@ -36,7 +36,9 @@ export function ParallaxComponent({
           trigger: triggerElement,
           start: "0% 0%",
           end: "100% 0%",
-          scrub: 0,
+          scrub: 0.8,
+          fastScrollEnd: true,
+          preventOverlaps: true,
         },
       });
 
@@ -53,19 +55,24 @@ export function ParallaxComponent({
           {
             yPercent: layerObj.yPercent,
             ease: "none",
+            force3D: true,
           },
           idx === 0 ? undefined : "<"
         );
       });
     }
 
-    const lenis = new Lenis();
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true,
+    });
     lenis.on("scroll", ScrollTrigger.update);
     const tickerCallback = (time: number) => {
       lenis.raf(time * 1000);
     };
     gsap.ticker.add(tickerCallback);
-    gsap.ticker.lagSmoothing(0);
+    gsap.ticker.lagSmoothing(500, 33);
 
     return () => {
       ScrollTrigger.getAll().forEach((st) => st.kill());
@@ -93,7 +100,8 @@ export function ParallaxComponent({
                 muted
                 playsInline
                 data-parallax-layer="1"
-                className="parallax__layer-img absolute top-0 left-0 w-full h-full object-cover pointer-events-none z-0"
+                className="parallax__layer-img absolute top-0 left-0 w-full h-full object-cover pointer-events-none z-0 will-change-transform"
+                style={{ transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
               />
             ) : (
               <img
@@ -101,7 +109,8 @@ export function ParallaxComponent({
                 loading="eager"
                 data-parallax-layer="1"
                 alt="Deep Space Background"
-                className="parallax__layer-img absolute top-0 left-0 w-full h-full object-cover pointer-events-none z-0"
+                className="parallax__layer-img absolute top-0 left-0 w-full h-full object-cover pointer-events-none z-0 will-change-transform"
+                style={{ transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
               />
             )}
 
@@ -114,7 +123,8 @@ export function ParallaxComponent({
                 muted
                 playsInline
                 data-parallax-layer="2"
-                className="parallax__layer-img absolute top-0 left-0 w-full h-full object-cover pointer-events-none z-1"
+                className="parallax__layer-img absolute top-0 left-0 w-full h-full object-cover pointer-events-none z-1 will-change-transform"
+                style={{ transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
               />
             ) : (
               <img
@@ -122,14 +132,16 @@ export function ParallaxComponent({
                 loading="eager"
                 data-parallax-layer="2"
                 alt="Earth Orbital Layer"
-                className="parallax__layer-img absolute top-0 left-0 w-full h-full object-cover pointer-events-none z-1"
+                className="parallax__layer-img absolute top-0 left-0 w-full h-full object-cover pointer-events-none z-1 will-change-transform"
+                style={{ transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
               />
             )}
 
             {/* Layer 3: CYCLONET 3D Depth Typography matching Reference Images */}
             <div
               data-parallax-layer="3"
-              className="parallax__layer-title absolute inset-0 flex flex-col items-center justify-start pt-[10vh] sm:pt-[11vh] md:pt-[12vh] lg:pt-[13vh] pointer-events-none px-4 text-center z-10"
+              className="parallax__layer-title absolute inset-0 flex flex-col items-center justify-start pt-[10vh] sm:pt-[11vh] md:pt-[12vh] lg:pt-[13vh] pointer-events-none px-4 text-center z-10 will-change-transform"
+              style={{ transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
             >
               {/* Pre-title */}
               <p 
@@ -185,7 +197,8 @@ export function ParallaxComponent({
               loading="eager"
               data-parallax-layer="4"
               alt="Astronaut & Surface Foreground"
-              className="parallax__layer-img absolute top-0 left-0 w-full h-full object-cover pointer-events-none z-20"
+              className="parallax__layer-img absolute top-0 left-0 w-full h-full object-cover pointer-events-none z-20 will-change-transform"
+              style={{ transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
             />
           </div>
 

@@ -21,14 +21,17 @@ export function Hero() {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
-  const springConfig = { damping: 20, stiffness: 100 };
+  const springConfig = { damping: 25, stiffness: 120, mass: 0.5 };
   const smoothMouseX = useSpring(mouseX, springConfig);
   const smoothMouseY = useSpring(mouseY, springConfig);
 
   const handleMouseMove = (e: MouseEvent) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    mouseX.set(e.clientX - rect.left);
-    mouseY.set(e.clientY - rect.top);
+    const currentTarget = e.currentTarget;
+    requestAnimationFrame(() => {
+      const rect = currentTarget.getBoundingClientRect();
+      mouseX.set(e.clientX - rect.left);
+      mouseY.set(e.clientY - rect.top);
+    });
   };
 
   const containerVariants = {
@@ -64,12 +67,14 @@ export function Hero() {
     >
       {/* Interactive Spotlight Glow */}
       <motion.div
-        className="pointer-events-none absolute w-[800px] h-[800px] bg-sky-500/10 rounded-full blur-[160px] opacity-0 group-hover:opacity-100 transition-opacity duration-700 ease-in-out hidden xl:block z-0"
+        className="pointer-events-none absolute w-[800px] h-[800px] bg-sky-500/10 rounded-full blur-[140px] opacity-0 group-hover:opacity-100 transition-opacity duration-700 ease-in-out hidden xl:block z-0 will-change-transform"
         style={{
           x: smoothMouseX,
           y: smoothMouseY,
           translateX: '-50%',
           translateY: '-50%',
+          transform: "translate3d(0,0,0)",
+          backfaceVisibility: "hidden",
         }}
       />
 
