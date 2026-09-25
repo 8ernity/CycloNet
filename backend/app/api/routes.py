@@ -215,3 +215,95 @@ async def chat_with_cyclonet(request: ChatMessageRequest, db: Session = Depends(
     
     result = chat_service.ask(request.message, history=request.history, db=db, ui_context=request.ui_context)
     return result
+
+# ── Meteorological Alerts & Reports System Endpoints ─────────────────────────
+
+from app.services.report_service import report_service
+
+class BroadcastRequest(BaseModel):
+    system_id: Optional[str] = None
+    alert_type: str = "EVACUATION_WARNING"
+    channels: List[str] = ["sms", "siren", "vhf", "sachet"]
+
+@router.get("/reports/bulletins")
+async def get_cyclone_bulletins(cyclone_id: Optional[str] = None, simulate: bool = False, db: Session = Depends(get_db)):
+    """Returns official RSMC/IMD standard weather bulletins and threat matrices for active or archived cyclones."""
+    system_data = None
+    if not simulate and not cyclone_id:
+        if live_ingestion_service.live_systems:
+            system_data = live_ingestion_service.live_systems[0]
+    
+    if not system_data:
+        target = None
+        if cyclone_id:
+            target = db.query(CycloneArchive).filter(
+                (CycloneArchive.id.ilike(f"%{cyclone_id}%")) | (CycloneArchive.name.ilike(f"%{cyclone_id}%"))
+            ).first()
+        if not target:
+            target = db.query(CycloneArchive).filter_by(id="ARB01-2023").first()
+        
+        c_id = target.id if target else "ARB01-2023"
+        name = target.name if target else "Biparjoy"
+        basin = target.basin if target else "Arabian Sea"
+        cat = target.max_category if target else "Extremely Severe Cyclonic Storm"
+        
+        system_traj = get_cyclone_trajectory(c_id, name, basin, cat)
+        system_data = system_traj
+
+    # Convert to dict if pydantic model
+    if hasattr(system_data, "dict"):
+        sys_dict = system_data.dict()
+    elif isinstance(system_data, dict):
+        sys_dict = system_data
+    else:
+        sys_dict = {
+            "name": getattr(system_data, "name", "Cyclone"),
+            "basin": getattr(system_data, "basin", "North Indian Ocean"),
+            "intensity_knots": getattr(system_data, "intensity_knots", 65),
+            "category": getattr(system_data, "category", "Severe Cyclonic Storm"),
+            "lat": getattr(system_data, "lat", 17.5),
+            "lon": getattr(system_data, "lon", 84.5),
+        }
+
+    alert_info = report_service.get_alert_level(sys_dict.get("intensity_knots", 65))
+    is_bob = "bengal" in sys_dict.get("basin", "").lower() or sys_dict.get("lon", 80) > 77.0
+    port_signals = report_service.get_port_signals(sys_dict.get("intensity_knots", 65), is_bob)
+    affected_districts = report_service.get_affected_districts(sys_dict.get("basin", ""), sys_dict.get("lat", 17.5), sys_dict.get("lon", 84.5))
+    bulletins = report_service.generate_official_bulletins(sys_dict)
+    cap_xml = report_service.generate_cap_xml(sys_dict)
+
+    return {
+        "status": "success",
+        "system": sys_dict,
+        "alert_level": alert_info,
+        "port_signals": port_signals,
+        "affected_districts": affected_districts,
+        "bulletins": bulletins,
+        "cap_xml": cap_xml
+    }
+
+@router.post("/alerts/broadcast-test")
+async def broadcast_emergency_alert(req: BroadcastRequest, db: Session = Depends(get_db)):
+    """Simulates multi-channel NDMA CAP-CP emergency broadcast dispatch."""
+    # Find system info
+    target = None
+    if req.system_id:
+        target = db.query(CycloneArchive).filter(
+            (CycloneArchive.id.ilike(f"%{req.system_id}%")) | (CycloneArchive.name.ilike(f"%{req.system_id}%"))
+        ).first()
+    
+    if not target:
+        target = db.query(CycloneArchive).filter_by(id="ARB01-2023").first()
+    
+    sys_dict = {
+        "name": target.name if target else "Biparjoy",
+        "basin": target.basin if target else "Arabian Sea",
+        "intensity_knots": 85,
+        "category": target.max_category if target else "Very Severe Cyclonic Storm",
+        "lat": 19.5,
+        "lon": 67.5
+    }
+
+    dispatch_result = report_service.simulate_emergency_broadcast(sys_dict, req.alert_type, req.channels)
+    return dispatch_result
+
