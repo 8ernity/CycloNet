@@ -4,6 +4,7 @@ import { AlertCircle, CloudRain, MapPin, Navigation, Wind, ShieldCheck, Play, Ro
 import dynamic from 'next/dynamic';
 
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
+import { useDataSource } from "@/hooks/useDataSource";
 import { API_BASE_URL } from "@/lib/api";
 
 const MapComponent = dynamic(() => import('@/components/MapComponent'), { 
@@ -59,12 +60,19 @@ const getStormDetails = (sys: ActiveSystem | null) => {
 
 export default function DashboardLiveMonitoringPage() {
   const { selectedCycloneId, selectCyclone, clearSelectedCyclone } = useActiveCyclone();
+  const { dataSource, getConvertedKnots, getConvertedKmh, getConvertedGusts, getConvertedCategory, getSourceBadge } = useDataSource();
   const [activeSystem, setActiveSystem] = useState<ActiveSystem | null>(null);
   const [isSimulation, setIsSimulation] = useState(false);
   const [loading, setLoading] = useState(true);
   const [ingestStatus, setIngestStatus] = useState<any>(null);
   const [isSyncingIngest, setIsSyncingIngest] = useState(false);
   const [cyclonesList, setCyclonesList] = useState<any[]>([]);
+
+  const sourceBadge = getSourceBadge();
+  const displayKnots = activeSystem ? getConvertedKnots(activeSystem.intensity_knots) : 0;
+  const displayKmh = activeSystem ? getConvertedKmh(activeSystem.intensity_knots) : 0;
+  const displayGusts = activeSystem ? getConvertedGusts(activeSystem.intensity_knots) : 0;
+  const displayCategory = activeSystem ? getConvertedCategory(activeSystem.intensity_knots, activeSystem.category) : "Nominal";
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/cyclones`)
@@ -273,6 +281,11 @@ export default function DashboardLiveMonitoringPage() {
             })}
           </select>
 
+          <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${sourceBadge.badgeClass} flex items-center gap-1.5`} title={sourceBadge.desc}>
+            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+            {sourceBadge.shortLabel}
+          </span>
+
           <button
             onClick={handleSyncFeeds}
             disabled={isSyncingIngest}
@@ -307,7 +320,7 @@ export default function DashboardLiveMonitoringPage() {
             {activeSystem ? (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-destructive/20 text-destructive border border-destructive/20 font-semibold text-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse" />
-                {activeSystem.category}
+                {displayCategory}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold text-xs">
@@ -323,11 +336,11 @@ export default function DashboardLiveMonitoringPage() {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm text-muted-foreground font-medium">
-                {activeSystem ? "Max Sustained Wind" : "Prevailing Basin Winds"}
+                {activeSystem ? `Max Sustained Wind (${sourceBadge.shortLabel})` : "Prevailing Basin Winds"}
               </p>
               <h3 className="text-2xl font-heading font-bold text-foreground mt-1">
                 {activeSystem
-                  ? `${Math.round(activeSystem.intensity_knots * 1.852)} km/h`
+                  ? `${displayKmh} km/h (${displayKnots} kts)`
                   : "15 - 25 km/h"}
               </h3>
             </div>
@@ -338,12 +351,12 @@ export default function DashboardLiveMonitoringPage() {
           <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
             {activeSystem ? (
               <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                Gusting to {Math.round(activeSystem.intensity_knots * 1.852 * 1.25)} km/h
+                Gusting to {displayGusts} km/h
               </span>
             ) : (
               <span className="text-emerald-600 dark:text-emerald-400 font-medium">Beaufort Scale 3–4 (Gentle)</span>
             )}
-            <span>over open seas</span>
+            <span>• {sourceBadge.avgWindow}</span>
           </div>
         </div>
 

@@ -8,6 +8,7 @@ import {
 import dynamic from "next/dynamic";
 
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
+import { useDataSource } from "@/hooks/useDataSource";
 import { API_BASE_URL } from "@/lib/api";
 
 const MapWidget = dynamic(() => import("@/components/MapWidget"), {
@@ -85,11 +86,14 @@ const getCategoryBadgeClass = (knots: number) => {
 
 export default function ForecastPage() {
   const { selectedCycloneId, selectCyclone } = useActiveCyclone("BOB05-2026");
+  const { dataSource, getConvertedKnots, getConvertedKmh, getConvertedGusts, getConvertedCategory, getSourceBadge } = useDataSource();
   const [selectedId, setSelectedId] = useState<string>(selectedCycloneId || "BOB05-2026");
   const [cyclonesList, setCyclonesList] = useState<CycloneCatalogItem[]>(FALLBACK_CYCLONES);
   const [system, setSystem] = useState<ActiveSystem | null>(null);
   const [loading, setLoading] = useState(true);
   const [hoveredPoint, setHoveredPoint] = useState<any | null>(null);
+
+  const sourceBadge = getSourceBadge();
 
   const fetchSystem = async (cycloneId: string) => {
     setLoading(true);
@@ -222,43 +226,53 @@ export default function ForecastPage() {
   // Feature 1: Chart Data Preparation
   const chartData = useMemo(() => {
     if (!system?.track_forecast) return [];
-    return system.track_forecast.map((pt) => ({
-      timeOffset: pt.time_offset_hours,
-      label: pt.time_offset_hours === 0 ? "0h (Now)" : `${pt.time_offset_hours > 0 ? "+" : ""}${pt.time_offset_hours}h`,
-      intensity: pt.intensity_knots,
-      kmh: Math.round(pt.intensity_knots * 1.852),
-      category: pt.category,
-      isForecast: pt.is_forecast,
-      lat: pt.lat,
-      lon: pt.lon,
-      lowerBound: Math.max(15, pt.intensity_knots - (pt.is_forecast ? Math.min(18, 4 + pt.time_offset_hours * 0.22) : 0)),
-      upperBound: pt.intensity_knots + (pt.is_forecast ? Math.min(22, 5 + pt.time_offset_hours * 0.28) : 0),
-    }));
-  }, [system]);
+    return system.track_forecast.map((pt) => {
+      const convKnots = getConvertedKnots(pt.intensity_knots);
+      const convKmh = getConvertedKmh(pt.intensity_knots);
+      const convCat = getConvertedCategory(pt.intensity_knots, pt.category);
+      return {
+        timeOffset: pt.time_offset_hours,
+        label: pt.time_offset_hours === 0 ? "0h (Now)" : `${pt.time_offset_hours > 0 ? "+" : ""}${pt.time_offset_hours}h`,
+        intensity: convKnots,
+        kmh: convKmh,
+        category: convCat,
+        isForecast: pt.is_forecast,
+        lat: pt.lat,
+        lon: pt.lon,
+        lowerBound: Math.max(15, convKnots - (pt.is_forecast ? Math.min(18, 4 + pt.time_offset_hours * 0.22) : 0)),
+        upperBound: convKnots + (pt.is_forecast ? Math.min(22, 5 + pt.time_offset_hours * 0.28) : 0),
+      };
+    });
+  }, [system, getConvertedKnots, getConvertedKmh, getConvertedCategory]);
 
   // Feature 2: Numeric Forecast Waypoint Table
   const forecastTableRows = useMemo(() => {
     if (!system?.track_forecast) return [];
     const futureOnly = system.track_forecast.filter(p => p.is_forecast || p.time_offset_hours === 0);
     return futureOnly.map(pt => {
+      const convKnots = getConvertedKnots(pt.intensity_knots);
+      const convKmh = getConvertedKmh(pt.intensity_knots);
+      const convCat = getConvertedCategory(pt.intensity_knots, pt.category);
       const uncertaintyKm = pt.time_offset_hours === 0 ? 15 : Math.round(25 + pt.time_offset_hours * 1.6);
-      const gustKnots = Math.round(pt.intensity_knots * 1.15);
+      const gustKnots = Math.round(convKnots * 1.15);
       return {
         ...pt,
-        kmh: Math.round(pt.intensity_knots * 1.852),
+        intensity_knots: convKnots,
+        category: convCat,
+        kmh: convKmh,
         gustKnots,
         gustKmh: Math.round(gustKnots * 1.852),
         uncertaintyKm,
         status: pt.time_offset_hours === 0 
           ? "Active Fix" 
-          : pt.intensity_knots >= 65 
+          : convKnots >= 65 
             ? "Core Intensity" 
             : pt.time_offset_hours >= 36 
               ? "Post-Landfall Weakening" 
               : "Coastal Approach"
       };
     });
-  }, [system]);
+  }, [system, getConvertedKnots, getConvertedKmh, getConvertedCategory]);
 
   if (loading) {
     return (
@@ -348,9 +362,15 @@ export default function ForecastPage() {
             </select>
           </div>
 
+          <span className={`px-2.5 py-1.5 rounded-full text-xs font-bold border ${sourceBadge.badgeClass} whitespace-nowrap`} title={sourceBadge.desc}>
+            {sourceBadge.shortLabel}
+          </span>
+
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 whitespace-nowrap">
             <AlertTriangle className="w-4 h-4 text-red-500" />
-            <span className="text-xs font-bold text-red-500 uppercase tracking-wider">{system.category}</span>
+            <span className="text-xs font-bold text-red-500 uppercase tracking-wider">
+              {system ? getConvertedCategory(system.intensity_knots, system.category) : "Storm"}
+            </span>
           </div>
         </div>
       </div>
@@ -389,12 +409,12 @@ export default function ForecastPage() {
 
             <div className="grid grid-cols-2 gap-2.5 my-2">
               <div className="bg-secondary/30 p-2.5 rounded-xl border border-border/60">
-                <span className="text-[10px] text-muted-foreground block">Max Wind</span>
+                <span className="text-[10px] text-muted-foreground block">Max Wind ({sourceBadge.shortLabel})</span>
                 <span className="text-lg font-heading font-bold text-foreground">
-                  {system.intensity_knots} <span className="text-xs font-normal text-muted-foreground">kt</span>
+                  {getConvertedKnots(system.intensity_knots)} <span className="text-xs font-normal text-muted-foreground">kt</span>
                 </span>
                 <span className="text-[10px] text-muted-foreground block mt-0.5 font-mono">
-                  {Math.round(system.intensity_knots * 1.852)} km/h
+                  {getConvertedKmh(system.intensity_knots)} km/h
                 </span>
               </div>
 

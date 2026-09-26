@@ -16,6 +16,13 @@ export interface CyclonePdfData {
     title: string;
     desc: string;
   };
+  sourceInfo?: {
+    type: string;
+    label: string;
+    shortLabel: string;
+    avgWindow: string;
+    scaleName: string;
+  };
   bulletins: Array<{
     number: number;
     timestamp_utc: string;
@@ -42,7 +49,7 @@ export interface CyclonePdfData {
 }
 
 export function generateCyclonePdfReport(data: CyclonePdfData): void {
-  const { system, alertInfo, affectedDistricts, portSignals } = data;
+  const { system, alertInfo, sourceInfo, affectedDistricts, portSignals } = data;
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -90,7 +97,8 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
 
   doc.setFontSize(7);
   doc.setTextColor(148, 163, 184); // Slate-400
-  doc.text(`RSMC / IMD Protocol • OASIS CAP-CP v1.2 • Generated: ${dateStr}`, margin, 20.5);
+  const agencyLabel = sourceInfo ? `${sourceInfo.label} (${sourceInfo.avgWindow})` : "RSMC / IMD Protocol (3-Min Sustained)";
+  doc.text(`${agencyLabel} • OASIS CAP-CP v1.2 • Generated: ${dateStr}`, margin, 20.5);
 
   // Badge on Header Right
   doc.setFillColor(...accentColor);
@@ -117,7 +125,8 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(71, 85, 105);
-  doc.text(`Basin: ${system.basin}  |  Center Fix: ${system.lat.toFixed(2)}°N, ${system.lon.toFixed(2)}°E  |  Ref Code: ${system.id}`, margin + 4, y + 11);
+  const scaleRef = sourceInfo?.scaleName || "WMO RSMC Scale";
+  doc.text(`Basin: ${system.basin}  |  Center Fix: ${system.lat.toFixed(2)}°N, ${system.lon.toFixed(2)}°E  |  Ref Code: ${system.id}  |  Scale: ${scaleRef}`, margin + 4, y + 11);
   doc.text(`Status Directive: ${alertInfo.title}`, margin + 4, y + 16);
 
   y += 24;
@@ -129,9 +138,11 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.text("1. CURRENT SYNOPTIC OBSERVATIONS & PHYSICAL TELEMETRY", margin, y);
   y += 3.5;
 
+  const windHeaderLabel = sourceInfo ? `Max Sustained Wind (${sourceInfo.shortLabel}):` : "Max Sustained Wind (3-min):";
+
   const paramData = [
     [
-      { content: "Max Sustained Wind:", styles: { fontStyle: "bold" as const } },
+      { content: windHeaderLabel, styles: { fontStyle: "bold" as const } },
       `${knots} Knots (${kmh} km/h)`,
       { content: "Peak Estimated Gusts:", styles: { fontStyle: "bold" as const } },
       `${gusts} km/h (Gale Force)`
@@ -298,6 +309,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   // ── 7. Clean, Non-Colliding Footer Across All Pages ─────────────────────────
   const totalPages = (doc as any).internal.getNumberOfPages();
   const authHash = Math.random().toString(36).substring(2, 10).toUpperCase();
+  const footerFeedsLabel = sourceInfo ? `CycloNet AI Meteorological Intelligence • ${sourceInfo.label}` : "CycloNet AI Meteorological Intelligence • IMD / RSMC Grounded Feeds";
 
   for (let page = 1; page <= totalPages; page++) {
     doc.setPage(page);
@@ -312,7 +324,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(6.8);
     doc.setTextColor(100, 116, 139); // Slate-500
-    doc.text("CycloNet AI Meteorological Intelligence • IMD / RSMC Grounded Feeds", margin, footerY + 2.5);
+    doc.text(footerFeedsLabel, margin, footerY + 2.5);
     doc.text(`Verification Ref: CN-AUTH-${authHash}`, pageWidth - margin, footerY + 2.5, { align: "right" });
 
     // Row 2: Left operational context, Right page numbers

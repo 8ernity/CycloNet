@@ -7,6 +7,7 @@ import {
   Search, ShieldCheck, ChevronRight
 } from "lucide-react";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
+import { useDataSource } from "@/hooks/useDataSource";
 import { API_BASE_URL } from "@/lib/api";
 import { generateCyclonePdfReport } from "@/lib/pdfReportGenerator";
 
@@ -63,6 +64,16 @@ const PRESET_STORMS = [
 
 export default function ReportsPage() {
   const { selectedCycloneId, selectedCycloneName, selectCyclone } = useActiveCyclone();
+  const {
+    dataSource,
+    getConvertedKnots,
+    getConvertedKmh,
+    getConvertedGusts,
+    getConvertedCategory,
+    getSourceBadge,
+  } = useDataSource();
+
+  const sourceBadge = getSourceBadge();
   const [system, setSystem] = useState<ActiveSystem | null>(null);
   const [bulletins, setBulletins] = useState<Bulletin[]>([]);
   const [affectedDistricts, setAffectedDistricts] = useState<AffectedDistrict[]>([]);
@@ -234,13 +245,14 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
 
   // Alert Badge Details
   const alertInfo = useMemo(() => {
-    const knots = system?.intensity_knots || 65;
+    const rawKnots = system?.intensity_knots || 65;
+    const knots = getConvertedKnots(rawKnots);
     if (knots >= 120) return { level: "RED", title: "Red Warning: Total Action & Evacuation", desc: "Super Cyclonic Storm with catastrophic wind potential. Extensive storm surge inundation and structural collapse expected in landfall corridor.", color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/40", icon: <AlertOctagon className="w-8 h-8 text-red-500 animate-pulse" /> };
     if (knots >= 90) return { level: "ORANGE", title: "Orange Alert: High Preparedness & Mobilization", desc: "Extremely Severe Cyclonic Storm. High threat of uprooted trees, total power outage, coastal inundation, and severe traffic disruption.", color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/40", icon: <AlertTriangle className="w-8 h-8 text-orange-500 animate-bounce" /> };
     if (knots >= 48) return { level: "ORANGE", title: "Orange Alert: Rapid Intensification Watch", desc: "Severe Cyclonic Storm. Gale force winds and heavy rainfall expected along coastal belt.", color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/40", icon: <AlertTriangle className="w-8 h-8 text-orange-500" /> };
     if (knots >= 34) return { level: "YELLOW", title: "Yellow Alert: Enhanced Marine Vigilance", desc: "Cyclonic Storm / Deep Depression. Sea conditions rough to very rough. Coastal squalls developing.", color: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/40", icon: <AlertTriangle className="w-8 h-8 text-yellow-500" /> };
     return { level: "GREEN", title: "Green: Basin Routine Monitoring", desc: "Depression / Low Pressure area. No immediate destructive threat to coastal settlements.", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/40", icon: <Info className="w-8 h-8 text-emerald-500" /> };
-  }, [system]);
+  }, [system, getConvertedKnots]);
 
   // Filtered Bulletins
   const filteredBulletins = useMemo(() => {
@@ -257,17 +269,32 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
   // Handlers for Exports
   const handleDownloadPdf = () => {
     if (!system) return;
+    const convertedKnots = getConvertedKnots(system.intensity_knots);
+    const convertedCategory = getConvertedCategory(system.intensity_knots, system.category);
+
     generateCyclonePdfReport({
-      system,
+      system: {
+        ...system,
+        intensity_knots: convertedKnots,
+        category: convertedCategory,
+      },
       alertInfo,
+      sourceInfo: {
+        type: sourceBadge.type,
+        label: sourceBadge.label,
+        shortLabel: sourceBadge.shortLabel,
+        avgWindow: sourceBadge.avgWindow,
+        scaleName: sourceBadge.scaleName,
+      },
       bulletins,
       affectedDistricts,
       portSignals
     });
-    showToast("Generated & downloaded official Cyclone PDF report!");
+    showToast(`Generated & downloaded official Cyclone PDF report (${sourceBadge.shortLabel})!`);
   };
 
   const handleDownloadXml = () => {
+    const convertedCategory = getConvertedCategory(system?.intensity_knots || 65, system?.category);
     const xmlContent = capXml || `<?xml version="1.0" encoding="UTF-8"?>
 <alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
   <identifier>IN-IMD-CAP-${Date.now()}</identifier>
@@ -277,7 +304,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
   <scope>Public</scope>
   <info>
     <category>Met</category>
-    <event>${system?.category || "Cyclone"} ${system?.name || "Active"}</event>
+    <event>${convertedCategory} ${system?.name || "Active"}</event>
     <urgency>Immediate</urgency>
     <severity>Severe</severity>
     <headline>${alertInfo.title}</headline>
@@ -297,9 +324,16 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
   };
 
   const handleDownloadJson = () => {
+    const rawKnots = system?.intensity_knots || 65;
     const reportData = {
       timestamp: new Date().toISOString(),
-      system,
+      dataSource: sourceBadge,
+      system: system ? {
+        ...system,
+        intensity_knots: getConvertedKnots(rawKnots),
+        intensity_kmh: getConvertedKmh(rawKnots),
+        category: getConvertedCategory(rawKnots, system.category)
+      } : null,
       alertInfo,
       bulletins,
       affectedDistricts,
@@ -415,9 +449,11 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
     );
   }
 
-  const knots = system.intensity_knots || 65;
-  const kmh = Math.round(knots * 1.852);
-  const gusts = Math.round(kmh * 1.25);
+  const rawKnots = system.intensity_knots || 65;
+  const knots = getConvertedKnots(rawKnots);
+  const kmh = getConvertedKmh(rawKnots);
+  const gusts = getConvertedGusts(rawKnots);
+  const displayCategory = getConvertedCategory(rawKnots, system.category);
   const surgeM = Number((Math.max(0.8, (knots * 0.035) + 0.5)).toFixed(1));
   const waveM = Number((Math.max(2.0, (knots * 0.08) + 1.0)).toFixed(1));
   const pressureHpa = 1010 - Math.round(knots * 0.65);
@@ -433,6 +469,9 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
             <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-primary/15 text-primary border border-primary/30">
               <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
               RSMC / IMD Warning Center
+            </span>
+            <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${sourceBadge.badgeClass}`}>
+              {sourceBadge.shortLabel}
             </span>
             <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider ${alertInfo.bg} ${alertInfo.color} border ${alertInfo.border}`}>
               {alertInfo.level} WARNING ACTIVE
@@ -517,7 +556,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
                   {alertInfo.level} WARNING
                 </span>
                 <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-background text-foreground uppercase border border-border">
-                  {system.category}
+                  {displayCategory}
                 </span>
                 <span className="px-2 py-0.5 rounded text-xs font-medium bg-secondary text-muted-foreground">
                   System: {system.name}
@@ -532,7 +571,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
 
           <div className="flex md:flex-col items-center md:items-end justify-between w-full md:w-auto shrink-0 gap-2 border-t md:border-t-0 border-border/40 pt-4 md:pt-0">
             <div className="text-left md:text-right">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Max Sustained Wind</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Max Sustained Wind ({sourceBadge.shortLabel})</p>
               <p className="text-2xl sm:text-3xl font-mono font-black text-primary">{kmh} <span className="text-sm font-normal text-muted-foreground">km/h</span></p>
             </div>
             <div className="text-right">
@@ -885,13 +924,13 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
                 {/* Key Metrics Strip */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="p-3 rounded-lg bg-secondary/40 border border-border">
-                    <p className="text-[10px] uppercase font-semibold text-muted-foreground">Wind Speed</p>
-                    <p className="text-lg font-mono font-bold text-foreground">{selectedBulletin.intensity_knots} kts</p>
-                    <p className="text-xs text-muted-foreground">{selectedBulletin.intensity_kmh} km/h</p>
+                    <p className="text-[10px] uppercase font-semibold text-muted-foreground">Wind Speed ({sourceBadge.shortLabel})</p>
+                    <p className="text-lg font-mono font-bold text-foreground">{getConvertedKnots(selectedBulletin.intensity_knots)} kts</p>
+                    <p className="text-xs text-muted-foreground">{getConvertedKmh(selectedBulletin.intensity_knots)} km/h</p>
                   </div>
                   <div className="p-3 rounded-lg bg-secondary/40 border border-border">
                     <p className="text-[10px] uppercase font-semibold text-muted-foreground">Peak Gusts</p>
-                    <p className="text-lg font-mono font-bold text-orange-400">{selectedBulletin.gusts_kmh} km/h</p>
+                    <p className="text-lg font-mono font-bold text-orange-400">{getConvertedGusts(selectedBulletin.intensity_knots)} km/h</p>
                     <p className="text-xs text-muted-foreground">Gale force</p>
                   </div>
                   <div className="p-3 rounded-lg bg-secondary/40 border border-border">
