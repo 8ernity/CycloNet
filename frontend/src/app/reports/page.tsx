@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { API_BASE_URL } from "@/lib/api";
+import { generateCyclonePdfReport } from "@/lib/pdfReportGenerator";
 
 interface ActiveSystem {
   id: string;
@@ -254,8 +255,16 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
   }, [bulletins, filterLevel, searchQuery]);
 
   // Handlers for Exports
-  const handlePrint = () => {
-    window.print();
+  const handleDownloadPdf = () => {
+    if (!system) return;
+    generateCyclonePdfReport({
+      system,
+      alertInfo,
+      bulletins,
+      affectedDistricts,
+      portSignals
+    });
+    showToast("Generated & downloaded official Cyclone PDF report!");
   };
 
   const handleDownloadXml = () => {
@@ -476,13 +485,13 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
             <ShieldAlert className="w-3.5 h-3.5 text-orange-400" /> CAP XML
           </button>
 
-          {/* Print / Save PDF */}
+          {/* Download PDF */}
           <button
-            onClick={handlePrint}
-            title="Print Official Weather Bulletin / Save PDF"
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-primary text-primary-foreground hover:bg-primary/90 font-medium rounded-lg text-xs shadow-lg shadow-primary/20 transition-all"
+            onClick={handleDownloadPdf}
+            title="Download Official Cyclone Meteorological PDF Report"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-primary text-primary-foreground hover:bg-primary/90 font-bold rounded-lg text-xs shadow-lg shadow-primary/20 transition-all cursor-pointer"
           >
-            <Printer className="w-3.5 h-3.5" /> Print / PDF
+            <Download className="w-3.5 h-3.5" /> Download PDF
           </button>
         </div>
       </div>
@@ -864,10 +873,11 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
                       <Copy className="w-3.5 h-3.5" /> Copy
                     </button>
                     <button
-                      onClick={handlePrint}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium transition-colors"
+                      onClick={handleDownloadPdf}
+                      title="Download Official Cyclone Meteorological PDF Report"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium transition-colors cursor-pointer"
                     >
-                      <Printer className="w-3.5 h-3.5" /> Print
+                      <Download className="w-3.5 h-3.5" /> Download PDF
                     </button>
                   </div>
                 </div>
