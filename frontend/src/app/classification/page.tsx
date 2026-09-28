@@ -242,10 +242,10 @@ export default function ClassificationPage() {
 
           <div className="mt-6 flex justify-end gap-3">
              <button disabled={!result} className="disabled:opacity-50 px-4 py-2 rounded-lg border border-border bg-secondary/30 hover:bg-secondary text-sm font-medium transition-colors">
-               Export Report
+                Export Report
              </button>
              <button disabled={!result} className="disabled:opacity-50 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25">
-               Confirm & Log
+                Confirm & Log
              </button>
           </div>
         </div>

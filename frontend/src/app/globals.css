@@ -406,65 +406,76 @@ html, body, * {
 }
 
 /* ------------------------------------------------------------- */
-/* Authentic IMD Track Chart Tooltips                            */
+/* Sleek Borderless Map Track Tooltips (Zero Fat White Borders)   */
 /* ------------------------------------------------------------- */
-.leaflet-tooltip.imd-track-tooltip {
-  background: rgba(255, 255, 255, 0.92) !important;
-  border: 1px solid rgba(0, 0, 0, 0.15) !important;
-  color: #1e3a8a !important;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
-  font-size: 10px !important;
-  font-weight: 700 !important;
-  padding: 1px 5px !important;
-  border-radius: 4px !important;
-  white-space: nowrap !important;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18) !important;
-  pointer-events: none !important;
+.leaflet-tooltip,
+.leaflet-tooltip.imd-bullet-label,
+.leaflet-tooltip.imd-track-tooltip,
+.leaflet-tooltip.custom-tooltip,
+.leaflet-tooltip-pane .leaflet-tooltip {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
 }
 
-.leaflet-tooltip.imd-track-tooltip::before {
-  border-right-color: rgba(255, 255, 255, 0.92) !important;
-}
-
-.leaflet-tooltip.imd-track-tooltip.is-forecast {
-  background: rgba(255, 245, 245, 0.95) !important;
-  border: 1px solid rgba(220, 38, 38, 0.35) !important;
-  color: #dc2626 !important;
-  box-shadow: 0 1px 4px rgba(220, 38, 38, 0.2) !important;
-}
-
-.leaflet-tooltip.imd-track-tooltip.is-forecast::before {
-  border-right-color: rgba(255, 245, 245, 0.95) !important;
-}
-
-.dark .leaflet-tooltip.imd-track-tooltip {
-  background: rgba(15, 23, 42, 0.92) !important;
-  border: 1px solid rgba(59, 130, 246, 0.35) !important;
-  color: #60a5fa !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5) !important;
-}
-
-.dark .leaflet-tooltip.imd-track-tooltip::before {
-  border-right-color: rgba(15, 23, 42, 0.92) !important;
-}
-
-.dark .leaflet-tooltip.imd-track-tooltip.is-forecast {
-  background: rgba(35, 12, 12, 0.95) !important;
-  border: 1px solid rgba(239, 68, 68, 0.45) !important;
-  color: #f87171 !important;
-  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25) !important;
-}
-
-.dark .leaflet-tooltip.imd-track-tooltip.is-forecast::before {
-  border-right-color: rgba(35, 12, 12, 0.95) !important;
+.leaflet-tooltip::before,
+.leaflet-tooltip::after,
+.leaflet-tooltip.imd-bullet-label::before,
+.leaflet-tooltip.imd-bullet-label::after,
+.leaflet-tooltip.imd-track-tooltip::before,
+.leaflet-tooltip.imd-track-tooltip::after,
+.leaflet-tooltip.custom-tooltip::before,
+.leaflet-tooltip.custom-tooltip::after {
+  display: none !important;
+  border: none !important;
 }
 
 /* Force hide tooltips when user toggles IMD Labels OFF */
-.hide-imd-labels .leaflet-tooltip.imd-track-tooltip,
 .hide-imd-labels .leaflet-tooltip {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
+}
+
+/* ------------------------------------------------------------- */
+/* Leaflet Popup Styling - High Contrast Obsidian Glass Theme    */
+/* ------------------------------------------------------------- */
+.leaflet-popup-content-wrapper {
+  background: rgba(9, 9, 11, 0.96) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.85) !important;
+  padding: 4px !important;
+}
+
+.leaflet-popup-tip {
+  background: rgba(9, 9, 11, 0.96) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: none !important;
+}
+
+.leaflet-popup-content {
+  margin: 10px 14px !important;
+  line-height: 1.4 !important;
+  color: #ffffff !important;
+}
+
+.leaflet-popup-close-button {
+  color: #a1a1aa !important;
+  top: 8px !important;
+  right: 8px !important;
+  font-size: 16px !important;
+  padding: 4px !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #ffffff !important;
+  background: transparent !important;
 }
 
 /* ═══════════════════════════════════════════

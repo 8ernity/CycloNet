@@ -4,12 +4,20 @@ import {
   FileText, Bell, AlertOctagon, AlertTriangle, Info, Download, Filter, 
   Radio, ShieldAlert, Waves, Wind, CloudRain, Anchor, MapPin, CheckCircle2, 
   Printer, Copy, Send, RefreshCw, Layers, ExternalLink, Siren, PhoneCall,
-  Search, ShieldCheck, ChevronRight
+  Search, ShieldCheck, ChevronRight, Zap, Building2, Landmark, Coins, TrendingDown,
+  Navigation, DollarSign, Activity, Lock
 } from "lucide-react";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
 import { API_BASE_URL } from "@/lib/api";
 import { generateCyclonePdfReport } from "@/lib/pdfReportGenerator";
+import { 
+  POWER_SUBSTATIONS, 
+  EVACUATION_ROUTES, 
+  MEDICAL_SHELTERS, 
+  PARAMETRIC_INSURANCE_TRIGGERS, 
+  COASTAL_INUNDATION_ZONES 
+} from "@/lib/infrastructureData";
 
 interface ActiveSystem {
   id: string;
@@ -54,7 +62,7 @@ interface PortSignal {
 }
 
 const PRESET_STORMS = [
-  { id: "BOB05-2026", name: "Deep Depression (BOB-05)", basin: "Bay of Bengal", category: "Deep Depression", knots: 32 },
+  { id: "BOB05-2026", name: "Deep Depression (BOB-05)", basin: "Bay of Bengal", category: "Deep Depression", knots: 35 },
   { id: "ARB01-2023", name: "Cyclone Biparjoy", basin: "Arabian Sea", category: "Extremely Severe Cyclonic Storm", knots: 90 },
   { id: "BOB01-2023", name: "Cyclone Mocha", basin: "Bay of Bengal", category: "Super Cyclonic Storm", knots: 130 },
   { id: "BOB02-2020", name: "Cyclone Amphan", basin: "Bay of Bengal", category: "Super Cyclonic Storm", knots: 140 },
@@ -80,7 +88,7 @@ export default function ReportsPage() {
   const [portSignals, setPortSignals] = useState<PortSignal[]>([]);
   const [capXml, setCapXml] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"hazards" | "bulletins" | "broadcast">("hazards");
+  const [activeTab, setActiveTab] = useState<"hazards" | "infrastructure" | "insurance" | "bulletins" | "broadcast">("hazards");
   const [selectedBulletin, setSelectedBulletin] = useState<Bulletin | null>(null);
   const [filterLevel, setFilterLevel] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -92,6 +100,11 @@ export default function ReportsPage() {
   const [dispatchStatus, setDispatchStatus] = useState<"idle" | "dispatching" | "completed">("idle");
   const [dispatchStep, setDispatchStep] = useState<number>(0);
   const [dispatchReceipt, setDispatchReceipt] = useState<any>(null);
+
+  // Parametric insurance simulator state
+  const [insuranceSimulationTier, setInsuranceSimulationTier] = useState<number>(0);
+  const [isSimulatingPayout, setIsSimulatingPayout] = useState(false);
+  const [payoutSuccess, setPayoutSuccess] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -151,52 +164,52 @@ export default function ReportsPage() {
   };
 
   const generateClientFallbackData = (sys: ActiveSystem) => {
+    const isBoB = sys.basin ? sys.basin.toLowerCase().includes("bengal") : true;
     const knots = sys.intensity_knots || 65;
-    const kmh = Math.round(knots * 1.852);
-    const gusts = Math.round(kmh * 1.25);
-    const isBoB = sys.basin ? sys.basin.toLowerCase().includes("bengal") : sys.lon > 77;
+    const now = new Date();
     
-    // Alert Level
-    let level = "GREEN";
-    let stage = "Atmospheric Outlook";
-    if (knots >= 120) { level = "RED"; stage = "Cyclone Warning (Landfall Imminent)"; }
-    else if (knots >= 90) { level = "ORANGE"; stage = "Cyclone Warning"; }
-    else if (knots >= 48) { level = "ORANGE"; stage = "Cyclone Alert"; }
-    else if (knots >= 34) { level = "YELLOW"; stage = "Pre-Cyclone Watch"; }
-
-    // Bulletins
-    const bList: Bulletin[] = [14, 13, 12].map((num, idx) => {
-      const bKnots = Math.max(30, knots - (idx * 5));
+    // Generate bulletins
+    const bList: Bulletin[] = [0, 1, 2].map((idx) => {
+      const bTime = new Date(now.getTime() - idx * 3 * 3600 * 1000);
+      const bNum = 14 - idx;
+      const bKnots = Math.max(30, knots - idx * 5);
       const bKmh = Math.round(bKnots * 1.852);
       const bGusts = Math.round(bKmh * 1.25);
       const surge = Number((Math.max(0.8, (bKnots * 0.035) + 0.5)).toFixed(1));
       const wave = Number((Math.max(2.0, (bKnots * 0.08) + 1.0)).toFixed(1));
-      const date = new Date(Date.now() - (idx * 3 * 3600 * 1000));
+      
+      let level = "YELLOW";
+      let stage = "Pre-Cyclone Watch";
+      if (bKnots >= 120) { level = "RED"; stage = "Cyclone Warning (Landfall Imminent)"; }
+      else if (bKnots >= 64) { level = "RED"; stage = "Cyclone Warning"; }
+      else if (bKnots >= 48) { level = "ORANGE"; stage = "Cyclone Alert"; }
 
       const fullText = `INDIA METEOROLOGICAL DEPARTMENT
 REGIONAL SPECIALISED METEOROLOGICAL CENTRE - TROPICAL CYCLONES, NEW DELHI
-TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
+TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
 
 1. BASIN: ${sys.basin.toUpperCase()}
-2. TIME OF ISSUE: ${date.toUTCString()}
+2. TIME OF ISSUE: ${bTime.toISOString().replace('T', ' ').substring(0, 16)} UTC
 3. SYSTEM IDENTIFICATION: ${sys.category.toUpperCase()} '${sys.name.toUpperCase()}'
 4. CURRENT POSITION & INTENSITY:
    - Latitude / Longitude: ${sys.lat.toFixed(1)}°N / ${sys.lon.toFixed(1)}°E
    - Max Sustained Surface Wind: ${bKnots} Knots (${bKmh} km/h)
    - Estimated Peak Gusts: ${bGusts} km/h
-   - Central Pressure: ${1010 - Math.round(bKnots * 0.65)} hPa
-5. MULTI-HAZARD WARNING:
-   - Storm Surge: ${surge}m above astronomical tide.
-   - Sea Condition: Phenomenal (${wave}m waves). Fishermen total suspension.
-6. ADVISORY DIRECTIVE:
-   - Maintain highest vigilance. Evacuate low-lying coastal belt.`;
+   - Estimated Central Pressure: ${1010 - Math.round(bKnots * 0.65)} hPa
+   - Movement: North-Northwestwards at 14 km/h
+
+5. MULTI-HAZARD WARNINGS:
+   - STORM SURGE: Peak surge of ${surge}m above astronomical tide likely to inundate low-lying coastal sectors.
+   - SEA CONDITION: High to Phenomenal (${wave}m waves). Total suspension of fishing operations.
+   - WIND HAZARD: Gale wind speed reaching ${bKmh}-${bGusts} km/h along and off coastal zones.
+`;
 
       return {
-        id: `BULLETIN-${num}`,
-        number: num,
-        title: `RSMC Cyclone Advisory Bulletin #${num}`,
-        timestamp_utc: date.toISOString().replace("T", " ").substring(0, 16) + " UTC",
-        timestamp_ist: date.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) + " IST",
+        id: `BULLETIN-RSMC-${bNum}`,
+        number: bNum,
+        title: `RSMC Cyclone Advisory Bulletin #${bNum}`,
+        timestamp_utc: bTime.toISOString().replace('T', ' ').substring(0, 16) + " UTC",
+        timestamp_ist: new Date(bTime.getTime() + 5.5 * 3600 * 1000).toLocaleString('en-IN', { hour12: true }),
         category: sys.category,
         intensity_knots: bKnots,
         intensity_kmh: bKmh,
@@ -337,7 +350,14 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
       alertInfo,
       bulletins,
       affectedDistricts,
-      portSignals
+      portSignals,
+      infrastructureExposure: {
+        powerSubstations: POWER_SUBSTATIONS,
+        evacuationRoutes: EVACUATION_ROUTES,
+        medicalShelters: MEDICAL_SHELTERS,
+        inundationZones: COASTAL_INUNDATION_ZONES
+      },
+      parametricInsuranceTriggers: PARAMETRIC_INSURANCE_TRIGGERS
     };
     const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -362,9 +382,9 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
     setDispatchStatus("dispatching");
     setDispatchStep(1);
 
-    const stepTimer1 = setTimeout(() => setDispatchStep(2), 700);
-    const stepTimer2 = setTimeout(() => setDispatchStep(3), 1500);
-    const stepTimer3 = setTimeout(() => setDispatchStep(4), 2200);
+    setTimeout(() => setDispatchStep(2), 700);
+    setTimeout(() => setDispatchStep(3), 1500);
+    setTimeout(() => setDispatchStep(4), 2200);
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/alerts/broadcast-test`, {
@@ -407,6 +427,16 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
         showToast("Emergency Alert Broadcast Simulated Successfully!");
       }, 2800);
     }
+  };
+
+  const handleSimulateParametricPayout = () => {
+    setIsSimulatingPayout(true);
+    setPayoutSuccess(false);
+    setTimeout(() => {
+      setIsSimulatingPayout(false);
+      setPayoutSuccess(true);
+      showToast(`Parametric Liquidity Trigger Verified: Digital disbursement of ${PARAMETRIC_INSURANCE_TRIGGERS[insuranceSimulationTier].totalPoolFunded} simulated!`);
+    }, 1800);
   };
 
   const toggleChannel = (ch: string) => {
@@ -484,7 +514,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
             Alerts & Meteorological Reports
           </h1>
           <p className="text-sm text-muted-foreground">
-            Official RSMC New Delhi weather bulletins, OASIS CAP-CP warning protocols, and NDMA emergency disaster directives.
+            Official RSMC New Delhi weather bulletins, OASIS CAP-CP warning protocols, infrastructure exposure, and parametric insurance triggers.
           </p>
         </div>
 
@@ -509,7 +539,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
           {/* Export JSON */}
           <button
             onClick={handleDownloadJson}
-            title="Download full JSON dataset"
+            title="Download full JSON dataset with infrastructure and parametric triggers"
             className="flex items-center gap-1.5 px-3 py-2 bg-secondary/70 hover:bg-secondary border border-border rounded-lg text-xs font-medium text-foreground transition-colors"
           >
             <Download className="w-3.5 h-3.5" /> JSON
@@ -593,7 +623,29 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
               : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
           }`}
         >
-          <ShieldAlert className="w-4 h-4" /> Hazard Matrix & Coastal Threats
+          <ShieldAlert className="w-4 h-4" /> Hazard Matrix & Threats
+        </button>
+
+        <button
+          onClick={() => setActiveTab("infrastructure")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shrink-0 ${
+            activeTab === "infrastructure"
+              ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+          }`}
+        >
+          <Building2 className="w-4 h-4 text-amber-400" /> Infrastructure Exposure
+        </button>
+
+        <button
+          onClick={() => setActiveTab("insurance")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shrink-0 ${
+            activeTab === "insurance"
+              ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+          }`}
+        >
+          <Coins className="w-4 h-4 text-emerald-400" /> Parametric Insurance & Liquidity
         </button>
 
         <button
@@ -808,7 +860,317 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          TAB 2: OFFICIAL METEOROLOGICAL BULLETINS (RSMC / IMD)
+          TAB 2: CRITICAL INFRASTRUCTURE HARDENING & EXPOSURE (TRACK 5)
+         ══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === "infrastructure" && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          {/* Top Summary Banner */}
+          <div className="glass-card p-6 border-border flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-amber-400" />
+                Critical Infrastructure Exposure & Resilience Matrix
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
+                Pre-landfall exposure analysis for high-voltage power transmission grids, arterial evacuation highways, and multipurpose cyclone shelters across coastal districts.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 font-mono text-xs">
+              <span className="px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">
+                ⚡ 9 Key Power Grids
+              </span>
+              <span className="px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">
+                🛣️ 3 Evacuation Arterials
+              </span>
+              <span className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+                🏥 7 Relief Shelter Hubs
+              </span>
+            </div>
+          </div>
+
+          {/* 1. Power Grid Transmission Substations */}
+          <div className="glass-card p-6 border-border">
+            <h4 className="text-sm font-bold text-foreground flex items-center gap-2 mb-3">
+              <Zap className="w-4 h-4 text-amber-400" />
+              Power Transmission Grid Substations (Flood & Wind Vulnerability)
+            </h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-border/80 text-muted-foreground uppercase font-semibold text-[11px]">
+                    <th className="pb-3 pl-2">Grid Substation</th>
+                    <th className="pb-3">Type & Capacity</th>
+                    <th className="pb-3">Elevation & Coastal Dist.</th>
+                    <th className="pb-3">Region</th>
+                    <th className="pb-3 text-right pr-2">Criticality & Hardening Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40 font-mono">
+                  {POWER_SUBSTATIONS.map((sub, i) => (
+                    <tr key={i} className="hover:bg-secondary/30 transition-colors">
+                      <td className="py-3 pl-2 font-sans font-bold text-foreground">
+                        {sub.name}
+                      </td>
+                      <td className="py-3">
+                        <span className="text-foreground">{sub.type}</span>
+                        <span className="text-muted-foreground block text-[10px]">Capacity: {sub.capacityMVA} MVA</span>
+                      </td>
+                      <td className="py-3 text-muted-foreground">
+                        <span>{sub.coastalDistanceKm} km from coast</span>
+                        <span className="block text-[10px] text-foreground">Elev: {sub.elevationMeters}m MSL</span>
+                      </td>
+                      <td className="py-3 font-sans text-muted-foreground">{sub.region}</td>
+                      <td className="py-3 text-right pr-2 font-sans">
+                        <span className={`px-2 py-0.5 rounded text-[10.5px] font-bold ${
+                          sub.criticality === "Extreme" ? "bg-red-500/15 text-red-400 border border-red-500/30" :
+                          sub.criticality === "High" ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" :
+                          "bg-blue-500/15 text-blue-400 border border-blue-500/30"
+                        }`}>
+                          {sub.criticality} Risk • Flood Barriers Staged
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 2. Arterial Evacuation Routes & Road Cutoffs */}
+          <div className="glass-card p-6 border-border">
+            <h4 className="text-sm font-bold text-foreground flex items-center gap-2 mb-3">
+              <Navigation className="w-4 h-4 text-blue-400" />
+              Arterial Coastal Highways & Inundation Cutoff Hazards
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {EVACUATION_ROUTES.map((route, i) => (
+                <div key={i} className="p-4 rounded-xl bg-secondary/30 border border-border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30 font-mono">
+                      {route.highwayCode}
+                    </span>
+                    <span className={`text-[10.5px] font-bold ${route.floodRiskLevel.includes("Severe") ? "text-red-400" : "text-emerald-400"}`}>
+                      {route.floodRiskLevel}
+                    </span>
+                  </div>
+                  <p className="font-bold text-xs text-foreground leading-snug">{route.name}</p>
+                  <div className="text-[11px] text-muted-foreground flex justify-between pt-1 border-t border-border/40">
+                    <span>Priority: <strong className="text-foreground">{route.evacuationPriority.split(" ")[0]}</strong></span>
+                    <span>Avg Elevation: <strong className="text-foreground">{route.elevationAvgM}m</strong></span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 3. Medical Cyclone Shelters */}
+          <div className="glass-card p-6 border-border">
+            <h4 className="text-sm font-bold text-foreground flex items-center gap-2 mb-3">
+              <Building2 className="w-4 h-4 text-emerald-400" />
+              Multipurpose Cyclone Shelters & Emergency Hospital Trauma Centers
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {MEDICAL_SHELTERS.map((shl, i) => (
+                <div key={i} className="p-4 rounded-xl bg-secondary/30 border border-border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-foreground truncate pr-2">{shl.name}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0">
+                      {shl.status.split(" ")[0]}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-1">
+                    <div className="bg-background/60 p-2 rounded border border-border/50">
+                      <span className="text-[10px] text-muted-foreground block">Capacity</span>
+                      <span className="font-bold text-foreground">{shl.capacityPersons.toLocaleString()} p</span>
+                    </div>
+                    <div className="bg-background/60 p-2 rounded border border-border/50">
+                      <span className="text-[10px] text-muted-foreground block">Medical Beds</span>
+                      <span className="font-bold text-foreground">{shl.medicalBeds} Beds</span>
+                    </div>
+                  </div>
+                  <p className="text-[10.5px] text-muted-foreground pt-1 flex items-center justify-between">
+                    <span>Diesel Backup: {shl.generatorBackup ? "✅ Staged" : "❌"}</span>
+                    <span>Sat Comms: {shl.satelliteComms ? "✅ Active" : "❌"}</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB 3: PARAMETRIC INSURANCE & ANTICIPATORY LIQUIDITY (TRACK 5)
+         ══════════════════════════════════════════════════════════════════════ */}
+      {activeTab === "insurance" && (
+        <div className="space-y-6 animate-in fade-in duration-300">
+          {/* Header Banner */}
+          <div className="glass-card p-6 border-border flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase font-mono">
+                  Smart Contract Parametric Trigger
+                </span>
+                <span className="text-xs font-mono text-muted-foreground">Auto-Execution Engine</span>
+              </div>
+              <h3 className="text-xl font-bold text-foreground mt-1">
+                Anticipatory Action & Parametric Insurance Liquidity Pool
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5 max-w-3xl">
+                Shifting disaster financing from delayed post-disaster reconstruction to <strong>pre-landfall anticipatory liquidity</strong> release (T-24h to T-12h), enabling municipal authorities to execute emergency evacuations and asset hardening.
+              </p>
+            </div>
+            <div className="bg-emerald-500/10 border border-emerald-500/30 p-3.5 rounded-xl text-right shrink-0">
+              <span className="text-xs text-muted-foreground uppercase font-mono block">Total Regional Liquidity Pool</span>
+              <span className="text-2xl font-mono font-black text-emerald-400">₹455 Crore ($55M USD)</span>
+            </div>
+          </div>
+
+          {/* 3 Parametric Trigger Tiers */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {PARAMETRIC_INSURANCE_TRIGGERS.map((tier, i) => {
+              const isTriggered = knots >= tier.windThresholdKnots || surgeM >= tier.surgeThresholdMeters;
+              return (
+                <div 
+                  key={i} 
+                  className={`glass-card p-5 border-2 transition-all space-y-4 ${
+                    isTriggered 
+                      ? "border-emerald-500 bg-emerald-500/5 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-500/30" 
+                      : "border-border bg-secondary/20"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-sm text-foreground">{tier.tier}</span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                      isTriggered ? "bg-emerald-500 text-white animate-pulse" : "bg-secondary text-muted-foreground"
+                    }`}>
+                      {isTriggered ? "TRIGGER MET" : "STANDBY"}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5 text-xs font-mono">
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Wind Threshold:</span>
+                      <strong className="text-foreground">&ge; {tier.windThresholdKnots} KT ({Math.round(tier.windThresholdKnots * 1.852)} km/h)</strong>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Surge Threshold:</span>
+                      <strong className="text-foreground">&ge; {tier.surgeThresholdMeters}m Tide</strong>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Payout Rate:</span>
+                      <strong className="text-emerald-400">{tier.payoutPercentage}% of Pool</strong>
+                    </div>
+                  </div>
+
+                  <div className="p-2.5 rounded-lg bg-background/60 border border-border/60 text-[11px] text-muted-foreground space-y-1">
+                    <p className="font-bold text-foreground flex items-center gap-1">
+                      <Coins className="w-3.5 h-3.5 text-primary" /> {tier.totalPoolFunded}
+                    </p>
+                    <p className="line-clamp-2">{tier.targetBeneficiaries}</p>
+                    <p className="text-primary font-mono text-[10px] pt-1 border-t border-border/40">
+                      Disbursement: {tier.disbursementWindow}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Interactive Payout Simulator */}
+          <div className="glass-card p-6 border-border space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
+              <div>
+                <h4 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <Landmark className="w-4 h-4 text-emerald-400" />
+                  Parametric Pre-Landfall Liquidity Disbursement Simulator
+                </h4>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Test and execute simulated algorithmic smart-contract liquidity transfers to local disaster relief treasuries.
+                </p>
+              </div>
+              <span className="text-xs font-mono bg-secondary px-2.5 py-1 rounded text-foreground">
+                Current Storm Peak: {knots} KT / {surgeM}m Surge
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+              <div className="space-y-3">
+                <label className="text-xs font-semibold text-foreground uppercase tracking-wider block">
+                  Select Simulation Trigger Tier:
+                </label>
+                <div className="flex flex-col gap-2">
+                  {PARAMETRIC_INSURANCE_TRIGGERS.map((tier, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setInsuranceSimulationTier(idx);
+                        setPayoutSuccess(false);
+                      }}
+                      className={`p-3 rounded-xl border text-left text-xs font-medium transition-all ${
+                        insuranceSimulationTier === idx 
+                          ? "bg-emerald-500/15 border-emerald-500 text-foreground ring-1 ring-emerald-500/30 font-bold" 
+                          : "bg-secondary/30 border-border text-muted-foreground hover:bg-secondary/50"
+                      }`}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span>{tier.tier} (&ge; {tier.windThresholdKnots} KT)</span>
+                        <span className="font-mono text-emerald-400 font-bold">{tier.totalPoolFunded}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={handleSimulateParametricPayout}
+                  disabled={isSimulatingPayout}
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isSimulatingPayout ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" /> Verifying Satellite Index & Releasing Liquidity...
+                    </>
+                  ) : (
+                    <>
+                      <Coins className="w-4 h-4" /> Trigger Automated Pre-Landfall Payout
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Simulation Receipt Terminal */}
+              <div className="p-5 rounded-xl bg-zinc-950/90 border border-border text-xs font-mono space-y-3 min-h-[180px] flex flex-col justify-center">
+                {payoutSuccess ? (
+                  <div className="space-y-2 text-emerald-400 animate-in fade-in">
+                    <p className="font-bold flex items-center gap-1.5 text-sm">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      Parametric Liquidity Successfully Disbursed!
+                    </p>
+                    <p className="text-zinc-300 text-[11.5px]">
+                      Disbursed Amount: <strong>{PARAMETRIC_INSURANCE_TRIGGERS[insuranceSimulationTier].totalPoolFunded}</strong> (100% Digital Release)
+                    </p>
+                    <p className="text-muted-foreground text-[11px]">
+                      Trigger Index: Satellite Scatterometer &ge; {PARAMETRIC_INSURANCE_TRIGGERS[insuranceSimulationTier].windThresholdKnots} KT confirmed over Bay of Bengal basin.
+                    </p>
+                    <p className="text-emerald-300 text-[10.5px] border-t border-zinc-800 pt-2">
+                      Beneficiary Accounts: SDRF Coastal Evacuation Fund, AP/Odisha Municipal Food Banks & Power Grid Restoration Contractors.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="text-muted-foreground text-center space-y-1">
+                    <Coins className="w-8 h-8 mx-auto opacity-30 text-emerald-400" />
+                    <p>Ready to simulate algorithmic pre-landfall parametric liquidity release.</p>
+                    <p className="text-[10.5px]">Click &quot;Trigger Automated Pre-Landfall Payout&quot; to execute.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB 4: OFFICIAL METEOROLOGICAL BULLETINS (RSMC / IMD)
          ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === "bulletins" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-300">
@@ -961,7 +1323,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          TAB 3: NDMA CAP-CP EMERGENCY BROADCAST HUB
+          TAB 5: NDMA CAP-CP EMERGENCY BROADCAST HUB
          ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === "broadcast" && (
         <div className="space-y-6 animate-in fade-in duration-300">
@@ -1092,7 +1454,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${num}
                 <button
                   onClick={handleDispatchSimulation}
                   disabled={dispatchStatus === "dispatching"}
-                  className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-red-600/30 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-red-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {dispatchStatus === "dispatching" ? (
                     <>

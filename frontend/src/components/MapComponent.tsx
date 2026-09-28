@@ -10,9 +10,36 @@ import {
   useMap,
   ZoomControl 
 } from 'react-leaflet';
-import { Layers, Tag, ShieldAlert, Compass, Eye } from 'lucide-react';
+import { 
+  Layers, 
+  Tag, 
+  ShieldAlert, 
+  Compass, 
+  Eye, 
+  Zap, 
+  Navigation, 
+  Building2, 
+  ShieldCheck,
+  Play,
+  Pause,
+  RotateCcw,
+  FastForward,
+  SkipBack,
+  SkipForward,
+  PlaySquare,
+  Activity
+} from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { 
+  POWER_SUBSTATIONS, 
+  EVACUATION_ROUTES, 
+  MEDICAL_SHELTERS, 
+  COASTAL_INUNDATION_ZONES,
+  PowerSubstation,
+  MedicalCycloneShelter,
+  EvacuationRoute
+} from '@/lib/infrastructureData';
 
 function ChangeView({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
@@ -37,6 +64,7 @@ interface TrackPoint {
   category: string;
   intensity_knots: number;
   is_forecast: boolean;
+  is_landfall?: boolean;
   label?: string;
 }
 
@@ -49,6 +77,7 @@ interface ActiveSystem {
   intensity_knots: number;
   basin?: string;
   track_forecast?: TrackPoint[];
+  landfall_info?: any;
 }
 
 interface MapProps {
@@ -56,24 +85,25 @@ interface MapProps {
 }
 
 const MAP_STYLES = {
-  street: {
-    name: 'IMD Chart (Street/Geo)',
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; IMD Best-Track'
-  },
   satellite: {
-    name: 'Satellite View',
+    name: 'Satellite View (GEE / Esri)',
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye'
+    attribution: 'Tiles &copy; Esri, USGS, NOAA &mdash; GEE Multispectral Live Feed'
+  },
+  street: {
+    name: 'IMD Operational Geo Chart',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; OpenStreetMap contributors &copy; IMD RSMC Best-Track'
   },
   dark: {
-    name: 'Dark Tactical',
+    name: 'Tactical Disaster Command',
     url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
     attribution: '&copy; CARTO &copy; OpenStreetMap contributors'
   }
 };
 
 type MapStyleKey = keyof typeof MAP_STYLES;
+type InfraFilter = 'all' | 'power' | 'roads' | 'shelters' | 'parametric';
 
 const getIntensityColor = (knots: number) => {
   if (knots < 34) return "#a855f7"; // Purple (Depression)
@@ -85,7 +115,7 @@ const getIntensityColor = (knots: number) => {
 };
 
 const getCategoryAbbr = (cat: string, knots: number): string => {
-  const c = cat.toLowerCase();
+  const c = (cat || "").toLowerCase();
   if (c.includes("super")) return "SuCS";
   if (c.includes("extremely")) return "ESCS";
   if (c.includes("very severe")) return "VSCS";
@@ -158,11 +188,49 @@ export default function MapComponent({ activeSystem }: MapProps) {
   const [showLabels, setShowLabels] = useState(true);
   const [showCone, setShowCone] = useState(true);
   const [showLegend, setShowLegend] = useState(true);
+  const [infraFilter, setInfraFilter] = useState<InfraFilter>('all');
+  const [showInfra, setShowInfra] = useState(true);
+
+  // Time-Lapse Playback & Timeline Scrubber State
+  const [isPlaybackActive, setIsPlaybackActive] = useState(false);
+  const [playbackIndex, setPlaybackIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackSpeed, setPlaybackSpeed] = useState<1 | 2 | 5>(1);
+  const [loopPlayback, setLoopPlayback] = useState(false);
   
-  const center: [number, number] = activeSystem ? [activeSystem.lat, activeSystem.lon] : [17.0, 78.0];
+  const center: [number, number] = activeSystem ? [activeSystem.lat, activeSystem.lon] : [17.5, 83.5];
   const zoomLevel = activeSystem ? 6 : 5;
 
   const points = activeSystem?.track_forecast || [];
+
+  // Reset playback when active cyclone changes
+  useEffect(() => {
+    if (points.length > 0) {
+      setPlaybackIndex(0);
+      setIsPlaying(false);
+    }
+  }, [activeSystem?.id]);
+
+  // Interval timer for playback animation
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    if (isPlaying && isPlaybackActive && points.length > 0) {
+      const intervalMs = playbackSpeed === 5 ? 250 : playbackSpeed === 2 ? 600 : 1200;
+      timer = setInterval(() => {
+        setPlaybackIndex((prev) => {
+          if (prev >= points.length - 1) {
+            if (loopPlayback) return 0;
+            setIsPlaying(false);
+            return prev;
+          }
+          return prev + 1;
+        });
+      }, intervalMs);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [isPlaying, isPlaybackActive, playbackSpeed, loopPlayback, points.length]);
 
   // Split points into observed past points and future forecast points
   const { observedPoints, forecastPoints, currentPoint } = useMemo(() => {
@@ -173,7 +241,6 @@ export default function MapComponent({ activeSystem }: MapProps) {
     const past = points.filter(p => !p.is_forecast);
     const future = points.filter(p => p.is_forecast);
     
-    // The current fix is either the last past point or the activeSystem point
     const curr = past.length > 0 
       ? past[past.length - 1] 
       : { 
@@ -183,6 +250,7 @@ export default function MapComponent({ activeSystem }: MapProps) {
           category: activeSystem!.category, 
           time_offset_hours: 0, 
           is_forecast: false,
+          is_landfall: false,
           label: `${activeSystem!.intensity_knots}KT,${getCategoryAbbr(activeSystem!.category, activeSystem!.intensity_knots)}`
         };
 
@@ -199,9 +267,18 @@ export default function MapComponent({ activeSystem }: MapProps) {
     return generateConeOfUncertainty([currentPoint, ...forecastPoints]);
   }, [currentPoint, forecastPoints]);
 
-  // Helper to get formatted IMD Label
   const getPointLabel = (pt: TrackPoint) => {
-    if (pt.label) return pt.label;
+    let raw = pt.label || "";
+    const isLandfallPt = pt.is_landfall || (raw && raw.toLowerCase().includes("landfall"));
+    if (raw) {
+      // Compact badge string e.g. "25/06,35KT,DD (Landfall: Near Kalingapatnam)" -> "25/06 • 35KT • DD (Landfall)"
+      const parts = raw.split("(");
+      const codePart = parts[0].trim().replace(/,/g, " • ");
+      if (isLandfallPt) {
+        return `${codePart} • Landfall`;
+      }
+      return codePart;
+    }
     const offsetH = pt.time_offset_hours || 0;
     const now = new Date();
     const synopticH = Math.floor(now.getUTCHours() / 6) * 6;
@@ -210,13 +287,115 @@ export default function MapComponent({ activeSystem }: MapProps) {
     const day = ptDate.getUTCDate();
     const hr = ptDate.getUTCHours();
     const abbr = getCategoryAbbr(pt.category, pt.intensity_knots);
-    return `${String(day).padStart(2, '0')}/${String(hr).padStart(2, '0')},${pt.intensity_knots}KT,${abbr}`;
+    const suffix = isLandfallPt ? " • Landfall" : "";
+    return `${String(day).padStart(2, '0')}/${String(hr).padStart(2, '0')} • ${pt.intensity_knots}KT • ${abbr}${suffix}`;
   };
 
   return (
     <div className={`relative w-full h-full select-none ${!showLabels ? "hide-imd-labels" : ""}`}>
-      {/* IMD Top Toolbar Controls */}
+      
+      {/* ── Top Left Live Surveillance Badge & Infrastructure Layer Filter ─────── */}
+      <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2 pointer-events-auto">
+        <div className="bg-card/95 backdrop-blur-md px-3.5 py-2 rounded-xl border border-border shadow-lg flex items-center gap-2.5">
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+          <div>
+            <h4 className="font-heading font-semibold text-xs text-foreground">
+              INSAT-3DR Satellite Live Surveillance
+            </h4>
+            <p className="text-[10.5px] text-muted-foreground">
+              {activeSystem ? `Tracking: ${activeSystem.name}` : "North Indian Ocean Basin • Real-Time Nominal"}
+            </p>
+          </div>
+        </div>
+
+        {/* Infrastructure Layer Filter Pills */}
+        <div className="flex flex-wrap items-center gap-1.5 bg-background/95 backdrop-blur-xl p-1.5 rounded-xl border border-border shadow-xl">
+          <button
+            onClick={() => setShowInfra(!showInfra)}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              showInfra 
+                ? 'bg-primary text-primary-foreground shadow-sm' 
+                : 'bg-secondary text-muted-foreground hover:text-foreground'
+            }`}
+            title="Toggle Critical Infrastructure Layer"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Infra Exposure</span>
+          </button>
+
+          {showInfra && (
+            <div className="flex items-center gap-1 border-l border-border pl-1.5 flex-wrap">
+              <button
+                onClick={() => setInfraFilter('all')}
+                className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-all cursor-pointer ${
+                  infraFilter === 'all' ? 'bg-secondary text-foreground font-bold border border-border' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setInfraFilter('power')}
+                className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer ${
+                  infraFilter === 'power' ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Zap className="w-3 h-3 text-amber-400" /> Grids
+              </button>
+              <button
+                onClick={() => setInfraFilter('roads')}
+                className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer ${
+                  infraFilter === 'roads' ? 'bg-blue-500/20 text-blue-300 font-bold border border-blue-500/30' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Navigation className="w-3 h-3 text-blue-400" /> Roads
+              </button>
+              <button
+                onClick={() => setInfraFilter('shelters')}
+                className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer ${
+                  infraFilter === 'shelters' ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Building2 className="w-3 h-3 text-emerald-400" /> Shelters
+              </button>
+              <button
+                onClick={() => setInfraFilter('parametric')}
+                className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-all flex items-center gap-1 cursor-pointer ${
+                  infraFilter === 'parametric' ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/30' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <ShieldAlert className="w-3 h-3 text-cyan-400" /> Surge
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── IMD Top Right Toolbar Controls ─────────────────────────────────── */}
       <div className="absolute top-4 right-4 z-[1000] flex items-center gap-2">
+        {/* Toggle Time-Lapse Playback Button */}
+        {points.length > 1 && (
+          <button
+            onClick={() => {
+              const next = !isPlaybackActive;
+              setIsPlaybackActive(next);
+              if (next && !isPlaying) {
+                setIsPlaying(true);
+              } else if (!next) {
+                setIsPlaying(false);
+              }
+            }}
+            className={`px-3 py-2 rounded-lg border text-xs font-semibold backdrop-blur-md shadow-md transition-all flex items-center gap-1.5 cursor-pointer ${
+              isPlaybackActive 
+                ? 'bg-amber-500 text-zinc-950 font-bold border-amber-400 shadow-amber-500/30 ring-2 ring-amber-400/40' 
+                : 'bg-background/90 text-foreground/70 border-border hover:bg-secondary'
+            }`}
+            title="Interactive Time-Lapse Track Playback & Timeline Scrubber"
+          >
+            <PlaySquare className="w-3.5 h-3.5" />
+            <span>Time-Lapse</span>
+          </button>
+        )}
+
         {/* Toggle IMD Labels Button */}
         <button
           onClick={() => setShowLabels(!showLabels)}
@@ -250,14 +429,14 @@ export default function MapComponent({ activeSystem }: MapProps) {
           <button 
             onClick={() => setIsLayerMenuOpen(!isLayerMenuOpen)}
             className="bg-background/90 backdrop-blur-md p-2 rounded-lg border border-border shadow-md hover:bg-secondary transition-colors flex items-center justify-center cursor-pointer"
-            title="Switch Map Layers"
+            title="Switch Map Layers (GEE Satellite, Dark Tactical, IMD Chart)"
           >
             <Layers className="w-4 h-4 text-foreground" />
           </button>
           {isLayerMenuOpen && (
-            <div className="absolute top-full right-0 mt-2 bg-background/95 backdrop-blur-xl border border-border rounded-xl shadow-xl overflow-hidden flex flex-col w-48 py-1 z-50">
+            <div className="absolute top-full right-0 mt-2 bg-background/95 backdrop-blur-xl border border-border rounded-xl shadow-xl overflow-hidden flex flex-col w-56 py-1 z-50">
               <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
-                Base Map Theme
+                Base Satellite / GIS Feed
               </div>
               {Object.entries(MAP_STYLES).map(([key, style]) => (
                 <button
@@ -287,7 +466,7 @@ export default function MapComponent({ activeSystem }: MapProps) {
           <div className="flex items-center justify-between gap-3 border-b border-border pb-1.5">
             <span className="font-heading font-bold text-foreground text-[11px] uppercase tracking-wide flex items-center gap-1.5">
               <Compass className="w-3.5 h-3.5 text-blue-500" />
-              IMD Best-Track Chart
+              IMD & Infrastructure Legend
             </span>
             <button 
               onClick={() => setShowLegend(false)}
@@ -319,6 +498,26 @@ export default function MapComponent({ activeSystem }: MapProps) {
               </span>
             </div>
             
+            {/* Infrastructure Symbols */}
+            <div className="space-y-1 text-[10.5px] border-b border-border pb-1.5">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 border border-amber-500 inline-block" />
+                <span className="text-muted-foreground">⚡ 400kV/220kV Power Grid Substation</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 border border-emerald-500 inline-block" />
+                <span className="text-muted-foreground">🏥 Cyclone Shelter & Trauma Hospital</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-1 rounded bg-blue-500 inline-block" />
+                <span className="text-muted-foreground">🛣️ NH Arterial Evacuation Route</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-4 h-2 rounded-xs bg-cyan-500/40 border border-cyan-400 inline-block" />
+                <span className="text-muted-foreground">🌊 Parametric Surge Inundation Zone</span>
+              </div>
+            </div>
+
             <div className="flex items-center gap-2">
               <span className="w-4 h-0.5 bg-foreground/80 inline-block" />
               <span className="text-muted-foreground">Solid Line: Observed Past Track</span>
@@ -326,16 +525,6 @@ export default function MapComponent({ activeSystem }: MapProps) {
             <div className="flex items-center gap-2">
               <span className="w-4 h-0 border-t-2 border-dashed border-foreground/80 inline-block" />
               <span className="text-muted-foreground">Dashed Line: Forecast Track</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-3 rounded-xs bg-emerald-500/40 border border-emerald-600 inline-block" />
-              <span className="text-muted-foreground">Cone of Uncertainty (Landfall Zone)</span>
-            </div>
-            <div className="flex items-center gap-2 pt-0.5">
-              <span className="px-1 py-0.2 bg-blue-500/10 text-blue-600 dark:text-blue-400 font-mono text-[9px] font-bold rounded border border-blue-500/20">
-                DD/HH,KT,CAT
-              </span>
-              <span className="text-muted-foreground text-[10px]">Date/Hour UTC, Wind, Category</span>
             </div>
           </div>
         </div>
@@ -393,11 +582,152 @@ export default function MapComponent({ activeSystem }: MapProps) {
           attribution={MAP_STYLES[currentStyle].attribution}
           url={MAP_STYLES[currentStyle].url}
         />
+
+        {/* ── Critical Infrastructure Layers ─────────────────────────────────── */}
+        {showInfra && (
+          <>
+            {/* 1. Parametric Inundation Zones (Surge Buffer Polygons) */}
+            {(infraFilter === 'all' || infraFilter === 'parametric') && (
+              COASTAL_INUNDATION_ZONES.map((zone, i) => (
+                <Polygon
+                  key={`inundation-${i}`}
+                  positions={zone.polygon}
+                  pathOptions={{
+                    fillColor: "#06b6d4",
+                    fillOpacity: 0.28,
+                    color: "#0891b2",
+                    weight: 2,
+                    dashArray: "4, 4"
+                  }}
+                >
+                  <Popup>
+                    <div className="p-1 space-y-1 text-xs text-white">
+                      <p className="font-bold text-cyan-400 flex items-center gap-1.5 text-sm">
+                        <ShieldAlert className="w-4 h-4 text-cyan-400 shrink-0" />
+                        <span>{zone.name}</span>
+                      </p>
+                      <p className="text-zinc-300 text-[11px]">Surge Depth: <strong className="text-white">{zone.depthM}</strong></p>
+                      <p className="text-zinc-400 text-[10.5px]">Parametric Trigger: <span className="text-cyan-300 font-medium">100% Liquidity at &ge;64 KT</span></p>
+                    </div>
+                  </Popup>
+                  <Tooltip direction="center">
+                    <span className="text-[10px] font-bold font-mono text-cyan-300 bg-zinc-950/80 px-1.5 py-0.5 rounded border border-cyan-500/40">
+                      🌊 {zone.riskLevel}
+                    </span>
+                  </Tooltip>
+                </Polygon>
+              ))
+            )}
+
+            {/* 2. Arterial Evacuation Routes & Cutoffs */}
+            {(infraFilter === 'all' || infraFilter === 'roads') && (
+              EVACUATION_ROUTES.map((route, i) => (
+                <Polyline
+                  key={`route-${i}`}
+                  positions={route.path}
+                  pathOptions={{
+                    color: route.floodRiskLevel.includes("Severe") ? "#ef4444" : "#3b82f6",
+                    weight: 4,
+                    opacity: 0.85,
+                    dashArray: route.floodRiskLevel.includes("Severe") ? "8, 4" : undefined
+                  }}
+                >
+                  <Popup>
+                    <div className="p-1.5 space-y-1.5 text-xs text-white">
+                      <p className="font-bold text-white text-sm">{route.name}</p>
+                      <p className="text-[11px] text-zinc-300">Priority: <strong className="text-white">{route.evacuationPriority}</strong></p>
+                      <p className={`text-[11px] font-semibold ${route.floodRiskLevel.includes("Severe") ? "text-red-400" : "text-blue-400"}`}>
+                        Risk: {route.floodRiskLevel}
+                      </p>
+                    </div>
+                  </Popup>
+                  <Tooltip direction="top">
+                    <span className="text-[10px] font-bold font-mono text-white bg-blue-900/90 px-1.5 py-0.5 rounded border border-blue-400/40">
+                      🛣️ {route.highwayCode} ({route.evacuationPriority.split(" ")[0]})
+                    </span>
+                  </Tooltip>
+                </Polyline>
+              ))
+            )}
+
+            {/* 3. Power Grid Substations */}
+            {(infraFilter === 'all' || infraFilter === 'power') && (
+              POWER_SUBSTATIONS.map((sub, i) => (
+                <CircleMarker
+                  key={`sub-${i}`}
+                  center={[sub.lat, sub.lon]}
+                  radius={7}
+                  fillColor="#f59e0b"
+                  color="#ffffff"
+                  weight={2}
+                  fillOpacity={0.95}
+                >
+                  <Popup>
+                    <div className="p-1.5 space-y-1.5 text-xs text-white">
+                      <div className="flex items-center gap-1.5 text-amber-400 font-bold text-sm">
+                        <Zap className="w-4 h-4 shrink-0" />
+                        <span>{sub.name}</span>
+                      </div>
+                      <p className="text-zinc-300 text-[11px]">Type: <strong className="text-white">{sub.type}</strong></p>
+                      <p className="text-zinc-300 text-[11px]">Capacity: <strong className="text-white">{sub.capacityMVA} MVA</strong></p>
+                      <p className="text-zinc-300 text-[11px]">Coastal Distance: <strong className="text-white">{sub.coastalDistanceKm} km</strong> (Elev: {sub.elevationMeters}m)</p>
+                      <span className="inline-block px-2.5 py-1 mt-1 rounded-md text-[10.5px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                        Criticality: {sub.criticality}
+                      </span>
+                    </div>
+                  </Popup>
+                  <Tooltip direction="top" offset={[0, -6]}>
+                    <span className="text-[9.5px] font-bold font-mono text-amber-200 bg-zinc-950/90 px-1 py-0.5 rounded border border-amber-500/30">
+                      ⚡ {sub.name.split(" ")[0]} ({sub.capacityMVA}MVA)
+                    </span>
+                  </Tooltip>
+                </CircleMarker>
+              ))
+            )}
+
+            {/* 4. Cyclone Shelters & Trauma Hospitals */}
+            {(infraFilter === 'all' || infraFilter === 'shelters') && (
+              MEDICAL_SHELTERS.map((shl, i) => (
+                <CircleMarker
+                  key={`shl-${i}`}
+                  center={[shl.lat, shl.lon]}
+                  radius={7}
+                  fillColor="#10b981"
+                  color="#ffffff"
+                  weight={2}
+                  fillOpacity={0.95}
+                >
+                  <Popup>
+                    <div className="p-1.5 space-y-1.5 text-xs text-white">
+                      <div className="flex items-center gap-1.5 text-emerald-400 font-bold text-sm">
+                        <Building2 className="w-4 h-4 shrink-0" />
+                        <span>{shl.name}</span>
+                      </div>
+                      <p className="text-zinc-300 text-[11px]">Type: <strong className="text-white">{shl.type}</strong></p>
+                      <p className="text-zinc-300 text-[11px]">Capacity: <strong className="text-white">{shl.capacityPersons.toLocaleString()} persons</strong></p>
+                      <p className="text-zinc-300 text-[11px]">Medical Beds: <strong className="text-white">{shl.medicalBeds} Beds</strong></p>
+                      <p className="text-zinc-300 text-[10.5px]">Backup Power: <strong className="text-white">{shl.generatorBackup ? "✅ Diesel GenSet" : "❌ Grid Dependent"}</strong></p>
+                      <span className="inline-block px-2.5 py-1 mt-1 rounded-md text-[10.5px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                        Status: {shl.status}
+                      </span>
+                    </div>
+                  </Popup>
+                  <Tooltip direction="top" offset={[0, -6]}>
+                    <span className="text-[9.5px] font-bold font-mono text-emerald-200 bg-zinc-950/90 px-1 py-0.5 rounded border border-emerald-500/30">
+                      🏥 {shl.name.split(" ")[0]} ({shl.capacityPersons}p)
+                    </span>
+                  </Tooltip>
+                </CircleMarker>
+              ))
+            )}
+          </>
+        )}
         
+        {/* ── Tropical Cyclone Best-Track Geometry ─────────────────────────── */}
         {activeSystem && (
           <>
             {/* 1. Translucent Green Cone of Uncertainty Envelope */}
-            {showCone && conePolygon.length > 2 && (
+            {showCone && conePolygon.length > 2 && !isPlaybackActive && (
               <Polygon
                 positions={conePolygon}
                 pathOptions={{
@@ -410,20 +740,22 @@ export default function MapComponent({ activeSystem }: MapProps) {
               />
             )}
 
-            {/* 2. Track Segments Colored by Severity (Solid for Observed, Dashed for Forecast) */}
+            {/* 2. Track Segments Colored by Severity (Handles standard and Time-Lapse modes) */}
             {points.map((pt, idx) => {
               if (idx === 0) return null;
               const prevPt = points[idx - 1];
               const color = getIntensityColor(pt.intensity_knots);
+              const isPastInPlayback = isPlaybackActive ? idx <= playbackIndex : !pt.is_forecast;
+              
               return (
                 <Polyline 
                   key={`seg-${idx}`} 
                   positions={[[prevPt.lat, prevPt.lon], [pt.lat, pt.lon]]} 
                   pathOptions={{
                     color: color,
-                    weight: 3.5,
-                    dashArray: pt.is_forecast ? "6, 6" : undefined,
-                    opacity: 0.95
+                    weight: isPlaybackActive && idx > playbackIndex ? 2 : 3.5,
+                    dashArray: (isPlaybackActive ? idx > playbackIndex : pt.is_forecast) ? "6, 6" : undefined,
+                    opacity: isPlaybackActive && idx > playbackIndex ? 0.35 : 0.95
                   }}
                 />
               );
@@ -433,75 +765,224 @@ export default function MapComponent({ activeSystem }: MapProps) {
             {points.map((pt, idx) => {
               const label = getPointLabel(pt);
               const color = getIntensityColor(pt.intensity_knots);
+              const isLandfallPt = pt.is_landfall || (pt.label && pt.label.toLowerCase().includes("landfall"));
+              const isCurrentPlaybackFix = isPlaybackActive && idx === playbackIndex;
+              const isFutureInPlayback = isPlaybackActive && idx > playbackIndex;
+
               return (
-                <CircleMarker 
-                  key={`pt-${idx}-${showLabels}`}
-                  center={[pt.lat, pt.lon]} 
-                  radius={pt.is_forecast ? 5.5 : 5} 
-                  fillColor={color} 
-                  color="#ffffff" 
-                  weight={1.5} 
-                  fillOpacity={1}
-                >
-                  {showLabels && (
-                    <Tooltip 
-                      permanent
-                      direction="right" 
-                      offset={[8, 0]} 
-                      className={`imd-track-tooltip ${pt.is_forecast ? "is-forecast" : ""}`}
-                    >
-                      {label}
-                    </Tooltip>
+                <React.Fragment key={`pt-group-${idx}`}>
+                  {/* Concentric Pulse Ring for Active Time-Lapse Fix */}
+                  {isCurrentPlaybackFix && (
+                    <CircleMarker
+                      center={[pt.lat, pt.lon]}
+                      radius={16}
+                      fillColor={color}
+                      color="#ffffff"
+                      weight={2}
+                      fillOpacity={0.25}
+                    />
                   )}
-                  <Popup>
-                    <div className="font-sans text-xs">
-                      <strong style={{ color }}>
-                        {activeSystem.name} — {pt.is_forecast ? `+${pt.time_offset_hours}h Forecast` : (pt.time_offset_hours === 0 ? "Current Fix" : `${Math.abs(pt.time_offset_hours)}h ago`)}
-                      </strong><br />
-                      <strong>Category:</strong> {pt.category}<br />
-                      <strong>Intensity:</strong> {pt.intensity_knots} knots<br />
-                      <strong>Coords:</strong> {pt.lat.toFixed(2)}°N, {pt.lon.toFixed(2)}°E<br />
-                      <strong>IMD Code:</strong> {label}
-                    </div>
-                  </Popup>
-                </CircleMarker>
+
+                  <CircleMarker 
+                    center={[pt.lat, pt.lon]} 
+                    radius={isCurrentPlaybackFix ? 10 : (isLandfallPt ? 8 : (pt.is_forecast ? 5.5 : 5))} 
+                    fillColor={isLandfallPt ? "#dc2626" : color} 
+                    color="#ffffff" 
+                    weight={isCurrentPlaybackFix ? 3 : (isLandfallPt ? 3 : 1.5)} 
+                    fillOpacity={isFutureInPlayback ? 0.4 : 1}
+                  >
+                    {showLabels && (!isPlaybackActive || idx <= playbackIndex || idx === points.length - 1) && (
+                      <Tooltip 
+                        permanent
+                        direction="right" 
+                        offset={[10, 0]} 
+                        className="imd-bullet-label"
+                      >
+                        <div className={`font-mono text-[10px] font-bold whitespace-nowrap px-2 py-0.5 rounded-md backdrop-blur-md transition-all shadow-md ${
+                          isCurrentPlaybackFix
+                            ? "bg-amber-500 text-zinc-950 border border-amber-300 font-extrabold shadow-amber-500/40"
+                            : isLandfallPt 
+                              ? "bg-red-950/95 text-red-100 border border-red-500/80 shadow-red-950/40 flex items-center gap-1"
+                              : pt.is_forecast 
+                                ? "bg-zinc-950/90 text-red-300 border border-red-500/35" 
+                                : "bg-zinc-950/90 text-zinc-200 border border-zinc-700/60"
+                        }`}>
+                          {isCurrentPlaybackFix && <span className="w-2 h-2 rounded-full bg-zinc-950 animate-ping shrink-0" />}
+                          {isLandfallPt && !isCurrentPlaybackFix && <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse shrink-0" />}
+                          <span>{isCurrentPlaybackFix ? `🌀 STEP ${idx+1}: ${label}` : (isLandfallPt ? `🎯 ${label}` : label)}</span>
+                        </div>
+                      </Tooltip>
+                    )}
+                    <Popup>
+                      <div className="p-1 space-y-1 text-xs">
+                        <p className="font-bold text-foreground">{pt.category}</p>
+                        <p className="text-muted-foreground">Wind: <strong className="text-foreground">{pt.intensity_knots} KT ({Math.round(pt.intensity_knots * 1.852)} km/h)</strong></p>
+                        <p className="text-muted-foreground">Fix: {pt.lat.toFixed(1)}°N, {pt.lon.toFixed(1)}°E</p>
+                        {isLandfallPt && (
+                          <p className="font-bold text-red-500 bg-red-500/10 p-1 rounded border border-red-500/20">
+                            🎯 Landfall Coastal Crossing Fix
+                          </p>
+                        )}
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                </React.Fragment>
               );
             })}
-
-            {/* 4. Current Center Fix Radar Marker */}
-            {currentPoint && (
-              <>
-                <CircleMarker 
-                  center={[currentPoint.lat, currentPoint.lon]} 
-                  radius={14} 
-                  fillColor={getIntensityColor(activeSystem.intensity_knots)} 
-                  color="#ffffff" 
-                  weight={1.5} 
-                  fillOpacity={0.25}
-                  className="pointer-events-none"
-                />
-                <CircleMarker 
-                  center={[currentPoint.lat, currentPoint.lon]} 
-                  radius={8} 
-                  fillColor={getIntensityColor(activeSystem.intensity_knots)} 
-                  color="#ffffff" 
-                  weight={2.5} 
-                  fillOpacity={1}
-                >
-                  <Popup>
-                    <div className="font-sans text-xs">
-                      <strong className="text-red-600 text-sm">{activeSystem.name} (Current Center)</strong><br />
-                      <span className="font-semibold text-foreground">{activeSystem.category}</span><br />
-                      <strong>Wind:</strong> {activeSystem.intensity_knots} knots<br />
-                      <strong>Position:</strong> {currentPoint.lat.toFixed(2)}°N, {currentPoint.lon.toFixed(2)}°E
-                    </div>
-                  </Popup>
-                </CircleMarker>
-              </>
-            )}
           </>
         )}
       </MapContainer>
+
+      {/* ── Time-Lapse Playback & Timeline Scrubber Overlay Bar ─────────────── */}
+      {isPlaybackActive && points.length > 0 && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] w-[94%] max-w-2xl bg-zinc-950/95 dark:bg-zinc-900/95 backdrop-blur-2xl border border-amber-500/40 rounded-2xl p-3.5 shadow-2xl space-y-2 text-white animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+              <span className="font-heading font-bold text-xs uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                <Activity className="w-3.5 h-3.5 text-amber-400" />
+                Time-Lapse Playback • Fix {playbackIndex + 1} of {points.length}
+              </span>
+            </div>
+
+            {/* Current Point Telemetry Chip */}
+            {points[playbackIndex] && (
+              <div className="flex items-center gap-2 text-xs">
+                <span className="px-2 py-0.5 rounded-md font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  {points[playbackIndex].intensity_knots} KT ({Math.round(points[playbackIndex].intensity_knots * 1.852)} km/h)
+                </span>
+                <span className="px-2 py-0.5 rounded-md font-bold text-[11px] bg-zinc-800 text-zinc-200 border border-zinc-700">
+                  {points[playbackIndex].category}
+                </span>
+                {points[playbackIndex].is_landfall && (
+                  <span className="px-2 py-0.5 rounded-md font-bold text-[11px] bg-red-500/30 text-red-300 border border-red-500/50 flex items-center gap-1">
+                    🎯 Landfall Fix
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Timeline Range Slider */}
+          <div className="space-y-1">
+            <input
+              type="range"
+              min={0}
+              max={points.length - 1}
+              value={playbackIndex}
+              onChange={(e) => {
+                setPlaybackIndex(Number(e.target.value));
+              }}
+              className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-400 focus:outline-none"
+            />
+            <div className="flex justify-between text-[10px] text-zinc-400 font-mono px-0.5">
+              <span>{points[0]?.label?.split(",")[0] || "Genesis (T=0)"}</span>
+              <span className="text-amber-300 font-semibold">{points[playbackIndex]?.label?.split("(")[0] || `T+${points[playbackIndex]?.time_offset_hours || 0}h`}</span>
+              <span>{points[points.length - 1]?.label?.split(",")[0] || "Dissipation"}</span>
+            </div>
+          </div>
+
+          {/* Playback Controls Row */}
+          <div className="flex items-center justify-between pt-1 border-t border-zinc-800/80">
+            <div className="flex items-center gap-1.5">
+              {/* Reset to Start */}
+              <button
+                onClick={() => {
+                  setPlaybackIndex(0);
+                  setIsPlaying(false);
+                }}
+                className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                title="Reset to Genesis"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Step Back */}
+              <button
+                onClick={() => setPlaybackIndex((prev) => Math.max(0, prev - 1))}
+                disabled={playbackIndex === 0}
+                className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                title="Previous Synoptic Fix"
+              >
+                <SkipBack className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Play / Pause */}
+              <button
+                onClick={() => {
+                  if (playbackIndex >= points.length - 1 && !isPlaying) {
+                    setPlaybackIndex(0);
+                  }
+                  setIsPlaying(!isPlaying);
+                }}
+                className="px-3.5 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-amber-500/20 cursor-pointer"
+              >
+                {isPlaying ? (
+                  <>
+                    <Pause className="w-3.5 h-3.5 fill-current" />
+                    <span>Pause</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>Play</span>
+                  </>
+                )}
+              </button>
+
+              {/* Step Forward */}
+              <button
+                onClick={() => setPlaybackIndex((prev) => Math.min(points.length - 1, prev + 1))}
+                disabled={playbackIndex === points.length - 1}
+                className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                title="Next Synoptic Fix"
+              >
+                <SkipForward className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Speed Selector & Loop */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center bg-zinc-850 rounded-lg p-0.5 border border-zinc-800">
+                {([1, 2, 5] as const).map((spd) => (
+                  <button
+                    key={spd}
+                    onClick={() => setPlaybackSpeed(spd)}
+                    className={`px-2 py-0.5 text-[10.5px] font-bold rounded-md transition-all cursor-pointer ${
+                      playbackSpeed === spd
+                        ? "bg-amber-500 text-zinc-950 shadow-xs"
+                        : "text-zinc-400 hover:text-zinc-200"
+                    }`}
+                  >
+                    {spd}x
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={() => setLoopPlayback(!loopPlayback)}
+                className={`px-2 py-1 rounded-lg text-[10.5px] font-semibold border transition-all cursor-pointer ${
+                  loopPlayback
+                    ? "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                    : "bg-zinc-850 text-zinc-400 border-zinc-800 hover:text-zinc-200"
+                }`}
+              >
+                Loop: {loopPlayback ? "ON" : "OFF"}
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsPlaybackActive(false);
+                  setIsPlaying(false);
+                }}
+                className="px-2 py-1 rounded-lg text-[10.5px] font-semibold bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

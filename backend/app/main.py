@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router
+from app.api.websocket import ws_router, ws_manager
 from app.core.database import engine, Base, SessionLocal
 from app.models import domain
 
@@ -32,6 +33,8 @@ app.add_middleware(
 )
 
 app.include_router(router, prefix="/api")
+app.include_router(ws_router, prefix="/api")
+app.include_router(ws_router, prefix="")
 
 @app.on_event("startup")
 async def startup_event():
@@ -39,6 +42,8 @@ async def startup_event():
     from app.services.live_ingestion import live_ingestion_service
     # Spawn background periodic ingestion worker (every 15 mins)
     asyncio.create_task(live_ingestion_service.start_periodic_worker(interval_seconds=900))
+    # Spawn WebSocket live telemetry broadcaster worker
+    asyncio.create_task(ws_manager.start_telemetry_broadcaster())
 
 @app.get("/")
 def root():

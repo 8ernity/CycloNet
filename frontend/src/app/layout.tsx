@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
@@ -7,6 +7,8 @@ import { AppShell } from "@/components/AppShell";
 import { BackendWarmup } from "@/components/BackendWarmup";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
+import { LanguageProvider } from "@/context/LanguageContext";
+import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -26,9 +28,21 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#09090b",
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
   title: "CycloNet | AI-Based Cyclone Tracking System",
   description: "AI/ML-Based System for Identification, Classification, and Prediction of Tropical Cyclone Patterns",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "CycloNet",
+  },
   icons: {
     icon: [
       { url: "/cyclone-logo.svg", type: "image/svg+xml" },
@@ -58,9 +72,12 @@ export default function RootLayout({
             enableSystem={false}
             disableTransitionOnChange
           >
-            <BackendWarmup />
-            <AppShell>{children}</AppShell>
-            <Script src="/liquid-glass.js" strategy="beforeInteractive" />
+            <LanguageProvider>
+              <BackendWarmup />
+              <PWAInstallPrompt />
+              <AppShell>{children}</AppShell>
+              <Script src="/liquid-glass.js" strategy="beforeInteractive" />
+            </LanguageProvider>
           </ThemeProvider>
         </body>
       </html>

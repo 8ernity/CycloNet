@@ -19,6 +19,7 @@ class TrackPoint(BaseModel):
     category: str
     intensity_knots: int
     is_forecast: bool = False
+    is_landfall: bool = False
     label: Optional[str] = None
 
 class SystemResponse(BaseModel):
@@ -30,6 +31,8 @@ class SystemResponse(BaseModel):
     intensity_knots: int
     category: str
     track_forecast: List[TrackPoint] = []
+    landfall_info: Optional[Dict[str, Any]] = None
+    is_landfall_completed: Optional[bool] = None
 
 class IngestStatusResponse(BaseModel):
     status: str
@@ -305,5 +308,10 @@ async def broadcast_emergency_alert(req: BroadcastRequest, db: Session = Depends
     }
 
     dispatch_result = report_service.simulate_emergency_broadcast(sys_dict, req.alert_type, req.channels)
+    try:
+        from app.api.websocket import ws_manager
+        await ws_manager.broadcast_alert(dispatch_result)
+    except Exception:
+        pass
     return dispatch_result
 

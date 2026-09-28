@@ -5,6 +5,8 @@ import dynamic from 'next/dynamic';
 
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
+import { useCycloneWebSocket } from "@/hooks/useCycloneWebSocket";
+import { useLanguage } from "@/context/LanguageContext";
 import { API_BASE_URL } from "@/lib/api";
 
 const MapComponent = dynamic(() => import('@/components/MapComponent'), { 
@@ -21,13 +23,66 @@ interface ActiveSystem {
   intensity_knots: number;
   basin?: string;
   track_forecast?: any[];
+  landfall_info?: {
+    status?: string;
+    landfall_time_utc?: string;
+    landfall_location?: string;
+    landfall_intensity_knots?: number;
+    landfall_intensity_kmph?: number;
+    landfall_gusts_kmph?: number;
+    landfall_category?: string;
+    central_pressure_hpa?: number;
+    storm_surge_m?: string;
+    inland_decay?: string;
+    impact_sector?: string;
+  };
+  is_landfall_completed?: boolean;
 }
 
 const getStormDetails = (sys: ActiveSystem | null) => {
-  if (!sys) return { basinName: "RSMC New Delhi Jurisdiction", landfall: "Nil Expected", landfallLocation: "IMD Tropical Weather Outlook" };
+  if (!sys) {
+    return { 
+      basinName: "RSMC New Delhi Jurisdiction", 
+      landfall: "Nil Expected • Basin Quiet", 
+      landfallLocation: "IMD Tropical Weather Outlook",
+      landfallStatus: "Nominal",
+      isCompleted: false,
+      surge: "Normal Tidal Levels",
+      decay: "No active vortex",
+      impactSector: "Nil"
+    };
+  }
 
   const isBoB = sys.basin ? sys.basin.toLowerCase().includes("bengal") : (sys.lon > 78);
   const defaultBasin = isBoB ? "West-central & Northwest Bay of Bengal" : "East-central Arabian Sea";
+
+  if (sys.landfall_info) {
+    return {
+      basinName: sys.basin || defaultBasin,
+      landfall: sys.landfall_info.landfall_time_utc || (sys.is_landfall_completed ? "Landfall Completed" : "Coastal Approach"),
+      landfallLocation: sys.landfall_info.landfall_location || sys.landfall_info.impact_sector || "Coastal Sector",
+      landfallStatus: sys.landfall_info.status || (sys.is_landfall_completed ? "Landfall Completed" : "Active Tracking"),
+      isCompleted: !!sys.is_landfall_completed,
+      surge: sys.landfall_info.storm_surge_m || "1.0 - 2.5m",
+      decay: sys.landfall_info.inland_decay || "Inland dissipation",
+      impactSector: sys.landfall_info.impact_sector || sys.landfall_info.landfall_location || "Coastal Belt"
+    };
+  }
+
+  // Check if track_forecast has any point with is_landfall
+  const landfallPt = sys.track_forecast?.find((p: any) => p.is_landfall);
+  if (landfallPt) {
+    return {
+      basinName: sys.basin || defaultBasin,
+      landfall: landfallPt.label ? landfallPt.label.split("(")[0].trim() + " UTC" : "Landfall Crossing",
+      landfallLocation: landfallPt.label && landfallPt.label.includes("(") ? landfallPt.label.split("(")[1].replace(")", "").trim() : "Coastal Sector",
+      landfallStatus: "Landfall Crossing",
+      isCompleted: false,
+      surge: "1.5 - 3.0m",
+      decay: "Inland dissipation",
+      impactSector: sys.basin || "Coastal Corridor"
+    };
+  }
 
   // Check if track_forecast has forecast points
   const forecastPts = sys.track_forecast?.filter((p: any) => p.is_forecast) || [];
@@ -46,7 +101,12 @@ const getStormDetails = (sys: ActiveSystem | null) => {
     return {
       basinName: sys.basin || defaultBasin,
       landfall: timing,
-      landfallLocation: location
+      landfallLocation: location,
+      landfallStatus: "Approaching Coast",
+      isCompleted: false,
+      surge: "1.0 - 2.0m",
+      decay: "Under observation",
+      impactSector: location
     };
   }
 
@@ -54,7 +114,12 @@ const getStormDetails = (sys: ActiveSystem | null) => {
   return {
     basinName: sys.basin || defaultBasin,
     landfall: "Track Complete",
-    landfallLocation: sys.basin ? `Archived • ${sys.basin}` : "Regional Ocean Basin"
+    landfallLocation: sys.basin ? `Archived • ${sys.basin}` : "Regional Ocean Basin",
+    landfallStatus: "Archived",
+    isCompleted: true,
+    surge: "N/A",
+    decay: "Dissipated",
+    impactSector: "Post-Storm Archive"
   };
 };
 
@@ -67,6 +132,9 @@ export default function DashboardLiveMonitoringPage() {
   const [ingestStatus, setIngestStatus] = useState<any>(null);
   const [isSyncingIngest, setIsSyncingIngest] = useState(false);
   const [cyclonesList, setCyclonesList] = useState<any[]>([]);
+
+  const { isConnected: isWsConnected, radarAngle } = useCycloneWebSocket();
+  const { t } = useLanguage();
 
   const sourceBadge = getSourceBadge();
   const displayKnots = activeSystem ? getConvertedKnots(activeSystem.intensity_knots) : 0;
@@ -230,6 +298,17 @@ export default function DashboardLiveMonitoringPage() {
             <span className="font-semibold text-foreground">Live Ingestion:</span>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
+            {isWsConnected ? (
+              <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 font-mono text-[11px] text-emerald-400 font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                WS Live ({Math.round(radarAngle)}°)
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-800/80 border border-zinc-700 font-mono text-[11px] text-zinc-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                HTTP Polling
+              </span>
+            )}
             <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 font-mono text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
               IMD RSMC: Online
             </span>
@@ -242,7 +321,7 @@ export default function DashboardLiveMonitoringPage() {
           </div>
           {ingestStatus?.last_sync && (
             <span className="hidden sm:inline text-muted-foreground text-[11px]">
-              • Last Auto-Checked: {new Date(ingestStatus.last_sync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              • Last Sync: {new Date(ingestStatus.last_sync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
           )}
         </div>
@@ -403,21 +482,55 @@ export default function DashboardLiveMonitoringPage() {
         </div>
       </div>
 
+      {/* Landfall & Infrastructure Impact Alert Banner */}
+      {activeSystem && (
+        <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm animate-in fade-in duration-300">
+          <div className="flex items-start gap-3.5">
+            <div className={`p-2.5 rounded-xl shrink-0 ${stormMeta.isCompleted ? 'bg-emerald-500/15 text-emerald-500' : 'bg-amber-500/15 text-amber-500 animate-pulse'}`}>
+              <Navigation className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border ${
+                  stormMeta.isCompleted ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                }`}>
+                  {stormMeta.landfallStatus}
+                </span>
+                <span className="font-heading font-bold text-sm text-foreground">
+                  {stormMeta.landfallLocation}
+                </span>
+                <span className="text-xs text-muted-foreground font-mono">
+                  • {stormMeta.landfall}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                <span className="text-foreground font-medium">Estimated Storm Surge:</span> {stormMeta.surge} • <span className="text-foreground font-medium">Inland Dissipation:</span> {stormMeta.decay}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <a
+              href={`/reports?tab=infrastructure&cyclone_id=${encodeURIComponent(activeSystem.id)}`}
+              className="px-3 py-1.5 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-xs font-semibold text-foreground transition-all flex items-center gap-1.5 shadow-xs"
+            >
+              <span>⚡ Infrastructure Grid</span>
+            </a>
+            <a
+              href={`/reports?tab=insurance&cyclone_id=${encodeURIComponent(activeSystem.id)}`}
+              className="px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs"
+            >
+              <span>🏛️ Parametric Liquidity</span>
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* Main Map & Sidebar Split */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Map Container */}
         <div className="glass-card lg:col-span-2 min-h-[520px] flex flex-col p-1 relative overflow-hidden">
-          <div className="absolute top-4 left-4 z-10 bg-card/90 backdrop-blur-md px-4 py-2.5 rounded-xl border border-border shadow-lg flex items-center gap-3">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <div>
-              <h4 className="font-heading font-semibold text-xs text-foreground">INSAT-3DR Satellite Live Surveillance</h4>
-              <p className="text-[10.5px] text-muted-foreground">
-                {activeSystem ? "Tracking Active Vortex: " + activeSystem.name : "North Indian Ocean Basin • Real-Time Nominal"}
-              </p>
-            </div>
-          </div>
-          
           {/* Interactive Leaflet Map */}
           <div className="w-full h-full rounded-xl relative overflow-hidden border border-border/50 z-0">
             <MapComponent activeSystem={activeSystem} />

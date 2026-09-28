@@ -27,6 +27,7 @@ interface TrackPoint {
   category: string;
   intensity_knots: number;
   is_forecast: boolean;
+  is_landfall?: boolean;
   label?: string;
 }
 
@@ -39,6 +40,20 @@ interface ActiveSystem {
   intensity_knots: number;
   category: string;
   track_forecast: TrackPoint[];
+  landfall_info?: {
+    status?: string;
+    landfall_time_utc?: string;
+    landfall_location?: string;
+    landfall_intensity_knots?: number;
+    landfall_intensity_kmph?: number;
+    landfall_gusts_kmph?: number;
+    landfall_category?: string;
+    central_pressure_hpa?: number;
+    storm_surge_m?: string;
+    inland_decay?: string;
+    impact_sector?: string;
+  };
+  is_landfall_completed?: boolean;
 }
 
 interface CycloneCatalogItem {
@@ -248,12 +263,13 @@ export default function ForecastPage() {
   // Feature 2: Numeric Forecast Waypoint Table
   const forecastTableRows = useMemo(() => {
     if (!system?.track_forecast) return [];
-    const futureOnly = system.track_forecast.filter(p => p.is_forecast || p.time_offset_hours === 0);
-    return futureOnly.map(pt => {
+    // Include all future points, current fix (0h), and any explicit landfall crossing waypoint
+    const relevantPoints = system.track_forecast.filter(p => p.is_forecast || p.time_offset_hours === 0 || p.is_landfall);
+    return relevantPoints.map(pt => {
       const convKnots = getConvertedKnots(pt.intensity_knots);
       const convKmh = getConvertedKmh(pt.intensity_knots);
       const convCat = getConvertedCategory(pt.intensity_knots, pt.category);
-      const uncertaintyKm = pt.time_offset_hours === 0 ? 15 : Math.round(25 + pt.time_offset_hours * 1.6);
+      const uncertaintyKm = pt.time_offset_hours === 0 ? 15 : Math.round(25 + Math.abs(pt.time_offset_hours) * 1.6);
       const gustKnots = Math.round(convKnots * 1.15);
       return {
         ...pt,
@@ -263,13 +279,15 @@ export default function ForecastPage() {
         gustKnots,
         gustKmh: Math.round(gustKnots * 1.852),
         uncertaintyKm,
-        status: pt.time_offset_hours === 0 
-          ? "Active Fix" 
-          : convKnots >= 65 
-            ? "Core Intensity" 
-            : pt.time_offset_hours >= 36 
-              ? "Post-Landfall Weakening" 
-              : "Coastal Approach"
+        status: pt.is_landfall
+          ? "Landfall Crossing"
+          : pt.time_offset_hours === 0 
+            ? "Active Fix" 
+            : convKnots >= 65 
+              ? "Core Intensity" 
+              : pt.time_offset_hours >= 36 
+                ? "Post-Landfall Weakening" 
+                : "Coastal Approach"
       };
     });
   }, [system, getConvertedKnots, getConvertedKmh, getConvertedCategory]);
@@ -374,6 +392,65 @@ export default function ForecastPage() {
           </div>
         </div>
       </div>
+
+      {/* Landfall & Coastal Impact Kinematics Banner */}
+      {system.landfall_info && (
+        <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm animate-in fade-in duration-300">
+          <div className="flex items-start gap-3.5">
+            <div className={`p-2.5 rounded-xl shrink-0 ${system.is_landfall_completed ? 'bg-emerald-500/15 text-emerald-500' : 'bg-amber-500/15 text-amber-500 animate-pulse'}`}>
+              <Compass className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border ${
+                  system.is_landfall_completed ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                }`}>
+                  {system.landfall_info.status || (system.is_landfall_completed ? "Landfall Completed" : "Coastal Crossing")}
+                </span>
+                <span className="font-heading font-bold text-sm text-foreground">
+                  {system.landfall_info.landfall_location || "Coastal Sector"}
+                </span>
+                <span className="text-xs text-muted-foreground font-mono">
+                  • {system.landfall_info.landfall_time_utc}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1.5 flex-wrap">
+                <span>
+                  <strong className="text-foreground">Intensity:</strong> {system.landfall_info.landfall_intensity_knots} KT ({system.landfall_info.landfall_intensity_kmph} km/h, Gusts: {system.landfall_info.landfall_gusts_kmph} km/h)
+                </span>
+                <span>•</span>
+                <span>
+                  <strong className="text-foreground">Pressure:</strong> {system.landfall_info.central_pressure_hpa} hPa
+                </span>
+                <span>•</span>
+                <span>
+                  <strong className="text-foreground">Storm Surge:</strong> {system.landfall_info.storm_surge_m}
+                </span>
+              </div>
+              {system.landfall_info.inland_decay && (
+                <p className="text-[11.5px] text-muted-foreground/80 mt-1">
+                  <span className="text-foreground font-medium">Inland Decay:</span> {system.landfall_info.inland_decay}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <a
+              href={`/reports?tab=infrastructure&cyclone_id=${encodeURIComponent(system.id)}`}
+              className="px-3 py-1.5 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-xs font-semibold text-foreground transition-all flex items-center gap-1.5 shadow-xs"
+            >
+              <span>⚡ Infrastructure Grid</span>
+            </a>
+            <a
+              href={`/reports?tab=insurance&cyclone_id=${encodeURIComponent(system.id)}`}
+              className="px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs"
+            >
+              <span>🏛️ Parametric Liquidity</span>
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* TOP SECTION: Map at Very First Place (Left 2 cols) + 3 Cards Stacked Vertically (Right 1 col) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
@@ -852,15 +929,25 @@ export default function ForecastPage() {
             <tbody className="divide-y divide-border/50">
               {forecastTableRows.map((row, idx) => {
                 const isNow = row.time_offset_hours === 0;
+                const isLandfall = row.is_landfall;
                 return (
                   <tr 
                     key={idx} 
                     className={`transition-colors hover:bg-secondary/25 ${
-                      isNow ? "bg-red-500/5 font-medium" : ""
+                      isLandfall 
+                        ? "bg-amber-500/10 dark:bg-amber-500/15 font-semibold border-l-4 border-l-amber-500" 
+                        : isNow 
+                          ? "bg-red-500/5 font-medium border-l-4 border-l-red-500" 
+                          : ""
                     }`}
                   >
                     <td className="py-3.5 px-4 font-mono font-bold">
-                      {isNow ? (
+                      {isLandfall ? (
+                        <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                          {row.time_offset_hours >= 0 ? `+${row.time_offset_hours}h` : `${row.time_offset_hours}h`} (Landfall)
+                        </span>
+                      ) : isNow ? (
                         <span className="flex items-center gap-1.5 text-red-500">
                           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                           0h (Current Fix)
@@ -894,9 +981,15 @@ export default function ForecastPage() {
                     </td>
 
                     <td className="py-3.5 px-4">
-                      <span className="text-muted-foreground text-[11px]">
-                        {row.status}
-                      </span>
+                      {isLandfall ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-[11px] font-bold">
+                          ⚡ Coastal Landfall
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-[11px]">
+                          {row.status}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );
