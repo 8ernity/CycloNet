@@ -27,10 +27,13 @@ def get_default_active_bob_system() -> Dict[str, Any]:
         return f"{pt_time.day:02d}/{pt_time.hour:02d},{knots}KT,{abbr} ({desc})"
 
     return {
-        "id": "LIVE-IMD-BOB05",
+        "id": "BOB05-2026",
         "name": "Deep Depression (BOB-05)",
         "basin": "Bay of Bengal",
-        "source": "IMD RSMC New Delhi (Official Bulletins)",
+        "source": "IMD RSMC New Delhi (Baseline Model Dataset)",
+        "is_live_telemetry": False,
+        "telemetry_badge": "SIMULATION / MODEL BASELINE",
+        "telemetry_type": "SIMULATION",
         "category": "Deep Depression",
         "intensity_knots": 35,
         "lat": 18.1,
@@ -43,7 +46,7 @@ def get_default_active_bob_system() -> Dict[str, Any]:
             {"lat": 16.2, "lon": 87.1, "time_offset_hours": -48, "category": "Depression", "intensity_knots": 25, "is_forecast": False, "label": make_live_label(-48, 25, "Depression", "Genesis in Central BoB")},
             {"lat": 17.0, "lon": 86.2, "time_offset_hours": -24, "category": "Deep Depression", "intensity_knots": 30, "is_forecast": False, "label": make_live_label(-24, 30, "Deep Depression", "Intensification in West-Central BoB")},
             {"lat": 17.8, "lon": 85.2, "time_offset_hours": -12, "category": "Deep Depression", "intensity_knots": 35, "is_forecast": False, "label": make_live_label(-12, 35, "Deep Depression", "Approach to Coast")},
-            {"lat": 18.1, "lon": 83.7, "time_offset_hours": 0, "category": "Deep Depression", "intensity_knots": 35, "is_forecast": False, "label": make_live_label(0, 35, "Deep Depression", "Live Eye - Coastal Crossing near Kalingapatnam")},
+            {"lat": 18.1, "lon": 83.7, "time_offset_hours": 0, "category": "Deep Depression", "intensity_knots": 35, "is_forecast": False, "label": make_live_label(0, 35, "Deep Depression", "Simulation Track - Coastal Crossing near Kalingapatnam")},
             {"lat": 19.2, "lon": 82.8, "time_offset_hours": 12, "category": "Depression", "intensity_knots": 25, "is_forecast": True, "label": make_live_label(12, 25, "Depression", "Inland over South Odisha / North AP")},
             {"lat": 20.5, "lon": 81.5, "time_offset_hours": 24, "category": "Well Marked Low", "intensity_knots": 18, "is_forecast": True, "label": make_live_label(24, 18, "Well Marked Low", "Dissipation over Chhattisgarh")}
         ]
@@ -214,8 +217,8 @@ class LiveIngestionService:
                                 final_name = f"Cyclone {name_match.group(1).strip().capitalize()}"
                                 sys_id = f"LIVE-IMD-{name_match.group(1).strip().upper()}"
                             else:
-                                final_name = "Deep Depression (BOB-05)" if "deep" in cat.lower() else "Depression (BOB)"
-                                sys_id = "LIVE-IMD-BOB05"
+                                final_name = "Deep Depression (BOB-05)"
+                                sys_id = "BOB05-2026"
 
                             systems.append({
                                 "id": sys_id,
@@ -297,6 +300,9 @@ class LiveIngestionService:
                                             "name": "Deep Depression (BOB-05)" if "one" in raw_name.lower() or "bob" in raw_name.lower() else f"Cyclone {raw_name.capitalize()}",
                                             "basin": basin,
                                             "source": "GDACS (United Nations / EC Real-Time Satellite Feed)",
+                                            "is_live_telemetry": True,
+                                            "telemetry_badge": "LIVE SOURCE VERIFIED",
+                                            "telemetry_type": "LIVE",
                                             "category": cat,
                                             "intensity_knots": max(30, knots),
                                             "lat": round(lat_val, 2),
@@ -437,6 +443,15 @@ class LiveIngestionService:
             clean_name = system.get("name", "").strip()
             current_year = datetime.datetime.utcnow().year
             
+            # Normalize and purge legacy duplicate LIVE-IMD-BOB05 record
+            if sys_id in ["BOB05-2026", "LIVE-IMD-BOB05"] or "BOB-05" in clean_name or "Depression (BOB)" in clean_name:
+                sys_id = "BOB05-2026"
+                clean_name = "Deep Depression (BOB-05)"
+                system["id"] = "BOB05-2026"
+                system["name"] = "Deep Depression (BOB-05)"
+                db.query(CycloneArchive).filter(CycloneArchive.id == "LIVE-IMD-BOB05").delete()
+                db.commit()
+
             # Check for existing record by exact ID or matching name in current year
             existing = db.query(CycloneArchive).filter(
                 (CycloneArchive.id == sys_id) |
@@ -446,12 +461,16 @@ class LiveIngestionService:
             if not existing and clean_name:
                 db.add(CycloneArchive(
                     id=sys_id,
-                    name=system["name"],
+                    name=clean_name,
                     year=current_year,
                     basin=system["basin"],
                     max_category=system["category"],
-                    dates=f"Active ({datetime.datetime.utcnow().strftime('%d %b %Y')})"
+                    dates=f"22 Sep - Present (Active)"
                 ))
+                db.commit()
+            elif existing and sys_id == "BOB05-2026":
+                existing.dates = "22 Sep - Present (Active)"
+                existing.name = "Deep Depression (BOB-05)"
                 db.commit()
             db.close()
         except Exception as e:

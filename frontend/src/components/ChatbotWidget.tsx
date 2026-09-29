@@ -536,7 +536,7 @@ export function ChatbotWidget() {
             }}
             className="liquid-glass-panel flex flex-col rounded-[26px] overflow-hidden transition-[box-shadow,height] duration-200 relative border border-white/15"
           >
-            {/* Header: CycloNet AI • Gemini 3.6 • Meteorological Intelligence */}
+            {/* Header: CycloNet AI • Gemini 3.7 • Meteorological Intelligence */}
             <div 
               onMouseDown={handleDragStart}
               onTouchStart={handleDragStart}
@@ -644,7 +644,7 @@ export function ChatbotWidget() {
                       <div className="flex items-center gap-3 my-4 w-full max-w-xs">
                         <div className="h-px bg-white/10 flex-1" />
                         <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-mono">
-                          Powered by Google Gemini 3.6 Flash
+                          Powered by Google Gemini 3.7 Flash
                         </span>
                         <div className="h-px bg-white/10 flex-1" />
                       </div>

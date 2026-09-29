@@ -95,6 +95,12 @@ def seed_historical_data(db: Session):
             existing.max_category = item.get("max_category")
             existing.year = item.get("year")
     
+    # Purge any duplicate/legacy LIVE-IMD-BOB05 record
+    try:
+        db.query(CycloneArchive).filter(CycloneArchive.id == "LIVE-IMD-BOB05").delete()
+    except Exception:
+        pass
+
     db.commit()
     print(f"Database seeded: {len(historical_systems)} historical cyclones in catalog.")
 

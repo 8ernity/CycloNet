@@ -1343,7 +1343,7 @@ export default function InfrastructurePage() {
                 {dispatchStep >= 4 && (
                   <div className="flex items-center gap-2 text-foreground animate-in fade-in">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>Step 4: Transmitting to 320 Coastal Sirens & Coast Guard VHF Ch 16 marine transmitters...</span>
+                    <span>Step 4: Transmitting protocol packets to 320 Coastal Sirens & Coast Guard VHF Ch 16 (Sandbox Simulation)...</span>
                   </div>
                 )}
               </div>
@@ -1357,7 +1357,7 @@ export default function InfrastructurePage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                      ✓ DISPATCH CONFIRMED
+                      ✓ SIMULATED DISPATCH COMPLETE (SANDBOX)
                     </span>
                     <span className="text-xs font-mono text-muted-foreground">ID: {dispatchResult.dispatch_id}</span>
                   </div>

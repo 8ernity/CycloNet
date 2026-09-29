@@ -34,10 +34,10 @@ class GoogleEarthEngineService:
         return [
             {
                 "id": "sentinel1_sar_flood",
-                "name": "Sentinel-1 SAR Flood Inundation",
+                "name": "Sentinel-1 SAR Flood Inundation (GEE-Compatible Simulation)",
                 "sensor": "COPERNICUS/S1_GRD",
                 "resolution": "10m",
-                "description": "Synthetic Aperture Radar dual-pol backscatter (VV+VH) mapping coastal and riverine flood extent through dense cloud cover.",
+                "description": "Synthetic Aperture Radar dual-pol backscatter (VV+VH) mapping coastal and riverine flood extent (physics-informed simulation).",
                 "type": "radar_sar",
                 "color_palette": ["#00000000", "#00ffff", "#0055ff", "#000088"]
             },
@@ -52,10 +52,10 @@ class GoogleEarthEngineService:
             },
             {
                 "id": "srtm_dem_elevation",
-                "name": "NASA SRTM 30m Coastal DEM",
+                "name": "NASA SRTM 30m Coastal DEM & Slope (Simulation)",
                 "sensor": "USGS/SRTMGL1_003",
                 "resolution": "30m",
-                "description": "Digital Elevation Model identifying low-lying coastal terrain (< 3.0m) at risk of tidal surge entrapment.",
+                "description": "Digital Elevation Model identifying low-lying coastal terrain (< 3.0m) and drainage slopes at risk of tidal surge entrapment.",
                 "type": "elevation_dem",
                 "color_palette": ["#15803d", "#84cc16", "#eab308", "#f97316", "#ef4444"]
             },

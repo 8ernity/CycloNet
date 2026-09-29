@@ -125,6 +125,9 @@ class CycloneIntensityService:
             'confidence': round(conf, 2),
             'dvorak_t': dvorak_map.get(pred_class, 'N/A'),
             'wind_speed_knots': knots_map.get(pred_class, 0),
+            'checkpoint_status': 'TRAINED_CHECKPOINT_LOADED' if self.has_model else 'DEMO_PRETRAINED_BACKBONE',
+            'is_trained_weights': self.has_model,
+            'model_architecture': 'ResNet-50 + Custom Classifier Head (PyTorch)',
             'overlay_url': '/mock-overlay.png' if is_cyclone else None,
             'probabilities': {
                 self.classes[i]: round(float(probs[i]) * 100.0, 2) for i in range(len(self.classes))

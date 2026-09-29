@@ -59,7 +59,7 @@ class MeteorologicalChatService:
                 return {
                     "response": gemini_reply,
                     "category": "gemini_ai",
-                    "sources": ["Google Gemini 3.6 Flash", "Live Interface Telemetry", "IMD & WMO Meteorological Standards", "CycloNet Database"],
+                    "sources": ["Google Gemini 3.7 Flash", "Live Interface Telemetry", "IMD & WMO Meteorological Standards", "CycloNet Database"],
                     "timestamp": timestamp
                 }
 

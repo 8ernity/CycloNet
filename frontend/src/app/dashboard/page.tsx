@@ -22,6 +22,9 @@ interface ActiveSystem {
   lon: number;
   intensity_knots: number;
   basin?: string;
+  is_live_telemetry?: boolean;
+  telemetry_badge?: string;
+  telemetry_type?: string;
   track_forecast?: any[];
   landfall_info?: {
     status?: string;
@@ -346,7 +349,8 @@ export default function DashboardLiveMonitoringPage() {
             className="px-3 py-1.5 rounded-lg bg-secondary border border-border text-foreground text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-xs"
           >
             <option value="LIVE">
-              🔴 Live Feed: {activeSystem?.name || "Active Cyclone Detection"}
+              {activeSystem?.is_live_telemetry ? "🟢 Live Verified: " : "🟡 Model Baseline: "}
+              {activeSystem?.name || "Active Cyclone Detection"}
             </option>
             {cyclonesList.map((c) => {
               const displayName = c.name.startsWith("Cyclone") || c.name.startsWith("Deep") || c.name.startsWith("Super") 
@@ -354,15 +358,22 @@ export default function DashboardLiveMonitoringPage() {
                 : `Cyclone ${c.name}`;
               return (
                 <option key={c.id} value={c.id}>
-                  📁 {displayName} ({c.year})
+                  📁 Historical: {displayName} ({c.year})
                 </option>
               );
             })}
           </select>
 
-          <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${sourceBadge.badgeClass} flex items-center gap-1.5`} title={sourceBadge.desc}>
+          <span 
+            className={`px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${
+              activeSystem?.is_live_telemetry
+                ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                : "bg-amber-500/15 text-amber-400 border-amber-500/30"
+            }`} 
+            title={activeSystem?.is_live_telemetry ? "Live verified meteorological telemetry from GDACS/IMD" : "Pre-computed baseline meteorological scenario"}
+          >
             <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-            {sourceBadge.shortLabel}
+            {activeSystem?.is_live_telemetry ? "🟢 LIVE TELEMETRY" : "🟡 SIMULATION BASELINE"}
           </span>
 
           <button

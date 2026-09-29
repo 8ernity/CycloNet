@@ -211,6 +211,19 @@ export default function ClassificationPage() {
               <p className="text-base font-bold text-foreground truncate">
                 {result ? result.category : "Awaiting Frame"}
               </p>
+              {result && (
+                <div className="pt-1 flex items-center gap-1.5 text-[10px] font-mono">
+                  {result.is_trained_weights !== false ? (
+                    <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Trained PyTorch Weights
+                    </span>
+                  ) : (
+                    <span className="text-amber-400 font-semibold flex items-center gap-1">
+                      ⚠️ Pretrained Backbone Mode
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/30 space-y-1">
