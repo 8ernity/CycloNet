@@ -16,8 +16,8 @@ import { FinalCTA } from '@/components/landing/FinalCTA';
 import { Footer } from '@/components/landing/Footer';
 
 export const metadata = {
-  title: 'CycloNet — AI Tropical Cyclone Trajectory & Landfall Intelligence',
-  description: 'Next-generation AI meteorological intelligence platform for tropical cyclone tracking, deep Dvorak intensity estimation, and coastal early warning.',
+  title: 'CycloNet — AI Cyclone Impact & Infrastructure Vulnerability Forecaster',
+  description: 'AI-powered predictive risk and vulnerability modeling platform utilizing Google Earth Engine satellite feeds, parametric storm surge simulation, and Gemini 3.7 Flash multimodal reasoning.',
 };
 
 export default function RootLandingPage() {

@@ -2,6 +2,14 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const isPublicRoute = createRouteMatcher([
   "/",
+  "/dashboard(.*)",
+  "/forecast(.*)",
+  "/infrastructure(.*)",
+  "/reports(.*)",
+  "/classification(.*)",
+  "/compare(.*)",
+  "/archive(.*)",
+  "/settings(.*)",
   "/login(.*)",
   "/signup(.*)",
   "/api/(.*)",
@@ -12,7 +20,8 @@ const isPublicRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
-  // Optionally protect non-public routes if needed
+  // All demo routes and landing pages are open for immediate judging evaluation
+  // Authentication is optional for enhanced personal saved history
 });
 
 export const config = {

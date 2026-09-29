@@ -288,6 +288,40 @@ async def get_cyclone_bulletins(cyclone_id: Optional[str] = None, simulate: bool
         "cap_xml": cap_xml
     }
 
+class AlertDispatchRequest(BaseModel):
+    region: str = "Sundarbans Coastal Belt"
+    risk_level: str = "CRITICAL"
+    surge: float = 3.4
+    wind: float = 125.0
+    channels: List[str] = ["CAP", "SMS", "SACHET", "SIREN", "VHF"]
+    cyclone_name: Optional[str] = "Active Cyclone"
+
+@router.post("/alerts/dispatch")
+async def dispatch_advisory(req: AlertDispatchRequest):
+    """
+    Executes automated end-to-end early warning advisory dispatch across:
+    - OASIS CAP-CP v1.2 XML
+    - SMS Cell Broadcast
+    - NDMA SACHET Mobile Push Feed
+    - Coastal Acoustic Siren Array
+    - Marine NAVTEX / VHF Ch 16 Broadcast
+    - Municipal & District Magistrate Action Directives
+    """
+    result = report_service.dispatch_multi_channel_advisory(
+        region=req.region,
+        risk_level=req.risk_level,
+        surge=req.surge,
+        wind=req.wind,
+        channels=req.channels,
+        cyclone_name=req.cyclone_name or "Active Cyclone"
+    )
+    try:
+        from app.api.websocket import ws_manager
+        await ws_manager.broadcast_alert(result)
+    except Exception:
+        pass
+    return result
+
 @router.post("/alerts/broadcast-test")
 async def broadcast_emergency_alert(req: BroadcastRequest, db: Session = Depends(get_db)):
     """Simulates multi-channel NDMA CAP-CP emergency broadcast dispatch."""
@@ -360,7 +394,7 @@ async def calculate_storm_surge(
     tide_m: float = 1.2,
     basin: str = "Bay of Bengal"
 ):
-    """Calculates peak hydrodynamic storm surge and inland inundation using the SLOSH formulation."""
+    """Calculates peak hydrodynamic storm surge and inland inundation using the Jelesnianski parametric formulation."""
     return surge_service.calculate_surge(
         intensity_knots=knots,
         central_pressure_hpa=pressure_hpa,

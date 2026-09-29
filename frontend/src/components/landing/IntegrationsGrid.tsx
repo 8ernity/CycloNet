@@ -8,7 +8,7 @@ import { MicroLabel } from "./MicroLabel";
 const integrations = [
   { icon: Satellite, name: "Google Earth Engine (GEE)", sub: "Sentinel-1 SAR / Sentinel-2" },
   { icon: Sparkles, name: "Gemini 3.7 Flash Multimodal", sub: "Vision & 7-Language Briefings" },
-  { icon: Waves, name: "SLOSH Hydrodynamic Simulator", sub: "Inverted Barometer Surge" },
+  { icon: Waves, name: "Parametric Surge Estimator", sub: "Jelesnianski Formulation" },
   { icon: BellRing, name: "OASIS CAP-CP v1.2 Feeds", sub: "NDMA / SDMA Dispatches" },
   { icon: Radio, name: "IMD RSMC & MOSDAC Feeds", sub: "INSAT-3DR Real-Time Streams" },
   { icon: Database, name: "SRTM 30m DEM Elevation", sub: "Catchment Slope & Choke Points" },

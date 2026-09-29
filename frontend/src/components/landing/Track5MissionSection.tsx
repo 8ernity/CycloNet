@@ -72,18 +72,18 @@ const PILLARS = [
   },
   {
     id: "surge",
-    tabTitle: "SLOSH Surge Simulator",
+    tabTitle: "Parametric Surge Estimator",
     icon: Waves,
     badge: "Hydrodynamic Modeling",
-    headline: "Parametric Inverted Barometer & Astronomical Tide Superposition",
-    description: "Executes physics-based SLOSH hydrodynamic equations factoring in central pressure deficits (1cm rise per 1hPa drop), forward translation velocities, shallow shelf bathymetry, and 30m DEM slope inland flood penetration.",
+    headline: "Coupled Parametric Storm Surge & Astronomical Tide Superposition",
+    description: "Executes physics-based parametric hydrodynamic equations (Jelesnianski formulation) factoring in central pressure deficits (1cm rise per 1hPa drop), forward translation velocities, shallow shelf bathymetry, and 30m DEM slope inland flood penetration.",
     metrics: [
-      { label: "Surge Physics", val: "SLOSH Formulation" },
+      { label: "Surge Physics", val: "Jelesnianski Formulation" },
       { label: "Shelf Factor", val: "1.45x Bay of Bengal" },
       { label: "DEM Inundation", val: "0.75m/km Slope" },
     ],
     route: "/infrastructure",
-    actionLabel: "Launch Surge Simulator",
+    actionLabel: "Launch Surge Forecaster",
   },
   {
     id: "infrastructure",
@@ -219,7 +219,10 @@ export function Track5MissionSection() {
                 <Wind className="h-4 w-4 text-rose-500 dark:text-rose-400 group-hover/float:text-white transition-colors duration-300" />
               </div>
               <div className="flex flex-col">
-                <span className="text-[13px] font-bold text-text-primary leading-tight mb-0.5">Vortex Intensifying</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[13px] font-bold text-text-primary leading-tight">Vortex Intensifying</span>
+                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-400 font-bold">SIMULATED</span>
+                </div>
                 <span className="text-[11px] font-medium text-text-muted">85 KT (157 km/h) • Cat 2</span>
               </div>
             </motion.div>
@@ -233,7 +236,10 @@ export function Track5MissionSection() {
                 <Compass className="h-4 w-4 text-sky-500 dark:text-sky-400 group-hover/float:text-white transition-colors duration-300" />
               </div>
               <div className="flex flex-col">
-                <span className="text-[13px] font-bold text-text-primary leading-tight mb-0.5">Cone Forecast Locked</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[13px] font-bold text-text-primary leading-tight">Cone Forecast Locked</span>
+                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-400 font-bold">SCENARIO</span>
+                </div>
                 <span className="text-[11px] font-medium text-text-muted">Landfall ETA: 28 hrs</span>
               </div>
             </motion.div>
@@ -328,16 +334,18 @@ export function Track5MissionSection() {
                     <div className="flex items-center justify-between pb-3 border-b border-border text-xs font-mono">
                       <div className="flex items-center gap-2">
                         <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-                        <span className="font-bold text-text-primary">System Operational</span>
+                        <span className="font-bold text-text-primary">Pipeline Status</span>
                       </div>
-                      <span className="text-sky-400">Real-Time Ingestion</span>
+                      <span className="text-sky-400 font-semibold px-2 py-0.5 rounded bg-sky-500/10 border border-sky-500/20">
+                        {activePillar.id === "gee" ? "GEE API Connected" : activePillar.id === "gemini" ? "Gemini 3.7 Flash Active" : "Physics Model Online"}
+                      </span>
                     </div>
 
                     {activePillar.id === "gee" && (
                       <div className="space-y-3 font-mono text-xs">
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">Sentinel-1 Dual-Pol VV/VH:</span>
-                          <span className="text-emerald-400 font-bold">Processed (0.003s)</span>
+                          <span className="text-emerald-400 font-bold">10m Inundation Vector</span>
                         </div>
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">Sentinel-2 MNDWI Index:</span>
@@ -354,7 +362,7 @@ export function Track5MissionSection() {
                       <div className="space-y-3 font-mono text-xs">
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">Multimodal Dvorak Estimate:</span>
-                          <span className="text-amber-400 font-bold">T5.5 (105 KT)</span>
+                          <span className="text-amber-400 font-bold">T5.5 (105 KT Benchmark)</span>
                         </div>
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">Convective Cloud Top Temp:</span>
@@ -370,7 +378,7 @@ export function Track5MissionSection() {
                     {activePillar.id === "surge" && (
                       <div className="space-y-3 font-mono text-xs">
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
-                          <span className="text-text-muted">Peak Surge Height (SLOSH):</span>
+                          <span className="text-text-muted">Peak Surge Height (Est.):</span>
                           <span className="text-blue-400 font-bold">3.85 meters</span>
                         </div>
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
@@ -388,15 +396,15 @@ export function Track5MissionSection() {
                       <div className="space-y-3 font-mono text-xs">
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">400kV Grid Substations:</span>
-                          <span className="text-amber-400 font-bold">3 Islanded Pre-Landfall</span>
+                          <span className="text-amber-400 font-bold">3 High Risk Identified</span>
                         </div>
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">Evacuation Corridors:</span>
-                          <span className="text-emerald-400 font-bold">NH-16 & SH-5 Clear</span>
+                          <span className="text-emerald-400 font-bold">NH-16 & SH-5 Monitored</span>
                         </div>
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">Parametric Payout Trigger:</span>
-                          <span className="text-purple-400 font-bold">Threshold Met ($12.5M)</span>
+                          <span className="text-purple-400 font-bold">Policy Rule Armed ($12.5M)</span>
                         </div>
                       </div>
                     )}

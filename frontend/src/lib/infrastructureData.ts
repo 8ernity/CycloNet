@@ -585,3 +585,206 @@ export const COASTAL_INUNDATION_ZONES: { name: string; polygon: [number, number]
     depthM: "3.0m"
   }
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Track 5: Multi-Factor Infrastructure Vulnerability Index (IVF) Scoring Engine
+// Formula: Risk = Flood (30%) + Wind (25%) + Elevation (15%) + Coast (10%) + Criticality (20%)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface SubstationVulnerabilityAnalysis {
+  floodDepthM: number;
+  windExposureKts: number;
+  elevationM: number;
+  coastalDistanceKm: number;
+  backupCapacityHrs: number;
+  riskScore: number; // 0 - 100
+  riskCategory: "LOW" | "MODERATE" | "HIGH" | "CRITICAL";
+  factorBreakdown: {
+    floodFactor: number;
+    windFactor: number;
+    elevationFactor: number;
+    coastalFactor: number;
+    criticalityFactor: number;
+  };
+  recommendedAction: string;
+}
+
+export function calculateSubstationVulnerability(
+  sub: PowerSubstation,
+  stormKnots: number = 85,
+  surgeMeters: number = 2.8,
+  rainMm: number = 220
+): SubstationVulnerabilityAnalysis {
+  // 1. Estimated local flood depth based on surge, elevation deficit, and coastal proximity
+  const distDecay = Math.max(0.2, 1.0 - (sub.coastalDistanceKm / 12.0));
+  const elevationDeficit = Math.max(0, surgeMeters - (sub.elevationMeters * 0.4));
+  const rainWaterlogging = (rainMm / 250.0) * 0.6;
+  const floodDepthM = Number(Math.max(0.1, (elevationDeficit * distDecay) + rainWaterlogging).toFixed(1));
+
+  // 2. Wind exposure at site
+  const windExposureKts = Math.round(stormKnots * (1.0 - (sub.coastalDistanceKm * 0.02)));
+
+  // 3. Backup battery / DG runtime capacity before total blackout
+  const backupCapacityHrs = sub.criticality === "Extreme" ? 8 : (sub.criticality === "High" ? 6 : 4);
+
+  // 4. Five-factor weighted scoring (0 to 100)
+  // Flood Depth (30%): >2.0m = 100, 0m = 0
+  const floodScore = Math.min(100, (floodDepthM / 2.2) * 100);
+  // Wind Exposure (25%): 120kt = 100, 40kt = 20
+  const windScore = Math.min(100, Math.max(10, (windExposureKts / 120) * 100));
+  // Elevation Deficit (15%): Low elevation (<3m) = high risk
+  const elevScore = Math.max(10, Math.min(100, (10 - sub.elevationMeters) * 11));
+  // Distance to Coast (10%): Close (<2km) = high risk
+  const coastScore = Math.max(10, Math.min(100, (10 - sub.coastalDistanceKm) * 11));
+  // Criticality & Redundancy (20%): Extreme = 100, High = 70, Moderate = 40
+  const critScore = sub.criticality === "Extreme" ? 95 : (sub.criticality === "High" ? 70 : 40);
+
+  const weightedTotal = Math.round(
+    (floodScore * 0.30) +
+    (windScore * 0.25) +
+    (elevScore * 0.15) +
+    (coastScore * 0.10) +
+    (critScore * 0.20)
+  );
+
+  const riskScore = Math.min(99, Math.max(12, weightedTotal));
+
+  let riskCategory: "LOW" | "MODERATE" | "HIGH" | "CRITICAL" = "LOW";
+  if (riskScore >= 75) riskCategory = "CRITICAL";
+  else if (riskScore >= 50) riskCategory = "HIGH";
+  else if (riskScore >= 25) riskCategory = "MODERATE";
+
+  let recommendedAction = "Normal grid monitoring with standby feeder telemetry.";
+  if (riskCategory === "CRITICAL") {
+    recommendedAction = `De-energize 400/220kV busbars at T-3h before landfall. Switch municipal hospitals to isolated DG microgrids to prevent arc-flash explosions.`;
+  } else if (riskCategory === "HIGH") {
+    recommendedAction = `Erect mobile flood barricades at switchyard perimeter. Pre-position mobile substation restoration teams.`;
+  } else if (riskCategory === "MODERATE") {
+    recommendedAction = `Inspect water pump drainage sumps and verify 6-hour diesel backup battery charge.`;
+  }
+
+  return {
+    floodDepthM,
+    windExposureKts,
+    elevationM: sub.elevationMeters,
+    coastalDistanceKm: sub.coastalDistanceKm,
+    backupCapacityHrs,
+    riskScore,
+    riskCategory,
+    factorBreakdown: {
+      floodFactor: Math.round(floodScore * 0.30),
+      windFactor: Math.round(windScore * 0.25),
+      elevationFactor: Math.round(elevScore * 0.15),
+      coastalFactor: Math.round(coastScore * 0.10),
+      criticalityFactor: Math.round(critScore * 0.20)
+    },
+    recommendedAction
+  };
+}
+
+export interface RouteVulnerabilityAnalysis {
+  floodDepthM: number;
+  etaToInundationHrs: number;
+  status: "SAFE_EVACUATION" | "MODERATE_RISK" | "INUNDATED_CLOSED";
+  statusBadge: string;
+  statusColor: string; // 🔵 blue, 🟠 orange, 🔴 red
+  riskScore: number;
+  alternativeRouteName: string;
+  recommendedAction: string;
+}
+
+export function calculateRouteVulnerability(
+  route: EvacuationRoute,
+  stormKnots: number = 85,
+  surgeMeters: number = 2.8,
+  rainMm: number = 220
+): RouteVulnerabilityAnalysis {
+  const isLowLying = route.elevationAvgM < 10;
+  const floodDepthM = Number((isLowLying ? Math.max(0.6, (surgeMeters * 0.5) + (rainMm / 400)) : 0.2).toFixed(1));
+  const etaToInundationHrs = isLowLying ? Math.max(1.5, Number((8.0 - (stormKnots / 20.0)).toFixed(1))) : 14.0;
+
+  let status: "SAFE_EVACUATION" | "MODERATE_RISK" | "INUNDATED_CLOSED" = "SAFE_EVACUATION";
+  let statusBadge = "🔵 SAFE EVACUATION CORRIDOR";
+  let statusColor = "#38bdf8"; // Sky blue
+  let riskScore = 22;
+  let alternativeRouteName = "Direct Arterial Path Open";
+  let recommendedAction = "Corridor is fully clear. Prioritize green-corridor ambulance and bus convoys.";
+
+  if (floodDepthM >= 1.2 || (isLowLying && stormKnots >= 90)) {
+    status = "INUNDATED_CLOSED";
+    statusBadge = "🔴 INUNDATED / ROAD CLOSED";
+    statusColor = "#ef4444"; // Red
+    riskScore = 88;
+    alternativeRouteName = route.highwayCode === "NH-16" ? "NH-16 Bypass Elevated Flyover (KM 148)" : "State Highway 42 Inland Hill Corridor";
+    recommendedAction = `Submerged by ${floodDepthM}m water. Close toll plazas immediately and divert traffic to ${alternativeRouteName}.`;
+  } else if (floodDepthM >= 0.5 || stormKnots >= 60) {
+    status = "MODERATE_RISK";
+    statusBadge = "🟠 HIGH WATERLOGGING RISK";
+    statusColor = "#f97316"; // Orange
+    riskScore = 62;
+    alternativeRouteName = "Secondary Arterial Ring Road";
+    recommendedAction = `Restricted to heavy emergency response vehicles only. ETA to full closure: ${etaToInundationHrs} hours.`;
+  }
+
+  return {
+    floodDepthM,
+    etaToInundationHrs,
+    status,
+    statusBadge,
+    statusColor,
+    riskScore,
+    alternativeRouteName,
+    recommendedAction
+  };
+}
+
+export interface ShelterSuitabilityAnalysis {
+  capacity: number;
+  currentOccupancy: number;
+  occupancyPercentage: number;
+  floodRisk: "LOW" | "MODERATE" | "HIGH";
+  roadAccessStatus: "OPEN" | "RESTRICTED" | "BLOCKED";
+  powerBackupStatus: "SECURE (DG OPERATIONAL)" | "STANDBY" | "AT RISK";
+  suitabilityScore: number;
+  isRecommendedDestination: boolean;
+  decisionNote: string;
+}
+
+export function calculateShelterSuitability(
+  shelter: MedicalCycloneShelter,
+  stormKnots: number = 85
+): ShelterSuitabilityAnalysis {
+  // Simulated dynamic occupancy based on severity
+  const occFactor = Math.min(0.85, 0.45 + (stormKnots / 300));
+  const currentOccupancy = Math.round(shelter.capacityPersons * occFactor);
+  const occupancyPercentage = Math.round((currentOccupancy / shelter.capacityPersons) * 100);
+
+  const floodRisk: "LOW" | "MODERATE" | "HIGH" = "LOW";
+  const roadAccessStatus: "OPEN" | "RESTRICTED" | "BLOCKED" = "OPEN";
+  const powerBackupStatus: "SECURE (DG OPERATIONAL)" | "STANDBY" | "AT RISK" = shelter.generatorBackup ? "SECURE (DG OPERATIONAL)" : "STANDBY";
+
+  const suitabilityScore = Math.round(
+    (100 - (occupancyPercentage * 0.4)) +
+    (shelter.generatorBackup ? 20 : 0) +
+    (shelter.satelliteComms ? 15 : 0) +
+    (shelter.medicalBeds >= 50 ? 10 : 5)
+  );
+
+  const isRecommendedDestination = suitabilityScore >= 75 && occupancyPercentage < 85;
+  const decisionNote = isRecommendedDestination
+    ? `✓ Highly Recommended Evacuation Destination. ${shelter.capacityPersons - currentOccupancy} vacant spots available with ${shelter.medicalBeds} medical beds and generator backup.`
+    : `Capacity constrained (${occupancyPercentage}% full). Divert non-critical evacuees to adjacent community staging center.`;
+
+  return {
+    capacity: shelter.capacityPersons,
+    currentOccupancy,
+    occupancyPercentage,
+    floodRisk,
+    roadAccessStatus,
+    powerBackupStatus,
+    suitabilityScore: Math.min(99, suitabilityScore),
+    isRecommendedDestination,
+    decisionNote
+  };
+}
+

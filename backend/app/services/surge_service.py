@@ -5,8 +5,8 @@ from datetime import datetime
 class HydrodynamicSurgeService:
     """
     Parametric Hydrodynamic Storm Surge & Compound Flooding Simulator.
-    Implements SLOSH (Sea, Lake, and Overland Surges from Hurricanes) and Jelesnianski
-    hydrodynamic formulation superimposing inverted barometer effect, wind setup on shallow
+    Implements a parametric hydrodynamic formulation (Jelesnianski formulation)
+    superimposing inverted barometer effect, wind setup on shallow
     continental shelf bathymetry, and astronomical tidal phase.
     """
 

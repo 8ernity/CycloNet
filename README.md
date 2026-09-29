@@ -144,41 +144,32 @@ flowchart TB
 
 ## 🌊 Hydrodynamic Storm Surge & Catchment Modeling
 
-The surge engine calculates coastal sea surface elevation using the parameterized **SLOSH** formulation:
+The surge engine calculates coastal sea surface elevation using the physics-informed **Parametric Hydrodynamic Formulation (Jelesnianski Methodology)**:
 
 $$S_{\text{peak}} = \alpha \cdot \Delta P + \beta \cdot V_{\text{max}}^2 \cdot \cos(\theta_{\text{coast}}) + H_{\text{tide}}$$
 
 Where:
-- $\Delta P = P_{\text{ambient}} - P_{\text{central}}$: Inverted Barometer Effect ($\sim 1\text{ cm}$ rise per $1\text{ hPa}$ drop).
-- $V_{\text{max}}$: Maximum sustained 10-minute surface wind speed ($\text{m/s}$).
-- $\theta_{\text{coast}}$: Angle of storm approach relative to the coastal shelf normal vector.
+- $\Delta P = P_{\text{ambient}} - P_{\text{central}}$: Inverted Barometer Effect ($\sim 1\text{ cm}$ sea surface rise per $1\text{ hPa}$ atmospheric pressure drop).
+- $V_{\text{max}}$: Maximum sustained surface wind speed ($\text{m/s}$ or $\text{knots}$).
+- $\theta_{\text{coast}}$: Angle of storm approach relative to the coastal shelf normal vector ($75^\circ - 85^\circ$ creates peak shoaling).
 - $\alpha, \beta$: Bathymetric friction and shelf shoaling coefficients ($1.45\times$ for shallow Bay of Bengal shelf vs $1.10\times$ for Arabian Sea).
 - $H_{\text{tide}}$: Astronomical tidal height at landfall (Spring Tide vs Neap Tide superposition).
-- **Inland Penetration Distance:** Calculated via SRTM 30m DEM terrain slope ($\sim 0.75\text{ m/km}$).
+- **Inland Flood Penetration Distance:** Modeled via SRTM 30m DEM terrain slope ($\sim 0.75\text{ m/km}$).
 
 ---
 
-## 🧠 Deep Learning & Intensity Classification Architecture
+## 🏗️ Multi-Factor Infrastructure Vulnerability Index (IVF)
 
-### Dual-Inference Pipeline
-```text
-Input Satellite Frame (224 x 224 x 3)
-         │
-         ├───► PyTorch ResNet-50 Backbone ──► MLP Classifier Head ──► Softmax Category Distribution
-         │
-         └───► Gemini 3.7 Flash Vision ───► Multimodal Reasoning ──► Dvorak T-Number, Eye Morphology, Cloud-Tops
-```
+CycloNet replaces basic map overlays with a continuous, 5-factor mathematical **Infrastructure Vulnerability Index (IVF)**:
 
-### IMD Classification & Dvorak Scale Mapping
+$$\text{IVF Score} = 0.30 \times \text{FloodDepth} + 0.25 \times \text{WindGust} + 0.15 \times \text{ElevationDeficit} + 0.10 \times \text{CoastalProximity} + 0.20 \times \text{GridCriticality}$$
 
-| Class Code | Meteorological Designation | Sustained Winds | Dvorak T-Number | Structural Morphology |
-|---|---|---|---|---|
-| `NOT_A_CYCLONE` | **No Cyclone Detected** | $0\text{ kt}$ | $\text{N/A}$ | Terrestrial photos, wallpapers, or non-storm cloud patterns. |
-| `CS` | **Cyclonic Storm** | $34 - 47\text{ kt}$ | $T3.0$ | Curved cloud banding, emerging central dense overcast (CDO). |
-| `SCS` | **Severe Cyclonic Storm** | $48 - 63\text{ kt}$ | $T3.5$ | Well-defined CDO, tightening feeder bands, incipient core. |
-| `VSCS` | **Very Severe Cyclonic Storm** | $64 - 89\text{ kt}$ | $T4.5$ | Closed central core, ragged or emerging eye structure. |
-| `ESCS` | **Extremely Severe Cyclonic Storm** | $90 - 119\text{ kt}$ | $T5.5+$ | Distinct pinhole eye surrounded by intense symmetric eyewall. |
-| `SuCS` | **Super Cyclonic Storm** | $\ge 120\text{ kt}$ | $T6.5 - T8.0$ | Deep cold convective cloud tops ($< -80^\circ\text{C}$), compact symmetric annular core. |
+| IVF Score | Risk Classification | Action Directive |
+|---|---|---|
+| **75 – 100** | 🔴 **CRITICAL** | Pre-emptively de-energize 400/220kV busbars at T-3h; switch medical shelters to isolated DG microgrids; close inundated road corridors. |
+| **50 – 74** | 🟠 **HIGH** | Erect mobile switchyard flood barricades; pre-stage NDRF water-rescue teams; restrict roads to emergency vehicles only. |
+| **25 – 49** | 🟡 **MODERATE** | Inspect water pump drainage sumps; verify 6-hour DG battery charge. |
+| **0 – 24** | 🟢 **LOW** | Routine baseline monitoring with telemetry standby. |
 
 ---
 
@@ -186,33 +177,39 @@ Input Satellite Frame (224 x 224 x 3)
 
 Interactive Swagger documentation is available at `http://localhost:8000/docs`.
 
-### 1. Google Earth Engine & Inundation (`/api/gee`)
+### 1. Automated Early Warning Advisory Dispatch (`/api/alerts`)
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/alerts/dispatch` | **Automated Multi-Channel Dispatch:** Generates OASIS CAP-CP v1.2 XML, trilingual Cell Broadcast SMS, NDMA SACHET JSON feeds, acoustic siren tower triggers, and Coast Guard VHF Ch 16 distress broadcasts. |
+| `POST` | `/api/alerts/broadcast-test` | Simulates multi-channel emergency broadcast dispatch with delivery metrics. |
+
+### 2. Google Earth Engine & Inundation (`/api/gee`)
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/api/gee/layers` | Lists available GEE satellite layers (Sentinel-1 SAR, Sentinel-2 MNDWI, SRTM 30m DEM). |
 | `GET` | `/api/gee/flood-inundation` | Generates Sentinel-1 SAR flood extent GeoJSON polygons for active cyclone coordinates. |
-| `GET` | `/api/gee/rainfall-pathways` | Returns catchment precipitation accumulation and river delta runoff choke points. |
+| `GET` | `/api/gee/rainfall-pathways` | Returns DEM catchment precipitation accumulation, river discharge (cumecs), and drainage choke points (Diamond Harbour, Kakdwip, Sagar Island, Dhamra). |
 
-### 2. Hydrodynamic Storm Surge (`/api/surge`)
+### 3. Hydrodynamic Storm Surge (`/api/surge`)
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/surge/calculate` | Computes SLOSH peak surge height ($S_{\text{peak}}$), inverted barometer rise, and inland penetration. |
-| `GET` | `/api/surge/profile` | Computes coastal sector-by-sector surge profile and severity classifications. |
+| `GET` | `/api/surge/calculate` | Computes parametric peak surge height ($S_{\text{peak}}$), inverted barometer rise, and inland penetration. |
+| `GET` | `/api/surge/profile` | Computes coastal sector-by-sector surge profile and critical asset risk ratings. |
 
-### 3. Gemini 3.7 Flash AI Engine (`/api/ai` & `/api/chat`)
+### 4. Gemini 3.7 Flash AI Engine (`/api/ai` & `/api/chat`)
 | Method | Endpoint | Description |
 |---|---|---|
 | `POST` | `/api/ai/analyze-multimodal` | Submits satellite image to Gemini 3.7 Flash for Dvorak T-number & eye inspection. |
 | `POST` | `/api/ai/pre-landfall-briefing` | Generates executive pre-landfall disaster management risk memo in 7 languages. |
 | `POST` | `/api/chat` | AI meteorological copilot query endpoint with live UI telemetry context. |
 
-### 4. Active Cyclone Monitoring (`/api/cyclones`)
+### 5. Active Cyclone Monitoring & Trajectory (`/api/active-systems` & `/api/history`)
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/cyclones` | Returns active tropical cyclones with current telemetry, pressure, and wind speed. |
-| `GET` | `/api/cyclones/{id}` | Retrieves full tracking telemetry, historical waypoints, and forecast trajectories. |
+| `GET` | `/api/active-systems` | Returns active tropical cyclones with current telemetry, pressure, and forecast trajectory. |
+| `GET` | `/api/history/search` | Searches historical cyclone best-track archives (IBTrACS/IMD). |
 
-### 5. AI Satellite Classification (`/api/classify`)
+### 6. AI Satellite Classification (`/api/classify`)
 | Method | Endpoint | Description |
 |---|---|---|
 | `POST` | `/api/classify` | PyTorch ResNet-50 inference endpoint returning continuous softmax probabilities. |

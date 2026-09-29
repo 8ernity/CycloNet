@@ -31,13 +31,13 @@ export function FeatureSpotlight1() {
               </span>
             </h2>
             <p className="text-sm md:text-base text-text-muted leading-relaxed mb-6">
-              CycloNet&apos;s SLOSH hydrodynamic simulator models ocean water pileup by coupling central barometric pressure deficits with bathymetric wind stress on shallow continental shelves and astronomical spring tide stages.
+              CycloNet&apos;s parametric surge estimator (Jelesnianski formulation) models oceanic water pileup by coupling central barometric pressure deficits with bathymetric wind stress on shallow continental shelves and astronomical spring tide stages.
             </p>
 
             <div className="p-4 rounded-xl bg-card/70 border border-border mb-8 space-y-2">
               <div className="text-xs font-mono font-bold text-sky-400 flex items-center gap-1.5">
                 <Cpu className="w-3.5 h-3.5" />
-                <span>SLOSH Mathematical Formulation</span>
+                <span>Parametric Surge Formulation (Jelesnianski)</span>
               </div>
               <p className="text-xs font-mono text-text-primary font-semibold">
                 S_peak = α · ΔP + β · V_max² · cos(θ_coast) + H_tide
@@ -121,7 +121,7 @@ export function FeatureSpotlight1() {
                 className="absolute -top-4 -right-4 md:-right-6 px-4 py-2 bg-rose-500/90 text-white rounded-xl shadow-lg text-xs font-bold flex items-center gap-2 backdrop-blur-md"
               >
                 <ShieldAlert className="w-4 h-4" />
-                <span>SLOSH Peak Inundation Alert</span>
+                <span>Parametric Peak Inundation Alert</span>
               </motion.div>
             </div>
           </motion.div>

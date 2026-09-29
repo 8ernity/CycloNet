@@ -1,13 +1,29 @@
-import React from 'react';
-import { GlassPanel } from './GlassPanel';
-import { Lock, Shield, FileCheck, Globe } from 'lucide-react';
-import { MicroLabel } from './MicroLabel';
+import React from "react";
+import { GlassPanel } from "./GlassPanel";
+import { Lock, Shield, FileCheck, Globe, Server, CheckCircle2 } from "lucide-react";
+import { MicroLabel } from "./MicroLabel";
 
 const securityFeatures = [
-  { icon: Lock, title: "End-to-End Encryption", desc: "Military-grade AES-256 telemetry encryption at rest and in transit." },
-  { icon: Shield, title: "Role-Based Command Access", desc: "Granular permissions mapped to meteorological and disaster response hierarchies." },
-  { icon: FileCheck, title: "Immutable Telemetry Logs", desc: "Every forecast run and classification is cryptographically signed and archived." },
-  { icon: Globe, title: "100% Indian Data Sovereignty", desc: "All computational clusters and databases hosted strictly within Indian borders." },
+  { 
+    icon: Lock, 
+    title: "Transport & Storage Encryption", 
+    desc: "Standard TLS 1.3 in-transit and AES-256 telemetry encryption at rest." 
+  },
+  { 
+    icon: Shield, 
+    title: "Role-Based Access Control", 
+    desc: "Granular command permissions designed for district disaster response hierarchies." 
+  },
+  { 
+    icon: FileCheck, 
+    title: "Auditable Forecasting Logs", 
+    desc: "Every ML model run, GEE SAR layer, and bulletin dispatch is logged with timestamps." 
+  },
+  { 
+    icon: Globe, 
+    title: "Sovereign Cloud Architecture", 
+    desc: "Containerized architecture ready for deployment in Indian datacenters (e.g. NIC / MeitY-empaneled clouds)." 
+  },
 ];
 
 export function SecurityCompliance() {
@@ -17,13 +33,13 @@ export function SecurityCompliance() {
         
         <div className="text-center max-w-2xl mx-auto mb-16">
           <MicroLabel className="mb-4 inline-block text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1 rounded-full font-semibold">
-            National Critical Infrastructure
+            Security & Architecture Standards
           </MicroLabel>
           <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-text-primary mb-4">
-            Security and reliability at national scale.
+            Built for mission-critical reliability.
           </h2>
           <p className="text-text-muted text-sm md:text-base leading-relaxed">
-            Engineered to meet the mission-critical security and uptime requirements of state disaster authorities, IMD RSMC, and the Ministry of Earth Sciences.
+            Designed to support state disaster management authorities, IMD RSMC advisory workflows, and district emergency operations centers.
           </p>
         </div>
 
@@ -44,16 +60,16 @@ export function SecurityCompliance() {
 
         <div className="flex flex-wrap justify-center gap-4">
           <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-surface-border bg-surface-glass text-xs font-semibold text-text-muted shadow-xs">
-            <Shield className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
-            ISO 27001 Certified Architecture
+            <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+            Designed for ISO 27001 Alignment
+          </div>
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-surface-border bg-surface-glass text-xs font-semibold text-text-muted shadow-xs">
+            <Server className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+            Containerized for Sovereign Cloud Deployment
           </div>
           <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-surface-border bg-surface-glass text-xs font-semibold text-text-muted shadow-xs">
             <Shield className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
-            MeitY Sovereign Cloud Verified
-          </div>
-          <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-surface-border bg-surface-glass text-xs font-semibold text-text-muted shadow-xs">
-            <Shield className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
-            99.99% Disaster Resilient Uptime
+            OASIS CAP-CP v1.2 Standardized
           </div>
         </div>
 

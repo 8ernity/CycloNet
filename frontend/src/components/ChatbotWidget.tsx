@@ -45,7 +45,7 @@ const FEATURE_CARDS = [
   },
   {
     title: "Hydrodynamic Storm Surge",
-    desc: "SLOSH physics & compound flooding",
+    desc: "Parametric physics & compound flooding",
     icon: Cloud,
     color: "cyan",
     iconBg: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",

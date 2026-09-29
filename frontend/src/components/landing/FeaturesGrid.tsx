@@ -28,8 +28,8 @@ const features = [
   },
   { 
     icon: Waves, 
-    title: "SLOSH Hydrodynamic Surge Forecaster", 
-    description: "Parameterized hydrodynamic simulation factoring in inverted barometer effect, forward motion, and astronomical spring tide superposition.",
+    title: "Parametric Surge Forecaster", 
+    description: "Coupled Jelesnianski hydrodynamic simulation factoring in inverted barometer effect, forward motion, and astronomical spring tide superposition.",
     tint: "text-blue-400 bg-blue-500/10 border-blue-500/25",
     link: "/infrastructure"
   },

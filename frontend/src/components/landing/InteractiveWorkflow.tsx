@@ -9,7 +9,7 @@ import { MicroLabel } from "./MicroLabel";
 const steps = [
   { icon: Satellite, title: "1. Ingest GEE SAR & Feeds", desc: "Sentinel-1 SAR, 30m DEM & NOAA GFS" },
   { icon: Sparkles, title: "2. Gemini 3.7 Dual-Inference", desc: "ResNet-50 + Multimodal Dvorak Vision" },
-  { icon: Waves, title: "3. SLOSH Surge & Catchment", desc: "Compound Hydrodynamic Inundation" },
+  { icon: Waves, title: "3. Parametric Surge & Catchment", desc: "Compound Hydrodynamic Inundation" },
   { icon: BellRing, title: "4. Multi-Channel Dispatches", desc: "CAP-CP v1.2, Sirens & SACHET Alerts" },
 ];
 

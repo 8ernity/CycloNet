@@ -34,8 +34,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "CycloNet | AI-Based Cyclone Tracking System",
-  description: "AI/ML-Based System for Identification, Classification, and Prediction of Tropical Cyclone Patterns",
+  title: "CycloNet — AI Cyclone Impact & Infrastructure Vulnerability Forecaster",
+  description: "AI-powered predictive risk and vulnerability modeling platform utilizing Google Earth Engine satellite feeds, parametric storm surge simulation, and Gemini 3.7 Flash multimodal reasoning.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
