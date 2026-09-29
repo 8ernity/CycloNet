@@ -65,16 +65,6 @@ export function Footer() {
             <p className="text-sm text-text-muted leading-relaxed">
               AI-powered tropical cyclone trajectory, intensity estimation, and coastal disaster intelligence platform.
             </p>
-            
-            <div className="flex gap-4 mt-auto">
-              <button 
-                onClick={() => setLang(lang === 'EN' ? 'HI' : 'EN')}
-                className="flex items-center gap-2 text-xs font-semibold text-text-muted hover:text-text-primary transition-colors bg-surface-glass px-3 py-1.5 rounded-full border border-surface-border cursor-pointer"
-              >
-                <Globe className="w-3 h-3 text-blue-600" />
-                {lang === 'EN' ? 'हिन्दी' : 'English'}
-              </button>
-            </div>
           </div>
 
           {/* Links Cols */}

@@ -1,49 +1,58 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from 'react';
-import { GlassPanel } from './GlassPanel';
-import { Cpu, Compass, Waves, Satellite, BarChart3, Bot } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
-import { useMotionTokens } from '@/lib/motion-tokens';
-import { MicroLabel } from './MicroLabel';
+import React, { useRef, useState, useEffect } from "react";
+import { GlassPanel } from "./GlassPanel";
+import { 
+  Satellite, Sparkles, Waves, CloudRain, 
+  Zap, BellRing, ArrowRight 
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { useMotionTokens } from "@/lib/motion-tokens";
+import { MicroLabel } from "./MicroLabel";
+import Link from "next/link";
 
 const features = [
   { 
-    icon: Cpu, 
-    title: "Deep Dvorak AI Classifier", 
-    description: "Multi-branch ConvNeXt and DenseNet models estimate vortex intensity and T-numbers directly from INSAT-3DR TIR-1 bands.",
-    tint: "text-sky-400 bg-sky-500/10 border-sky-500/25"
+    icon: Satellite, 
+    title: "GEE SAR Flood Inundation", 
+    description: "Sentinel-1 SAR dual-polarization (VV/VH) radar backscatter and Sentinel-2 MNDWI mapping surface water extent through thick cyclone cloud cover.",
+    tint: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25",
+    link: "/infrastructure"
   },
   { 
-    icon: Compass, 
-    title: "48h Cone of Uncertainty", 
-    description: "Deep ensemble neural trajectory forecaster projecting probabilistic cyclone paths with dynamic quadrant wind radii.",
-    tint: "text-blue-400 bg-blue-500/10 border-blue-500/25"
+    icon: Sparkles, 
+    title: "Gemini 3.7 Flash Multimodal Vision", 
+    description: "Dual-inference satellite inspection quantifying Dvorak T-numbers, eye diameters, and cloud-top temperatures (< -80°C) with 7-language executive briefings.",
+    tint: "text-sky-400 bg-sky-500/10 border-sky-500/25",
+    link: "/classification"
   },
   { 
     icon: Waves, 
-    title: "Storm Surge & Tide Simulator", 
-    description: "Coupled shallow-water hydrodynamic simulation projecting coastal inundation, barrier breaches, and tidal surge heights.",
-    tint: "text-cyan-400 bg-cyan-500/10 border-cyan-500/25"
+    title: "SLOSH Hydrodynamic Surge Forecaster", 
+    description: "Parameterized hydrodynamic simulation factoring in inverted barometer effect, forward motion, and astronomical spring tide superposition.",
+    tint: "text-blue-400 bg-blue-500/10 border-blue-500/25",
+    link: "/infrastructure"
   },
   { 
-    icon: Satellite, 
-    title: "Real-Time Satellite Ingestion", 
-    description: "Automated ETL streaming raw HDF5 imagery from ISRO MOSDAC and IMD RSMC New Delhi with zero data loss.",
-    tint: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25"
+    icon: CloudRain, 
+    title: "Catchment Runoff & Delta Pathways", 
+    description: "High-resolution SRTM 30m DEM terrain slope analysis pinpointing flash flood choke points across vulnerable river deltas and estuaries.",
+    tint: "text-cyan-400 bg-cyan-500/10 border-cyan-500/25",
+    link: "/infrastructure"
   },
   { 
-    icon: BarChart3, 
-    title: "Ocean Heat & Pressure Analytics", 
-    description: "Continuous diagnostic tracking of Sea Surface Temperatures (SST), Ocean Heat Content (OHC), and central barometric minimums.",
-    tint: "text-rose-400 bg-rose-500/10 border-rose-500/25"
+    icon: Zap, 
+    title: "Critical Grid & Asset Exposure", 
+    description: "Vulnerability overlays for 400kV/220kV power substations, national evacuation highway corridors, medical shelters, and parametric liquidity triggers.",
+    tint: "text-amber-400 bg-amber-500/10 border-amber-500/25",
+    link: "/reports"
   },
   { 
-    icon: Bot, 
-    title: "CycloNet AI Copilot", 
-    description: "Ask complex meteorological questions in plain natural language with complete SHAP explainability and immediate citations.",
-    tint: "text-indigo-400 bg-indigo-500/10 border-indigo-500/25"
+    icon: BellRing, 
+    title: "Multi-Channel Alert Dispatches", 
+    description: "Automates disaster advisory distribution across OASIS CAP-CP v1.2 XML emergency feeds, SMS broadcasts, coastal sirens, VHF radio, and SACHET.",
+    tint: "text-rose-400 bg-rose-500/10 border-rose-500/25",
+    link: "/reports"
   },
 ];
 
@@ -63,8 +72,8 @@ function SpotlightCard({ children }: { children: React.ReactNode }) {
     
     requestAnimationFrame(() => {
       if (cardRef.current) {
-        cardRef.current.style.setProperty('--x', `${x}px`);
-        cardRef.current.style.setProperty('--y', `${y}px`);
+        cardRef.current.style.setProperty("--x", `${x}px`);
+        cardRef.current.style.setProperty("--y", `${y}px`);
       }
     });
   };
@@ -81,13 +90,13 @@ function SpotlightCard({ children }: { children: React.ReactNode }) {
           <div 
             className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
             style={{
-              background: 'radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(56,189,248,0.14), transparent 60%)'
+              background: "radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(56,189,248,0.14), transparent 60%)"
             }}
           />
         )}
         
         {/* Content */}
-        <div className="relative z-10 flex flex-col h-full">
+        <div className="relative z-10 flex flex-col h-full justify-between">
           {children}
         </div>
       </GlassPanel>
@@ -98,57 +107,76 @@ function SpotlightCard({ children }: { children: React.ReactNode }) {
 export function FeaturesGrid() {
   const { tier1 } = useMotionTokens();
 
-  const containerVariants = {
-    hidden: {},
+  const container = {
+    hidden: { opacity: 0 },
     show: {
-      transition: { staggerChildren: tier1.stagger }
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        delayChildren: 0.2
+      }
     }
   };
 
-  const itemVariants = {
-    hidden: tier1.initial,
-    show: { ...tier1.animate, transition: tier1.transition }
+  const item = {
+    hidden: { opacity: 0, y: 20 },
+    show: { 
+      opacity: 1, 
+      y: 0, 
+      transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] }
+    }
   };
 
   return (
-    <section className="py-24 bg-bg-base text-text-primary relative overflow-hidden transition-colors duration-300" id="features">
-      <div className="container max-w-[1200px] mx-auto px-4 relative z-10">
+    <section id="features" className="py-24 bg-bg-base text-text-primary relative overflow-hidden border-t border-surface-border transition-colors duration-300">
+      <div className="container max-w-[1300px] mx-auto px-4 sm:px-6">
         
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <MicroLabel className="mb-4 inline-block">Cyclone Intelligence Suite</MicroLabel>
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <MicroLabel className="mb-4 inline-block">Predictive Vulnerability Architecture</MicroLabel>
           <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-text-primary mb-4">
-            Everything you need to track and protect.
+            Six interconnected modules for <br className="hidden sm:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500">
+              zero-casualty anticipatory disaster response
+            </span>
           </h2>
-          <p className="text-text-muted text-sm md:text-base leading-relaxed">
-            A comprehensive suite of deep-learning meteorological tools designed specifically for tropical cyclone early warning operations.
+          <p className="text-sm md:text-base text-text-muted leading-relaxed max-w-2xl mx-auto">
+            From raw satellite backscatter to localized power grid shut-off protocols, CycloNet bridges meteorological observation with municipal disaster action.
           </p>
         </div>
 
         <motion.div 
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          variants={containerVariants}
+          variants={container}
           initial="hidden"
           whileInView="show"
-          viewport={{ once: true, margin: "-100px" }}
+          viewport={{ once: true, margin: "-50px" }}
+          className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
         >
-          {features.map((feature) => {
+          {features.map((feature, i) => {
             const Icon = feature.icon;
             return (
-              <motion.div key={feature.title} variants={itemVariants}>
+              <motion.div key={i} variants={item} className="h-full">
                 <SpotlightCard>
-                  <div className={cn(
-                    "h-12 w-12 rounded-xl flex items-center justify-center mb-6 border transition-transform duration-300",
-                    feature.tint,
-                    "group-hover:scale-110 group-hover:rotate-6 shadow-md"
-                  )}>
-                    <Icon className="h-6 w-6" />
+                  <div>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-6 border ${feature.tint}`}>
+                      <Icon className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-lg font-bold text-text-primary tracking-tight mb-2">
+                      {feature.title}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-text-muted leading-relaxed">
+                      {feature.description}
+                    </p>
                   </div>
-                  <h3 className="text-lg font-bold text-text-primary mb-2 tracking-tight">
-                    {feature.title}
-                  </h3>
-                  <p className="text-xs sm:text-sm text-text-muted leading-relaxed">
-                    {feature.description}
-                  </p>
+
+                  <div className="pt-6 mt-4 border-t border-border/50">
+                    <Link
+                      href={feature.link}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-400 hover:text-sky-300 transition-colors group"
+                    >
+                      <span>Launch Module</span>
+                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                  </div>
                 </SpotlightCard>
               </motion.div>
             );

@@ -220,7 +220,7 @@ export function ParallaxComponent({
           </div>
 
           {/* Smooth Bottom Atmospheric Feather Blend into the Content Sections */}
-          <div className="parallax__fade absolute bottom-0 left-0 right-0 h-36 bg-gradient-to-t from-bg-base via-bg-base/70 via-35% to-transparent pointer-events-none z-20 transition-colors duration-500" />
+          <div className="parallax__fade absolute bottom-0 left-0 right-0 h-48 sm:h-64 bg-gradient-to-t from-bg-base via-bg-base/85 via-45% to-transparent pointer-events-none z-30 transition-colors duration-500" />
         </div>
       </section>
     </div>

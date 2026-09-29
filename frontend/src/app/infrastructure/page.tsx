@@ -848,7 +848,7 @@ export default function InfrastructurePage() {
           {/* Real-Time SLOSH Surge Calculation Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="glass-card p-5 border-border space-y-1.5">
-              <span className="text-[11px] font-mono font-bold text-blue-400 uppercase tracking-wider">Peak Storm Surge ($S_{"{peak}"}$)</span>
+              <span className="text-[11px] font-mono font-bold text-blue-400 uppercase tracking-wider">Peak Storm Surge (S-peak)</span>
               <p className="text-3xl font-mono font-black text-foreground">
                 {surgeCalcData?.peak_surge_height_m ?? surgeM} <span className="text-sm font-normal text-muted-foreground">meters</span>
               </p>
@@ -864,7 +864,7 @@ export default function InfrastructurePage() {
                 {surgeCalcData?.inverted_barometer_m ?? "0.58"} <span className="text-sm font-normal text-muted-foreground">m rise</span>
               </p>
               <p className="text-[11px] text-muted-foreground font-mono">
-                $\Delta P = {1013 - simPressureHpa}$ hPa below standard
+                ΔP = {1013 - simPressureHpa} hPa below standard
               </p>
             </div>
 
@@ -884,7 +884,7 @@ export default function InfrastructurePage() {
                 {surgeCalcData?.inland_penetration_km ?? "3.85"} <span className="text-sm font-normal text-muted-foreground">km inland</span>
               </p>
               <p className="text-[11px] text-purple-400 font-semibold">
-                Based on 30m DEM slope ($0.75\text{m/km}$)
+                Based on 30m DEM slope (0.75m/km)
               </p>
             </div>
           </div>

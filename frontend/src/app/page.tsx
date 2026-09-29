@@ -1,7 +1,6 @@
 import { ParallaxComponent } from '@/components/ui/parallax-scrolling';
-import { MeshGradientBackground } from '@/components/landing/MeshGradientBackground';
 import { Navbar } from '@/components/landing/Navbar';
-import { Hero } from '@/components/landing/Hero';
+import { Track5MissionSection } from '@/components/landing/Track5MissionSection';
 import { TrustMarquee } from '@/components/landing/TrustMarquee';
 import { StatsTicker } from '@/components/landing/StatsTicker';
 import { StoryDiagram } from '@/components/landing/StoryDiagram';
@@ -27,7 +26,7 @@ export default function RootLandingPage() {
       {/* Floating Glass Navbar */}
       <Navbar />
 
-      {/* GSAP & Lenis Multi-Layered Depth Parallax Hero */}
+      {/* GSAP & Lenis Multi-Layered Depth Parallax Hero (Preserved Pristine) */}
       <ParallaxComponent
         title="CYCLONET"
         pretitle="NEVER MISS A CYCLONE"
@@ -37,10 +36,8 @@ export default function RootLandingPage() {
         layer4Src="/Astronaut.png"
       />
 
-      {/* Interactive Intelligence Hero with Mesh Background */}
-      <MeshGradientBackground>
-        <Hero />
-      </MeshGradientBackground>
+      {/* Track 5 Mission & Anticipatory Action Problem / Challenge Section */}
+      <Track5MissionSection />
 
       {/* Trust Marquee of Meteorological & Disaster Authorities */}
       <TrustMarquee />

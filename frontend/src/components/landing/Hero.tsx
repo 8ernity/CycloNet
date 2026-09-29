@@ -103,21 +103,26 @@ export function Hero() {
 
           <motion.div 
             variants={itemVariants}
-            className="flex items-center justify-center gap-4 text-xs sm:text-sm text-text-muted mb-8 flex-wrap font-medium"
+            className="flex items-center justify-center gap-3 text-xs sm:text-sm text-text-muted mb-8 flex-wrap font-medium"
           >
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-sky-500 dark:text-sky-300">
-              <Satellite className="h-4 w-4 text-sky-500 dark:text-sky-400" />
-              <span>IMD RSMC Integrated</span>
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+              <Satellite className="h-4 w-4 text-emerald-400" />
+              <span>Google Earth Engine (GEE)</span>
             </div>
             <span className="text-slate-400 dark:text-slate-600">·</span>
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 dark:text-indigo-300">
-              <Radio className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
-              <span>INSAT-3DR Stream</span>
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-sky-400">
+              <Radio className="h-4 w-4 text-sky-400" />
+              <span>Gemini 3.7 Flash Multimodal</span>
             </div>
             <span className="text-slate-400 dark:text-slate-600">·</span>
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-300">
-              <ShieldCheck className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
-              <span>Data Sovereign (India)</span>
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+              <Wind className="h-4 w-4 text-indigo-400" />
+              <span>SLOSH Surge Simulator</span>
+            </div>
+            <span className="text-slate-400 dark:text-slate-600">·</span>
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400">
+              <ShieldCheck className="h-4 w-4 text-amber-400" />
+              <span>OASIS CAP-CP v1.2</span>
             </div>
           </motion.div>
 

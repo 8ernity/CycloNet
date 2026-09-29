@@ -1,16 +1,16 @@
 "use client";
 
-import React, { useRef, useState } from 'react';
-import { motion, useScroll, useMotionValueEvent } from 'framer-motion';
-import { Satellite, Cpu, Waves, BellRing } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { MicroLabel } from './MicroLabel';
+import React, { useRef, useState } from "react";
+import { motion, useScroll, useMotionValueEvent } from "framer-motion";
+import { Satellite, Sparkles, Waves, BellRing } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { MicroLabel } from "./MicroLabel";
 
 const steps = [
-  { icon: Satellite, title: "Ingest Data", desc: "INSAT-3DR & Doppler Radars" },
-  { icon: Cpu, title: "Neural Forecast", desc: "Dvorak & 48h Cone Models" },
-  { icon: Waves, title: "Predict Surge", desc: "Inundation & Wind Radii" },
-  { icon: BellRing, title: "Dispatch Alerts", desc: "NDMA CAP-CP Early Warning" },
+  { icon: Satellite, title: "1. Ingest GEE SAR & Feeds", desc: "Sentinel-1 SAR, 30m DEM & NOAA GFS" },
+  { icon: Sparkles, title: "2. Gemini 3.7 Dual-Inference", desc: "ResNet-50 + Multimodal Dvorak Vision" },
+  { icon: Waves, title: "3. SLOSH Surge & Catchment", desc: "Compound Hydrodynamic Inundation" },
+  { icon: BellRing, title: "4. Multi-Channel Dispatches", desc: "CAP-CP v1.2, Sirens & SACHET Alerts" },
 ];
 
 export function InteractiveWorkflow() {
@@ -31,13 +31,16 @@ export function InteractiveWorkflow() {
 
   return (
     <section ref={containerRef} id="workflow" className="py-32 bg-bg-elevated text-text-primary relative border-t border-surface-border transition-colors duration-300">
-      <div className="container max-w-[1000px] mx-auto px-4">
+      <div className="container max-w-[1100px] mx-auto px-4">
         
         <div className="text-center mb-16 md:mb-24">
-          <MicroLabel className="mb-4 inline-block">The Operational Loop</MicroLabel>
+          <MicroLabel className="mb-4 inline-block">The Operational Anticipatory Loop</MicroLabel>
           <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-text-primary">
-            From raw satellite telemetry to <span className="text-sky-500 dark:text-sky-400">early warning</span>.
+            From raw satellite backscatter to <span className="text-sky-500 dark:text-sky-400">zero-casualty warning</span>.
           </h2>
+          <p className="text-xs sm:text-sm text-text-muted mt-3 max-w-xl mx-auto">
+            A continuous four-stage pipeline driving rapid pre-landfall evacuation planning, power grid hardening, and automated parametric insurance relief.
+          </p>
         </div>
 
         <div className="relative">
@@ -45,7 +48,7 @@ export function InteractiveWorkflow() {
           {/* Connecting Line (Desktop) */}
           <div className="hidden md:block absolute top-12 left-12 right-12 h-1 bg-surface-border rounded-full overflow-hidden z-0 pointer-events-none">
             <motion.div 
-              className="h-full bg-gradient-to-r from-sky-400 to-blue-500"
+              className="h-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500"
               style={{ scaleX: scrollYProgress, transformOrigin: "left" }}
             />
           </div>
@@ -53,7 +56,7 @@ export function InteractiveWorkflow() {
           {/* Connecting Line (Mobile) */}
           <div className="md:hidden absolute top-12 bottom-12 left-8 w-1 bg-surface-border rounded-full overflow-hidden z-0 pointer-events-none">
              <motion.div 
-              className="w-full bg-gradient-to-b from-sky-400 to-blue-500"
+              className="w-full bg-gradient-to-b from-sky-400 via-blue-500 to-indigo-500"
               style={{ scaleY: scrollYProgress, transformOrigin: "top" }}
             />
           </div>
@@ -101,7 +104,6 @@ export function InteractiveWorkflow() {
           </div>
 
         </div>
-
       </div>
     </section>
   );
