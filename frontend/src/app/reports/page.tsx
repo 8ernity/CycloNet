@@ -83,12 +83,13 @@ export default function ReportsPage() {
 
   const sourceBadge = getSourceBadge();
   const [system, setSystem] = useState<ActiveSystem | null>(null);
+  const [cyclonesList, setCyclonesList] = useState(PRESET_STORMS);
   const [bulletins, setBulletins] = useState<Bulletin[]>([]);
   const [affectedDistricts, setAffectedDistricts] = useState<AffectedDistrict[]>([]);
   const [portSignals, setPortSignals] = useState<PortSignal[]>([]);
   const [capXml, setCapXml] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"hazards" | "infrastructure" | "insurance" | "bulletins" | "broadcast">("hazards");
+  const [activeTab, setActiveTab] = useState<"hazards" | "bulletins" | "broadcast">("hazards");
   const [selectedBulletin, setSelectedBulletin] = useState<Bulletin | null>(null);
   const [filterLevel, setFilterLevel] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -110,6 +111,29 @@ export default function ReportsPage() {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
   };
+
+  useEffect(() => {
+    async function fetchAllCyclones() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/history/search`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setCyclonesList(data.map((c: any) => ({
+              id: c.id,
+              name: c.name.startsWith("Cyclone ") || c.name.startsWith("Deep Depression") || c.name.startsWith("Depression") || c.name.startsWith("Super Cyclone") || c.name.includes("Cyclone") ? c.name : `Cyclone ${c.name}`,
+              basin: c.basin || "Bay of Bengal",
+              category: c.max_category || "Cyclonic Storm",
+              knots: c.knots || (c.max_category?.includes("Super") ? 140 : c.max_category?.includes("Extremely") ? 100 : c.max_category?.includes("Very Severe") ? 80 : c.max_category?.includes("Severe") ? 55 : 35),
+            })));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load full cyclone list in reports", err);
+      }
+    }
+    fetchAllCyclones();
+  }, []);
 
   // Fetch report data from backend with client-side deterministic fallback
   const fetchReportData = async () => {
@@ -146,7 +170,7 @@ export default function ReportsPage() {
       }
     } catch (err) {
       console.warn("Backend report fetch error, using local meteorological synthesizer:", err);
-      const fallbackStorm = PRESET_STORMS.find(s => s.id === selectedCycloneId) || PRESET_STORMS[0];
+      const fallbackStorm = cyclonesList.find(s => s.id === selectedCycloneId) || PRESET_STORMS[0];
       const mockSys: ActiveSystem = {
         id: fallbackStorm.id,
         name: fallbackStorm.name,
@@ -464,14 +488,14 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
         <Bell className="w-12 h-12 opacity-40 text-primary" />
         <p className="text-base font-semibold text-foreground">No Active Meteorological Warning Active</p>
         <p className="text-sm text-muted-foreground max-w-md text-center">North Indian Ocean basin is currently calm with no active cyclonic depressions. Select a storm scenario below to view official bulletins.</p>
-        <div className="flex flex-wrap gap-2 mt-2">
-          {PRESET_STORMS.map((s) => (
+        <div className="flex flex-wrap gap-2 mt-2 max-w-2xl justify-center">
+          {cyclonesList.slice(0, 8).map((s) => (
             <button
               key={s.id}
               onClick={() => selectCyclone(s.id, s.name)}
               className="px-3 py-1.5 rounded-lg bg-secondary/60 hover:bg-secondary border border-border text-xs font-medium text-foreground transition-all"
             >
-              {s.name} ({s.category.split(" ")[0]})
+              {s.name} ({s.category ? s.category.split(" ")[0] : "Storm"})
             </button>
           ))}
         </div>
@@ -489,7 +513,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
   const pressureHpa = 1010 - Math.round(knots * 0.65);
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-12 max-w-7xl mx-auto w-full">
+    <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-12 w-full">
       {/* ── Top Header & Operational Action Bar ────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-6 border-border/80 relative overflow-hidden">
         <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
@@ -524,14 +548,14 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
           <select
             value={selectedCycloneId || system.id}
             onChange={(e) => {
-              const storm = PRESET_STORMS.find(s => s.id === e.target.value);
+              const storm = cyclonesList.find(s => s.id === e.target.value);
               selectCyclone(e.target.value, storm?.name);
             }}
             className="px-3 py-2 bg-secondary/80 hover:bg-secondary border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer transition-colors"
           >
-            {PRESET_STORMS.map((s) => (
+            {cyclonesList.map((s) => (
               <option key={s.id} value={s.id}>
-                {s.name} ({s.category})
+                {s.name} {s.category ? `(${s.category})` : ""}
               </option>
             ))}
           </select>
@@ -614,61 +638,49 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
       </div>
 
       {/* ── Navigation Tabs ────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 border-b border-border/80 pb-3 overflow-x-auto scrollbar-none">
-        <button
-          onClick={() => setActiveTab("hazards")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shrink-0 ${
-            activeTab === "hazards"
-              ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
-          }`}
-        >
-          <ShieldAlert className="w-4 h-4" /> Hazard Matrix & Threats
-        </button>
+      <div className="flex items-center justify-between gap-2 border-b border-border/80 pb-3 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveTab("hazards")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shrink-0 cursor-pointer ${
+              activeTab === "hazards"
+                ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+            }`}
+          >
+            <ShieldAlert className="w-4 h-4" /> Hazard Matrix & Threats
+          </button>
 
-        <button
-          onClick={() => setActiveTab("infrastructure")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shrink-0 ${
-            activeTab === "infrastructure"
-              ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
-          }`}
-        >
-          <Building2 className="w-4 h-4 text-amber-400" /> Infrastructure Exposure
-        </button>
+          <button
+            onClick={() => setActiveTab("bulletins")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shrink-0 cursor-pointer ${
+              activeTab === "bulletins"
+                ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+            }`}
+          >
+            <FileText className="w-4 h-4" /> Official Weather Bulletins ({bulletins.length})
+          </button>
 
-        <button
-          onClick={() => setActiveTab("insurance")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shrink-0 ${
-            activeTab === "insurance"
-              ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
-          }`}
-        >
-          <Coins className="w-4 h-4 text-emerald-400" /> Parametric Insurance & Liquidity
-        </button>
+          <button
+            onClick={() => setActiveTab("broadcast")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shrink-0 cursor-pointer ${
+              activeTab === "broadcast"
+                ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
+            }`}
+          >
+            <Radio className="w-4 h-4 text-red-400 animate-pulse" /> Emergency Broadcast Hub
+          </button>
+        </div>
 
-        <button
-          onClick={() => setActiveTab("bulletins")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shrink-0 ${
-            activeTab === "bulletins"
-              ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
-          }`}
+        <a
+          href={system ? `/infrastructure?cyclone_id=${encodeURIComponent(system.id)}` : "/infrastructure"}
+          className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-secondary/80 hover:bg-secondary border border-border text-xs font-semibold text-foreground transition-all shrink-0 shadow-xs hover:scale-[1.02]"
         >
-          <FileText className="w-4 h-4" /> Official Weather Bulletins ({bulletins.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab("broadcast")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shrink-0 ${
-            activeTab === "broadcast"
-              ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
-          }`}
-        >
-          <Radio className="w-4 h-4 text-red-400 animate-pulse" /> Emergency Broadcast Hub
-        </button>
+          <Building2 className="w-3.5 h-3.5 text-amber-400" />
+          <span>Infrastructure & Resilience →</span>
+        </a>
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
@@ -860,317 +872,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          TAB 2: CRITICAL INFRASTRUCTURE HARDENING & EXPOSURE (TRACK 5)
-         ══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === "infrastructure" && (
-        <div className="space-y-6 animate-in fade-in duration-300">
-          {/* Top Summary Banner */}
-          <div className="glass-card p-6 border-border flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div>
-              <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-amber-400" />
-                Critical Infrastructure Exposure & Resilience Matrix
-              </h3>
-              <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
-                Pre-landfall exposure analysis for high-voltage power transmission grids, arterial evacuation highways, and multipurpose cyclone shelters across coastal districts.
-              </p>
-            </div>
-            <div className="flex items-center gap-3 font-mono text-xs">
-              <span className="px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">
-                ⚡ 9 Key Power Grids
-              </span>
-              <span className="px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">
-                🛣️ 3 Evacuation Arterials
-              </span>
-              <span className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
-                🏥 7 Relief Shelter Hubs
-              </span>
-            </div>
-          </div>
-
-          {/* 1. Power Grid Transmission Substations */}
-          <div className="glass-card p-6 border-border">
-            <h4 className="text-sm font-bold text-foreground flex items-center gap-2 mb-3">
-              <Zap className="w-4 h-4 text-amber-400" />
-              Power Transmission Grid Substations (Flood & Wind Vulnerability)
-            </h4>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-border/80 text-muted-foreground uppercase font-semibold text-[11px]">
-                    <th className="pb-3 pl-2">Grid Substation</th>
-                    <th className="pb-3">Type & Capacity</th>
-                    <th className="pb-3">Elevation & Coastal Dist.</th>
-                    <th className="pb-3">Region</th>
-                    <th className="pb-3 text-right pr-2">Criticality & Hardening Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40 font-mono">
-                  {POWER_SUBSTATIONS.map((sub, i) => (
-                    <tr key={i} className="hover:bg-secondary/30 transition-colors">
-                      <td className="py-3 pl-2 font-sans font-bold text-foreground">
-                        {sub.name}
-                      </td>
-                      <td className="py-3">
-                        <span className="text-foreground">{sub.type}</span>
-                        <span className="text-muted-foreground block text-[10px]">Capacity: {sub.capacityMVA} MVA</span>
-                      </td>
-                      <td className="py-3 text-muted-foreground">
-                        <span>{sub.coastalDistanceKm} km from coast</span>
-                        <span className="block text-[10px] text-foreground">Elev: {sub.elevationMeters}m MSL</span>
-                      </td>
-                      <td className="py-3 font-sans text-muted-foreground">{sub.region}</td>
-                      <td className="py-3 text-right pr-2 font-sans">
-                        <span className={`px-2 py-0.5 rounded text-[10.5px] font-bold ${
-                          sub.criticality === "Extreme" ? "bg-red-500/15 text-red-400 border border-red-500/30" :
-                          sub.criticality === "High" ? "bg-amber-500/15 text-amber-400 border border-amber-500/30" :
-                          "bg-blue-500/15 text-blue-400 border border-blue-500/30"
-                        }`}>
-                          {sub.criticality} Risk • Flood Barriers Staged
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* 2. Arterial Evacuation Routes & Road Cutoffs */}
-          <div className="glass-card p-6 border-border">
-            <h4 className="text-sm font-bold text-foreground flex items-center gap-2 mb-3">
-              <Navigation className="w-4 h-4 text-blue-400" />
-              Arterial Coastal Highways & Inundation Cutoff Hazards
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {EVACUATION_ROUTES.map((route, i) => (
-                <div key={i} className="p-4 rounded-xl bg-secondary/30 border border-border space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="px-2 py-0.5 rounded text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30 font-mono">
-                      {route.highwayCode}
-                    </span>
-                    <span className={`text-[10.5px] font-bold ${route.floodRiskLevel.includes("Severe") ? "text-red-400" : "text-emerald-400"}`}>
-                      {route.floodRiskLevel}
-                    </span>
-                  </div>
-                  <p className="font-bold text-xs text-foreground leading-snug">{route.name}</p>
-                  <div className="text-[11px] text-muted-foreground flex justify-between pt-1 border-t border-border/40">
-                    <span>Priority: <strong className="text-foreground">{route.evacuationPriority.split(" ")[0]}</strong></span>
-                    <span>Avg Elevation: <strong className="text-foreground">{route.elevationAvgM}m</strong></span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 3. Medical Cyclone Shelters */}
-          <div className="glass-card p-6 border-border">
-            <h4 className="text-sm font-bold text-foreground flex items-center gap-2 mb-3">
-              <Building2 className="w-4 h-4 text-emerald-400" />
-              Multipurpose Cyclone Shelters & Emergency Hospital Trauma Centers
-            </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {MEDICAL_SHELTERS.map((shl, i) => (
-                <div key={i} className="p-4 rounded-xl bg-secondary/30 border border-border space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-foreground truncate pr-2">{shl.name}</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shrink-0">
-                      {shl.status.split(" ")[0]}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-1">
-                    <div className="bg-background/60 p-2 rounded border border-border/50">
-                      <span className="text-[10px] text-muted-foreground block">Capacity</span>
-                      <span className="font-bold text-foreground">{shl.capacityPersons.toLocaleString()} p</span>
-                    </div>
-                    <div className="bg-background/60 p-2 rounded border border-border/50">
-                      <span className="text-[10px] text-muted-foreground block">Medical Beds</span>
-                      <span className="font-bold text-foreground">{shl.medicalBeds} Beds</span>
-                    </div>
-                  </div>
-                  <p className="text-[10.5px] text-muted-foreground pt-1 flex items-center justify-between">
-                    <span>Diesel Backup: {shl.generatorBackup ? "✅ Staged" : "❌"}</span>
-                    <span>Sat Comms: {shl.satelliteComms ? "✅ Active" : "❌"}</span>
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          TAB 3: PARAMETRIC INSURANCE & ANTICIPATORY LIQUIDITY (TRACK 5)
-         ══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === "insurance" && (
-        <div className="space-y-6 animate-in fade-in duration-300">
-          {/* Header Banner */}
-          <div className="glass-card p-6 border-border flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase font-mono">
-                  Smart Contract Parametric Trigger
-                </span>
-                <span className="text-xs font-mono text-muted-foreground">Auto-Execution Engine</span>
-              </div>
-              <h3 className="text-xl font-bold text-foreground mt-1">
-                Anticipatory Action & Parametric Insurance Liquidity Pool
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5 max-w-3xl">
-                Shifting disaster financing from delayed post-disaster reconstruction to <strong>pre-landfall anticipatory liquidity</strong> release (T-24h to T-12h), enabling municipal authorities to execute emergency evacuations and asset hardening.
-              </p>
-            </div>
-            <div className="bg-emerald-500/10 border border-emerald-500/30 p-3.5 rounded-xl text-right shrink-0">
-              <span className="text-xs text-muted-foreground uppercase font-mono block">Total Regional Liquidity Pool</span>
-              <span className="text-2xl font-mono font-black text-emerald-400">₹455 Crore ($55M USD)</span>
-            </div>
-          </div>
-
-          {/* 3 Parametric Trigger Tiers */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {PARAMETRIC_INSURANCE_TRIGGERS.map((tier, i) => {
-              const isTriggered = knots >= tier.windThresholdKnots || surgeM >= tier.surgeThresholdMeters;
-              return (
-                <div 
-                  key={i} 
-                  className={`glass-card p-5 border-2 transition-all space-y-4 ${
-                    isTriggered 
-                      ? "border-emerald-500 bg-emerald-500/5 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-500/30" 
-                      : "border-border bg-secondary/20"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-sm text-foreground">{tier.tier}</span>
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                      isTriggered ? "bg-emerald-500 text-white animate-pulse" : "bg-secondary text-muted-foreground"
-                    }`}>
-                      {isTriggered ? "TRIGGER MET" : "STANDBY"}
-                    </span>
-                  </div>
-
-                  <div className="space-y-1.5 text-xs font-mono">
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Wind Threshold:</span>
-                      <strong className="text-foreground">&ge; {tier.windThresholdKnots} KT ({Math.round(tier.windThresholdKnots * 1.852)} km/h)</strong>
-                    </div>
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Surge Threshold:</span>
-                      <strong className="text-foreground">&ge; {tier.surgeThresholdMeters}m Tide</strong>
-                    </div>
-                    <div className="flex justify-between text-muted-foreground">
-                      <span>Payout Rate:</span>
-                      <strong className="text-emerald-400">{tier.payoutPercentage}% of Pool</strong>
-                    </div>
-                  </div>
-
-                  <div className="p-2.5 rounded-lg bg-background/60 border border-border/60 text-[11px] text-muted-foreground space-y-1">
-                    <p className="font-bold text-foreground flex items-center gap-1">
-                      <Coins className="w-3.5 h-3.5 text-primary" /> {tier.totalPoolFunded}
-                    </p>
-                    <p className="line-clamp-2">{tier.targetBeneficiaries}</p>
-                    <p className="text-primary font-mono text-[10px] pt-1 border-t border-border/40">
-                      Disbursement: {tier.disbursementWindow}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Interactive Payout Simulator */}
-          <div className="glass-card p-6 border-border space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
-              <div>
-                <h4 className="text-base font-bold text-foreground flex items-center gap-2">
-                  <Landmark className="w-4 h-4 text-emerald-400" />
-                  Parametric Pre-Landfall Liquidity Disbursement Simulator
-                </h4>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Test and execute simulated algorithmic smart-contract liquidity transfers to local disaster relief treasuries.
-                </p>
-              </div>
-              <span className="text-xs font-mono bg-secondary px-2.5 py-1 rounded text-foreground">
-                Current Storm Peak: {knots} KT / {surgeM}m Surge
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-              <div className="space-y-3">
-                <label className="text-xs font-semibold text-foreground uppercase tracking-wider block">
-                  Select Simulation Trigger Tier:
-                </label>
-                <div className="flex flex-col gap-2">
-                  {PARAMETRIC_INSURANCE_TRIGGERS.map((tier, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        setInsuranceSimulationTier(idx);
-                        setPayoutSuccess(false);
-                      }}
-                      className={`p-3 rounded-xl border text-left text-xs font-medium transition-all ${
-                        insuranceSimulationTier === idx 
-                          ? "bg-emerald-500/15 border-emerald-500 text-foreground ring-1 ring-emerald-500/30 font-bold" 
-                          : "bg-secondary/30 border-border text-muted-foreground hover:bg-secondary/50"
-                      }`}
-                    >
-                      <div className="flex justify-between items-center">
-                        <span>{tier.tier} (&ge; {tier.windThresholdKnots} KT)</span>
-                        <span className="font-mono text-emerald-400 font-bold">{tier.totalPoolFunded}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
-                <button
-                  onClick={handleSimulateParametricPayout}
-                  disabled={isSimulatingPayout}
-                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  {isSimulatingPayout ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" /> Verifying Satellite Index & Releasing Liquidity...
-                    </>
-                  ) : (
-                    <>
-                      <Coins className="w-4 h-4" /> Trigger Automated Pre-Landfall Payout
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Simulation Receipt Terminal */}
-              <div className="p-5 rounded-xl bg-zinc-950/90 border border-border text-xs font-mono space-y-3 min-h-[180px] flex flex-col justify-center">
-                {payoutSuccess ? (
-                  <div className="space-y-2 text-emerald-400 animate-in fade-in">
-                    <p className="font-bold flex items-center gap-1.5 text-sm">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      Parametric Liquidity Successfully Disbursed!
-                    </p>
-                    <p className="text-zinc-300 text-[11.5px]">
-                      Disbursed Amount: <strong>{PARAMETRIC_INSURANCE_TRIGGERS[insuranceSimulationTier].totalPoolFunded}</strong> (100% Digital Release)
-                    </p>
-                    <p className="text-muted-foreground text-[11px]">
-                      Trigger Index: Satellite Scatterometer &ge; {PARAMETRIC_INSURANCE_TRIGGERS[insuranceSimulationTier].windThresholdKnots} KT confirmed over Bay of Bengal basin.
-                    </p>
-                    <p className="text-emerald-300 text-[10.5px] border-t border-zinc-800 pt-2">
-                      Beneficiary Accounts: SDRF Coastal Evacuation Fund, AP/Odisha Municipal Food Banks & Power Grid Restoration Contractors.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="text-muted-foreground text-center space-y-1">
-                    <Coins className="w-8 h-8 mx-auto opacity-30 text-emerald-400" />
-                    <p>Ready to simulate algorithmic pre-landfall parametric liquidity release.</p>
-                    <p className="text-[10.5px]">Click &quot;Trigger Automated Pre-Landfall Payout&quot; to execute.</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          TAB 4: OFFICIAL METEOROLOGICAL BULLETINS (RSMC / IMD)
+          TAB 2: OFFICIAL METEOROLOGICAL BULLETINS (RSMC / IMD)
          ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === "bulletins" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in duration-300">

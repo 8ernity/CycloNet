@@ -22,8 +22,10 @@ export function Header() {
       case "/dashboard": return "Live Monitoring";
       case "/classification": return "Classification";
       case "/archive": return "Historical Archive";
+      case "/compare": return "Storm Comparison";
       case "/forecast": return "Track Forecast";
       case "/reports": return "Alerts & Reports";
+      case "/infrastructure": return "Infrastructure & Relief";
       case "/settings": return "Settings";
       default: return "Dashboard";
     }

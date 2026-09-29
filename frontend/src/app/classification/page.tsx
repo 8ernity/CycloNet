@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
-import { Upload, ImageIcon, Scan, CheckCircle2, ShieldAlert, Loader2, Activity } from "lucide-react";
+import { Upload, ImageIcon, Scan, CheckCircle2, ShieldAlert, Loader2, Activity, Sparkles, Cpu, Compass, Wind } from "lucide-react";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
 import { API_BASE_URL } from "@/lib/api";
@@ -13,6 +13,8 @@ export default function ClassificationPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [geminiResult, setGeminiResult] = useState<any>(null);
+  const [analysisMode, setAnalysisMode] = useState<"dual" | "resnet" | "gemini">("dual");
   const [selectedFrame, setSelectedFrame] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -24,6 +26,7 @@ export default function ClassificationPage() {
           setFile(pastedFile);
           setPreviewUrl(URL.createObjectURL(pastedFile));
           setResult(null);
+          setGeminiResult(null);
           setSelectedFrame(null);
           await analyzeImage(pastedFile);
         }
@@ -39,6 +42,7 @@ export default function ClassificationPage() {
       setFile(selectedFile);
       setPreviewUrl(URL.createObjectURL(selectedFile));
       setResult(null);
+      setGeminiResult(null);
       setSelectedFrame(null);
       await analyzeImage(selectedFile);
     }
@@ -50,17 +54,23 @@ export default function ClassificationPage() {
       const formData = new FormData();
       formData.append("file", imageFile);
 
-      const response = await fetch(`${API_BASE_URL}/api/classify`, {
-        method: "POST",
-        body: formData,
-      });
-      
-      if (!response.ok) throw new Error("API failed");
-      const data = await response.json();
-      setResult(data.prediction);
+      // Run ResNet-50 and Gemini 3.7 Flash in parallel
+      const [resnetPromise, geminiPromise] = await Promise.allSettled([
+        fetch(`${API_BASE_URL}/api/classify`, { method: "POST", body: formData }),
+        fetch(`${API_BASE_URL}/api/ai/analyze-multimodal`, { method: "POST", body: formData })
+      ]);
+
+      if (resnetPromise.status === "fulfilled" && resnetPromise.value.ok) {
+        const data = await resnetPromise.value.json();
+        setResult(data.prediction);
+      }
+
+      if (geminiPromise.status === "fulfilled" && geminiPromise.value.ok) {
+        const data = await geminiPromise.value.json();
+        setGeminiResult(data.analysis);
+      }
     } catch (err) {
       console.error(err);
-      // Fallback or show error
     } finally {
       setAnalyzing(false);
     }
@@ -167,50 +177,55 @@ export default function ClassificationPage() {
         <div className="glass-card p-6 flex flex-col relative overflow-hidden">
           {result && <div className="absolute -top-40 -right-40 w-96 h-96 bg-destructive/10 blur-[100px] rounded-full pointer-events-none" />}
           
-          <div className="flex items-center justify-between border-b border-border pb-4 mb-6">
+          <div className="flex items-center justify-between border-b border-border pb-4 mb-4 flex-wrap gap-2">
             <h3 className="font-heading font-semibold text-lg flex items-center gap-2">
               <Scan className="w-5 h-5 text-primary" />
-              Analysis Results
+              AI Intensity & Multimodal Analysis
             </h3>
-            {analyzing ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 text-xs font-semibold">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Analyzing...
-              </span>
-            ) : result ? (
-              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${result.is_cyclone === false ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'}`}>
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                Analysis Complete
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary text-muted-foreground border border-border text-xs font-semibold">
-                Awaiting Upload
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {analyzing ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20 text-xs font-semibold">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Analyzing...
+                </span>
+              ) : (result || geminiResult) ? (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Inference Complete
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary text-muted-foreground border border-border text-xs font-semibold">
+                  Awaiting Upload
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6 mb-8">
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">{sourceBadge.shortLabel} Classification</p>
-              <div className="flex items-center gap-2">
-                <ShieldAlert className={result?.is_cyclone === false ? "w-5 h-5 text-emerald-500" : result ? "w-5 h-5 text-destructive" : "w-5 h-5 text-muted-foreground/30"} />
-                <span className={`text-xl font-bold ${result?.is_cyclone === false ? "text-emerald-500" : result ? "text-foreground" : "text-muted-foreground"}`}>
-                  {result ? result.category_short : "--"}
-                </span>
-              </div>
-              <p className={`text-xs mt-1 font-medium min-h-[16px] ${result?.is_cyclone === false ? "text-emerald-400" : "text-destructive"}`}>
-                {result ? result.category : ""}
+          {/* Dual AI Engine Badges */}
+          <div className="grid grid-cols-2 gap-4 mb-5">
+            <div className="p-3.5 rounded-xl bg-secondary/40 border border-border space-y-1">
+              <p className="text-[11px] text-muted-foreground font-medium flex items-center justify-between">
+                <span>ResNet-50 Dvorak Model</span>
+                <span className="font-mono text-emerald-400 font-bold">{result ? `${result.confidence}% Conf` : "--"}</span>
+              </p>
+              <p className="text-base font-bold text-foreground truncate">
+                {result ? result.category : "Awaiting Frame"}
               </p>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground mb-1">Model Confidence</p>
-              <span className={`text-3xl font-bold ${result?.is_cyclone === false ? "text-emerald-400" : result ? "text-primary" : "text-muted-foreground"}`}>
-                {result ? `${result.confidence}%` : "--%"}
-              </span>
+
+            <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/30 space-y-1">
+              <p className="text-[11px] text-primary font-medium flex items-center justify-between">
+                <span className="flex items-center gap-1"><Sparkles className="w-3 h-3" /> Gemini 3.7 Flash</span>
+                <span className="font-mono text-primary font-bold">{geminiResult ? `T${geminiResult.dvorak_t_number}` : "--"}</span>
+              </p>
+              <p className="text-base font-bold text-foreground truncate">
+                {geminiResult ? geminiResult.category : "Multimodal Vision"}
+              </p>
             </div>
           </div>
 
-          <div className="flex-1 min-h-[300px] bg-secondary/30 rounded-xl border border-border relative overflow-hidden flex items-center justify-center group">
+          {/* Grad-CAM & Satellite Image Viewport */}
+          <div className="h-[240px] bg-secondary/30 rounded-xl border border-border relative overflow-hidden flex items-center justify-center group mb-4">
              {previewUrl ? (
                 <img src={previewUrl} className="absolute inset-0 w-full h-full object-cover opacity-80" alt="Analyzed" />
              ) : (
@@ -219,33 +234,58 @@ export default function ClassificationPage() {
              
              {result && result.is_cyclone !== false && (
                 <>
-                 <div className="absolute top-4 left-4 z-10 bg-black/50 backdrop-blur px-3 py-1.5 rounded-md border border-white/10 text-xs text-white/80">
-                   Grad-CAM Explainability Overlay
+                 <div className="absolute top-3 left-3 z-10 bg-black/60 backdrop-blur px-2.5 py-1 rounded-md border border-white/10 text-[11px] text-white/90">
+                   Grad-CAM Heatmap Overlay
                  </div>
-                 <div className="absolute w-64 h-64 mix-blend-screen opacity-80" style={{
+                 <div className="absolute w-56 h-56 mix-blend-screen opacity-80" style={{
                     background: 'radial-gradient(circle, rgba(255,0,0,0.8) 0%, rgba(255,165,0,0.6) 20%, rgba(255,255,0,0.4) 40%, rgba(0,255,255,0.2) 60%, transparent 80%)',
                     filter: 'blur(15px)'
                  }} />
-                 <div className="absolute bottom-4 right-4 flex items-center gap-2 bg-black/50 backdrop-blur px-3 py-1.5 rounded-md border border-white/10">
+                 <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-black/60 backdrop-blur px-2.5 py-1 rounded-md border border-white/10">
                     <span className="text-[10px] text-white/60 uppercase">Low</span>
-                    <div className="w-24 h-2 rounded-full bg-gradient-to-r from-cyan-500 via-yellow-400 to-red-500" />
+                    <div className="w-20 h-1.5 rounded-full bg-gradient-to-r from-cyan-500 via-yellow-400 to-red-500" />
                     <span className="text-[10px] text-white/60 uppercase">High</span>
                  </div>
                 </>
              )}
-             {result && result.is_cyclone === false && (
-                <div className="absolute top-4 left-4 z-10 bg-emerald-950/90 border border-emerald-500/40 backdrop-blur px-3 py-1.5 rounded-md text-xs text-emerald-300 font-medium shadow-lg">
-                  Non-Cyclone Image (No Heatmap Applied)
-                </div>
-             )}
           </div>
 
-          <div className="mt-6 flex justify-end gap-3">
-             <button disabled={!result} className="disabled:opacity-50 px-4 py-2 rounded-lg border border-border bg-secondary/30 hover:bg-secondary text-sm font-medium transition-colors">
-                Export Report
+          {/* Gemini 3.7 Flash Multimodal Diagnostic Breakdown */}
+          {geminiResult && (
+            <div className="p-4 rounded-xl bg-secondary/30 border border-border space-y-3 mb-4 animate-in fade-in text-xs">
+              <h4 className="font-bold text-foreground flex items-center gap-1.5 text-xs">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+                Gemini 3.7 Flash Multimodal Satellite Diagnostics
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[11px]">
+                <div className="p-2 rounded-lg bg-background/60 border border-border/50">
+                  <span className="text-muted-foreground block">Eye Structure:</span>
+                  <strong className="text-foreground font-medium">{geminiResult.eye_characterization}</strong>
+                </div>
+                <div className="p-2 rounded-lg bg-background/60 border border-border/50">
+                  <span className="text-muted-foreground block">Convective Signature:</span>
+                  <strong className="text-foreground font-medium">{geminiResult.convective_signature}</strong>
+                </div>
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-primary/10 border border-primary/20 text-[11px] text-foreground space-y-1">
+                <span className="font-semibold text-primary block">Recommended Operational Action:</span>
+                <ul className="list-disc list-inside space-y-0.5 text-muted-foreground">
+                  {geminiResult.recommended_actions?.map((act: string, idx: number) => (
+                    <li key={idx} className="text-zinc-200">{act}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3">
+             <button disabled={!result && !geminiResult} className="disabled:opacity-50 px-4 py-2 rounded-lg border border-border bg-secondary/30 hover:bg-secondary text-xs font-semibold transition-colors">
+                Export Analysis
              </button>
-             <button disabled={!result} className="disabled:opacity-50 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25">
-                Confirm & Log
+             <button disabled={!result && !geminiResult} className="disabled:opacity-50 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors shadow-lg shadow-primary/25">
+                Confirm & Log to Archive
              </button>
           </div>
         </div>

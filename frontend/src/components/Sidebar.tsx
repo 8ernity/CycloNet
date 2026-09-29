@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, UploadCloud, History, FileText, Settings, Wind, LogOut, GitCompare } from "lucide-react";
+import { Activity, UploadCloud, History, FileText, Settings, Wind, LogOut, GitCompare, Building2 } from "lucide-react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { CycloneLogo } from "@/components/CycloneLogo";
@@ -15,7 +15,6 @@ function cn(...inputs: ClassValue[]) {
 }
 
 import { useLanguage } from "@/context/LanguageContext";
-import { LanguageSelector } from "@/components/LanguageSelector";
 
 const navItems = [
   { key: "live_monitoring", name: "Live Monitoring", href: "/dashboard", icon: Activity },
@@ -24,6 +23,7 @@ const navItems = [
   { key: "storm_comparison", name: "Storm Comparison", href: "/compare", icon: GitCompare },
   { key: "track_forecast", name: "Track Forecast", href: "/forecast", icon: Wind },
   { key: "alerts_reports", name: "Alerts & Reports", href: "/reports", icon: FileText },
+  { key: "infrastructure_relief", name: "Infrastructure & Relief", href: "/infrastructure", icon: Building2 },
   { key: "settings", name: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -87,10 +87,6 @@ export function Sidebar() {
             CycloNet
           </span>
         </Link>
-      </div>
-
-      <div className="px-4 pb-2">
-        <LanguageSelector />
       </div>
 
       <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto scrollbar-hide">

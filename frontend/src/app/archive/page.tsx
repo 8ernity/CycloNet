@@ -634,7 +634,11 @@ export default function ArchivePage() {
             </button>
             <button
               onClick={() => {
-                window.location.href = `/?simulate=${encodeURIComponent(selectedCyclone.id)}`;
+                if (typeof window !== "undefined") {
+                  localStorage.setItem("cyclonet_selected_cyclone_id", selectedCyclone.id);
+                  localStorage.setItem("cyclonet_selected_cyclone_name", selectedCyclone.name);
+                }
+                window.location.href = `/dashboard?simulate=true&cyclone_id=${encodeURIComponent(selectedCyclone.id)}`;
               }}
               className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs transition-all shadow-md shadow-emerald-500/25 hover:scale-[1.02] cursor-pointer whitespace-nowrap"
             >

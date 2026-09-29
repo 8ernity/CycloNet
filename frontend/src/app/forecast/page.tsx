@@ -437,13 +437,13 @@ export default function ForecastPage() {
 
           <div className="flex items-center gap-2.5 shrink-0">
             <a
-              href={`/reports?tab=infrastructure&cyclone_id=${encodeURIComponent(system.id)}`}
+              href={`/infrastructure?tab=grid&cyclone_id=${encodeURIComponent(system.id)}`}
               className="px-3 py-1.5 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-xs font-semibold text-foreground transition-all flex items-center gap-1.5 shadow-xs"
             >
               <span>⚡ Infrastructure Grid</span>
             </a>
             <a
-              href={`/reports?tab=insurance&cyclone_id=${encodeURIComponent(system.id)}`}
+              href={`/infrastructure?tab=insurance&cyclone_id=${encodeURIComponent(system.id)}`}
               className="px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs"
             >
               <span>🏛️ Parametric Liquidity</span>

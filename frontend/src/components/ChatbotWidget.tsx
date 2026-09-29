@@ -36,36 +36,36 @@ interface Message {
 
 const FEATURE_CARDS = [
   {
-    title: "Tropical Cyclogenesis",
-    desc: "Track and understand cyclone formation",
-    icon: Cloud,
+    title: "Pre-Landfall Risk Briefing",
+    desc: "Generate municipal operational memo",
+    icon: Sparkles,
     color: "blue",
     iconBg: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    query: "Explain tropical cyclogenesis: how warm sea surface temperatures, low vertical wind shear, and Coriolis force trigger cyclone formation in the North Indian Ocean."
+    query: "Generate a comprehensive pre-landfall vulnerability briefing for the active cyclone on my screen, including storm surge height, 400kV power grid risks, evacuation choke points, and shelter readiness."
   },
   {
-    title: "Dvorak T-number",
-    desc: "Estimate cyclone intensity",
+    title: "Hydrodynamic Storm Surge",
+    desc: "SLOSH physics & compound flooding",
+    icon: Cloud,
+    color: "cyan",
+    iconBg: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+    query: "Explain the hydrodynamic physics of storm surge in the Bay of Bengal: how the inverted barometer effect, shallow shelf bathymetry, and astronomical high tide combine to cause coastal inundation."
+  },
+  {
+    title: "Dvorak & Multimodal Vision",
+    desc: "Estimate intensity from satellite frames",
     icon: Satellite,
     color: "rose",
     iconBg: "bg-rose-500/20 text-rose-400 border-rose-500/30",
-    query: "How does the Dvorak technique estimate tropical cyclone intensity and T-numbers from INSAT-3D satellite cloud patterns?"
+    query: "How does Gemini 3.7 Flash perform multimodal visual analysis on INSAT-3DR infrared satellite frames to calculate Dvorak T-numbers and convective cloud top temperatures?"
   },
   {
-    title: "IMD & Saffir-Simpson",
-    desc: "Compare and interpret scales",
-    icon: BarChart3,
-    color: "purple",
-    iconBg: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-    query: "Compare the IMD 3-minute sustained wind classification (Depression to Super Cyclone) with the Saffir-Simpson Hurricane Wind Scale."
-  },
-  {
-    title: "Disaster Safety",
-    desc: "Stay informed and prepared",
+    title: "Parametric Liquidity & Safety",
+    desc: "Anticipatory cash transfers & evacuation",
     icon: ShieldCheck,
     color: "emerald",
     iconBg: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    query: "What are the essential disaster safety protocols, coastal evacuation guidelines, and emergency precautions during an active cyclone warning?"
+    query: "How do parametric disaster insurance smart contracts work with satellite wind speed triggers to release emergency liquidity before cyclone landfall?"
   }
 ];
 
@@ -548,9 +548,12 @@ export function ChatbotWidget() {
                   <CycloneLogo size={32} />
                 </div>
                 <div>
-                  <h3 className="font-heading font-bold text-sm text-white tracking-tight">CycloNet AI</h3>
+                  <h3 className="font-heading font-bold text-sm text-white tracking-tight flex items-center gap-1.5">
+                    <span>CycloNet AI</span>
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-primary/20 text-primary border border-primary/30">3.7 Flash</span>
+                  </h3>
                   <p className="text-[11px] text-zinc-400">
-                    Meteorological Intelligence
+                    Multimodal Meteorological Intelligence
                   </p>
                 </div>
               </div>

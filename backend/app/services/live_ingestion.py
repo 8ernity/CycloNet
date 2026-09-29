@@ -429,15 +429,21 @@ class LiveIngestionService:
 
     def _persist_to_database(self, system: Dict[str, Any]):
         """
-        Saves discovered active cyclone to SQLite database catalog.
+        Saves discovered active cyclone to SQLite database catalog if not already tracked.
         """
         try:
             db: Session = SessionLocal()
             sys_id = system["id"]
-            existing = db.query(CycloneArchive).filter_by(id=sys_id).first()
+            clean_name = system.get("name", "").strip()
             current_year = datetime.datetime.utcnow().year
             
-            if not existing:
+            # Check for existing record by exact ID or matching name in current year
+            existing = db.query(CycloneArchive).filter(
+                (CycloneArchive.id == sys_id) |
+                ((CycloneArchive.name.ilike(f"%{clean_name}%")) & (CycloneArchive.year == current_year))
+            ).first()
+            
+            if not existing and clean_name:
                 db.add(CycloneArchive(
                     id=sys_id,
                     name=system["name"],

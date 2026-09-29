@@ -28,6 +28,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     storm_comparison: "Storm Comparison",
     track_forecast: "Track Forecast",
     alerts_reports: "Alerts & Reports",
+    infrastructure_relief: "Infrastructure & Relief",
     settings: "Settings",
 
     // Alert Levels
@@ -61,6 +62,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     storm_comparison: "तूफान तुलना",
     track_forecast: "मार्ग पूर्वानुमान",
     alerts_reports: "चेतावनी एवं रिपोर्ट",
+    infrastructure_relief: "बुनियादी ढांचा एवं राहत",
     settings: "सेटिंग्स",
 
     // Alert Levels
@@ -94,6 +96,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     storm_comparison: "ବାତ୍ୟା ତୁଳନା",
     track_forecast: "ପଥ ପୂର୍ବାନୁମାନ",
     alerts_reports: "ଚେତାବନୀ ଓ ରିପୋର୍ଟ",
+    infrastructure_relief: "ଭିତ୍ତିଭୂମି ଓ ରିଲିଫ୍",
     settings: "ସେଟିଂସ୍",
 
     // Alert Levels
@@ -127,6 +130,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     storm_comparison: "ঝড় তুলনা",
     track_forecast: "গতিপথ পূর্বাভাস",
     alerts_reports: "সতর্কবার্তা ও রিপোর্ট",
+    infrastructure_relief: "পরিকাঠামো ও ত্রাণ",
     settings: "সেটিংস",
 
     // Alert Levels
@@ -160,6 +164,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     storm_comparison: "తుఫానుల పోలిక",
     track_forecast: "మార్గ సూచన",
     alerts_reports: "హెచ్చరికలు & నివేదికలు",
+    infrastructure_relief: "మౌలిక సదుపాయాలు & ఉపశమనం",
     settings: "సెట్టింగులు",
 
     // Alert Levels
@@ -193,6 +198,7 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
     storm_comparison: "புயல்கள் ஒப்பீடு",
     track_forecast: "பாதை முன்னறிவிப்பு",
     alerts_reports: "எச்சரிக்கைகள் & அறிக்கைகள்",
+    infrastructure_relief: "உள்கட்டமைப்பு மற்றும் நிவாரணம்",
     settings: "அமைப்புகள்",
 
     // Alert Levels

@@ -5,6 +5,9 @@ from sqlalchemy.orm import Session
 
 from app.services.ml_service import ml_service
 from app.services.chat_service import chat_service
+from app.services.gee_service import gee_service
+from app.services.surge_service import surge_service
+from app.services.report_service import report_service
 from app.services.best_tracks import get_cyclone_trajectory
 from app.services.live_ingestion import live_ingestion_service
 from app.core.database import get_db
@@ -314,4 +317,113 @@ async def broadcast_emergency_alert(req: BroadcastRequest, db: Session = Depends
     except Exception:
         pass
     return dispatch_result
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Track 5: Google Earth Engine (GEE) & Satellite Feeds Endpoints
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/gee/layers")
+async def get_gee_layers():
+    """Returns catalogue of Google Earth Engine (GEE) multispectral observation layers."""
+    return {
+        "status": "success",
+        "gee_project": gee_service.gee_project_id,
+        "is_cloud_initialized": gee_service.is_initialized,
+        "layers": gee_service.get_available_layers()
+    }
+
+@router.get("/gee/flood-inundation")
+async def get_gee_flood_inundation(lat: float = 18.2, lon: float = 84.8, knots: int = 85):
+    """Generates Sentinel-1 SAR synthetic aperture radar coastal flood extent GeoJSON."""
+    return gee_service.get_flood_inundation_zones(lat, lon, knots)
+
+@router.get("/gee/rainfall-pathways")
+async def get_gee_rainfall_pathways(lat: float = 18.2, lon: float = 84.8, rain_mm: float = 280.0):
+    """Generates DEM catchment rainfall damage pathways and infrastructure choke points."""
+    return {
+        "status": "success",
+        "center": [lat, lon],
+        "rain_accumulation_mm": rain_mm,
+        "pathways": gee_service.get_catchment_rainfall_pathways(lat, lon, rain_mm)
+    }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Track 5: Hydrodynamic Storm Surge & Compound Flooding Simulator Endpoints
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/surge/calculate")
+async def calculate_storm_surge(
+    knots: float = 85.0,
+    pressure_hpa: float = 965.0,
+    forward_speed: float = 18.0,
+    angle_deg: float = 75.0,
+    tide_m: float = 1.2,
+    basin: str = "Bay of Bengal"
+):
+    """Calculates peak hydrodynamic storm surge and inland inundation using the SLOSH formulation."""
+    return surge_service.calculate_surge(
+        intensity_knots=knots,
+        central_pressure_hpa=pressure_hpa,
+        forward_speed_kmh=forward_speed,
+        approach_angle_deg=angle_deg,
+        astronomical_tide_m=tide_m,
+        basin=basin
+    )
+
+@router.get("/surge/profile")
+async def get_coastal_surge_profile(
+    name: str = "Cyclone",
+    lat: float = 18.2,
+    lon: float = 84.8,
+    knots: int = 85
+):
+    """Generates quadrant-by-quadrant coastal surge profiles and critical asset risk ratings."""
+    return {
+        "status": "success",
+        "cyclone_name": name,
+        "sectors": surge_service.generate_coastal_surge_profile(name, lat, lon, knots)
+    }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Track 5: Gemini 3.7 Flash Multimodal AI & Pre-Landfall Briefings
+# ─────────────────────────────────────────────────────────────────────────────
+
+class BriefingRequest(BaseModel):
+    storm_data: Dict[str, Any]
+    infrastructure_data: Optional[Dict[str, Any]] = None
+    language: str = "en"
+
+@router.post("/ai/analyze-multimodal")
+async def analyze_multimodal_satellite(
+    file: UploadFile = File(...),
+    prompt: Optional[str] = None
+):
+    """Performs multimodal Dvorak and convective structural analysis using Gemini 3.7 Flash."""
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Uploaded file must be a satellite/radar image")
+    
+    image_bytes = await file.read()
+    analysis = chat_service.analyze_satellite_image(
+        image_bytes=image_bytes,
+        mime_type=file.content_type,
+        prompt=prompt
+    )
+    return {
+        "status": "success",
+        "filename": file.filename,
+        "analysis": analysis
+    }
+
+@router.post("/ai/pre-landfall-briefing")
+async def generate_pre_landfall_briefing(req: BriefingRequest):
+    """Generates an authoritative executive pre-landfall briefing for disaster magistrates."""
+    briefing = chat_service.generate_pre_landfall_briefing(
+        storm_data=req.storm_data,
+        infrastructure_data=req.infrastructure_data or {},
+        language=req.language
+    )
+    return {
+        "status": "success",
+        "briefing": briefing
+    }
 

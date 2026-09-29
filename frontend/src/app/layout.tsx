@@ -8,7 +8,6 @@ import { BackendWarmup } from "@/components/BackendWarmup";
 import { ClerkProvider } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { LanguageProvider } from "@/context/LanguageContext";
-import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -74,7 +73,6 @@ export default function RootLayout({
           >
             <LanguageProvider>
               <BackendWarmup />
-              <PWAInstallPrompt />
               <AppShell>{children}</AppShell>
               <Script src="/liquid-glass.js" strategy="beforeInteractive" />
             </LanguageProvider>

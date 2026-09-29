@@ -482,50 +482,6 @@ export default function DashboardLiveMonitoringPage() {
         </div>
       </div>
 
-      {/* Landfall & Infrastructure Impact Alert Banner */}
-      {activeSystem && (
-        <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm animate-in fade-in duration-300">
-          <div className="flex items-start gap-3.5">
-            <div className={`p-2.5 rounded-xl shrink-0 ${stormMeta.isCompleted ? 'bg-emerald-500/15 text-emerald-500' : 'bg-amber-500/15 text-amber-500 animate-pulse'}`}>
-              <Navigation className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className={`px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider border ${
-                  stormMeta.isCompleted ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30'
-                }`}>
-                  {stormMeta.landfallStatus}
-                </span>
-                <span className="font-heading font-bold text-sm text-foreground">
-                  {stormMeta.landfallLocation}
-                </span>
-                <span className="text-xs text-muted-foreground font-mono">
-                  • {stormMeta.landfall}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                <span className="text-foreground font-medium">Estimated Storm Surge:</span> {stormMeta.surge} • <span className="text-foreground font-medium">Inland Dissipation:</span> {stormMeta.decay}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 shrink-0">
-            <a
-              href={`/reports?tab=infrastructure&cyclone_id=${encodeURIComponent(activeSystem.id)}`}
-              className="px-3 py-1.5 rounded-lg bg-secondary hover:bg-secondary/80 border border-border text-xs font-semibold text-foreground transition-all flex items-center gap-1.5 shadow-xs"
-            >
-              <span>⚡ Infrastructure Grid</span>
-            </a>
-            <a
-              href={`/reports?tab=insurance&cyclone_id=${encodeURIComponent(activeSystem.id)}`}
-              className="px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-xs font-semibold transition-all flex items-center gap-1.5 shadow-xs"
-            >
-              <span>🏛️ Parametric Liquidity</span>
-            </a>
-          </div>
-        </div>
-      )}
-
       {/* Main Map & Sidebar Split */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
