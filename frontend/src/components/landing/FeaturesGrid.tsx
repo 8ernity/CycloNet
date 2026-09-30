@@ -15,7 +15,7 @@ const features = [
   { 
     icon: Satellite, 
     title: "GEE SAR Flood Inundation", 
-    description: "Sentinel-1 SAR dual-polarization (VV/VH) radar backscatter and Sentinel-2 MNDWI mapping surface water extent through thick cyclone cloud cover.",
+    description: "GEE-compatible Sentinel-1 SAR dual-polarization (VV/VH) radar backscatter and Sentinel-2 MNDWI flood extent simulation through thick cloud cover.",
     tint: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25",
     link: "/infrastructure"
   },
@@ -36,7 +36,7 @@ const features = [
   { 
     icon: CloudRain, 
     title: "Catchment Runoff & Delta Pathways", 
-    description: "High-resolution SRTM 30m DEM terrain slope analysis pinpointing flash flood choke points across vulnerable river deltas and estuaries.",
+    description: "DEM-informed catchment runoff simulation modeling terrain slope, estuarine backwater bottlenecks, and flash flood choke points across river deltas.",
     tint: "text-cyan-400 bg-cyan-500/10 border-cyan-500/25",
     link: "/infrastructure"
   },

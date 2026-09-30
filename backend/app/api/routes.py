@@ -23,6 +23,8 @@ class TrackPoint(BaseModel):
     intensity_knots: int
     is_forecast: bool = False
     is_landfall: bool = False
+    is_observed: Optional[bool] = None
+    origin_type: Optional[str] = None
     label: Optional[str] = None
 
 class SystemResponse(BaseModel):
@@ -33,6 +35,14 @@ class SystemResponse(BaseModel):
     lon: float
     intensity_knots: int
     category: str
+    dvorak_t: Optional[str] = None
+    dvorak_derivation_method: Optional[str] = None
+    dvorak_is_empirical_estimate: Optional[bool] = None
+    track_generation_method: Optional[str] = None
+    telemetry_attribution: Optional[Dict[str, Any]] = None
+    telemetry_badge: Optional[str] = None
+    telemetry_type: Optional[str] = None
+    source: Optional[str] = None
     track_forecast: List[TrackPoint] = []
     landfall_info: Optional[Dict[str, Any]] = None
     is_landfall_completed: Optional[bool] = None
@@ -373,9 +383,11 @@ async def get_gee_flood_inundation(lat: float = 18.2, lon: float = 84.8, knots: 
 
 @router.get("/gee/rainfall-pathways")
 async def get_gee_rainfall_pathways(lat: float = 18.2, lon: float = 84.8, rain_mm: float = 280.0):
-    """Generates DEM catchment rainfall damage pathways and infrastructure choke points."""
+    """Generates DEM-informed catchment runoff pathway simulation and critical drainage choke points."""
     return {
         "status": "success",
+        "mode": "DEM_INFORMED_RUNOFF_SIMULATION",
+        "method": "DEM-informed catchment runoff pathway simulation",
         "center": [lat, lon],
         "rain_accumulation_mm": rain_mm,
         "pathways": gee_service.get_catchment_rainfall_pathways(lat, lon, rain_mm)

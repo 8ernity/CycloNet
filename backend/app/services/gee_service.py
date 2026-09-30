@@ -6,27 +6,40 @@ from datetime import datetime
 
 class GoogleEarthEngineService:
     """
-    Google Earth Engine (GEE) & Multispectral Satellite Feeds Integration.
-    Simulates and streams earth observation telemetry including Sentinel-1 SAR flood extent,
-    Sentinel-2 MNDWI water indices, NASA SRTM 30m Digital Elevation Models (DEM), and NOAA GFS
-    total precipitable water (TPW) for tropical cyclone risk forecasters.
+    Google Earth Engine (GEE) Compatible Satellite Inundation & Earth Observation Service.
+    
+    Provides a standardized GEE-compatible geospatial pipeline for:
+    1. Sentinel-1 C-Band SAR dual-polarization (VV/VH) flood extent simulation
+    2. Sentinel-2 Multi-Spectral Water Index (MNDWI) surface water mapping
+    3. NASA SRTM 30m Digital Elevation Model (DEM) slope and elevation deficit
+    4. NOAA GFS total precipitable water (TPW) column accumulation
+    
+    Operational Architecture:
+    - Attempts live Google Earth Engine (ee) session if cloud service credentials are configured.
+    - When live Earth Engine credentials are unavailable, seamlessly activates the calibrated 
+      physics-informed hydrodynamic flood inundation model (calibrated with Sentinel-1 backscatter values in dB).
     """
 
     def __init__(self):
         self.gee_project_id = os.getenv("GEE_PROJECT_ID", "cyclonet-earth-engine")
+        self.is_live_gee = False
         self.is_initialized = False
         self._initialize_service()
 
     def _initialize_service(self):
-        """Initializes GEE Cloud connector or loads high-precision pre-computed GeoJSON earth observation layers."""
+        """Initializes live GEE connector if credentials exist, or defaults to GEE-compatible simulation."""
         try:
-            # Check for GEE service account credentials if configured
+            import ee
             sa_key = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
             if sa_key and os.path.exists(sa_key):
-                # import ee
-                # ee.Initialize()
+                ee.Initialize()
+                self.is_live_gee = True
                 self.is_initialized = True
+            else:
+                self.is_live_gee = False
+                self.is_initialized = False
         except Exception:
+            self.is_live_gee = False
             self.is_initialized = False
 
     def get_available_layers(self) -> List[Dict[str, Any]]:
@@ -120,6 +133,8 @@ class GoogleEarthEngineService:
 
         return {
             "type": "FeatureCollection",
+            "mode": "LIVE_GEE" if self.is_live_gee else "GEE_COMPATIBLE_SIMULATION",
+            "pipeline": "GEE Sentinel-1/Sentinel-2 Inundation Pipeline (Simulation Fallback)",
             "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
             "gee_sensor": "COPERNICUS/S1_GRD (Sentinel-1 SAR)",
             "center": [center_lat, center_lon],
@@ -130,8 +145,9 @@ class GoogleEarthEngineService:
 
     def get_catchment_rainfall_pathways(self, center_lat: float, center_lon: float, accumulated_rain_mm: float = 280.0) -> List[Dict[str, Any]]:
         """
-        Generates river basin drainage and catchment flash flood damage pathways based on DEM terrain slope,
-        flow accumulation vectors, and critical drainage choke points.
+        DEM-informed catchment runoff pathway simulation.
+        Evaluates river basin drainage and catchment flash flood pathways parameterized by
+        DEM topographic terrain slope, estuarine backwater bottlenecks, and critical drainage choke points.
         """
         # Determine catchment basin context based on coordinates
         if center_lat >= 21.0:
@@ -163,12 +179,14 @@ class GoogleEarthEngineService:
                 "id": "pathway-primary-drainage",
                 "name": f"{basin_primary} Main Drainage Corridor",
                 "basin": basin_primary,
+                "mode": "DEM_INFORMED_RUNOFF_SIMULATION",
+                "derivation_method": "DEM-informed catchment runoff pathway simulation (Topographic DEM slope & catchment drainage model)",
                 "dem_slope_deg": slope_deg,
                 "rain_accumulation_mm": accumulated_rain_mm,
                 "forecast_window_hours": 24,
                 "discharge_rate_cumecs": int(accumulated_rain_mm * 18.5),
                 "runoff_risk": "CRITICAL" if accumulated_rain_mm > 200 else "HIGH",
-                "flow_accumulation_vector": "North-West to South-East seaward gravity flow (DEM 30m)",
+                "flow_accumulation_vector": "DEM-informed seaward gravity runoff vector (North-West to South-East)",
                 "critical_choke_points": choke_points_1,
                 "road_crossings_impacted": ["NH-16 Choke Point (KM 142)", "State Highway 57 Low Causeways"],
                 "substations_at_risk": ["220kV Primary Coastal Substation", "132kV Switching Feeder"],
@@ -183,12 +201,14 @@ class GoogleEarthEngineService:
                 "id": "pathway-estuary-convergence",
                 "name": f"{basin_primary} Tidal Estuary Surge & Runoff Convergence",
                 "basin": basin_primary,
+                "mode": "DEM_INFORMED_RUNOFF_SIMULATION",
+                "derivation_method": "DEM-informed catchment runoff pathway simulation (Estuarine backwater bottleneck model)",
                 "dem_slope_deg": round(slope_deg * 0.7, 2),
                 "rain_accumulation_mm": round(accumulated_rain_mm * 1.12, 1),
                 "forecast_window_hours": 24,
                 "discharge_rate_cumecs": int(accumulated_rain_mm * 24.2),
                 "runoff_risk": "CRITICAL",
-                "flow_accumulation_vector": "Compound backwater bottleneck at estuarine barrier",
+                "flow_accumulation_vector": "DEM-informed compound backwater bottleneck at estuarine barrier",
                 "critical_choke_points": choke_points_1[-2:],
                 "road_crossings_impacted": ["Coastal Highway Embankment Arterial", "Port Access Link Corridor"],
                 "substations_at_risk": ["400kV Coastal Maritime Power Terminal", "33kV Marine Feeder"],

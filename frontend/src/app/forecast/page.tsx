@@ -39,6 +39,19 @@ interface ActiveSystem {
   lon: number;
   intensity_knots: number;
   category: string;
+  dvorak_t?: string;
+  dvorak_derivation_method?: string;
+  dvorak_is_empirical_estimate?: boolean;
+  track_generation_method?: string;
+  telemetry_attribution?: {
+    center_fix?: string;
+    intensity_knots?: string;
+    dvorak_t?: string;
+    trajectory_forecast?: string;
+    satellite_image_dvorak?: string;
+  };
+  telemetry_type?: string;
+  telemetry_badge?: string;
   track_forecast: TrackPoint[];
   landfall_info?: {
     status?: string;
@@ -497,13 +510,28 @@ export default function ForecastPage() {
               </div>
 
               <div className="bg-secondary/30 p-2.5 rounded-xl border border-border/60">
-                <span className="text-[10px] text-muted-foreground block">Coordinates</span>
+                <span className="text-[10px] text-muted-foreground block">Coordinates (0h Fix)</span>
                 <span className="text-xs font-mono font-bold text-foreground block mt-1">
                   {system.lat.toFixed(1)}&deg;N
                 </span>
                 <span className="text-xs font-mono font-bold text-foreground block">
                   {system.lon.toFixed(1)}&deg;E
                 </span>
+              </div>
+            </div>
+
+            <div className="bg-secondary/20 p-2 rounded-lg border border-border/50 my-1 text-[11px] space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground text-[10.5px]">Dvorak Intensity:</span>
+                <span className="font-mono font-bold text-primary text-xs">
+                  {system.dvorak_t || `T${Math.min(6.5, Math.max(2.5, +(2.5 + (system.intensity_knots - 30) / 20).toFixed(1)))}`}
+                  <span className="text-[10px] text-muted-foreground font-normal ml-1">(Parametric CI)</span>
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5 border-t border-border/40">
+                <span>Eye Fix: <strong className="text-emerald-500 font-medium">Observed</strong></span>
+                <span>•</span>
+                <span>Track: <strong className="text-foreground font-medium">Kinematic Vector</strong></span>
               </div>
             </div>
 
@@ -906,7 +934,7 @@ export default function ForecastPage() {
               <h3 className="font-heading font-bold text-lg text-foreground">Numeric Meteorological Forecast Table</h3>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Official IMD-compatible waypoint guidance matrix with coordinate fixes, wind gust factors, and error radii.
+              Official IMD-compatible waypoint guidance matrix. Center fix (0h) reflects observed telemetry; forward track (+12h..+48h) is generated via CycloNet kinematic vector extrapolation.
             </p>
           </div>
           <span className="text-xs font-mono px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground border border-border">

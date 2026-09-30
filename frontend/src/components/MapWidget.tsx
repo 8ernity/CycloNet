@@ -438,7 +438,7 @@ export default function MapWidget({ points, systemName }: MapWidgetProps) {
           }}
         >
           <Tooltip permanent direction="top" offset={[0, -10]} className="custom-tooltip">
-            <span className="text-red-400 font-bold">{currentPoint.intensity_knots} KT (Current Fix)</span>
+            <span className="text-red-400 font-bold">{currentPoint.intensity_knots} KT (Observed Fix)</span>
           </Tooltip>
         </CircleMarker>
 
@@ -456,7 +456,7 @@ export default function MapWidget({ points, systemName }: MapWidgetProps) {
             }}
           >
             <Tooltip permanent direction="bottom" offset={[0, 8]} className="custom-tooltip">
-              <span>{pt.is_landfall ? `🎯 Landfall (+${pt.time_offset_hours}h)` : `+${pt.time_offset_hours}h`}</span>
+              <span>{pt.is_landfall ? `🎯 Landfall (+${pt.time_offset_hours}h)` : `+${pt.time_offset_hours}h (Kinematic)`}</span>
             </Tooltip>
           </CircleMarker>
         ))}

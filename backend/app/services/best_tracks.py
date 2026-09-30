@@ -919,6 +919,17 @@ def get_cyclone_trajectory(cyclone_id: str, name: str, basin: str, category: str
         "lon": peak_pt["lon"],
         "intensity_knots": peak_pt["intensity_knots"],
         "category": data["category"],
+        "telemetry_type": "HISTORICAL_BEST_TRACK",
+        "dvorak_t": f"T{min(6.5, max(2.5, round(2.5 + (peak_pt['intensity_knots'] - 30) / 20.0, 1)))}",
+        "dvorak_derivation_method": "Empirical Dvorak CI from Historical Max Wind",
+        "dvorak_is_empirical_estimate": True,
+        "track_generation_method": "Official IMD / IBTrACS Best-Track Dataset",
+        "telemetry_attribution": {
+            "center_fix": "IMD_HISTORICAL_OBSERVATION",
+            "intensity_knots": "IMD_HISTORICAL_OBSERVATION",
+            "dvorak_t": "PARAMETRIC_ESTIMATE",
+            "trajectory_forecast": "IMD_HISTORICAL_BEST_TRACK"
+        },
         "track_forecast": formatted_points,
         "landfall_info": landfall_info,
         "is_landfall_completed": is_completed
@@ -1026,6 +1037,17 @@ def _generate_curved_meteorological_track(
         "lon": peak_pt["lon"],
         "intensity_knots": peak_knots,
         "category": category,
+        "telemetry_type": "SYNTHETIC_SIMULATION",
+        "dvorak_t": f"T{min(6.5, max(2.5, round(2.5 + (peak_knots - 30) / 20.0, 1)))}",
+        "dvorak_derivation_method": "Parametric Wind-Speed Scale (Simulation Model)",
+        "dvorak_is_empirical_estimate": True,
+        "track_generation_method": "Parametric Coriolis Arc Extrapolation",
+        "telemetry_attribution": {
+            "center_fix": "SYNTHETIC_SIMULATION",
+            "intensity_knots": "SYNTHETIC_SIMULATION",
+            "dvorak_t": "PARAMETRIC_ESTIMATE",
+            "trajectory_forecast": "PARAMETRIC_EXTRAPOLATION"
+        },
         "track_forecast": points,
         "landfall_info": landfall_info,
         "is_landfall_completed": True

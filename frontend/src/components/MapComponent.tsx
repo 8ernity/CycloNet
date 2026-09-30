@@ -460,11 +460,11 @@ export default function MapComponent({ activeSystem }: MapProps) {
 
             <div className="flex items-center gap-2">
               <span className="w-4 h-0.5 bg-foreground/80 inline-block" />
-              <span className="text-muted-foreground">Solid Line: Observed Past Track</span>
+              <span className="text-muted-foreground">Solid Line: Observed Track / 0h Fix</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-4 h-0 border-t-2 border-dashed border-foreground/80 inline-block" />
-              <span className="text-muted-foreground">Dashed Line: Forecast Track</span>
+              <span className="text-muted-foreground">Dashed Line: Kinematic Extrapolated Track</span>
             </div>
           </div>
         </div>

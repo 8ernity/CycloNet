@@ -1110,16 +1110,16 @@ export default function InfrastructurePage() {
               <div>
                 <h4 className="text-base font-bold text-foreground flex items-center gap-2">
                   <CloudRain className="w-5 h-5 text-blue-400" />
-                  Rain / Runoff Forecast & Critical Drainage Choke Points
+                  DEM-Informed Catchment Runoff & Drainage Choke Points
                 </h4>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Topographic DEM 30m flow accumulation and compound estuarine backwater bottleneck analysis.
+                  DEM-informed catchment runoff pathway simulation and compound estuarine backwater bottleneck analysis.
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
                 <span className="text-xs font-mono bg-blue-500/10 text-blue-400 px-3 py-1 rounded-lg border border-blue-500/20">
-                  Expected Rainfall: <strong>{simRainMm} mm</strong> (24h Window)
+                  Simulated Rainfall: <strong>{simRainMm} mm</strong> (24h Window)
                 </span>
                 <span className="text-xs font-mono bg-red-500/10 text-red-400 px-3 py-1 rounded-lg border border-red-500/20 font-bold">
                   Runoff Risk: CRITICAL
@@ -1132,8 +1132,8 @@ export default function InfrastructurePage() {
               <span className="text-muted-foreground">Channel Classification:</span>
               <span className="flex items-center gap-1 text-sky-400 font-semibold">🔵 Main River Basin</span>
               <span className="flex items-center gap-1 text-amber-400 font-semibold">🟡 Runoff Pathway</span>
-              <span className="flex items-center gap-1 text-orange-400 font-semibold">🟠 High Flow Accumulation</span>
-              <span className="flex items-center gap-1 text-red-400 font-semibold animate-pulse">🔴 Predicted Flood Choke Point</span>
+              <span className="flex items-center gap-1 text-orange-400 font-semibold">🟠 Terrain Gravity Vector</span>
+              <span className="flex items-center gap-1 text-red-400 font-semibold animate-pulse">🔴 Simulated Flood Choke Point</span>
             </div>
 
             {/* Choke Points Cards Grid */}

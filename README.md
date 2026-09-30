@@ -1,11 +1,11 @@
 # <img src="frontend/public/logo.svg" width="32" height="32" style="vertical-align: middle; display: inline-block; margin-right: 8px;" alt="CycloNet Logo" /> CycloNet — Intelligent Tropical Cyclone Tracking & Satellite Intensity Estimation Platform
 
-> **Next-Generation Meteorological & Infrastructure Vulnerability Intelligence Platform combining Deep Learning Computer Vision, Google Earth Engine (GEE) Satellite Feeds, SLOSH Hydrodynamic Storm Surge Modeling, and Gemini 3.7 Flash Multimodal AI Reasoning.**
+> **Next-Generation Meteorological & Infrastructure Vulnerability Intelligence Platform combining Deep Learning Computer Vision, GEE-Compatible Satellite Inundation Pipelines, Parametric Hydrodynamic Storm Surge Modeling, and Gemini 3.7 Flash Multimodal AI Reasoning.**
 
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.110+-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Frontend-Next.js%2016-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
 [![Gemini 3.7 Flash](https://img.shields.io/badge/Multimodal_AI-Gemini%203.7%20Flash-4285F4?style=for-the-badge&logo=google)](https://deepmind.google/technologies/gemini/)
-[![Google Earth Engine](https://img.shields.io/badge/Earth_Observation-Google_Earth_Engine-34A853?style=for-the-badge&logo=google-earth)](https://earthengine.google.com/)
+[![Google Earth Engine](https://img.shields.io/badge/Earth_Observation-GEE_Compatible_Pipeline-34A853?style=for-the-badge&logo=google-earth)](https://earthengine.google.com/)
 [![PyTorch](https://img.shields.io/badge/Deep_Learning-PyTorch%202.2-EE4C2C?style=for-the-badge&logo=pytorch)](https://pytorch.org)
 [![TypeScript](https://img.shields.io/badge/Language-TypeScript%205-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python)](https://python.org)
@@ -16,7 +16,7 @@
 
 **CycloNet** is an enterprise-grade meteorological intelligence, hydrodynamic storm surge forecasting, and critical infrastructure vulnerability platform. Engineered for meteorological departments, state disaster management authorities (SDMAs), and humanitarian response agencies across the Bay of Bengal and coastal APAC, CycloNet shifts disaster response from post-landfall recovery to proactive pre-landfall anticipatory action.
 
-The platform unifies **Deep Convolutional Neural Networks (ResNet-50)**, **Google Earth Engine (GEE) Synthetic Aperture Radar (SAR)** flood mapping, **SLOSH parametric hydrodynamic storm surge modeling**, **catchment rainfall damage pathway simulation**, **critical infrastructure exposure mapping** (400kV/220kV power grids, evacuation corridors, hospitals), **parametric insurance liquidity disbursement triggers**, and **Gemini 3.7 Flash Multimodal AI** for automated pre-landfall executive briefings in **7 regional languages**.
+The platform unifies **Deep Convolutional Neural Networks (ResNet-50)**, **GEE-Compatible Sentinel-1 SAR & SRTM 30m DEM** flood inundation modeling, **Parametric Hydrodynamic Storm Surge Simulation (Jelesnianski Formulation)**, **DEM-informed catchment rainfall damage pathway simulation**, **5-factor critical infrastructure vulnerability scoring (IVF)**, **parametric insurance liquidity disbursement triggers**, and **Gemini 3.7 Flash Multimodal AI** for automated pre-landfall executive briefings in **7 regional languages**.
 
 ---
 
@@ -43,12 +43,12 @@ The platform unifies **Deep Convolutional Neural Networks (ResNet-50)**, **Googl
 |---|---|---|
 | 🛰️ **Dual-Inference AI Classifier** | Pairs fine-tuned **ResNet-50 (PyTorch)** with **Gemini 3.7 Flash Multimodal Vision** for dual-inference satellite verification. | PyTorch 2.2 + Gemini 3.7 Flash Vision API |
 | 🛡️ **Out-of-Distribution (OOD) Guard** | Detects and rejects non-meteorological images (landscapes, wallpapers) with high-confidence `NOT A CYCLONE` verdicts. | ResNet-50 2048-dim Latent Space Separation |
-| 🌊 **SLOSH Parametric Storm Surge** | Real-time hydrodynamic surge simulation incorporating inverted barometer rise, shelf wind stress, and astronomical spring tide superposition. | SLOSH Physics Formulation + Bathymetric Profiler |
-| 🛰️ **Google Earth Engine (GEE) SAR Inundation** | Ingests Sentinel-1 SAR dual-pol (`VV`/`VH`), Sentinel-2 MNDWI, and SRTM 30m DEM elevation data to map inland flood extent. | Google Earth Engine API + GeoJSON Vector Engine |
-| ⚡ **Critical Infrastructure Exposure** | Maps vulnerability for 400kV / 220kV power grids, national/state evacuation highways, and cyclone medical shelters. | GIS Spatial Overlay Engine |
-| 💰 **Parametric Insurance Liquidity Triggers** | Automated smart contract / policy payout rules triggered automatically based on sustained wind and surge thresholds within 7 days. | Parametric Threshold Evaluator |
+| 🌊 **Parametric Storm Surge Simulator** | Physics-informed hydrodynamic surge simulation incorporating inverted barometer rise, shelf wind stress, and astronomical spring tide superposition. | Jelesnianski Parametric Formulation + Bathymetric Profiler |
+| 🛰️ **GEE-Compatible SAR Inundation Pipeline** | Inundation simulation utilizing Sentinel-1 SAR dual-pol (`VV`/`VH`), Sentinel-2 MNDWI, and SRTM 30m DEM elevation deficit schemas. | GEE-Compatible Geospatial Engine + GeoJSON Vector Output |
+| ⚡ **5-Factor Infrastructure Vulnerability (IVF)** | Multi-factor mathematical scoring for 400kV / 220kV power grids, national/state evacuation highways, and cyclone shelters. | Continuous IVF Scoring Engine |
+| 💰 **Parametric Insurance Liquidity Triggers** | Automated smart policy payout rules triggered automatically based on sustained wind and surge thresholds within 7 days. | Parametric Threshold Evaluator |
 | 📢 **Automated Multilingual Briefings** | Synthesizes complex storm kinematics into executive risk memos in **7 languages** (*English, Hindi, Bengali, Odia, Telugu, Tamil, Gujarati*). | Gemini 3.7 Flash Prompt Engine |
-| 🚨 **Multi-Channel Emergency Dispatches** | Generates OASIS CAP-CP v1.2 XML feeds, SMS alerts, coastal siren triggers, VHF marine broadcasts, and SACHET notifications. | CAP-CP v1.2 XML Engine |
+| 🚨 **NDMA-Compatible Multi-Channel Dispatches** | Generates OASIS CAP-CP v1.2 XML feeds (Test status), SMS alerts, coastal siren triggers, VHF marine broadcasts, and SACHET notifications in sandbox mode. | CAP-CP v1.2 Sandbox Engine |
 | 🗺️ **Geospatial Trajectory Tracking** | Interactive Leaflet map displaying active storm centers, historical path waypoints, quadrant wind radii, and predictive cones of uncertainty. | Leaflet.js + GeoJSON GIS Layers |
 
 ---
@@ -60,10 +60,10 @@ Extreme weather events in the Bay of Bengal and coastal APAC require rapid antic
 
 ### The Solution
 CycloNet implements an end-to-end predictive vulnerability pipeline:
-1. **Google Earth Engine (GEE) Inundation Modeling:** Uses Sentinel-1 SAR imagery to detect surface backscatter loss over water bodies, combined with SRTM 30m DEM slope calculation to estimate inland flood penetration distance.
+1. **GEE-Compatible Inundation Modeling:** Employs Sentinel-1 SAR backscatter parameters combined with SRTM 30m DEM slope calculation to estimate inland flood penetration distance (with GEE cloud service connector and simulation fallback).
 2. **Compound Catchment Runoff Pathways:** Evaluates precipitable moisture and basin topography to pinpoint flash flood choke points across river deltas (Mahanadi Delta, Hooghly Estuary, Godavari Basin).
-3. **Parametric Storm Surge Simulator:** Computes oceanic water pileup using the SLOSH formulation, factoring in central barometric pressure, astronomical tide stage, and translation speed.
-4. **Critical Asset Exposure:** Overlays power substations, transmission lines, highway corridors, and medical shelters onto danger zones.
+3. **Parametric Storm Surge Simulator:** Computes oceanic water pileup using the Jelesnianski hydrodynamic formulation, factoring in central barometric pressure, astronomical tide stage, and forward speed.
+4. **Critical Asset Vulnerability Index (IVF):** Evaluates power substations, transmission lines, highway corridors, and medical shelters using a 5-factor weighted index.
 5. **Parametric Insurance Liquidity Triggers:** Establishes pre-agreed financial payout criteria ($V_{\text{max}} \ge 65\text{ kt}$, Surge $\ge 2.5\text{ m}$) for immediate disaster relief disbursement.
 
 ---
@@ -118,17 +118,17 @@ flowchart TB
         subgraph CoreServices["Backend Microservices"]
             MLService["🧠 PyTorch ResNet-50 Inference Engine"]:::mlStyle
             GeminiService["🤖 Gemini 3.7 Flash Multimodal AI Engine"]:::extStyle
-            SurgeService["🌊 SLOSH Hydrodynamic Surge Simulator"]:::mapStyle
-            GEEService["🛰️ Google Earth Engine SAR Inundation Service"]:::geeStyle
+            SurgeService["🌊 Parametric Hydrodynamic Surge Simulator"]:::mapStyle
+            GEEService["🛰️ GEE-Compatible SAR Inundation Service"]:::geeStyle
             GISService["🗺️ GIS & Trajectory Projection Engine"]:::mapStyle
-            ReportService["📑 CAP-CP v1.2 & Broadcast Advisory Dispatcher"]:::dbStyle
+            ReportService["📑 CAP-CP v1.2 Sandbox Advisory Dispatcher"]:::dbStyle
         end
 
         Gateway --> MLService & GeminiService & SurgeService & GEEService & GISService & ReportService
     end
 
     subgraph ExternalData["🌐 EXTERNAL EARTH OBSERVATION & SATELLITE FEEDS"]
-        GEE["Google Earth Engine (Sentinel-1 SAR, Sentinel-2 MNDWI, SRTM 30m DEM)"]:::geeStyle
+        GEE["GEE / Satellite Inundation Pipelines (Sentinel-1 SAR, Sentinel-2 MNDWI, SRTM 30m DEM)"]:::geeStyle
         IMD_NOAA["IMD / NOAA GFS Real-Time Gridded Meteorological Feeds"]:::mapStyle
         GEEService --> GEE
         GISService --> IMD_NOAA
@@ -180,15 +180,15 @@ Interactive Swagger documentation is available at `http://localhost:8000/docs`.
 ### 1. Automated Early Warning Advisory Dispatch (`/api/alerts`)
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/alerts/dispatch` | **Automated Multi-Channel Dispatch:** Generates OASIS CAP-CP v1.2 XML, trilingual Cell Broadcast SMS, NDMA SACHET JSON feeds, acoustic siren tower triggers, and Coast Guard VHF Ch 16 distress broadcasts. |
+| `POST` | `/api/alerts/dispatch` | **Automated Multi-Channel Dispatch (Sandbox):** Generates OASIS CAP-CP v1.2 XML (Test status), trilingual Cell Broadcast SMS, NDMA SACHET JSON feeds, acoustic siren tower triggers, and Coast Guard VHF Ch 16 distress broadcasts. |
 | `POST` | `/api/alerts/broadcast-test` | Simulates multi-channel emergency broadcast dispatch with delivery metrics. |
 
 ### 2. Google Earth Engine & Inundation (`/api/gee`)
 | Method | Endpoint | Description |
 |---|---|---|
-| `GET` | `/api/gee/layers` | Lists available GEE satellite layers (Sentinel-1 SAR, Sentinel-2 MNDWI, SRTM 30m DEM). |
-| `GET` | `/api/gee/flood-inundation` | Generates Sentinel-1 SAR flood extent GeoJSON polygons for active cyclone coordinates. |
-| `GET` | `/api/gee/rainfall-pathways` | Returns DEM catchment precipitation accumulation, river discharge (cumecs), and drainage choke points (Diamond Harbour, Kakdwip, Sagar Island, Dhamra). |
+| `GET` | `/api/gee/layers` | Lists available GEE-compatible satellite layers (Sentinel-1 SAR, Sentinel-2 MNDWI, SRTM 30m DEM). |
+| `GET` | `/api/gee/flood-inundation` | Generates GEE-compatible Sentinel-1 SAR flood extent GeoJSON polygons for active cyclone coordinates. |
+| `GET` | `/api/gee/rainfall-pathways` | Returns DEM-informed catchment precipitation accumulation, river discharge (cumecs), and drainage choke points (Diamond Harbour, Kakdwip, Sagar Island, Dhamra). |
 
 ### 3. Hydrodynamic Storm Surge (`/api/surge`)
 | Method | Endpoint | Description |
