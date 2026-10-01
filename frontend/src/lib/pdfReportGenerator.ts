@@ -1,55 +1,122 @@
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import autoTable, { applyPlugin } from "jspdf-autotable";
+
+// Register jspdf-autotable plugin if available
+try {
+  if (typeof applyPlugin === "function") {
+    applyPlugin(jsPDF);
+  }
+} catch {
+  // Plugin registration error ignored if already auto-registered
+}
 
 export interface CyclonePdfData {
   system: {
-    id: string;
-    name: string;
-    basin: string;
-    lat: number;
-    lon: number;
-    intensity_knots: number;
-    category: string;
+    id?: string;
+    name?: string;
+    basin?: string;
+    lat?: number;
+    lon?: number;
+    intensity_knots?: number;
+    category?: string;
   };
-  alertInfo: {
-    level: string;
-    title: string;
-    desc: string;
+  alertInfo?: {
+    level?: string;
+    title?: string;
+    desc?: string;
   };
   sourceInfo?: {
-    type: string;
-    label: string;
-    shortLabel: string;
-    avgWindow: string;
-    scaleName: string;
+    type?: string;
+    label?: string;
+    shortLabel?: string;
+    avgWindow?: string;
+    scaleName?: string;
   };
-  bulletins: Array<{
-    number: number;
-    timestamp_utc: string;
-    timestamp_ist: string;
-    intensity_knots: number;
-    intensity_kmh: number;
-    gusts_kmh: number;
-    central_pressure_hpa: number;
-    storm_surge_meters: number;
-    wave_height_meters: number;
-    full_text: string;
+  bulletins?: Array<{
+    number?: number;
+    timestamp_utc?: string;
+    timestamp_ist?: string;
+    intensity_knots?: number;
+    intensity_kmh?: number;
+    gusts_kmh?: number;
+    central_pressure_hpa?: number;
+    storm_surge_meters?: number;
+    wave_height_meters?: number;
+    full_text?: string;
   }>;
-  affectedDistricts: Array<{
-    district: string;
-    state: string;
-    risk: string;
-    shelters: string;
-    evacuation: string;
+  affectedDistricts?: Array<{
+    district?: string;
+    state?: string;
+    risk?: string;
+    shelters?: string;
+    evacuation?: string;
   }>;
-  portSignals: Array<{
-    signal: string;
-    meaning: string;
+  portSignals?: Array<{
+    signal?: string;
+    meaning?: string;
   }>;
 }
 
+/**
+ * Universal safe invoker for jspdf-autotable across different bundler environments (Next.js/Webpack/Turbopack/ESM)
+ */
+function runAutoTable(docInstance: any, options: any): void {
+  try {
+    if (typeof (autoTable as any) === "function") {
+      (autoTable as any)(docInstance, options);
+      return;
+    }
+  } catch (err) {
+    console.warn("Direct autoTable invocation warning:", err);
+  }
+
+  try {
+    if (typeof (autoTable as any)?.default === "function") {
+      (autoTable as any).default(docInstance, options);
+      return;
+    }
+  } catch (err) {
+    console.warn("autoTable.default invocation warning:", err);
+  }
+
+  try {
+    if (typeof (autoTable as any)?.autoTable === "function") {
+      (autoTable as any).autoTable(docInstance, options);
+      return;
+    }
+  } catch (err) {
+    console.warn("autoTable.autoTable invocation warning:", err);
+  }
+
+  try {
+    if (typeof docInstance.autoTable === "function") {
+      docInstance.autoTable(options);
+      return;
+    }
+  } catch (err) {
+    console.warn("doc.autoTable execution warning:", err);
+  }
+
+  console.error("jspdf-autotable function not available on jsPDF instance or imports");
+}
+
+/**
+ * Safe calculation of final Y position after an autoTable draw
+ */
+function getTableFinalY(docInstance: any, fallbackY: number): number {
+  if (docInstance?.lastAutoTable?.finalY != null && !isNaN(docInstance.lastAutoTable.finalY)) {
+    return docInstance.lastAutoTable.finalY + 6;
+  }
+  return fallbackY + 36;
+}
+
 export function generateCyclonePdfReport(data: CyclonePdfData): void {
-  const { system, alertInfo, sourceInfo, affectedDistricts, portSignals } = data;
+  const system = data.system || {};
+  const alertInfo = data.alertInfo || { level: "ORANGE", title: "CYCLONE WARNING", desc: "Active meteorological threat." };
+  const sourceInfo = data.sourceInfo;
+  const affectedDistricts = data.affectedDistricts || [];
+  const portSignals = data.portSignals || [];
+
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -62,7 +129,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   const maxContentY = pageHeight - 20; // Safe bottom boundary before footer
   let y = 14;
 
-  const knots = system.intensity_knots || 65;
+  const knots = Number(system.intensity_knots) || 65;
   const kmh = Math.round(knots * 1.852);
   const gusts = Math.round(kmh * 1.25);
   const surge = Number((Math.max(0.8, (knots * 0.035) + 0.5)).toFixed(1));
@@ -71,15 +138,23 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   const now = new Date();
   const dateStr = now.toUTCString();
 
+  const systemName = system.name || "ACTIVE CYCLONE SYSTEM";
+  const systemCategory = system.category || "Severe Cyclonic Storm";
+  const systemBasin = system.basin || "North Indian Ocean";
+  const systemLat = typeof system.lat === "number" ? system.lat : 18.5;
+  const systemLon = typeof system.lon === "number" ? system.lon : 88.2;
+  const systemId = system.id || "BOB-01";
+  const alertLevel = (alertInfo.level || "ORANGE").toUpperCase();
+
   // ── 1. Top Official Header Banner ──────────────────────────────────────────
   doc.setFillColor(15, 23, 42); // Slate-900
   doc.rect(0, 0, pageWidth, 26, "F");
 
   // Accent line
   const accentColor: [number, number, number] = 
-    alertInfo.level === "RED" ? [239, 68, 68] :
-    alertInfo.level === "ORANGE" ? [249, 115, 22] :
-    alertInfo.level === "YELLOW" ? [234, 179, 8] : [34, 197, 94];
+    alertLevel === "RED" ? [239, 68, 68] :
+    alertLevel === "ORANGE" ? [249, 115, 22] :
+    alertLevel === "YELLOW" ? [234, 179, 8] : [34, 197, 94];
   
   doc.setFillColor(...accentColor);
   doc.rect(0, 24.5, pageWidth, 1.5, "F");
@@ -97,7 +172,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
 
   doc.setFontSize(7);
   doc.setTextColor(148, 163, 184); // Slate-400
-  const agencyLabel = sourceInfo ? `${sourceInfo.label} (${sourceInfo.avgWindow})` : "RSMC / IMD Protocol (3-Min Sustained)";
+  const agencyLabel = sourceInfo?.label ? `${sourceInfo.label} (${sourceInfo.avgWindow || "3-Min"})` : "RSMC / IMD Protocol (3-Min Sustained)";
   doc.text(`${agencyLabel} • OASIS CAP-CP v1.2 • Generated: ${dateStr}`, margin, 20.5);
 
   // Badge on Header Right
@@ -106,7 +181,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
-  doc.text(`${alertInfo.level} WARNING`, pageWidth - margin - 18, 12, { align: "center" });
+  doc.text(`${alertLevel} WARNING`, pageWidth - margin - 18, 12, { align: "center" });
   doc.setFontSize(6);
   doc.text("ACTION DIRECTIVE", pageWidth - margin - 18, 16, { align: "center" });
 
@@ -120,14 +195,14 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.setTextColor(15, 23, 42);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
-  doc.text(`SYSTEM: ${system.name.toUpperCase()} (${system.category.toUpperCase()})`, margin + 4, y + 6);
+  doc.text(`SYSTEM: ${systemName.toUpperCase()} (${systemCategory.toUpperCase()})`, margin + 4, y + 6);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(71, 85, 105);
   const scaleRef = sourceInfo?.scaleName || "WMO RSMC Scale";
-  doc.text(`Basin: ${system.basin}  |  Center Fix: ${system.lat.toFixed(2)}°N, ${system.lon.toFixed(2)}°E  |  Ref Code: ${system.id}  |  Scale: ${scaleRef}`, margin + 4, y + 11);
-  doc.text(`Status Directive: ${alertInfo.title}`, margin + 4, y + 16);
+  doc.text(`Basin: ${systemBasin}  |  Center Fix: ${systemLat.toFixed(2)}°N, ${systemLon.toFixed(2)}°E  |  Ref Code: ${systemId}  |  Scale: ${scaleRef}`, margin + 4, y + 11);
+  doc.text(`Status Directive: ${alertInfo.title || "Severe Cyclone Alert"}`, margin + 4, y + 16);
 
   y += 24;
 
@@ -138,7 +213,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.text("1. CURRENT SYNOPTIC OBSERVATIONS & PHYSICAL TELEMETRY", margin, y);
   y += 3.5;
 
-  const windHeaderLabel = sourceInfo ? `Max Sustained Wind (${sourceInfo.shortLabel}):` : "Max Sustained Wind (3-min):";
+  const windHeaderLabel = sourceInfo?.shortLabel ? `Max Sustained Wind (${sourceInfo.shortLabel}):` : "Max Sustained Wind (3-min):";
 
   const paramData = [
     [
@@ -167,7 +242,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
     ]
   ];
 
-  autoTable(doc, {
+  runAutoTable(doc, {
     startY: y,
     head: [],
     body: paramData,
@@ -188,7 +263,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
     margin: { left: margin, right: margin },
   });
 
-  y = (doc as any).lastAutoTable.finalY + 6;
+  y = getTableFinalY(doc, y);
 
   // ── 4. Track & Intensity Forecast Outlook ──────────────────────────────────
   doc.setTextColor(15, 23, 42);
@@ -198,14 +273,14 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   y += 3.5;
 
   const forecastRows = [
-    ["Current Fix", "00 UTC", `${system.lat.toFixed(1)}°N, ${system.lon.toFixed(1)}°E`, `${knots} kts (${kmh} km/h)`, system.category, "Maritime Basin"],
-    ["+12 Hours", "+12h", `${(system.lat + 0.6).toFixed(1)}°N, ${(system.lon - 0.4).toFixed(1)}°E`, `${knots + 5} kts (${Math.round((knots + 5) * 1.852)} km/h)`, system.category, "Approaching Coast"],
-    ["+24 Hours (Landfall)", "+24h", `${(system.lat + 1.3).toFixed(1)}°N, ${(system.lon - 0.7).toFixed(1)}°E`, `${Math.max(35, knots - 15)} kts (${Math.round(Math.max(35, knots - 15) * 1.852)} km/h)`, "Severe Cyclonic Storm", "Landfall Sector"],
-    ["+36 Hours", "+36h", `${(system.lat + 2.0).toFixed(1)}°N, ${(system.lon - 0.8).toFixed(1)}°E`, "35 kts (65 km/h)", "Cyclonic Storm", "Inland Movement"],
-    ["+48 Hours", "+48h", `${(system.lat + 2.6).toFixed(1)}°N, ${(system.lon - 0.9).toFixed(1)}°E`, "25 kts (45 km/h)", "Deep Depression", "Weakening over land"],
+    ["Current Fix", "00 UTC", `${systemLat.toFixed(1)}°N, ${systemLon.toFixed(1)}°E`, `${knots} kts (${kmh} km/h)`, systemCategory, "Maritime Basin"],
+    ["+12 Hours", "+12h", `${(systemLat + 0.6).toFixed(1)}°N, ${(systemLon - 0.4).toFixed(1)}°E`, `${knots + 5} kts (${Math.round((knots + 5) * 1.852)} km/h)`, systemCategory, "Approaching Coast"],
+    ["+24 Hours (Landfall)", "+24h", `${(systemLat + 1.3).toFixed(1)}°N, ${(systemLon - 0.7).toFixed(1)}°E`, `${Math.max(35, knots - 15)} kts (${Math.round(Math.max(35, knots - 15) * 1.852)} km/h)`, "Severe Cyclonic Storm", "Landfall Sector"],
+    ["+36 Hours", "+36h", `${(systemLat + 2.0).toFixed(1)}°N, ${(systemLon - 0.8).toFixed(1)}°E`, "35 kts (65 km/h)", "Cyclonic Storm", "Inland Movement"],
+    ["+48 Hours", "+48h", `${(systemLat + 2.6).toFixed(1)}°N, ${(systemLon - 0.9).toFixed(1)}°E`, "25 kts (45 km/h)", "Deep Depression", "Weakening over land"],
   ];
 
-  autoTable(doc, {
+  runAutoTable(doc, {
     startY: y,
     head: [["Lead Time", "Valid", "Coordinates", "Sustained Winds", "System Category", "Sector"]],
     body: forecastRows,
@@ -230,7 +305,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
     margin: { left: margin, right: margin },
   });
 
-  y = (doc as any).lastAutoTable.finalY + 6;
+  y = getTableFinalY(doc, y);
 
   // ── 5. High-Risk Coastal Districts Table ───────────────────────────────────
   doc.setTextColor(15, 23, 42);
@@ -240,17 +315,17 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   y += 3.5;
 
   const districtRows = affectedDistricts.map(d => [
-    d.district,
-    d.state,
-    d.risk,
-    d.shelters,
-    d.evacuation
+    d.district || "Coastal District",
+    d.state || systemBasin,
+    d.risk || "High",
+    d.shelters || "Active",
+    d.evacuation || "Mandatory"
   ]);
 
-  autoTable(doc, {
+  runAutoTable(doc, {
     startY: y,
     head: [["District / Jurisdiction", "State", "Hazard Rating", "Shelter Capacity", "Evacuation Directive"]],
-    body: districtRows.length > 0 ? districtRows : [["Coastal Corridor", system.basin, "High Alert", "Active", "Mandatory Evacuation"]],
+    body: districtRows.length > 0 ? districtRows : [["Coastal Corridor", systemBasin, "High Alert", "Active", "Mandatory Evacuation"]],
     theme: "striped",
     headStyles: {
       fillColor: [30, 41, 59],
@@ -275,7 +350,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
     margin: { left: margin, right: margin },
   });
 
-  y = (doc as any).lastAutoTable.finalY + 6;
+  y = getTableFinalY(doc, y);
 
   // Check if Section 4 fits on page 1, otherwise add page 2
   if (y + 26 > maxContentY) {
@@ -307,9 +382,12 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.text("• Coastal Evacuation: SDRF/NDRF teams must complete mandatory evacuation of low-lying settlements within 5 km of coast.", margin + 3.5, y + 17);
 
   // ── 7. Clean, Non-Colliding Footer Across All Pages ─────────────────────────
-  const totalPages = (doc as any).internal.getNumberOfPages();
+  const totalPages = (typeof doc.getNumberOfPages === "function") 
+    ? doc.getNumberOfPages() 
+    : ((doc as any).internal?.getNumberOfPages ? (doc as any).internal.getNumberOfPages() : 1);
+    
   const authHash = Math.random().toString(36).substring(2, 10).toUpperCase();
-  const footerFeedsLabel = sourceInfo ? `CycloNet AI Meteorological Intelligence • ${sourceInfo.label}` : "CycloNet AI Meteorological Intelligence • IMD / RSMC Grounded Feeds";
+  const footerFeedsLabel = sourceInfo?.label ? `CycloNet AI Meteorological Intelligence • ${sourceInfo.label}` : "CycloNet AI Meteorological Intelligence • IMD / RSMC Grounded Feeds";
 
   for (let page = 1; page <= totalPages; page++) {
     doc.setPage(page);
@@ -334,8 +412,42 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
     doc.text(`Page ${page} of ${totalPages}`, pageWidth - margin, footerY + 6.5, { align: "right" });
   }
 
-  // ── 8. Save and Download the PDF File ──────────────────────────────────────
-  const sanitizedName = system.name.replace(/[^a-zA-Z0-9_-]/g, "_");
+  // ── 8. Guaranteed Direct HTML5 Blob File Download ────────────────────────────
+  const sanitizedName = (systemName || "CYCLONE").replace(/[^a-zA-Z0-9_-]/g, "_");
   const fileName = `CYCLONET-REPORT-${sanitizedName}-${now.toISOString().split("T")[0]}.pdf`;
-  doc.save(fileName);
+  
+  if (typeof window !== "undefined" && typeof document !== "undefined") {
+    try {
+      const blob = doc.output("blob");
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.setAttribute("download", fileName);
+      link.download = fileName;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      
+      setTimeout(() => {
+        try {
+          if (link.parentNode) {
+            link.parentNode.removeChild(link);
+          }
+          window.URL.revokeObjectURL(blobUrl);
+        } catch {
+          // ignore cleanup errors
+        }
+      }, 3000);
+      return;
+    } catch (blobErr) {
+      console.warn("Direct blob download failed, attempting fallback:", blobErr);
+    }
+  }
+
+  // Fallback to doc.save
+  try {
+    doc.save(fileName);
+  } catch (err) {
+    console.error("doc.save fallback failed:", err);
+  }
 }

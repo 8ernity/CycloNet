@@ -6,28 +6,10 @@ export const STORAGE_KEY_NAME = "cyclonet_selected_cyclone_name";
 export const CYCLONET_EVENT_NAME = "cyclonet:selected-cyclone-changed";
 
 export function useActiveCyclone(defaultId: string = "BOB05-2026") {
-  const [selectedCycloneId, setSelectedCycloneId] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(STORAGE_KEY_ID);
-      if (stored && stored !== "BOB03-2020") return stored;
-      if (stored === "BOB03-2020") {
-        localStorage.removeItem(STORAGE_KEY_ID);
-        localStorage.removeItem(STORAGE_KEY_NAME);
-      }
-    }
-    return defaultId;
-  });
-
-  const [selectedCycloneName, setSelectedCycloneName] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      const storedId = localStorage.getItem(STORAGE_KEY_ID);
-      if (storedId && storedId !== "BOB03-2020") {
-        return localStorage.getItem(STORAGE_KEY_NAME);
-      }
-      return "Deep Depression (BOB-05)";
-    }
-    return "Deep Depression (BOB-05)";
-  });
+  // Deterministic initial state matching SSR to prevent hydration mismatch
+  const [selectedCycloneId, setSelectedCycloneId] = useState<string>(defaultId);
+  const [selectedCycloneName, setSelectedCycloneName] = useState<string | null>("Deep Depression (BOB-05)");
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const syncState = useCallback(() => {
     if (typeof window !== "undefined") {
@@ -35,7 +17,7 @@ export function useActiveCyclone(defaultId: string = "BOB05-2026") {
       const name = localStorage.getItem(STORAGE_KEY_NAME);
       if (id && id !== "BOB03-2020") {
         setSelectedCycloneId(id);
-        setSelectedCycloneName(name);
+        setSelectedCycloneName(name || id);
       } else {
         setSelectedCycloneId(defaultId);
         setSelectedCycloneName("Deep Depression (BOB-05)");
@@ -45,6 +27,7 @@ export function useActiveCyclone(defaultId: string = "BOB05-2026") {
 
   useEffect(() => {
     syncState();
+    setIsLoaded(true);
 
     const handleCustomEvent = () => syncState();
     const handleStorageEvent = (e: StorageEvent) => {
@@ -63,23 +46,27 @@ export function useActiveCyclone(defaultId: string = "BOB05-2026") {
   }, [syncState]);
 
   const selectCyclone = useCallback((id: string, name?: string) => {
+    setSelectedCycloneId(id);
+    if (name) setSelectedCycloneName(name);
+
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY_ID, id);
       if (name) {
         localStorage.setItem(STORAGE_KEY_NAME, name);
+      } else {
+        localStorage.removeItem(STORAGE_KEY_NAME);
       }
-      setSelectedCycloneId(id);
-      if (name) setSelectedCycloneName(name);
       window.dispatchEvent(new CustomEvent(CYCLONET_EVENT_NAME, { detail: { id, name } }));
     }
   }, []);
 
   const clearSelectedCyclone = useCallback(() => {
+    setSelectedCycloneId(defaultId);
+    setSelectedCycloneName(null);
+
     if (typeof window !== "undefined") {
       localStorage.removeItem(STORAGE_KEY_ID);
       localStorage.removeItem(STORAGE_KEY_NAME);
-      setSelectedCycloneId(defaultId);
-      setSelectedCycloneName(null);
       window.dispatchEvent(new CustomEvent(CYCLONET_EVENT_NAME, { detail: { id: null, name: null } }));
     }
   }, [defaultId]);
@@ -89,5 +76,6 @@ export function useActiveCyclone(defaultId: string = "BOB05-2026") {
     selectedCycloneName,
     selectCyclone,
     clearSelectedCyclone,
+    isLoaded
   };
 }

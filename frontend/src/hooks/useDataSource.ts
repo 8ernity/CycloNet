@@ -18,22 +18,8 @@ export interface DataSourceBadge {
 }
 
 export function useDataSource() {
-  const [dataSource, setDataSourceState] = useState<DataSourceType>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(STORAGE_KEY_SOURCE);
-      if (stored === "JTWC" || stored === "CUSTOM" || stored === "IMD") {
-        return stored as DataSourceType;
-      }
-    }
-    return "IMD";
-  });
-
-  const [customApiUrl, setCustomApiUrlState] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem(STORAGE_KEY_CUSTOM_URL) || "http://localhost:8000/api";
-    }
-    return "http://localhost:8000/api";
-  });
+  const [dataSource, setDataSourceState] = useState<DataSourceType>("IMD");
+  const [customApiUrl, setCustomApiUrlState] = useState<string>("http://localhost:8000/api");
 
   const syncState = useCallback(() => {
     if (typeof window !== "undefined") {

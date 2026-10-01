@@ -64,7 +64,7 @@ export default function RootLayout({
         className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full antialiased`}
         suppressHydrationWarning
       >
-        <body className="min-h-full bg-background text-foreground main-mesh">
+        <body className="min-h-full bg-background text-foreground main-mesh" suppressHydrationWarning>
           <ThemeProvider
             attribute="class"
             defaultTheme="dark"
@@ -74,7 +74,7 @@ export default function RootLayout({
             <LanguageProvider>
               <BackendWarmup />
               <AppShell>{children}</AppShell>
-              <Script src="/liquid-glass.js" strategy="beforeInteractive" />
+              <Script src="/liquid-glass.js" strategy="afterInteractive" />
             </LanguageProvider>
           </ThemeProvider>
         </body>

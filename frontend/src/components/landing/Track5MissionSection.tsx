@@ -113,7 +113,7 @@ export function Track5MissionSection() {
   };
 
   return (
-    <section id="resilience" className="pt-10 pb-20 lg:pt-14 lg:pb-28 bg-gradient-to-b from-[#030712] via-bg-elevated to-bg-base text-text-primary relative overflow-hidden transition-colors duration-300">
+    <section id="resilience" className="pt-10 pb-20 lg:pt-14 lg:pb-28 bg-gradient-to-b from-bg-base via-bg-elevated to-bg-base text-text-primary relative overflow-hidden transition-colors duration-300">
       {/* Background Ambient Radial Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[350px] bg-gradient-to-b from-sky-500/10 via-blue-500/5 to-transparent rounded-full blur-[130px] pointer-events-none -z-10" />
 
@@ -121,8 +121,8 @@ export function Track5MissionSection() {
         
         {/* Single Unified Header */}
         <div className="flex flex-col items-center text-center max-w-4xl mx-auto mb-14">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-sky-500/10 via-blue-500/10 to-indigo-500/10 border border-sky-500/30 text-sky-400 text-xs font-mono font-bold uppercase tracking-wider mb-5 shadow-sm backdrop-blur-md">
-            <ShieldCheck className="w-4 h-4 text-sky-400" />
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-sky-500/10 via-blue-500/10 to-indigo-500/10 border border-sky-500/30 text-sky-500 dark:text-sky-400 text-xs font-mono font-bold uppercase tracking-wider mb-5 shadow-sm backdrop-blur-md">
+            <ShieldCheck className="w-4 h-4 text-sky-500 dark:text-sky-400" />
             <span>Anticipatory Action & Infrastructure Resilience</span>
           </div>
 
@@ -133,7 +133,7 @@ export function Track5MissionSection() {
             <span className="italic text-text-primary block font-normal">
               From Cyclone Prediction
             </span>
-            <span className="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 drop-shadow-[0_0_30px_rgba(99,102,241,0.35)] block">
+            <span className="italic font-normal text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400 drop-shadow-[0_0_30px_rgba(99,102,241,0.25)] block">
               to Community Protection.
             </span>
           </h2>

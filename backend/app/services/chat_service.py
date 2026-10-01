@@ -409,11 +409,14 @@ class MeteorologicalChatService:
 
         user_prompt = prompt or default_prompt
 
-        if self.gemini_api_key:
+        api_key = (self.gemini_api_key or "").strip()
+        is_real_key = len(api_key) > 20 and not api_key.startswith("your_") and not api_key.startswith("dummy")
+
+        if is_real_key:
             for model in self.candidate_models:
                 try:
                     b64_image = base64.b64encode(image_bytes).decode("utf-8")
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={self.gemini_api_key}"
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
                     
                     payload = {
                         "contents": [
@@ -442,7 +445,7 @@ class MeteorologicalChatService:
                         data=json.dumps(payload).encode("utf-8"),
                         headers={"Content-Type": "application/json"}
                     )
-                    with urllib.request.urlopen(req, timeout=25) as response:
+                    with urllib.request.urlopen(req, timeout=6) as response:
                         result = json.loads(response.read().decode("utf-8"))
                         candidates = result.get("candidates", [])
                         if candidates:
@@ -451,9 +454,13 @@ class MeteorologicalChatService:
                             parsed["timestamp"] = timestamp
                             parsed["model_used"] = f"Google {model}"
                             return parsed
+                except urllib.error.HTTPError as he:
+                    print(f"[Gemini Multimodal HTTPError {he.code} with {model}]")
+                    if he.code in (400, 403, 404):
+                        break
                 except Exception as e:
                     print(f"[Gemini Multimodal Exception with {model}] {e}")
-                    continue
+                    break
 
         # Intelligent deterministic fallback
         return {
@@ -500,10 +507,13 @@ class MeteorologicalChatService:
             f"'grid_substation_vulnerabilities', 'evacuation_corridors', 'shelter_readiness', 'parametric_payout_recommendation', and 'action_checklist'."
         )
 
-        if self.gemini_api_key:
+        api_key = (self.gemini_api_key or "").strip()
+        is_real_key = len(api_key) > 20 and not api_key.startswith("your_") and not api_key.startswith("dummy")
+
+        if is_real_key:
             for model in self.candidate_models:
                 try:
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={self.gemini_api_key}"
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
                     payload = {
                         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
                         "generationConfig": {
@@ -517,7 +527,7 @@ class MeteorologicalChatService:
                         data=json.dumps(payload).encode("utf-8"),
                         headers={"Content-Type": "application/json"}
                     )
-                    with urllib.request.urlopen(req, timeout=25) as response:
+                    with urllib.request.urlopen(req, timeout=6) as response:
                         result = json.loads(response.read().decode("utf-8"))
                         candidates = result.get("candidates", [])
                         if candidates:
@@ -526,9 +536,13 @@ class MeteorologicalChatService:
                             parsed["timestamp"] = timestamp
                             parsed["model"] = f"Google {model}"
                             return parsed
+                except urllib.error.HTTPError as he:
+                    print(f"[Gemini Briefing HTTPError {he.code} with {model}]")
+                    if he.code in (400, 403, 404):
+                        break
                 except Exception as e:
                     print(f"[Gemini Briefing Exception with {model}] {e}")
-                    continue
+                    break
 
         # High-fidelity deterministic fallback briefing
         return {
