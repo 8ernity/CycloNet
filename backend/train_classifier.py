@@ -35,32 +35,36 @@ CLASS_NAMES = [
     'Extremely Severe Cyclonic Storm (ESCS)'
 ]
 
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+FRONTEND_PUBLIC = BASE_DIR.parent / "frontend" / "public"
+
 def load_seed_data():
     seed_images = {
         0: [
-            'D:/Projects/CycloneTracker/frontend/public/cyclone-logo.svg',
-            'D:/Projects/CycloneTracker/frontend/public/logo.svg',
+            str(FRONTEND_PUBLIC / "Earth.png"),
+            str(FRONTEND_PUBLIC / "Astronaut.png"),
         ],
         1: [
-            'D:/Projects/CycloneTracker/frontend/public/demo_frames/demo_1.jpg',
+            str(FRONTEND_PUBLIC / "demo_frames" / "demo_1.jpg"),
         ],
         2: [
-            'D:/Projects/CycloneTracker/frontend/public/demo_frames/demo_2.jpg',
+            str(FRONTEND_PUBLIC / "demo_frames" / "demo_2.jpg"),
         ],
         3: [
-            'D:/Projects/CycloneTracker/frontend/public/demo_frames/demo_3.jpg',
+            str(FRONTEND_PUBLIC / "demo_frames" / "demo_3.jpg"),
         ],
         4: [
-            'D:/Projects/CycloneTracker/frontend/public/demo_frames/demo_4.jpg',
-            'D:/Projects/CycloneTracker/frontend/public/demo_frames/demo_4.jpg',
+            str(FRONTEND_PUBLIC / "demo_frames" / "demo_4.jpg"),
         ]
     }
     
-    uploaded_dir = 'C:/Users/arpan/.gemini/antigravity-ide/brain/31f289fb-67a6-41a2-9cf4-d26f79e2f8e0/.user_uploaded'
-    if os.path.exists(uploaded_dir):
-        for f in os.listdir(uploaded_dir):
-            if f.endswith(('.png', '.jpg')) and '1789318050559' not in f:
-                full_p = os.path.join(uploaded_dir, f)
+    user_uploaded_env = os.getenv("USER_UPLOADED_DIR")
+    if user_uploaded_env and os.path.exists(user_uploaded_env):
+        for f in os.listdir(user_uploaded_env):
+            if f.lower().endswith(('.png', '.jpg', '.jpeg')):
+                full_p = os.path.join(user_uploaded_env, f)
                 seed_images[0].append(full_p)
                 
     return seed_images
@@ -204,7 +208,7 @@ def train():
         
         if val_acc >= best_val_acc:
             best_val_acc = val_acc
-            best_weights = head.state_dict().copy()
+            best_weights = {k: v.clone().cpu() for k, v in head.state_dict().items()}
             
         if epoch % 5 == 0 or epoch == 1 or epoch == EPOCHS:
             print(f"Epoch [{epoch:2d}/{EPOCHS:2d}] | Train Loss: {train_loss:.4f} | Train Acc: {train_acc*100:5.1f}% | Val Loss: {val_loss:.4f} | Val Acc: {val_acc*100:5.1f}%")
@@ -212,9 +216,9 @@ def train():
     print("-" * 60)
     print(f"Training Complete! Best Validation Accuracy: {best_val_acc*100:.2f}%")
     
-    output_dir = 'D:/Projects/CycloneTracker/backend/app/models'
+    output_dir = os.path.join(str(BASE_DIR), "app", "models")
     os.makedirs(output_dir, exist_ok=True)
-    checkpoint_path = os.path.join(output_dir, 'cyclone_classifier.pth')
+    checkpoint_path = os.path.join(output_dir, "cyclone_classifier.pth")
     
     checkpoint_data = {
         'state_dict': best_weights,

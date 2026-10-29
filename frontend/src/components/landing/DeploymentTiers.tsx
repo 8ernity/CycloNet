@@ -119,7 +119,13 @@ export function DeploymentTiers() {
                     "w-full cursor-pointer text-xs font-bold",
                     !tier.elevated && "bg-card border-surface-border text-text-primary hover:bg-card/80"
                   )}
-                  onClick={() => window.location.href = '/'}
+                  onClick={() => {
+                    const subject = encodeURIComponent(`Operational Briefing Request: ${tier.name}`);
+                    const body = encodeURIComponent(
+                      `Hello CycloNet Team,\n\nI would like to request an operational briefing for the ${tier.name} (${tier.scope}) deployment tier.\n\nAgency / Department:\nJurisdiction:\nPrimary Contact:\nPhone:`
+                    );
+                    window.location.href = `mailto:operations@cyclonet.org?subject=${subject}&body=${body}`;
+                  }}
                 >
                   Request Operational Briefing
                 </PillButton>

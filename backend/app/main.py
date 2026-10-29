@@ -23,10 +23,23 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Allow frontend to access API
+import os
+from sqlalchemy import text
+
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+if allowed_origins_env:
+    allowed_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+else:
+    allowed_origins = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://cyclonet-frontend.onrender.com"
+    ]
+
+# Restrict CORS to configured frontend origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, restrict to frontend URL
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -51,4 +64,22 @@ def root():
 
 @app.get("/health")
 def health():
-    return {"status": "healthy"}
+    db_ok = False
+    try:
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        db_ok = True
+    except Exception:
+        db_ok = False
+
+    from app.services.live_ingestion import live_ingestion_service
+    from app.services.ml_service import ml_service
+
+    status_str = "healthy" if db_ok else "degraded"
+    return {
+        "status": status_str,
+        "database": "connected" if db_ok else "unreachable",
+        "model_loaded": getattr(ml_service, "has_model", False),
+        "ingestion_sources": live_ingestion_service.sources_status
+    }

@@ -100,16 +100,32 @@ class LiveIngestionService:
             gdacs_systems = await self._fetch_gdacs_active_systems()
             discovered_systems.extend(gdacs_systems)
 
+            def is_duplicate(candidate: Dict[str, Any], existing_list: List[Dict[str, Any]]) -> bool:
+                cand_id = candidate.get("id", "").strip().upper()
+                cand_name = candidate.get("name", "").strip().lower().replace("cyclone", "").strip()
+                for ex in existing_list:
+                    ex_id = ex.get("id", "").strip().upper()
+                    ex_name = ex.get("name", "").strip().lower().replace("cyclone", "").strip()
+                    if cand_id and ex_id and cand_id == ex_id:
+                        return True
+                    if cand_name and ex_name and (cand_name in ex_name or ex_name in cand_name):
+                        return True
+                    # Geographic proximity check for simultaneous observations (< 1.5 degrees)
+                    if (abs(candidate.get("lat", 0) - ex.get("lat", 0)) < 1.5 and 
+                        abs(candidate.get("lon", 0) - ex.get("lon", 0)) < 1.5):
+                        return True
+                return False
+
             # 2. Fetch and parse IMD RSMC New Delhi bulletins
             imd_systems = await self._fetch_imd_bulletins()
             for isys in imd_systems:
-                if not any(s["basin"] == isys["basin"] for s in discovered_systems):
+                if not is_duplicate(isys, discovered_systems):
                     discovered_systems.append(isys)
 
             # 3. Fetch NOAA / JTWC global active tropical cyclone feeds
             jtwc_systems = await self._fetch_jtwc_active_systems()
             for js in jtwc_systems:
-                if not any(s["basin"] == js["basin"] for s in discovered_systems):
+                if not is_duplicate(js, discovered_systems):
                     discovered_systems.append(js)
 
             # 4. If live web scraping returned verified active systems, calibrate and persist
@@ -139,13 +155,16 @@ class LiveIngestionService:
         except Exception as e:
             self.last_error = str(e)
             print(f"[Live Ingestion Error] Failed during sync: {e}")
+            self.sources_status["IMD_RSMC"] = "Degraded (Sync Error)"
+            self.sources_status["JTWC_NOAA"] = "Degraded (Sync Error)"
             return {
-                "status": "success",
+                "status": "partial" if self.live_systems else "error",
                 "synced_at": datetime.datetime.utcnow().isoformat() + "Z",
                 "active_systems_count": len(self.live_systems),
                 "systems": self.live_systems,
                 "sources_status": self.sources_status,
-                "note": "Basin monitoring active (Calm conditions)"
+                "error": str(e),
+                "note": "Synchronization encountered an error; serving current basin telemetry."
             }
         finally:
             self.is_syncing = False
@@ -596,13 +615,16 @@ class LiveIngestionService:
             try:
                 await self.sync_all_sources()
                 
-                # Keep-alive ping to public endpoints to keep Render container active
-                try:
-                    async with httpx.AsyncClient(timeout=10.0) as client:
-                        await client.get("https://cyclonet-backend.onrender.com/health")
-                        await client.get("https://cyclonet-frontend.onrender.com")
-                except Exception:
-                    pass
+                # Optional keep-alive ping for hosted containers (configured via environment)
+                if os.getenv("ENABLE_SELF_PING", "false").lower() in ("1", "true"):
+                    try:
+                        backend_url = os.getenv("BACKEND_HEALTH_URL", "https://cyclonet-backend.onrender.com/health")
+                        frontend_url = os.getenv("FRONTEND_URL", "https://cyclonet-frontend.onrender.com")
+                        async with httpx.AsyncClient(timeout=10.0) as client:
+                            await client.get(backend_url)
+                            await client.get(frontend_url)
+                    except Exception:
+                        pass
             except Exception as e:
                 print(f"[Live Ingestion Worker Exception] {e}")
             await asyncio.sleep(interval_seconds)

@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
@@ -12,6 +13,9 @@ from app.services.best_tracks import get_cyclone_trajectory
 from app.services.live_ingestion import live_ingestion_service
 from app.core.database import get_db
 from app.models.domain import CycloneArchive, ClassificationHistory
+
+logger = logging.getLogger(__name__)
+MAX_IMAGE_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB threshold
 
 router = APIRouter()
 
@@ -142,7 +146,9 @@ async def classify_image(file: UploadFile = File(...), db: Session = Depends(get
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
     
-    image_bytes = await file.read()
+    image_bytes = await file.read(MAX_IMAGE_SIZE_BYTES + 1)
+    if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
+        raise HTTPException(status_code=413, detail="File size exceeds maximum allowable limit (15 MB).")
     
     try:
         result = ml_service.predict(image_bytes)
@@ -161,9 +167,12 @@ async def classify_image(file: UploadFile = File(...), db: Session = Depends(get
             "filename": file.filename,
             "prediction": result
         }
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Satellite classification error: %s", e)
+        raise HTTPException(status_code=500, detail="Internal processing error during satellite classification.")
 
 @router.get("/history/search")
 async def search_history(query: str = "", db: Session = Depends(get_db)):
@@ -448,7 +457,10 @@ async def analyze_multimodal_satellite(
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Uploaded file must be a satellite/radar image")
     
-    image_bytes = await file.read()
+    image_bytes = await file.read(MAX_IMAGE_SIZE_BYTES + 1)
+    if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
+        raise HTTPException(status_code=413, detail="File size exceeds maximum allowable limit (15 MB).")
+    
     analysis = chat_service.analyze_satellite_image(
         image_bytes=image_bytes,
         mime_type=file.content_type,

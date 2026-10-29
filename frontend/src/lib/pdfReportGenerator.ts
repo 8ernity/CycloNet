@@ -386,7 +386,14 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
     ? doc.getNumberOfPages() 
     : ((doc as any).internal?.getNumberOfPages ? (doc as any).internal.getNumberOfPages() : 1);
     
-  const authHash = Math.random().toString(36).substring(2, 10).toUpperCase();
+  // Deterministic document checksum based on storm parameters and synoptic window
+  const payloadToHash = `${systemId}-${systemName}-${knots}-${alertLevel}-${now.toISOString().slice(0, 13)}`;
+  let hashNum = 0x811c9dc5;
+  for (let i = 0; i < payloadToHash.length; i++) {
+    hashNum ^= payloadToHash.charCodeAt(i);
+    hashNum = (hashNum * 0x01000193) >>> 0;
+  }
+  const authHash = hashNum.toString(16).toUpperCase().padStart(8, "0");
   const footerFeedsLabel = sourceInfo?.label ? `CycloNet AI Meteorological Intelligence • ${sourceInfo.label}` : "CycloNet AI Meteorological Intelligence • IMD / RSMC Grounded Feeds";
 
   for (let page = 1; page <= totalPages; page++) {
@@ -403,12 +410,12 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
     doc.setFontSize(6.8);
     doc.setTextColor(100, 116, 139); // Slate-500
     doc.text(footerFeedsLabel, margin, footerY + 2.5);
-    doc.text(`Verification Ref: CN-AUTH-${authHash}`, pageWidth - margin, footerY + 2.5, { align: "right" });
+    doc.text(`Verification Checksum: CN-AUTH-${authHash}`, pageWidth - margin, footerY + 2.5, { align: "right" });
 
     // Row 2: Left operational context, Right page numbers
     doc.setFontSize(6.2);
     doc.setTextColor(148, 163, 184); // Slate-400
-    doc.text("Authorized Public Warning & Disaster Coordination Document (NDMA CAP-CP)", margin, footerY + 6.5);
+    doc.text("Demonstration Meteorological Advisory & Threat Assessment (CAP-CP Protocol)", margin, footerY + 6.5);
     doc.text(`Page ${page} of ${totalPages}`, pageWidth - margin, footerY + 6.5, { align: "right" });
   }
 

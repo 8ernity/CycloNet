@@ -25,10 +25,10 @@ export function useCycloneWebSocket() {
   const [radarAngle, setRadarAngle] = useState(0);
   const [activeSystemsCount, setActiveSystemsCount] = useState(0);
   const [sourcesStatus, setSourcesStatus] = useState<Record<string, string>>({
-    IMD: "CONNECTED",
-    JTWC: "CONNECTED",
-    GDACS: "CONNECTED",
-    MOSDAC: "CONNECTED",
+    IMD: "STANDBY",
+    JTWC: "STANDBY",
+    GDACS: "STANDBY",
+    MOSDAC: "STANDBY",
   });
   const [isSyncing, setIsSyncing] = useState(false);
   const [connectedClients, setConnectedClients] = useState(1);
@@ -37,15 +37,31 @@ export function useCycloneWebSocket() {
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isUnmountedRef = useRef<boolean>(false);
+
+  const getWebSocketUrl = useCallback(() => {
+    if (process.env.NEXT_PUBLIC_WS_URL) {
+      return process.env.NEXT_PUBLIC_WS_URL;
+    }
+    if (typeof window !== "undefined") {
+      const isHttps = window.location.protocol === "https:";
+      const host = window.location.host;
+      if (!host.includes("localhost") && !host.includes("127.0.0.1")) {
+        return `${isHttps ? "wss:" : "ws:"}//cyclonet-backend.onrender.com/ws/cyclone-stream`;
+      }
+    }
+    return "ws://localhost:8000/ws/cyclone-stream";
+  }, []);
 
   const connect = useCallback(() => {
+    if (isUnmountedRef.current) return;
     try {
-      const wsUrl = "ws://localhost:8000/ws/cyclone-stream";
+      const wsUrl = getWebSocketUrl();
       const ws = new WebSocket(wsUrl);
       socketRef.current = ws;
 
       ws.onopen = () => {
-        setIsConnected(true);
+        if (!isUnmountedRef.current) setIsConnected(true);
       };
 
       ws.onmessage = (event) => {
@@ -62,38 +78,50 @@ export function useCycloneWebSocket() {
           } else if (data.type === "emergency_alert_push") {
             setLatestAlert(data.alert);
           }
-        } catch (e) {
+        } catch {
           // ignore non-json
         }
       };
 
       ws.onclose = () => {
         setIsConnected(false);
-        // Attempt reconnect after 3 seconds
+        if (isUnmountedRef.current) return;
         reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
+          if (!isUnmountedRef.current) connect();
         }, 3000);
       };
 
       ws.onerror = () => {
         setIsConnected(false);
-        ws.close();
+        try {
+          ws.close();
+        } catch {
+          // ignore
+        }
       };
-    } catch (err) {
+    } catch {
       setIsConnected(false);
+      if (isUnmountedRef.current) return;
       reconnectTimeoutRef.current = setTimeout(() => {
-        connect();
+        if (!isUnmountedRef.current) connect();
       }, 3000);
     }
-  }, []);
+  }, [getWebSocketUrl]);
 
   useEffect(() => {
+    isUnmountedRef.current = false;
     connect();
 
     return () => {
+      isUnmountedRef.current = true;
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       if (socketRef.current) {
-        socketRef.current.close();
+        try {
+          socketRef.current.close();
+        } catch {
+          // ignore
+        }
+        socketRef.current = null;
       }
     };
   }, [connect]);

@@ -242,11 +242,11 @@ export default function InfrastructurePage() {
         throw new Error("Dispatch request returned error");
       }
     } catch {
-      // Local fallback simulation generator
+      // Local fallback simulation generator (Drill / Exercise mode per OASIS CAP standard)
       setTimeout(() => {
         const fakeDispatch = {
-          status: "DISPATCH_EXECUTED",
-          dispatch_id: `IN-NDMA-CAP-${Math.floor(10000000 + Math.random() * 90000000)}`,
+          status: "SIMULATED_EXERCISE_DISPATCH",
+          dispatch_id: `SIM-DRILL-CAP-${Math.floor(10000000 + Math.random() * 90000000)}`,
           timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) + " UTC",
           region: dispatchRegion,
           risk_level: dispatchRiskLevel,
@@ -255,61 +255,61 @@ export default function InfrastructurePage() {
           wind_speed_kmh: Math.round(simWindKts * 1.852),
           channels_requested: dispatchChannels,
           channels_delivered: {
-            CAP: { status: "SUCCESS", format: "OASIS CAP-CP v1.2 XML", dispatched_to: "NDMA Central Registry" },
-            SMS: { status: "SUCCESS", format: "Cell Broadcast 3-Lang SMS", dispatched_to: "Telecom Service Providers (TSPs)" },
-            SACHET: { status: "SUCCESS", format: "NDMA SACHET Geo-Push", subscribers_alerted: "2,450,000" },
-            SIREN: { status: "SUCCESS", format: "Acoustic Warning Array", towers_triggered: "320 Towers" },
-            VHF: { status: "SUCCESS", format: "Marine NAVTEX / VHF Ch 16", coverage: "Offshore Fishing Fleet" }
+            CAP: { status: "SIMULATED", format: "OASIS CAP-CP v1.2 XML (Exercise)", dispatched_to: "Local Exercise Buffer" },
+            SMS: { status: "SIMULATED", format: "Cell Broadcast 3-Lang SMS Template", dispatched_to: "Drill Simulator" },
+            SACHET: { status: "SIMULATED", format: "NDMA SACHET Geo-Push Template", subscribers_alerted: "Simulated Model (2,450,000 capacity)" },
+            SIREN: { status: "SIMULATED", format: "Acoustic Warning Array Template", towers_triggered: "320 Test Towers" },
+            VHF: { status: "SIMULATED", format: "Marine NAVTEX / VHF Ch 16 Broadcast", coverage: "Drill Channel" }
           },
           cap_xml: `<?xml version="1.0" encoding="UTF-8"?>
 <alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
-  <identifier>IN-NDMA-CAP-DEMO</identifier>
-  <sender>cyclonet-dispatcher@ndma.gov.in</sender>
+  <identifier>SIM-DRILL-CAP-${Math.floor(10000000 + Math.random() * 90000000)}</identifier>
+  <sender>simulation-engine@cyclonet.local</sender>
   <sent>${new Date().toISOString()}</sent>
-  <status>Actual</status>
+  <status>Exercise</status>
   <msgType>Alert</msgType>
-  <scope>Public</scope>
-  <code>NDMA-CAP-CP-v1.2</code>
+  <scope>Restricted</scope>
+  <code>NDMA-CAP-CP-v1.2-EXERCISE</code>
   <info>
     <category>Met</category>
-    <event>Tropical Cyclone Flash Evacuation Advisory</event>
-    <urgency>Immediate</urgency>
+    <event>Simulated Tropical Cyclone Evacuation Drill</event>
+    <urgency>Expected</urgency>
     <severity>Extreme</severity>
     <certainty>Observed</certainty>
-    <headline>${dispatchRiskLevel} ALERT: ${system?.name || "Cyclone"} Threat Approaching ${dispatchRegion}</headline>
-    <description>Peak surge ${surgeCalcData?.peak_surge_height_m || surgeM}m, winds ${simWindKts} kts (${Math.round(simWindKts*1.852)} km/h). Immediate evacuation of low-lying flood zones mandated.</description>
-    <instruction>Evacuate designated low-lying coastal belt to nearest Multipurpose Cyclone Shelters. Avoid arterial roads marked with red choke points.</instruction>
+    <headline>[EXERCISE / DRILL] ${dispatchRiskLevel} ALERT: ${system?.name || "Cyclone"} Threat Approaching ${dispatchRegion}</headline>
+    <description>[DRILL - NOT A REAL EMERGENCY] Peak surge ${surgeCalcData?.peak_surge_height_m || surgeM}m, winds ${simWindKts} kts (${Math.round(simWindKts*1.852)} km/h). Evacuation simulation protocol.</description>
+    <instruction>[EXERCISE DIRECTIVE] Move to designated shelters during drill exercise. Test power backup generators.</instruction>
   </info>
 </alert>`,
           sms_payload: {
-            english: `NDMA EMERGENCY ALERT: ${dispatchRiskLevel} cyclone risk in ${dispatchRegion}. Peak surge ${surgeCalcData?.peak_surge_height_m || surgeM}m, wind ${Math.round(simWindKts*1.852)} km/h. Evacuate to nearest shelter immediately. Dial 1070 for rescue.`,
-            hindi: `एनडीएमए आपातकालीन चेतावनी: ${dispatchRegion} में ${dispatchRiskLevel} चक्रवात का खतरा। तुरंत नजदीकी चक्रवात आश्रय में जाएं। आपातकालीन नंबर 1070।`,
-            regional: `জরুরি সাইক্লোন সতর্কতা: ${dispatchRegion} উপকূলে ${dispatchRiskLevel} সাইক্লোন সতর্কতা। দ্রুত বহুমুখী আশ্রয়কেন্দ্রে আশ্রয় নিন।`
+            english: `[EXERCISE ONLY] CYCLONET DRILL ALERT: ${dispatchRiskLevel} cyclone risk in ${dispatchRegion}. Peak surge ${surgeCalcData?.peak_surge_height_m || surgeM}m, wind ${Math.round(simWindKts*1.852)} km/h. Evacuation drill active.`,
+            hindi: `[केवल अभ्यास] चक्रवात ड्रिल चेतावनी: ${dispatchRegion} में ${dispatchRiskLevel} चक्रवात अभ्यास। आपातकालीन नंबर 1070।`,
+            regional: `[শুধুমাত্র মহড়া] জরুরি সাইক্লোন মহড়া সতর্কতা: ${dispatchRegion} উপকূলে ${dispatchRiskLevel} সাইক্লোন মহড়া।`
           },
           sachet_payload: {
-            alert_id: "IN-NDMA-CAP-DEMO",
-            provider: "NDMA SACHET National Early Warning Feed",
-            incident_type: "CYCLONE_STORM_SURGE",
+            alert_id: "SIM-DRILL-CAP-DEMO",
+            provider: "NDMA SACHET Drill Simulator",
+            incident_type: "CYCLONE_STORM_SURGE_EXERCISE",
             target_zone: dispatchRegion,
             risk_score: 94,
-            action_directive: "MANDATORY_EVACUATION",
+            action_directive: "DRILL_EVACUATION",
             safe_shelters_active: 18
           },
           siren_payload: {
-            siren_array_status: "ACTIVATED",
+            siren_array_status: "TEST_ACTIVATION",
             target_towers: 320,
-            sound_pressure_level: "130 dB @ 30m",
-            pulse_pattern: "3-minute rising warble followed by 1-minute silent gap"
+            sound_pressure_level: "130 dB @ 30m (Drill Tone)",
+            pulse_pattern: "Test pattern: 3-minute rising warble followed by 1-minute silent gap"
           },
-          vhf_payload: `ALL STATIONS, ALL STATIONS, ALL STATIONS. THIS IS COAST GUARD MARINE RESCUE SUB-CENTRE. ${dispatchRiskLevel} CYCLONE ADVISORY IN FORCE FOR ${dispatchRegion.toUpperCase()}. ALL FISHING VESSELS RETURN TO SAFE HARBOUR IMMEDIATELY. BREAK.`,
+          vhf_payload: `[DRILL - DRILL - DRILL] ALL STATIONS, ALL STATIONS. THIS IS COAST GUARD DRILL SIMULATION. ${dispatchRiskLevel} CYCLONE EXERCISE IN FORCE FOR ${dispatchRegion.toUpperCase()}. TEST PURPOSES ONLY. OUT.`,
           municipal_briefing: [
-            `Mandatory evacuation of ${dispatchRegion} low-lying coastal belt (< 3.0m elevation AMSL) within 6 hours.`,
+            `[EXERCISE ONLY] Simulated evacuation drill of ${dispatchRegion} coastal belt (< 3.0m elevation AMSL).`,
             `Pre-stage NDRF/SDRF water-rescue teams with motorized boats at identified drainage choke points.`,
-            `Order temporary shutdown of exposed 220kV/33kV coastal substations to prevent transformer arc flash.`,
-            `Activate emergency DG diesel generator power backups and satellite comms at all Multipurpose Shelters.`
+            `Simulate temporary shutdown of exposed 220kV/33kV coastal substations to test islanding microgrids.`,
+            `Verify emergency DG diesel generator power backups and satellite comms at all Multipurpose Shelters.`
           ],
           audit_trail: {
-            initiator: "CycloNet Automated Anticipatory Early Warning Engine",
+            initiator: "CycloNet Anticipatory Early Warning Drill Engine (Offline Fallback)",
             dispatch_latency_ms: 142,
             cryptographic_hash: "SHA256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
           }
@@ -317,7 +317,7 @@ export default function InfrastructurePage() {
         setDispatchResult(fakeDispatch);
         setDispatchLoading(false);
         setDispatchStep(5);
-        showToast("Advisory Dispatched (Simulated Engine Ready)!");
+        showToast("Backend offline: Generated Exercise Drill template (OASIS Exercise mode).");
       }, 2600);
     }
   };

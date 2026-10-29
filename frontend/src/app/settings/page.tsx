@@ -19,6 +19,12 @@ export default function SettingsPage() {
   useEffect(() => {
     setMounted(true);
     setCustomUrlInput(customApiUrl);
+    if (typeof window !== "undefined") {
+      const savedNotifs = localStorage.getItem("cyclonet_daily_notifications");
+      if (savedNotifs !== null) setNotifications(savedNotifs === "true");
+      const savedSms = localStorage.getItem("cyclonet_sms_alerts");
+      if (savedSms !== null) setSmsAlerts(savedSms === "true");
+    }
   }, [customApiUrl]);
 
   const showToast = (msg: string) => {
@@ -29,6 +35,10 @@ export default function SettingsPage() {
   const handleSave = () => {
     if (dataSource === "CUSTOM") {
       setCustomApiUrl(customUrlInput);
+    }
+    if (typeof window !== "undefined") {
+      localStorage.setItem("cyclonet_daily_notifications", String(notifications));
+      localStorage.setItem("cyclonet_sms_alerts", String(smsAlerts));
     }
     showToast("Settings and data source preferences saved successfully.");
   };
@@ -44,17 +54,34 @@ export default function SettingsPage() {
     }
   };
 
+  const handleToggleNotifications = () => {
+    const nextVal = !notifications;
+    setNotifications(nextVal);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("cyclonet_daily_notifications", String(nextVal));
+    }
+  };
+
+  const handleToggleSms = () => {
+    const nextVal = !smsAlerts;
+    setSmsAlerts(nextVal);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("cyclonet_sms_alerts", String(nextVal));
+    }
+  };
+
   const handleTestEndpoint = async () => {
     setTestingCustomUrl(true);
     try {
-      const res = await fetch(customUrlInput + "/health", { method: "GET" });
+      const targetUrl = customUrlInput.trim().replace(/\/+$/, "");
+      const res = await fetch(`${targetUrl}/health`, { method: "GET" });
       if (res.ok) {
         showToast("Custom API Endpoint is Online & Healthy (200 OK)!");
       } else {
-        showToast(`Custom API returned HTTP ${res.status}`);
+        showToast(`Custom API returned error status: HTTP ${res.status}`);
       }
     } catch {
-      showToast("Endpoint reached / Ready for local payloads.");
+      showToast("Connection failed: Unable to reach custom API endpoint.");
     } finally {
       setTestingCustomUrl(false);
     }
@@ -119,7 +146,7 @@ export default function SettingsPage() {
                 <p className="text-xs text-muted-foreground">Receive automated RSS bulletin updates.</p>
               </div>
               <button 
-                onClick={() => setNotifications(!notifications)}
+                onClick={handleToggleNotifications}
                 className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${notifications ? 'bg-primary' : 'bg-secondary'}`}
               >
                 <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${notifications ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -132,7 +159,7 @@ export default function SettingsPage() {
                 <p className="text-xs text-muted-foreground">Audio alerts for Category 3+ Major threats.</p>
               </div>
               <button 
-                onClick={() => setSmsAlerts(!smsAlerts)}
+                onClick={handleToggleSms}
                 className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${smsAlerts ? 'bg-destructive' : 'bg-secondary'}`}
               >
                 <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${smsAlerts ? 'translate-x-6' : 'translate-x-1'}`} />

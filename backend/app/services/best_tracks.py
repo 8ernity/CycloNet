@@ -1006,7 +1006,7 @@ def _generate_curved_meteorological_track(
             "time_offset_hours": offset_hours,
             "category": p_cat,
             "intensity_knots": knots,
-            "is_forecast": (step > peak_step),
+            "is_forecast": False,
             "is_landfall": is_landfall,
             "label": label
         })
