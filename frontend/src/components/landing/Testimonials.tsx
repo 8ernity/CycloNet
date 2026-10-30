@@ -127,6 +127,10 @@ export function Testimonials() {
           ))}
         </motion.div>
 
+        <p className="text-center text-[11px] text-text-muted mt-8 font-mono">
+          Note: Statements and profiles represent illustrative persona scenarios demonstrating decision-support workflows and do not constitute formal agency endorsements by IMD, NDMA, or Indian Coast Guard.
+        </p>
+
       </div>
     </section>
   );

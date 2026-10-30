@@ -132,6 +132,18 @@ const getCategoryAbbr = (cat: string, knots: number): string => {
   return "D";
 };
 
+// IMD (RSMC New Delhi) 5-year Climatological Verification Track Error Radii (degrees):
+// 12h: ~50km (0.45°), 24h: ~86km (0.78°), 36h: ~124km (1.12°), 48h: ~161km (1.45°), 60h: ~198km (1.78°), 72h: ~238km (2.15°)
+// Calibrated to official IMD Annual Cyclone Reports (#47)
+const IMD_NIO_ERROR_RADII_DEG = [0.45, 0.78, 1.12, 1.45, 1.78, 2.15];
+
+function getImdConeRadius(stepIndex: number): number {
+  if (stepIndex < IMD_NIO_ERROR_RADII_DEG.length) {
+    return IMD_NIO_ERROR_RADII_DEG[stepIndex];
+  }
+  return IMD_NIO_ERROR_RADII_DEG[IMD_NIO_ERROR_RADII_DEG.length - 1] + (stepIndex - (IMD_NIO_ERROR_RADII_DEG.length - 1)) * 0.37;
+}
+
 // Generates smooth IMD Cone of Uncertainty polygon enclosing future forecast track
 function generateConeOfUncertainty(
   forecastPts: { lat: number; lon: number }[]
@@ -157,8 +169,8 @@ function generateConeOfUncertainty(
     const nLat = -dLon / len;
     const nLon = dLat / len;
 
-    // Radius expands as forecast lead time increases (from ~30km up to ~180km)
-    const radius = 0.28 + i * 0.32;
+    // Radius calibrated to IMD 5-year NIO average track forecast error statistics
+    const radius = getImdConeRadius(i);
     leftSide.push([pt.lat + nLat * radius, pt.lon + nLon * radius]);
     rightSide.push([pt.lat - nLat * radius, pt.lon - nLon * radius]);
   }
@@ -166,7 +178,7 @@ function generateConeOfUncertainty(
   // Rounded cap around the final forecast fix
   const lastPt = forecastPts[forecastPts.length - 1];
   const prevPt = forecastPts[Math.max(0, forecastPts.length - 2)];
-  const tipRadius = 0.28 + (forecastPts.length - 1) * 0.32;
+  const tipRadius = getImdConeRadius(forecastPts.length - 1);
   const baseAngle = Math.atan2(lastPt.lat - prevPt.lat, lastPt.lon - prevPt.lon);
   const capPoints: [number, number][] = [];
 
@@ -465,6 +477,10 @@ export default function MapComponent({ activeSystem }: MapProps) {
             <div className="flex items-center gap-2">
               <span className="w-4 h-0 border-t-2 border-dashed border-foreground/80 inline-block" />
               <span className="text-muted-foreground">Dashed Line: Kinematic Extrapolated Track</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-4 h-2 rounded-xs bg-[#22c55e]/35 border border-[#15803d] inline-block" />
+              <span className="text-muted-foreground text-[10px]">Green Cone: IMD 5-Yr Verification Error Envelope</span>
             </div>
           </div>
         </div>

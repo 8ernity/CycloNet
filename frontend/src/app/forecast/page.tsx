@@ -40,6 +40,7 @@ interface ActiveSystem {
   intensity_knots: number;
   category: string;
   is_simulation?: boolean;
+  year?: string;
   dvorak_t?: string;
   dvorak_derivation_method?: string;
   dvorak_is_empirical_estimate?: boolean;
@@ -408,6 +409,35 @@ export default function ForecastPage() {
         </div>
       </div>
 
+      {/* Tracking Mode & Civil Defense Advisory Banner (#34 & #36) */}
+      <div className="p-3.5 px-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs bg-secondary/30 border-border">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <span className={`px-2 py-0.5 rounded font-mono font-bold text-[11px] uppercase tracking-wider ${
+            system.id?.includes("2026") || system.is_simulation 
+              ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+              : system.year && !system.year.includes("Active")
+                ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+          }`}>
+            {system.id?.includes("2026") || system.is_simulation 
+              ? "SYNTHETIC EXERCISE DRILL"
+              : system.year && !system.year.includes("Active")
+                ? `HISTORICAL ARCHIVE REPLAY (${system.year})`
+                : "OPERATIONAL SURVEILLANCE FEED"}
+          </span>
+          <span className="text-muted-foreground">
+            {system.id?.includes("2026") || system.is_simulation
+              ? "Simulated kinematic scenario for disaster response rehearsal."
+              : system.year && !system.year.includes("Active")
+                ? "Replaying validated post-storm best-track observations."
+                : "Real-time kinematic waypoint tracking."}
+          </span>
+        </div>
+        <span className="text-[10.5px] text-muted-foreground italic sm:text-right">
+          Civil Defense: Statutory warnings follow IMD (RSMC New Delhi) bulletins.
+        </span>
+      </div>
+
       {/* Landfall & Coastal Impact Kinematics Banner */}
       {system.landfall_info && (
         <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm animate-in fade-in duration-300">
@@ -604,13 +634,13 @@ export default function ForecastPage() {
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-                    Model Reliability
+                    Historical Verification
                   </span>
-                  <h4 className="font-heading font-bold text-sm text-foreground">Forecast Confidence</h4>
+                  <h4 className="font-heading font-bold text-sm text-foreground">Climatological Error Baseline</h4>
                 </div>
               </div>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                ENSEMBLE
+                IMD 5-YR NIO AVG
               </span>
             </div>
 
@@ -618,36 +648,36 @@ export default function ForecastPage() {
               <div>
                 <div className="flex justify-between text-[10.5px] mb-0.5">
                   <span className="text-muted-foreground">0h &ndash; 24h Lead</span>
-                  <span className="font-mono font-bold text-emerald-400">92% &bull; &plusmn;35 km</span>
+                  <span className="font-mono font-bold text-emerald-400">&plusmn;86 km (0.78&deg;) Error</span>
                 </div>
                 <div className="w-full h-1.5 rounded-full bg-secondary overflow-hidden">
-                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: "92%" }} />
+                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: "85%" }} />
                 </div>
               </div>
 
               <div>
                 <div className="flex justify-between text-[10.5px] mb-0.5">
                   <span className="text-muted-foreground">24h &ndash; 48h Lead</span>
-                  <span className="font-mono font-bold text-blue-400">77% &bull; &plusmn;85 km</span>
+                  <span className="font-mono font-bold text-blue-400">&plusmn;161 km (1.45&deg;) Error</span>
                 </div>
                 <div className="w-full h-1.5 rounded-full bg-secondary overflow-hidden">
-                  <div className="h-full bg-blue-500 rounded-full" style={{ width: "77%" }} />
+                  <div className="h-full bg-blue-500 rounded-full" style={{ width: "65%" }} />
                 </div>
               </div>
 
               <div>
                 <div className="flex justify-between text-[10.5px] mb-0.5">
                   <span className="text-muted-foreground">48h &ndash; 72h+ Lead</span>
-                  <span className="font-mono font-bold text-amber-400">59% &bull; &plusmn;145 km</span>
+                  <span className="font-mono font-bold text-amber-400">&plusmn;238 km (2.15&deg;) Error</span>
                 </div>
                 <div className="w-full h-1.5 rounded-full bg-secondary overflow-hidden">
-                  <div className="h-full bg-amber-500 rounded-full" style={{ width: "59%" }} />
+                  <div className="h-full bg-amber-500 rounded-full" style={{ width: "45%" }} />
                 </div>
               </div>
             </div>
 
             <p className="text-[10px] text-muted-foreground pt-1 border-t border-border/50">
-              Cone expands linearly with lead time due to atmospheric dispersion.
+              Calibrated to IMD Annual Cyclone Reports 5-year climatological verification errors for North Indian Ocean cyclonic disturbances.
             </p>
           </div>
 

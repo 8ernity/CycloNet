@@ -129,21 +129,23 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   const maxContentY = pageHeight - 20; // Safe bottom boundary before footer
   let y = 14;
 
-  const knots = Number(system.intensity_knots) || 65;
-  const kmh = Math.round(knots * 1.852);
-  const gusts = Math.round(kmh * 1.25);
-  const surge = Number((Math.max(0.8, (knots * 0.035) + 0.5)).toFixed(1));
-  const wave = Number((Math.max(2.0, (knots * 0.08) + 1.0)).toFixed(1));
-  const pressure = 1010 - Math.round(knots * 0.65);
+  const hasKnots = typeof system.intensity_knots === "number" && !isNaN(system.intensity_knots) && system.intensity_knots > 0;
+  const knots = hasKnots ? Number(system.intensity_knots) : null;
+  const kmh = knots !== null ? Math.round(knots * 1.852) : null;
+  const gusts = kmh !== null ? Math.round(kmh * 1.25) : null;
+  const surge = knots !== null ? Number((Math.max(0.8, (knots * 0.035) + 0.5)).toFixed(1)) : null;
+  const wave = knots !== null ? Number((Math.max(2.0, (knots * 0.08) + 1.0)).toFixed(1)) : null;
+  const pressure = knots !== null ? 1010 - Math.round(knots * 0.65) : null;
   const now = new Date();
   const dateStr = now.toUTCString();
 
-  const systemName = system.name || "ACTIVE CYCLONE SYSTEM";
-  const systemCategory = system.category || "Severe Cyclonic Storm";
+  const systemName = system.name || "Unclassified Cyclonic Disturbance";
+  const systemCategory = system.category || "Category Pending Assessment";
   const systemBasin = system.basin || "North Indian Ocean";
-  const systemLat = typeof system.lat === "number" ? system.lat : 18.5;
-  const systemLon = typeof system.lon === "number" ? system.lon : 88.2;
-  const systemId = system.id || "BOB-01";
+  const hasCoords = typeof system.lat === "number" && typeof system.lon === "number" && !isNaN(system.lat) && !isNaN(system.lon);
+  const systemLat = hasCoords ? (system.lat as number) : null;
+  const systemLon = hasCoords ? (system.lon as number) : null;
+  const systemId = system.id || "N/A (Pending Reference Code)";
   const alertLevel = (alertInfo.level || "ORANGE").toUpperCase();
 
   // ── 1. Top Official Header Banner ──────────────────────────────────────────
@@ -201,7 +203,10 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.setFontSize(8);
   doc.setTextColor(71, 85, 105);
   const scaleRef = sourceInfo?.scaleName || "WMO RSMC Scale";
-  doc.text(`Basin: ${systemBasin}  |  Center Fix: ${systemLat.toFixed(2)}°N, ${systemLon.toFixed(2)}°E  |  Ref Code: ${systemId}  |  Scale: ${scaleRef}`, margin + 4, y + 11);
+  const coordFixStr = (systemLat !== null && systemLon !== null)
+    ? `${systemLat.toFixed(2)}°N, ${systemLon.toFixed(2)}°E`
+    : "[Coordinate Fix Not Reported]";
+  doc.text(`Basin: ${systemBasin}  |  Center Fix: ${coordFixStr}  |  Ref Code: ${systemId}  |  Scale: ${scaleRef}`, margin + 4, y + 11);
   doc.text(`Status Directive: ${alertInfo.title || "Severe Cyclone Alert"}`, margin + 4, y + 16);
 
   y += 24;
@@ -214,31 +219,36 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   y += 3.5;
 
   const windHeaderLabel = sourceInfo?.shortLabel ? `Max Sustained Wind (${sourceInfo.shortLabel}):` : "Max Sustained Wind (3-min):";
+  const windValStr = knots !== null ? `${knots} Knots (${kmh} km/h)` : "[Intensity Data Pending / Under Investigation]";
+  const gustValStr = gusts !== null ? `${gusts} km/h (Estimated Gale)` : "[Pending Anemometer Fix]";
+  const pressureValStr = pressure !== null ? `${pressure} hPa (Estimated)` : "[Barometric Data Pending]";
+  const surgeValStr = surge !== null ? `${surge} meters (above tide)` : "[Surge Model Awaiting Intensity Fix]";
+  const waveValStr = wave !== null ? `${wave} meters (Phenomenal)` : "[Wave Altimeter Fix Pending]";
 
   const paramData = [
     [
       { content: windHeaderLabel, styles: { fontStyle: "bold" as const } },
-      `${knots} Knots (${kmh} km/h)`,
+      windValStr,
       { content: "Peak Estimated Gusts:", styles: { fontStyle: "bold" as const } },
-      `${gusts} km/h (Gale Force)`
+      gustValStr
     ],
     [
       { content: "Estimated Central Pressure:", styles: { fontStyle: "bold" as const } },
-      `${pressure} hPa`,
+      pressureValStr,
       { content: "Expected Storm Surge:", styles: { fontStyle: "bold" as const } },
-      `${surge} meters (above tide)`
+      surgeValStr
     ],
     [
       { content: "Peak Significant Wave Height:", styles: { fontStyle: "bold" as const } },
-      `${wave} meters (Phenomenal)`,
+      waveValStr,
       { content: "Movement Vector:", styles: { fontStyle: "bold" as const } },
-      "North-Northwestwards at 14 km/h"
+      (systemLat !== null && systemLon !== null) ? "North-Northwestwards at 14 km/h" : "[Trajectory Fix Pending]"
     ],
     [
       { content: "24-Hour Rainfall Outlook:", styles: { fontStyle: "bold" as const } },
-      "Heavy to Extremely Heavy (>200 mm)",
+      knots !== null && knots >= 64 ? "Heavy to Extremely Heavy (>200 mm)" : "Isolated Squally Rainfall",
       { content: "Nautical Port Warning:", styles: { fontStyle: "bold" as const } },
-      portSignals[0]?.signal || "Danger Signal VII"
+      portSignals[0]?.signal || (knots !== null && knots >= 64 ? "Danger Signal VII" : "Warning Signal III")
     ]
   ];
 
@@ -272,12 +282,18 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.text("2. 48-HOUR TRACK & INTENSITY FORECAST OUTLOOK", margin, y);
   y += 3.5;
 
-  const forecastRows = [
+  const forecastRows = (systemLat !== null && systemLon !== null && knots !== null) ? [
     ["Current Fix", "00 UTC", `${systemLat.toFixed(1)}°N, ${systemLon.toFixed(1)}°E`, `${knots} kts (${kmh} km/h)`, systemCategory, "Maritime Basin"],
     ["+12 Hours", "+12h", `${(systemLat + 0.6).toFixed(1)}°N, ${(systemLon - 0.4).toFixed(1)}°E`, `${knots + 5} kts (${Math.round((knots + 5) * 1.852)} km/h)`, systemCategory, "Approaching Coast"],
     ["+24 Hours (Landfall)", "+24h", `${(systemLat + 1.3).toFixed(1)}°N, ${(systemLon - 0.7).toFixed(1)}°E`, `${Math.max(35, knots - 15)} kts (${Math.round(Math.max(35, knots - 15) * 1.852)} km/h)`, "Severe Cyclonic Storm", "Landfall Sector"],
     ["+36 Hours", "+36h", `${(systemLat + 2.0).toFixed(1)}°N, ${(systemLon - 0.8).toFixed(1)}°E`, "35 kts (65 km/h)", "Cyclonic Storm", "Inland Movement"],
     ["+48 Hours", "+48h", `${(systemLat + 2.6).toFixed(1)}°N, ${(systemLon - 0.9).toFixed(1)}°E`, "25 kts (45 km/h)", "Deep Depression", "Weakening over land"],
+  ] : [
+    ["Current Fix", "00 UTC", coordFixStr, windValStr, systemCategory, "Observation Pending"],
+    ["+12 Hours", "+12h", "[Pending Fix]", "[Pending Fix]", "[Pending Fix]", "Forecast Track Pending Synoptic Fix"],
+    ["+24 Hours", "+24h", "[Pending Fix]", "[Pending Fix]", "[Pending Fix]", "Forecast Track Pending Synoptic Fix"],
+    ["+36 Hours", "+36h", "[Pending Fix]", "[Pending Fix]", "[Pending Fix]", "Forecast Track Pending Synoptic Fix"],
+    ["+48 Hours", "+48h", "[Pending Fix]", "[Pending Fix]", "[Pending Fix]", "Forecast Track Pending Synoptic Fix"],
   ];
 
   runAutoTable(doc, {
@@ -325,7 +341,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   runAutoTable(doc, {
     startY: y,
     head: [["District / Jurisdiction", "State", "Hazard Rating", "Shelter Capacity", "Evacuation Directive"]],
-    body: districtRows.length > 0 ? districtRows : [["Coastal Corridor", systemBasin, "High Alert", "Active", "Mandatory Evacuation"]],
+    body: districtRows.length > 0 ? districtRows : [["Maritime Sector / No Landfall Districts Reported", systemBasin, "Offshore Advisory", "N/A (Maritime)", "Vessels Advised to Avoid Open Waters"]],
     theme: "striped",
     headStyles: {
       fillColor: [30, 41, 59],

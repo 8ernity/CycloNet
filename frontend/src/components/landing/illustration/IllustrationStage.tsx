@@ -127,8 +127,8 @@ export function IllustrationStage() {
 /** Bottom status bar inside the container */
 function BottomBar({ sceneIndex }: { sceneIndex: number }) {
   const metrics = [
-    ['18 Satellite Passes', '4 Doppler Stations', '99.9% Nominal'],
-    ['1 Active Cyclone', '94.2% Confidence', '12ms Latency'],
+    ['18 Satellite Passes', '4 Doppler Stations', 'Feeds Active'],
+    ['1 Active Cyclone', '94.2% Confidence', 'WebSocket Stream'],
     ['CAP-CP Broadcast', 'ETA 18h', 'Odisha / WB Sector'],
   ];
   const current = metrics[sceneIndex] ?? metrics[0];

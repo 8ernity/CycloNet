@@ -54,11 +54,38 @@ export default function SettingsPage() {
     }
   };
 
-  const handleToggleNotifications = () => {
+  const handleToggleNotifications = async () => {
     const nextVal = !notifications;
+    if (nextVal) {
+      if (typeof window !== "undefined" && "Notification" in window) {
+        try {
+          const perm = await Notification.requestPermission();
+          if (perm === "granted") {
+            setNotifications(true);
+            localStorage.setItem("cyclonet_daily_notifications", "true");
+            showToast("Web Push Notifications enabled! Browser permission granted.");
+            try {
+              new Notification("CycloNet Alert Feed Active", {
+                body: "Web Push connected. You will receive active tropical cyclone bulletins & track updates.",
+                icon: "/favicon.ico"
+              });
+            } catch {}
+            return;
+          } else {
+            setNotifications(false);
+            localStorage.setItem("cyclonet_daily_notifications", "false");
+            showToast("Notification permission denied or blocked in browser settings.");
+            return;
+          }
+        } catch (e) {
+          console.warn("Notification permission error:", e);
+        }
+      }
+    }
     setNotifications(nextVal);
     if (typeof window !== "undefined") {
       localStorage.setItem("cyclonet_daily_notifications", String(nextVal));
+      if (!nextVal) showToast("Weather bulletin notifications muted.");
     }
   };
 
@@ -67,6 +94,11 @@ export default function SettingsPage() {
     setSmsAlerts(nextVal);
     if (typeof window !== "undefined") {
       localStorage.setItem("cyclonet_sms_alerts", String(nextVal));
+      if (nextVal) {
+        showToast("Emergency Audio & Alert Broadcasts enabled (requires active carrier gateway webhook or drill mode).");
+      } else {
+        showToast("Emergency Red Alert Broadcasts muted.");
+      }
     }
   };
 
@@ -142,8 +174,8 @@ export default function SettingsPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between p-3.5 bg-secondary/20 rounded-xl border border-border">
               <div>
-                <p className="font-semibold text-sm text-foreground">Daily Ingest Weather Bulletins</p>
-                <p className="text-xs text-muted-foreground">Receive automated RSS bulletin updates.</p>
+                <p className="font-semibold text-sm text-foreground">Browser Web Push Bulletins</p>
+                <p className="text-xs text-muted-foreground">Receive browser push notifications for real-time alerts.</p>
               </div>
               <button 
                 onClick={handleToggleNotifications}
@@ -155,8 +187,8 @@ export default function SettingsPage() {
             
             <div className="flex items-center justify-between p-3.5 bg-secondary/20 rounded-xl border border-border">
               <div>
-                <p className="font-semibold text-sm text-foreground">Emergency Red Alert Broadcasts</p>
-                <p className="text-xs text-muted-foreground">Audio alerts for Category 3+ Major threats.</p>
+                <p className="font-semibold text-sm text-foreground">Emergency Red Alert Audio / SMS</p>
+                <p className="text-xs text-muted-foreground">High-threat sound & TSP gateway dispatch trigger.</p>
               </div>
               <button 
                 onClick={handleToggleSms}
@@ -164,6 +196,10 @@ export default function SettingsPage() {
               >
                 <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${smsAlerts ? 'translate-x-6' : 'translate-x-1'}`} />
               </button>
+            </div>
+
+            <div className="pt-2 text-[10.5px] text-muted-foreground border-t border-border/40 font-mono">
+              Gateway Status: {notifications ? "🟢 Web Push Active" : "⚪ Web Push Dormant"} • {smsAlerts ? "🟡 Carrier SMS (Drill Sandbox Active)" : "⚪ SMS Idle"}
             </div>
           </div>
         </div>

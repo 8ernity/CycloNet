@@ -484,6 +484,15 @@ export default function ClassificationPage() {
             </div>
           )}
 
+          {/* Domain Notice (#59) */}
+          <div className="mb-4 p-2.5 px-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300 flex items-start gap-2 font-mono">
+            <Cpu className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+            <div className="text-[11px] leading-relaxed">
+              <span className="font-bold text-blue-300 block mb-0.5">Transfer Learning Domain Notice:</span>
+              <span>Backbone uses ImageNet optical pretraining with custom Dvorak classifier head. Operational deployment requires calibration against calibrated INSAT-3DR / Meteosat-9 infrared brightness temperature channels (TIR-1/TIR-2/WV).</span>
+            </div>
+          </div>
+
           {/* Grad-CAM & Satellite Image Viewport (Fix #7) */}
           <div className="h-[240px] bg-secondary/30 rounded-xl border border-border relative overflow-hidden flex items-center justify-center group mb-4">
              {previewUrl ? (

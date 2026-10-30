@@ -22,6 +22,8 @@ interface ActiveSystem {
   lon: number;
   intensity_knots: number;
   basin?: string;
+  is_simulation?: boolean;
+  year?: string;
   is_live_telemetry?: boolean;
   telemetry_badge?: string;
   telemetry_type?: string;
@@ -362,9 +364,10 @@ export default function DashboardLiveMonitoringPage() {
               const displayName = c.name.startsWith("Cyclone") || c.name.startsWith("Deep") || c.name.startsWith("Super") 
                 ? c.name 
                 : `Cyclone ${c.name}`;
+              const isDrill = c.id.includes("2026") || (c as any).is_simulation;
               return (
                 <option key={c.id} value={c.id}>
-                  📁 Simulation: {displayName} ({c.year})
+                  {isDrill ? "🧪 Drill: " : "🏛️ Historical: "}{displayName} ({c.year})
                 </option>
               );
             })}
@@ -374,24 +377,30 @@ export default function DashboardLiveMonitoringPage() {
             className={`px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${
               activeSystem && activeSystem.is_live_telemetry
                 ? "bg-rose-500/15 text-rose-400 border-rose-500/30"
-                : activeSystem
-                  ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                  : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                : activeSystem && (activeSystem.is_simulation || activeSystem.id.includes("2026"))
+                  ? "bg-purple-500/15 text-purple-400 border-purple-500/30"
+                  : activeSystem
+                    ? "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                    : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
             }`} 
             title={
               activeSystem && activeSystem.is_live_telemetry
                 ? "Live verified meteorological telemetry from GDACS/IMD"
-                : activeSystem
-                  ? "Historical simulation scenario for analytical verification"
-                  : "North Indian Ocean basin is calm (zero active storms)"
+                : activeSystem && (activeSystem.is_simulation || activeSystem.id.includes("2026"))
+                  ? "Synthetic drill exercise for operational testing"
+                  : activeSystem
+                    ? "Verified historical post-storm best-track observations"
+                    : "North Indian Ocean basin is calm (zero active storms)"
             }
           >
             <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
             {activeSystem && activeSystem.is_live_telemetry 
-              ? "🔴 LIVE STORM DETECTED" 
-              : activeSystem 
-                ? "🟡 SIMULATION SCENARIO" 
-                : "🟢 BASIN CALM (NOMINAL)"}
+              ? "🔴 LIVE SURVEILLANCE" 
+              : activeSystem && (activeSystem.is_simulation || activeSystem.id.includes("2026"))
+                ? "🟣 SYNTHETIC DRILL"
+                : activeSystem 
+                  ? "🔵 HISTORICAL REPLAY" 
+                  : "🟢 BASIN CALM (NOMINAL)"}
           </span>
 
           <button
@@ -403,6 +412,41 @@ export default function DashboardLiveMonitoringPage() {
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncingIngest ? "animate-spin" : ""}`} />
             <span>{isSyncingIngest ? "Syncing..." : "Sync Live Feeds"}</span>
           </button>
+        </div>
+      </div>
+
+      {/* Explicit Mode & Civil Defense Advisory Banner (#34 & #36) */}
+      <div className="p-3 px-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs bg-secondary/30 border-border">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <span className={`px-2 py-0.5 rounded font-mono font-bold text-[11px] uppercase tracking-wider ${
+            activeSystem?.is_live_telemetry
+              ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+              : activeSystem?.is_simulation || activeSystem?.id?.includes("2026")
+                ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
+                : activeSystem
+                  ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                  : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+          }`}>
+            {activeSystem?.is_live_telemetry
+              ? "OPERATIONAL LIVE SURVEILLANCE"
+              : activeSystem?.is_simulation || activeSystem?.id?.includes("2026")
+                ? "SYNTHETIC EXERCISE DRILL"
+                : activeSystem
+                  ? `HISTORICAL ARCHIVE REPLAY (${activeSystem.name})`
+                  : "BASIN CALM (0 STORMS)"}
+          </span>
+          <span className="text-muted-foreground">
+            {activeSystem?.is_live_telemetry
+              ? "Live verified atmospheric telemetry stream from GDACS & IMD."
+              : activeSystem?.is_simulation || activeSystem?.id?.includes("2026")
+                ? "Simulated kinematic scenario for disaster response rehearsal."
+                : activeSystem
+                  ? "Replaying validated historical cyclone observations. Not an active storm."
+                  : "Continuous real-time satellite surveillance active."}
+          </span>
+        </div>
+        <div className="text-[10.5px] text-muted-foreground md:text-right shrink-0">
+          <span className="font-semibold text-foreground/80">Civil Defense Advisory:</span> Statutory evacuation directives follow IMD (RSMC New Delhi) and NDMA orders.
         </div>
       </div>
 

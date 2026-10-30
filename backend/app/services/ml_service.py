@@ -205,6 +205,8 @@ class CycloneIntensityService:
             'is_uncalibrated_demo': not self.has_model,
             'warning': None if self.has_model else "Model weights are uncalibrated random initializations; output is for architectural demonstration purposes only.",
             'model_architecture': 'ResNet-50 + Custom Classifier Head (PyTorch)',
+            'domain_transfer_status': 'RGB_SURROGATE_SURFACE',
+            'domain_notice': 'Transfer learning backbone (ResNet-50) is pretrained on ImageNet optical natural images. Operational cyclone categorization requires fine-tuning on calibrated INSAT-3DR / Meteosat-9 infrared brightness temperature grids (TIR1/TIR2/WV).',
             'overlay_url': '/mock-overlay.png' if is_cyclone else None,
             'gradcam_data_url': gradcam_url,
             'probabilities': {

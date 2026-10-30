@@ -483,12 +483,12 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
           target_districts: affectedDistricts.map(d => d.district),
           channels_used: selectedChannels,
           channel_metrics: {
-            sms: { channel_name: "Cell Broadcast & SMS Gateway", recipients_targeted: 1425000, delivered: 1402200, delivery_rate: "98.4%", avg_latency: "1.8s" },
-            siren: { channel_name: "Coastal Acoustic Sirens", towers_active: "480 Towers", coverage: "96.5% Coastline", delivery_rate: "100%", avg_latency: "0.4s" },
-            vhf: { channel_name: "Coast Guard Marine Navtex / VHF Ch 16", coastal_stations: "14 Marine Stations", delivery_rate: "100%", avg_latency: "Instant" },
-            sachet: { channel_name: "NDMA Sachet Disaster App Feed", subscribers: "3,200,000 Push Notifications", delivery_rate: "99.1%", avg_latency: "0.9s" }
+            sms: { channel_name: "Cell Broadcast & SMS Gateway", status: "SIMULATED_DRILL", test_recipients: "Simulated Demonstration Buffer", delivery_rate: "N/A (Simulation Mode)", avg_latency: "Local Benchmark" },
+            siren: { channel_name: "Coastal Acoustic Sirens", status: "SIMULATED_DRILL", test_nodes: "Simulated Acoustic Controllers", delivery_rate: "N/A (Simulation Mode)", avg_latency: "Local Benchmark" },
+            vhf: { channel_name: "Coast Guard Marine Navtex / VHF Ch 16", status: "SIMULATED_DRILL", test_nodes: "Simulated Marine Channel Protocol", delivery_rate: "N/A (Simulation Mode)", avg_latency: "Instant" },
+            sachet: { channel_name: "NDMA Sachet Disaster App Feed", status: "SIMULATED_DRILL", test_nodes: "Mock Geo-Push Pipeline", delivery_rate: "N/A (Simulation Mode)", avg_latency: "Local Benchmark" }
           },
-          message_payload: `EMERGENCY WARNING: ${system?.category} ${system?.name} warning active. Sustained winds ${Math.round((system?.intensity_knots || 65) * 1.852)} km/h. Coastal communities heed local authority evacuation directives immediately.`
+          message_payload: `[EXERCISE / DRILL] EMERGENCY WARNING: ${system?.category || "Severe Cyclone"} ${system?.name || "Active System"} simulation active. Sustained winds ${Math.round((system?.intensity_knots || 65) * 1.852)} km/h. Demonstration protocol only.`
         });
         setDispatchStatus("completed");
         showToast("Emergency Alert Broadcast Simulated Successfully!");

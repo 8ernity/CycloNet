@@ -47,6 +47,13 @@ export interface ParametricInsuranceTrigger {
 }
 
 // ── Realistic Coastal Critical Infrastructure Dataset (NIO / BoB / Arabian Sea) ──
+// Metadata documentation addressing #50 (Static Asset Inventories) & #51 (Unverified Field Statuses)
+export const INFRASTRUCTURE_METADATA = {
+  inventoryType: "Static Baseline Reference Inventory (OpenStreetMap / SRTM DEM / State Disaster Records)",
+  lastTopologicalSurvey: "2024-Q4",
+  fieldVerificationRequired: true,
+  operationalNotice: "Asset coordinates, line voltages, and baseline shelter capacities represent static topological inventories. Dynamic field variables (generator fuel levels, active road flooding/choke status, and shelter occupancy) require real-time validation with District Disaster Management Authorities (DDMA) and State Emergency Operations Centers (SEOC)."
+};
 
 export const POWER_SUBSTATIONS: PowerSubstation[] = [
   {

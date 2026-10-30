@@ -116,7 +116,7 @@ export function DispatchPanel({ phase }: PanelProps) {
                     </div>
                     <div className="pt-0.5">
                       <p className="text-[11px] font-bold text-text-primary">CAP-CP Alert Pushed</p>
-                      <p className="text-[9px] text-text-muted">2.4M SMS broadcasted</p>
+                      <p className="text-[9px] text-text-muted">CAP-CP JSON Payload Ready</p>
                     </div>
                   </motion.div>
 

@@ -148,7 +148,7 @@ export function IngestPanel({ phase }: PanelProps) {
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-text-primary">INSAT-3DR • Kalpana-1</span>
                 <span className="inline-flex items-center text-[10px] text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 font-semibold">
-                  99.9% Nominal
+                  Feeds Active
                 </span>
               </div>
             </div>

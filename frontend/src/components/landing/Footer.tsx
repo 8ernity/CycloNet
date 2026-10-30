@@ -84,6 +84,17 @@ export function Footer() {
 
         </div>
 
+        {/* Statutory Civil Defense & Operational Readiness Advisory (#36) */}
+        <div className="py-4 px-5 mb-8 rounded-xl bg-surface-glass border border-surface-border text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-text-muted">
+          <div>
+            <strong className="text-text-primary uppercase font-mono text-[10.5px] block mb-0.5">Operational Readiness Notice (Non-Statutory Decision Support Prototype)</strong>
+            <span>CycloNet is an experimental meteorological AI research prototype. Official evacuation orders, nautical port warnings, and disaster response directives must follow statutory bulletins issued by the India Meteorological Department (IMD / RSMC New Delhi) and the National Disaster Management Authority (NDMA).</span>
+          </div>
+          <span className="shrink-0 px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20 font-mono text-[10px] font-bold">
+            RESEARCH PROTOTYPE
+          </span>
+        </div>
+
         {/* Bottom bar */}
         <div className="pt-8 border-t border-surface-border flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-xs text-text-muted">

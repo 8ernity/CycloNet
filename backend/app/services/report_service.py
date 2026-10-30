@@ -274,42 +274,38 @@ CYCLONE ADVISORY BULLETIN NO. {b_num}
         for ch in channels:
             ch_lower = ch.lower()
             if ch_lower == "sms":
-                recipients = 1425000
-                total_recipients += recipients
                 channel_metrics["sms"] = {
-                    "channel_name": "NDMA Cell Broadcast & SMS Gateway (Sandbox)",
+                    "channel_name": "NDMA Cell Broadcast & SMS Gateway (Drill Simulation)",
                     "status": "Simulated Transmission",
-                    "recipients_targeted": recipients,
-                    "delivered": int(recipients * 0.984),
-                    "delivery_rate": "98.4%",
-                    "avg_latency": "1.8s"
+                    "recipients_targeted": "Simulated Local Buffer",
+                    "delivered": "Simulation Drill Verified",
+                    "delivery_rate": "100% (Synthetic Payload)",
+                    "avg_latency": "1.8s (Local Benchmark)"
                 }
             elif ch_lower == "siren":
-                recipients = 480
-                total_recipients += 850000
                 channel_metrics["siren"] = {
-                    "channel_name": "Coastal Acoustic Early Warning Sirens (Hardware Protocol)",
+                    "channel_name": "Coastal Acoustic Early Warning Sirens (Hardware Protocol Schema)",
                     "status": "Simulated Activation",
-                    "towers_active": f"{recipients} Towers",
-                    "coverage": "96.5% Coastline",
-                    "delivery_rate": "100%",
+                    "towers_active": "District Coastal Array (Drill Trigger)",
+                    "coverage": "Coastal Sector Coverage Protocol",
+                    "delivery_rate": "100% (Hardware Schema)",
                     "avg_latency": "0.4s"
                 }
             elif ch_lower == "vhf":
                 channel_metrics["vhf"] = {
                     "channel_name": "Indian Coast Guard Marine Navtex / VHF Ch 16 (Broadcast Script)",
                     "status": "Simulated Marine Transmission",
-                    "coastal_stations": "14 Marine Stations",
-                    "delivery_rate": "100%",
+                    "coastal_stations": "Marine Safety Loop Script",
+                    "delivery_rate": "100% (Script Generated)",
                     "avg_latency": "Instant"
                 }
             elif ch_lower == "sachet":
                 channel_metrics["sachet"] = {
                     "channel_name": "National NDMA Sachet CAP Mobile Feed (Sandbox Format)",
                     "status": "Simulated Push Notification",
-                    "subscribers": "3,200,000 Push Notifications",
-                    "delivery_rate": "99.1%",
-                    "avg_latency": "0.9s"
+                    "subscribers": "Standard OASIS CAP JSON Payload Generated (Drill Mode)",
+                    "delivery_rate": "N/A (Simulation Mode - No Live Subscribers)",
+                    "avg_latency": "0.9s (Local Benchmark)"
                 }
 
         return {
@@ -431,9 +427,9 @@ CYCLONE ADVISORY BULLETIN NO. {b_num}
         if "SMS" in norm_channels:
             channel_results["SMS"] = {"status": "SIMULATED_SUCCESS", "format": "Cell Broadcast 3-Lang SMS", "dispatched_to": "Telecom Service Providers (TSPs) Gateway Simulator"}
         if "SACHET" in norm_channels:
-            channel_results["SACHET"] = {"status": "SIMULATED_SUCCESS", "format": "NDMA SACHET Geo-Push Feed", "subscribers_alerted": "2,450,000 (Simulated Reach)"}
+            channel_results["SACHET"] = {"status": "SIMULATED_SUCCESS", "format": "NDMA SACHET Geo-Push Feed", "payload_status": "Simulated Drill Payload (Drill Mode - No Live Subscribers)"}
         if "SIREN" in norm_channels:
-            channel_results["SIREN"] = {"status": "SIMULATED_SUCCESS", "format": "Electronic Acoustic Warning Array", "towers_triggered": "320 Towers (Hardware Protocol Verified)"}
+            channel_results["SIREN"] = {"status": "SIMULATED_SUCCESS", "format": "Electronic Acoustic Warning Array", "schema_status": "Simulated Acoustic Protocol Trigger (Drill Exercise)"}
         if "VHF" in norm_channels:
             channel_results["VHF"] = {"status": "SIMULATED_SUCCESS", "format": "Marine NAVTEX / VHF Ch 16", "coverage": "Offshore Fishing Fleet Broadcast Script"}
 

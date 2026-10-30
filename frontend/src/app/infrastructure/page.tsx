@@ -257,8 +257,8 @@ export default function InfrastructurePage() {
           channels_delivered: {
             CAP: { status: "SIMULATED", format: "OASIS CAP-CP v1.2 XML (Exercise)", dispatched_to: "Local Exercise Buffer" },
             SMS: { status: "SIMULATED", format: "Cell Broadcast 3-Lang SMS Template", dispatched_to: "Drill Simulator" },
-            SACHET: { status: "SIMULATED", format: "NDMA SACHET Geo-Push Template", subscribers_alerted: "Simulated Model (2,450,000 capacity)" },
-            SIREN: { status: "SIMULATED", format: "Acoustic Warning Array Template", towers_triggered: "320 Test Towers" },
+            SACHET: { status: "SIMULATED", format: "NDMA SACHET Geo-Push Template", payload_status: "Simulated Test Payload (Drill Mode - No Live Subscribers)" },
+            SIREN: { status: "SIMULATED", format: "Acoustic Warning Array Template", schema_status: "Simulated Acoustic Protocol Trigger" },
             VHF: { status: "SIMULATED", format: "Marine NAVTEX / VHF Ch 16 Broadcast", coverage: "Drill Channel" }
           },
           cap_xml: `<?xml version="1.0" encoding="UTF-8"?>
@@ -429,6 +429,17 @@ export default function InfrastructurePage() {
           <p className="text-sm text-muted-foreground max-w-4xl">
             Mathematical risk scoring for 400kV/220kV power grids, road inundation rerouting, GEE DEM drainage choke-points, hydrodynamic storm surge, and multi-channel emergency alert broadcast.
           </p>
+
+          {/* Field Operational Verification Advisory (#50 & #51) */}
+          <div className="mt-3 p-3 px-4 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-3 text-xs text-amber-200">
+            <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-amber-400 uppercase tracking-wide text-[10px] block mb-0.5">Field Operational Verification Advisory</span>
+              <p className="text-muted-foreground leading-relaxed">
+                Infrastructure asset inventories (substations, corridors, shelters) are derived from baseline geospatial topological surveys (OpenStreetMap, SRTM DEM, state disaster registry). On-ground operational statuses (generator fuel, medical staffing, real-time road submergence) are simulated exercise states and require dynamic confirmation with District Disaster Management Authorities (DDMA) / State EOC.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Storm Selector & AI Briefing Actions */}
@@ -1279,8 +1290,8 @@ export default function InfrastructurePage() {
                 {[
                   { id: "CAP", name: "OASIS CAP-CP v1.2 XML", desc: "Standardized National Disaster XML alert registry" },
                   { id: "SMS", name: "Cell Broadcast & SMS Gateway", desc: "Trilingual SMS alerts (English, Hindi, Regional)" },
-                  { id: "SACHET", name: "NDMA SACHET Mobile Push Feed", desc: "Geo-targeted mobile push feed to 2.4M subscribers" },
-                  { id: "SIREN", name: "Coastal Acoustic Siren Array", desc: "320 physical high-decibel coastal warning towers" },
+                  { id: "SACHET", name: "NDMA SACHET Mobile Push Feed", desc: "Standard OASIS CAP-CP JSON push payload specification" },
+                  { id: "SIREN", name: "Coastal Acoustic Siren Array", desc: "Acoustic siren trigger schema for coastal district towers" },
                   { id: "VHF", name: "Marine NAVTEX / VHF Ch 16", desc: "Coast Guard continuous distress loop for offshore vessels" },
                 ].map((ch) => {
                   const isSelected = dispatchChannels.includes(ch.id);
