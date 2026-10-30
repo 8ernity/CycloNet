@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
 import { Server, RefreshCw, CheckCircle2 } from "lucide-react";
 
 export function BackendWarmup() {
@@ -17,7 +17,7 @@ export function BackendWarmup() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-        const res = await fetch(`${API_BASE_URL}/health`, {
+        const res = await fetch(`${getApiBaseUrl()}/health`, {
           method: "GET",
           headers: { Accept: "application/json" },
           cache: "no-store",

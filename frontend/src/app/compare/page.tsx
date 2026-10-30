@@ -18,7 +18,7 @@ import {
   CheckCircle2,
   Sparkles
 } from "lucide-react";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
 import {
   ResponsiveContainer,
   LineChart,
@@ -118,7 +118,7 @@ export default function ComparePage() {
   useEffect(() => {
     async function fetchList() {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/history/search`);
+        const res = await fetch(`${getApiBaseUrl()}/api/history/search`);
         if (res.ok) {
           const data = await res.json();
           setCyclonesList(data);
@@ -134,7 +134,7 @@ export default function ComparePage() {
   useEffect(() => {
     async function fetchSys1() {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/active-systems?simulate=true&cyclone_id=${selectedId1}`);
+        const res = await fetch(`${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${selectedId1}`);
         if (res.ok) {
           const data = await res.json();
           if (data && data.length > 0) setSystem1(data[0]);
@@ -150,7 +150,7 @@ export default function ComparePage() {
   useEffect(() => {
     async function fetchSys2() {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/active-systems?simulate=true&cyclone_id=${selectedId2}`);
+        const res = await fetch(`${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${selectedId2}`);
         if (res.ok) {
           const data = await res.json();
           if (data && data.length > 0) setSystem2(data[0]);

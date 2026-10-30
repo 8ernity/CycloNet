@@ -7,6 +7,30 @@ if (cleaned && !cleaned.startsWith("http://") && !cleaned.startsWith("https://")
 export const API_BASE_URL = cleaned;
 
 /**
+ * Dynamic API Base URL resolver that respects user-configured CUSTOM data source in Settings (Fix #37).
+ */
+export function getApiBaseUrl(): string {
+  if (typeof window !== "undefined") {
+    try {
+      const source = localStorage.getItem("cyclonet_data_source");
+      if (source === "CUSTOM") {
+        const customUrl = localStorage.getItem("cyclonet_custom_api_url");
+        if (customUrl && customUrl.trim()) {
+          let clean = customUrl.trim().replace(/\/+$/, "").replace(/\/api$/, "");
+          if (clean && !clean.startsWith("http://") && !clean.startsWith("https://")) {
+            clean = `https://${clean}`;
+          }
+          if (clean) return clean;
+        }
+      }
+    } catch {
+      // Fallback on restricted browser environments or SSR
+    }
+  }
+  return API_BASE_URL;
+}
+
+/**
  * Robust fetch wrapper with timeout, exponential backoff retries,
  * and graceful error handling designed for serverless / cold-starting backends (e.g. Render).
  */

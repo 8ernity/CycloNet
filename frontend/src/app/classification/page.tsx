@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Upload, ImageIcon, Scan, CheckCircle2, ShieldAlert, Loader2, Activity, Sparkles, Cpu, Compass, Wind, RefreshCw, X } from "lucide-react";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
 
 const DEMO_PRESETS: Record<number, any> = {
   1: {
@@ -168,11 +168,12 @@ export default function ClassificationPage() {
     const preset = demoIndex ? DEMO_PRESETS[demoIndex] : null;
 
     try {
+      const baseUrl = getApiBaseUrl();
       const formData = new FormData();
       formData.append("file", imageFile);
 
       // 1. Run ResNet-50 sub-second classification (<100ms)
-      fetch(`${API_BASE_URL}/api/classify`, { method: "POST", body: formData })
+      fetch(`${baseUrl}/api/classify`, { method: "POST", body: formData })
         .then(async (res) => {
           if (res.ok) {
             const data = await res.json();
@@ -199,7 +200,7 @@ export default function ClassificationPage() {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 6500);
 
-      fetch(`${API_BASE_URL}/api/ai/analyze-multimodal`, { 
+      fetch(`${baseUrl}/api/ai/analyze-multimodal`, { 
         method: "POST", 
         body: formData,
         signal: controller.signal 
@@ -472,7 +473,18 @@ export default function ClassificationPage() {
             </div>
           </div>
 
-          {/* Grad-CAM & Satellite Image Viewport */}
+          {/* Uncalibrated model warning banner (Fix #6) */}
+          {result?.is_uncalibrated_demo && (
+            <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2.5">
+              <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <strong className="font-semibold block text-amber-200">Demonstration Mode Notice:</strong>
+                <span>{result.warning || "Trained model checkpoint not detected; inference is executing with uncalibrated demonstration initializations."}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Grad-CAM & Satellite Image Viewport (Fix #7) */}
           <div className="h-[240px] bg-secondary/30 rounded-xl border border-border relative overflow-hidden flex items-center justify-center group mb-4">
              {previewUrl ? (
                 <img src={previewUrl} className="absolute inset-0 w-full h-full object-cover opacity-80" alt="Analyzed" />
@@ -485,12 +497,20 @@ export default function ClassificationPage() {
              {result && result.is_cyclone !== false && (
                 <>
                  <div className="absolute top-3 left-3 z-10 bg-black/60 backdrop-blur px-2.5 py-1 rounded-md border border-white/10 text-[11px] text-white/90">
-                   Grad-CAM Heatmap Overlay
+                   {result.gradcam_data_url ? "Grad-CAM ResNet-50 Heatmap" : "Grad-CAM Attribution Overlay"}
                  </div>
-                 <div className="absolute w-56 h-56 mix-blend-screen opacity-80" style={{
-                    background: 'radial-gradient(circle, rgba(255,0,0,0.8) 0%, rgba(255,165,0,0.6) 20%, rgba(255,255,0,0.4) 40%, rgba(0,255,255,0.2) 60%, transparent 80%)',
-                    filter: 'blur(15px)'
-                 }} />
+                 {result.gradcam_data_url ? (
+                   <img 
+                     src={result.gradcam_data_url} 
+                     alt="Grad-CAM Layer4 Attribution" 
+                     className="absolute inset-0 w-full h-full object-cover mix-blend-screen opacity-85 pointer-events-none" 
+                   />
+                 ) : (
+                   <div className="absolute w-56 h-56 mix-blend-screen opacity-80" style={{
+                      background: 'radial-gradient(circle, rgba(255,0,0,0.8) 0%, rgba(255,165,0,0.6) 20%, rgba(255,255,0,0.4) 40%, rgba(0,255,255,0.2) 60%, transparent 80%)',
+                      filter: 'blur(15px)'
+                   }} />
+                 )}
                  <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-black/60 backdrop-blur px-2.5 py-1 rounded-md border border-white/10">
                     <span className="text-[10px] text-white/60 uppercase">Low</span>
                     <div className="w-20 h-1.5 rounded-full bg-gradient-to-r from-cyan-500 via-yellow-400 to-red-500" />

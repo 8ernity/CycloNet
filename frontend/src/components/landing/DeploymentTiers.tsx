@@ -32,7 +32,7 @@ const tiers = [
       "Deep Dvorak AI Intensity Classifier",
       "Storm Surge & Inundation Simulator",
       "CycloNet AI Copilot Access",
-      "Priority 24/7 emergency hotline"
+      "High-priority alert routing architecture"
     ],
     elevated: true
   },
@@ -45,7 +45,7 @@ const tiers = [
       "Full INSAT-3DR Raw Ingestion Hub",
       "Automated CAP-CP Early Warning Broadcast",
       "On-Premise / Sovereign Cloud Deployment",
-      "Dedicated Meteorological AI Science SLA"
+      "Dedicated sovereign computational cluster blueprint"
     ],
     elevated: false
   }
@@ -57,7 +57,7 @@ export function DeploymentTiers() {
       <div className="container max-w-[1200px] mx-auto px-4 relative z-10">
         
         <div className="text-center max-w-2xl mx-auto mb-16 md:mb-24">
-          <MicroLabel className="mb-4 inline-block">Jurisdiction Deployment</MicroLabel>
+          <MicroLabel className="mb-4 inline-block">Architecture Deployment Framework</MicroLabel>
           <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-text-primary mb-4">
             Scaled for your operational jurisdiction.
           </h2>
@@ -93,7 +93,7 @@ export function DeploymentTiers() {
                 {tier.elevated && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                     <span className="bg-gradient-to-r from-sky-500 to-blue-600 text-white text-[10px] font-bold uppercase tracking-widest px-3.5 py-1 rounded-full shadow-lg">
-                      Most Deployed
+                      Reference Architecture
                     </span>
                   </div>
                 )}

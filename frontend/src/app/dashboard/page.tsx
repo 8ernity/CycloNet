@@ -7,7 +7,7 @@ import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
 import { useCycloneWebSocket } from "@/hooks/useCycloneWebSocket";
 import { useLanguage } from "@/context/LanguageContext";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
 
 const MapComponent = dynamic(() => import('@/components/MapComponent'), { 
   ssr: false,
@@ -151,7 +151,7 @@ export default function DashboardLiveMonitoringPage() {
   const displayCategory = activeSystem ? getConvertedCategory(activeSystem.intensity_knots, activeSystem.category) : "Nominal";
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/cyclones`)
+    fetch(`${getApiBaseUrl()}/api/cyclones`)
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setCyclonesList(data);
@@ -160,7 +160,7 @@ export default function DashboardLiveMonitoringPage() {
   }, []);
 
   const fetchIngestStatus = () => {
-    fetch(`${API_BASE_URL}/api/ingest/status`)
+    fetch(`${getApiBaseUrl()}/api/ingest/status`)
       .then(res => res.json())
       .then(data => setIngestStatus(data))
       .catch(() => {});
@@ -169,7 +169,7 @@ export default function DashboardLiveMonitoringPage() {
   const handleSyncFeeds = async () => {
     setIsSyncingIngest(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/ingest/sync`, { method: "POST" });
+      const res = await fetch(`${getApiBaseUrl()}/api/ingest/sync`, { method: "POST" });
       const data = await res.json();
       setIngestStatus({
         status: "online",
@@ -190,7 +190,7 @@ export default function DashboardLiveMonitoringPage() {
   const handleTestInject = async () => {
     setIsSyncingIngest(true);
     try {
-      await fetch(`${API_BASE_URL}/api/ingest/test-inject`, { method: "POST" });
+      await fetch(`${getApiBaseUrl()}/api/ingest/test-inject`, { method: "POST" });
       fetchIngestStatus();
       fetchActiveSystems(false);
     } catch (err) {
@@ -203,7 +203,7 @@ export default function DashboardLiveMonitoringPage() {
   const handleClearLiveTest = async () => {
     setIsSyncingIngest(true);
     try {
-      await fetch(`${API_BASE_URL}/api/ingest/clear-test`, { method: "POST" });
+      await fetch(`${getApiBaseUrl()}/api/ingest/clear-test`, { method: "POST" });
       clearSelectedCyclone();
       fetchIngestStatus();
       fetchActiveSystems(false);
@@ -216,7 +216,7 @@ export default function DashboardLiveMonitoringPage() {
 
   const fetchActiveSystems = async (simulate: boolean = false, cycloneId?: string | null) => {
     setLoading(true);
-    let url = `${API_BASE_URL}/api/active-systems`;
+    let url = `${getApiBaseUrl()}/api/active-systems`;
     const targetId = cycloneId || (simulate ? selectedCycloneId : null);
     if (simulate || targetId) {
       url += `?simulate=true${targetId ? `&cyclone_id=${encodeURIComponent(targetId)}` : ""}`;
@@ -755,10 +755,11 @@ export default function DashboardLiveMonitoringPage() {
                     </div>
                   </div>
                   <div>
-                    <div className="flex justify-between text-sm mb-2">
+                    <div className="flex justify-between text-sm mb-1">
                       <span className="text-muted-foreground">5-Day Cyclogenesis Risk</span>
                       <span className="font-semibold text-emerald-600 dark:text-emerald-400">Very Low (&lt; 5%)</span>
                     </div>
+                    <p className="text-[10px] text-muted-foreground mb-2">Climatological baseline probability under quiet basin conditions</p>
                     <div className="h-2 rounded-full bg-secondary overflow-hidden">
                       <div className="h-full bg-emerald-500 w-[5%] rounded-full" />
                     </div>

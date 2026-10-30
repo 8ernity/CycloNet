@@ -1,5 +1,9 @@
+import os
+import time
+import asyncio
 import logging
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from collections import defaultdict
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Header, Request
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -16,6 +20,41 @@ from app.models.domain import CycloneArchive, ClassificationHistory
 
 logger = logging.getLogger(__name__)
 MAX_IMAGE_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB threshold
+
+# Security: Admin API key for privileged ingestion operations (Fix #25)
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "")
+
+def verify_admin_key(x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key")):
+    """
+    Validates administration authorization for privileged ingestion controls.
+    If ADMIN_API_KEY is configured in the environment, requests lacking or possessing
+    an invalid key are rejected with HTTP 401 Unauthorized.
+    """
+    if ADMIN_API_KEY:
+        if not x_admin_key or x_admin_key.strip() != ADMIN_API_KEY:
+            raise HTTPException(status_code=401, detail="Unauthorized: Invalid or missing administrative credentials.")
+    else:
+        logger.debug("Privileged ingestion endpoint called without ADMIN_API_KEY enforcement.")
+    return True
+
+# Rate limiting for public AI endpoints (Fix #29)
+_ai_request_log = defaultdict(list)
+AI_RATE_LIMIT_PER_MINUTE = int(os.getenv("AI_RATE_LIMIT_PER_MINUTE", "30"))
+
+def check_ai_rate_limit(request: Request):
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    cutoff = now - 60.0
+    
+    # Prune timestamps older than 60 seconds
+    timestamps = [t for t in _ai_request_log[client_ip] if t > cutoff]
+    if len(timestamps) >= AI_RATE_LIMIT_PER_MINUTE:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded: Maximum {AI_RATE_LIMIT_PER_MINUTE} AI requests per minute per IP address."
+        )
+    timestamps.append(now)
+    _ai_request_log[client_ip] = timestamps
 
 router = APIRouter()
 
@@ -83,13 +122,19 @@ async def get_ingest_status():
     }
 
 @router.post("/ingest/sync")
-async def trigger_live_ingest_sync():
+async def trigger_live_ingest_sync(_: bool = Depends(verify_admin_key)):
     """Triggers an on-demand immediate synchronization pass across IMD, NOAA, and satellite feeds."""
     result = await live_ingestion_service.sync_all_sources()
     return result
 
 @router.post("/ingest/test-inject")
-async def inject_live_test_system(name: str = "Shakti", basin: str = "Bay of Bengal", category: str = "Very Severe Cyclonic Storm", knots: int = 75):
+async def inject_live_test_system(
+    name: str = "Shakti", 
+    basin: str = "Bay of Bengal", 
+    category: str = "Very Severe Cyclonic Storm", 
+    knots: int = 75,
+    _: bool = Depends(verify_admin_key)
+):
     """Injects a simulated live cyclone detection for end-to-end verification."""
     system = live_ingestion_service.inject_test_system(name=name, basin=basin, category=category, knots=knots)
     return {
@@ -99,7 +144,7 @@ async def inject_live_test_system(name: str = "Shakti", basin: str = "Bay of Ben
     }
 
 @router.post("/ingest/clear-test")
-async def clear_live_test_systems():
+async def clear_live_test_systems(_: bool = Depends(verify_admin_key)):
     """Clears injected test systems back to normal quiet state."""
     live_ingestion_service.clear_live_systems()
     return {
@@ -233,12 +278,13 @@ async def get_classification_history(db: Session = Depends(get_db)):
     ]
 
 @router.post("/chat", response_model=ChatMessageResponse)
-async def chat_with_cyclonet(request: ChatMessageRequest, db: Session = Depends(get_db)):
+async def chat_with_cyclonet(request: ChatMessageRequest, req: Request, db: Session = Depends(get_db)):
     """AI chatbot endpoint for answering questions on tropical cyclones, Dvorak analysis, and platform data."""
     if not request.message or not request.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
     
-    result = chat_service.ask(request.message, history=request.history, db=db, ui_context=request.ui_context)
+    check_ai_rate_limit(req)
+    result = await asyncio.to_thread(chat_service.ask, request.message, history=request.history, db=db, ui_context=request.ui_context)
     return result
 
 # ── Meteorological Alerts & Reports System Endpoints ─────────────────────────
@@ -450,10 +496,12 @@ class BriefingRequest(BaseModel):
 
 @router.post("/ai/analyze-multimodal")
 async def analyze_multimodal_satellite(
+    req: Request,
     file: UploadFile = File(...),
     prompt: Optional[str] = None
 ):
     """Performs multimodal Dvorak and convective structural analysis using Gemini 3.7 Flash."""
+    check_ai_rate_limit(req)
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Uploaded file must be a satellite/radar image")
     
@@ -461,7 +509,8 @@ async def analyze_multimodal_satellite(
     if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
         raise HTTPException(status_code=413, detail="File size exceeds maximum allowable limit (15 MB).")
     
-    analysis = chat_service.analyze_satellite_image(
+    analysis = await asyncio.to_thread(
+        chat_service.analyze_satellite_image,
         image_bytes=image_bytes,
         mime_type=file.content_type,
         prompt=prompt
@@ -473,15 +522,18 @@ async def analyze_multimodal_satellite(
     }
 
 @router.post("/ai/pre-landfall-briefing")
-async def generate_pre_landfall_briefing(req: BriefingRequest):
+async def generate_pre_landfall_briefing(req_body: BriefingRequest, req: Request):
     """Generates an authoritative executive pre-landfall briefing for disaster magistrates."""
-    briefing = chat_service.generate_pre_landfall_briefing(
-        storm_data=req.storm_data,
-        infrastructure_data=req.infrastructure_data or {},
-        language=req.language
+    check_ai_rate_limit(req)
+    briefing = await asyncio.to_thread(
+        chat_service.generate_pre_landfall_briefing,
+        storm_data=req_body.storm_data,
+        infrastructure_data=req_body.infrastructure_data or {},
+        language=req_body.language
     )
     return {
         "status": "success",
         "briefing": briefing
     }
+
 

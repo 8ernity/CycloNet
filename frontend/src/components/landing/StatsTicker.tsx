@@ -44,31 +44,34 @@ export function StatsTicker() {
             value={99.9}
             decimals={1}
             suffix="%"
-            label="Satellite Stream Uptime"
+            label="Target Service Availability"
             tint="emerald"
           />
           <AnimatedStat
             icon={Activity}
             value={120}
             suffix="+"
-            label="Historical Cyclones Analyzed"
+            label="Historical Storms Cataloged"
             tint="sky"
           />
           <AnimatedStat
             icon={ShieldCheck}
             value={48}
             suffix="h"
-            label="Early Warning Lead Time"
+            label="Multi-Model Forecast Window"
             tint="accent"
           />
           <AnimatedStat
             icon={Zap}
             value={12}
             suffix="ms"
-            label="Neural Inference Latency"
+            label="ResNet Benchmark Latency"
             tint="amber"
           />
         </motion.div>
+        <p className="text-[11px] text-center text-muted-foreground/70 mt-6 font-mono">
+          * Benchmark metrics measured on CPU inference test harness; availability reflects target architectural design SLA.
+        </p>
       </div>
     </section>
   );

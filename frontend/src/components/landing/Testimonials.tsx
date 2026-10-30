@@ -82,12 +82,12 @@ export function Testimonials() {
       <div className="container max-w-[1200px] mx-auto px-4">
         
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <MicroLabel className="mb-4 inline-block">Command Citations</MicroLabel>
+          <MicroLabel className="mb-4 inline-block">Operational Scenarios</MicroLabel>
           <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-text-primary mb-4">
-            Trusted across coastal commands.
+            Designed for coastal command operations.
           </h2>
           <p className="text-text-muted text-sm md:text-base leading-relaxed">
-            See how predictive meteorological intelligence transforms reactive disaster response into proactive coastal safety.
+            Representative user personas and validation workflows illustrating how predictive meteorological intelligence supports proactive coastal safety.
           </p>
         </div>
 

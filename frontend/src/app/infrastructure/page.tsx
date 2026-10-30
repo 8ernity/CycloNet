@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
 import { 
   POWER_SUBSTATIONS, 
   EVACUATION_ROUTES, 
@@ -98,7 +98,7 @@ export default function InfrastructurePage() {
   useEffect(() => {
     async function fetchAllCyclones() {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/history/search`);
+        const res = await fetch(`${getApiBaseUrl()}/api/history/search`);
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
@@ -135,7 +135,7 @@ export default function InfrastructurePage() {
     const fetchSystem = async () => {
       setLoading(true);
       try {
-        const url = `${API_BASE_URL}/api/active-systems?simulate=true&cyclone_id=${encodeURIComponent(selectedCycloneId || "BOB05-2026")}`;
+        const url = `${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${encodeURIComponent(selectedCycloneId || "BOB05-2026")}`;
         const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
@@ -180,10 +180,10 @@ export default function InfrastructurePage() {
         const basin = system?.basin || "Bay of Bengal";
 
         const [surgeRes, secRes, pathRes, layerRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/surge/calculate?knots=${simWindKts}&pressure_hpa=${simPressureHpa}&forward_speed=${simForwardSpeed}&angle_deg=${simAngleDeg}&tide_m=${simTideM}&basin=${encodeURIComponent(basin)}`),
-          fetch(`${API_BASE_URL}/api/surge/profile?name=${encodeURIComponent(system?.name || "Cyclone")}&lat=${lat}&lon=${lon}&knots=${simWindKts}`),
-          fetch(`${API_BASE_URL}/api/gee/rainfall-pathways?lat=${lat}&lon=${lon}&rain_mm=${simRainMm}`),
-          fetch(`${API_BASE_URL}/api/gee/layers`)
+          fetch(`${getApiBaseUrl()}/api/surge/calculate?knots=${simWindKts}&pressure_hpa=${simPressureHpa}&forward_speed=${simForwardSpeed}&angle_deg=${simAngleDeg}&tide_m=${simTideM}&basin=${encodeURIComponent(basin)}`),
+          fetch(`${getApiBaseUrl()}/api/surge/profile?name=${encodeURIComponent(system?.name || "Cyclone")}&lat=${lat}&lon=${lon}&knots=${simWindKts}`),
+          fetch(`${getApiBaseUrl()}/api/gee/rainfall-pathways?lat=${lat}&lon=${lon}&rain_mm=${simRainMm}`),
+          fetch(`${getApiBaseUrl()}/api/gee/layers`)
         ]);
 
         if (surgeRes.ok) setSurgeCalcData(await surgeRes.json());
@@ -225,7 +225,7 @@ export default function InfrastructurePage() {
         channels: dispatchChannels,
         cyclone_name: system?.name || "Active Cyclone"
       };
-      const res = await fetch(`${API_BASE_URL}/api/alerts/dispatch`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/alerts/dispatch`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -334,7 +334,7 @@ export default function InfrastructurePage() {
         surge_m: surgeCalcData?.peak_surge_height_m || surgeM,
         basin: system?.basin || "Bay of Bengal"
       };
-      const res = await fetch(`${API_BASE_URL}/api/ai/pre-landfall-briefing`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/ai/pre-landfall-briefing`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ storm_data: stormPayload, language: lang })

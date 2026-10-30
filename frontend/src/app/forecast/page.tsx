@@ -9,7 +9,7 @@ import dynamic from "next/dynamic";
 
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
 
 const MapWidget = dynamic(() => import("@/components/MapWidget"), {
   ssr: false,
@@ -39,6 +39,7 @@ interface ActiveSystem {
   lon: number;
   intensity_knots: number;
   category: string;
+  is_simulation?: boolean;
   dvorak_t?: string;
   dvorak_derivation_method?: string;
   dvorak_is_empirical_estimate?: boolean;
@@ -126,7 +127,7 @@ export default function ForecastPage() {
   const fetchSystem = async (cycloneId: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/active-systems?simulate=true&cyclone_id=${encodeURIComponent(cycloneId)}`);
+      const res = await fetch(`${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${encodeURIComponent(cycloneId)}`);
       if (res.ok) {
         const data = await res.json();
         if (data && data.length > 0) {
@@ -166,7 +167,7 @@ export default function ForecastPage() {
 
       // 2. Fetch full catalog from backend
       try {
-        const res = await fetch(`${API_BASE_URL}/api/history/search`);
+        const res = await fetch(`${getApiBaseUrl()}/api/history/search`);
         if (res.ok) {
           const list = await res.json();
           if (Array.isArray(list) && list.length > 0) {
@@ -488,7 +489,7 @@ export default function ForecastPage() {
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-                    Live Center
+                    {system.is_simulation || system.id?.includes("-") ? "Replay / Model Center" : "Live Surveillance Center"}
                   </span>
                   <h4 className="font-heading font-bold text-sm text-foreground">{system.name}</h4>
                 </div>

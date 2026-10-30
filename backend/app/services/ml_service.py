@@ -1,5 +1,6 @@
 import io
 import os
+import base64
 import numpy as np
 import torch
 import torch.nn as nn
@@ -28,11 +29,18 @@ class CycloneClassifierHead(nn.Module):
 class CycloneIntensityService:
     def __init__(self):
         self.device = torch.device("cpu")
-        weights = ResNet50_Weights.DEFAULT
-        backbone = resnet50(weights=weights).eval()
-        for param in backbone.parameters():
+        try:
+            weights = ResNet50_Weights.DEFAULT
+            self.backbone = resnet50(weights=weights).eval()
+        except Exception as e:
+            # Fix #58: Graceful fallback when weights cannot be downloaded at startup
+            print(f"[Notice] Could not download ImageNet weights at startup ({e}). Falling back to unweighted ResNet-50 backbone.")
+            self.backbone = resnet50(weights=None).eval()
+
+        for param in self.backbone.parameters():
             param.requires_grad = False
-        self.feature_extractor = nn.Sequential(*list(backbone.children())[:-1]).to(self.device)
+        
+        self.feature_extractor = nn.Sequential(*list(self.backbone.children())[:-1]).to(self.device)
         
         self.transform = transforms.Compose([
             transforms.Resize((224, 224)),
@@ -87,15 +95,77 @@ class CycloneIntensityService:
         self.has_model = False
         print(f"Notice: Initialized fallback classifier head (checkpoint path: {self.checkpoint_path})")
 
+    def _extract_features(self, t: torch.Tensor) -> torch.Tensor:
+        """Forward pass through ResNet-50 up to layer4."""
+        x = self.backbone.conv1(t)
+        x = self.backbone.bn1(x)
+        x = self.backbone.relu(x)
+        x = self.backbone.maxpool(x)
+        x = self.backbone.layer1(x)
+        x = self.backbone.layer2(x)
+        x = self.backbone.layer3(x)
+        x = self.backbone.layer4(x)
+        return x
+
+    def _compute_gradcam(self, features: torch.Tensor, pred_idx: int) -> str:
+        """
+        Fix #7: Computes genuine Grad-CAM class activation heatmap from ResNet layer4 feature maps.
+        Returns a base64-encoded PNG data URL.
+        """
+        try:
+            feat_var = features.clone().detach().requires_grad_(True)
+            pooled = self.backbone.avgpool(feat_var).flatten(1)
+            logits = self.head(pooled)
+            score = logits[0, pred_idx]
+            
+            self.head.zero_grad()
+            score.backward()
+            
+            grads = feat_var.grad
+            if grads is not None:
+                weights = torch.mean(grads, dim=(2, 3), keepdim=True)
+                cam = torch.sum(weights * feat_var, dim=1).squeeze(0)
+            else:
+                cam = torch.mean(feat_var, dim=1).squeeze(0)
+                
+            cam = torch.clamp(cam, min=0)
+            cam_np = cam.detach().cpu().numpy()
+            max_val = np.max(cam_np)
+            if max_val > 0:
+                cam_np = cam_np / max_val
+            else:
+                cam_np = np.zeros_like(cam_np)
+
+            # Upscale 7x7 to 224x224 using bilinear interpolation
+            cam_img = Image.fromarray((cam_np * 255).astype(np.uint8)).resize((224, 224), Image.BILINEAR)
+            cam_upscaled = np.array(cam_img, dtype=np.float32) / 255.0
+
+            # Jet colormap mapping: blue -> cyan -> yellow -> red
+            r = np.clip(1.5 - np.abs(4.0 * cam_upscaled - 3.0), 0.0, 1.0)
+            g = np.clip(1.5 - np.abs(4.0 * cam_upscaled - 2.0), 0.0, 1.0)
+            b = np.clip(1.5 - np.abs(4.0 * cam_upscaled - 1.0), 0.0, 1.0)
+            # Alpha increases with activation so low activations are translucent
+            a = np.clip(cam_upscaled * 0.85, 0.0, 0.85)
+
+            rgba = (np.stack([r, g, b, a], axis=-1) * 255).astype(np.uint8)
+            out_img = Image.fromarray(rgba, mode="RGBA")
+            buf = io.BytesIO()
+            out_img.save(buf, format="PNG")
+            b64_str = base64.b64encode(buf.getvalue()).decode("utf-8")
+            return f"data:image/png;base64,{b64_str}"
+        except Exception as e:
+            print(f"[Grad-CAM error] {e}")
+            return None
+
     def predict(self, image_bytes: bytes):
         """Runs genuine PyTorch forward pass inference with softmax confidence scores in <50ms."""
-            
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         t = self.transform(img).unsqueeze(0).to(self.device)
         
         with torch.no_grad():
-            feat = self.feature_extractor(t).squeeze(2).squeeze(2)
-            logits = self.head(feat)
+            feat = self._extract_features(t)
+            pooled = self.backbone.avgpool(feat).flatten(1)
+            logits = self.head(pooled)
             probs = torch.softmax(logits, dim=1).squeeze().cpu().numpy()
             pred_idx = int(np.argmax(probs))
             conf = float(probs[pred_idx]) * 100.0
@@ -104,6 +174,9 @@ class CycloneIntensityService:
         pred_name = self.class_names[pred_idx]
         is_cyclone = (pred_class != 'NOT_A_CYCLONE')
         
+        # Calculate genuine Grad-CAM activation heatmap
+        gradcam_url = self._compute_gradcam(feat, pred_idx) if is_cyclone else None
+
         knots_map = {
             'NOT_A_CYCLONE': 0,
             'CS': 45,
@@ -129,8 +202,11 @@ class CycloneIntensityService:
             'wind_speed_knots': knots_map.get(pred_class, 0),
             'checkpoint_status': 'TRAINED_CHECKPOINT_LOADED' if self.has_model else 'DEMO_PRETRAINED_BACKBONE',
             'is_trained_weights': self.has_model,
+            'is_uncalibrated_demo': not self.has_model,
+            'warning': None if self.has_model else "Model weights are uncalibrated random initializations; output is for architectural demonstration purposes only.",
             'model_architecture': 'ResNet-50 + Custom Classifier Head (PyTorch)',
             'overlay_url': '/mock-overlay.png' if is_cyclone else None,
+            'gradcam_data_url': gradcam_url,
             'probabilities': {
                 self.classes[i]: round(float(probs[i]) * 100.0, 2) for i in range(len(self.classes))
             }

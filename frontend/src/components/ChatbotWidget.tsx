@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { useLiquidGlass } from "@/hooks/useLiquidGlass";
 import { CycloneLogo } from "@/components/CycloneLogo";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
 
 interface Message {
   id: string;
@@ -376,7 +376,7 @@ export function ChatbotWidget() {
         };
       }
 
-      const res = await fetch(`${API_BASE_URL}/api/chat`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
 import { generateCyclonePdfReport } from "@/lib/pdfReportGenerator";
 import { 
   POWER_SUBSTATIONS, 
@@ -115,7 +115,7 @@ export default function ReportsPage() {
   useEffect(() => {
     async function fetchAllCyclones() {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/history/search`);
+        const res = await fetch(`${getApiBaseUrl()}/api/history/search`);
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
@@ -140,7 +140,7 @@ export default function ReportsPage() {
     setLoading(true);
     let resolved = false;
     try {
-      let url = `${API_BASE_URL}/api/reports/bulletins`;
+      let url = `${getApiBaseUrl()}/api/reports/bulletins`;
       if (selectedCycloneId) {
         url += `?simulate=true&cyclone_id=${encodeURIComponent(selectedCycloneId)}`;
       }
@@ -160,7 +160,7 @@ export default function ReportsPage() {
         }
       }
       if (!resolved) {
-        const sysRes = await fetch(`${API_BASE_URL}/api/active-systems?simulate=true&cyclone_id=${encodeURIComponent(selectedCycloneId || "BOB05-2026")}`);
+        const sysRes = await fetch(`${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${encodeURIComponent(selectedCycloneId || "BOB05-2026")}`);
         if (sysRes.ok) {
           const sysData = await sysRes.json();
           if (sysData && sysData.length > 0) {
@@ -454,7 +454,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
     setTimeout(() => setDispatchStep(4), 2200);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/alerts/broadcast-test`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/alerts/broadcast-test`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

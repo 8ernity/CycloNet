@@ -7,22 +7,22 @@ const securityFeatures = [
   { 
     icon: Lock, 
     title: "Transport & Storage Encryption", 
-    desc: "Standard TLS 1.3 in-transit and AES-256 telemetry encryption at rest." 
+    desc: "Architecture blueprint designed for TLS 1.3 in-transit and AES-256 database encryption at rest." 
   },
   { 
     icon: Shield, 
     title: "Role-Based Access Control", 
-    desc: "Granular command permissions designed for district disaster response hierarchies." 
+    desc: "RBAC specification tailored for state and district disaster response command hierarchies." 
   },
   { 
     icon: FileCheck, 
     title: "Auditable Forecasting Logs", 
-    desc: "Every ML model run, GEE SAR layer, and bulletin dispatch is logged with timestamps." 
+    desc: "Structured logging of ML inference requests, GEE layer calls, and CAP alert dispatches." 
   },
   { 
     icon: Globe, 
     title: "Sovereign Cloud Architecture", 
-    desc: "Containerized architecture ready for deployment in Indian datacenters (e.g. NIC / MeitY-empaneled clouds)." 
+    desc: "Containerized Docker microservices ready for deployment in sovereign cloud infrastructure." 
   },
 ];
 
@@ -33,13 +33,13 @@ export function SecurityCompliance() {
         
         <div className="text-center max-w-2xl mx-auto mb-16">
           <MicroLabel className="mb-4 inline-block text-emerald-500 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-3 py-1 rounded-full font-semibold">
-            Security & Architecture Standards
+            Architectural Specifications
           </MicroLabel>
           <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-text-primary mb-4">
-            Built for mission-critical reliability.
+            Engineered for mission-critical reliability.
           </h2>
           <p className="text-text-muted text-sm md:text-base leading-relaxed">
-            Designed to support state disaster management authorities, IMD RSMC advisory workflows, and district emergency operations centers.
+            Architectural design blueprints intended for state disaster management authorities and emergency operations centers.
           </p>
         </div>
 
