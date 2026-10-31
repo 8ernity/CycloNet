@@ -169,30 +169,68 @@ class LiveIngestionService:
         finally:
             self.is_syncing = False
 
+    def _extract_coordinates_from_bulletin(self, text: str) -> Optional[tuple]:
+        """
+        Extracts genuine center fix coordinates from meteorological bulletin text.
+        Returns (lat, lon) if verified within North Indian Ocean bounds, else None.
+        Fixes Problem #11 (hardcoded scraper coordinates).
+        """
+        patterns = [
+            r"(?:near\s+)?lat(?:itude)?\.?\s*(\d{1,2}(?:\.\d+)?)\s*°?\s*N[^\d\n\r]{1,40}lon(?:g(?:itude)?)?\.?\s*(\d{2,3}(?:\.\d+)?)\s*°?\s*E",
+            r"(\d{1,2}(?:\.\d+)?)\s*°?\s*N\s*(?:and|,|\/)\s*(\d{2,3}(?:\.\d+)?)\s*°?\s*E",
+            r"center\s+at\s+(\d{1,2}(?:\.\d+)?)\s*N[,\s]+(\d{2,3}(?:\.\d+)?)\s*E",
+            r"position\s+near\s+(\d{1,2}(?:\.\d+)?)\s*N\s+(\d{2,3}(?:\.\d+)?)\s*E",
+        ]
+        for p in patterns:
+            match = re.search(p, text, re.IGNORECASE)
+            if match:
+                try:
+                    lat = float(match.group(1))
+                    lon = float(match.group(2))
+                    if 5.0 <= lat <= 30.0 and 50.0 <= lon <= 100.0:
+                        return (round(lat, 2), round(lon, 2))
+                except (ValueError, IndexError):
+                    continue
+        return None
+
     async def _fetch_meteorological_news_alerts(self) -> Optional[str]:
         """
-        Dynamically extracts active or prospective cyclone names discussed across
-        meteorological news feeds (e.g. Google News RSS, Disaster Alert wires)
-        using general regex patterns without hardcoded name lists.
+        Dynamically extracts active cyclone names discussed across fresh (<24h)
+        meteorological news alerts, ensuring strict bulletin lifecycle validation.
+        Fixes Problem #15 (news RSS scraper lacking bulletin lifecycle checks).
         """
-        url = "https://news.google.com/rss/search?q=Cyclone+Bay+of+Bengal+OR+Cyclone+Arabian+Sea+when:7d&hl=en-IN&gl=IN&ceid=IN:en"
+        url = "https://news.google.com/rss/search?q=Cyclone+Bay+of+Bengal+OR+Cyclone+Arabian+Sea+when:1d&hl=en-IN&gl=IN&ceid=IN:en"
         excluded_words = {
             "warning", "alert", "update", "track", "news", "storm", "today", 
             "bay", "bengal", "arabian", "sea", "india", "odisha", "andhra",
             "tamil", "nadu", "kerala", "gujarat", "live", "landfall", "depression",
-            "deep", "severe", "super", "coast", "coastal", "forecast", "imd", "rsmc"
+            "deep", "severe", "super", "coast", "coastal", "forecast", "imd", "rsmc",
+            "season", "relief", "fund", "damage", "anniversary", "years", "former", "past"
+        }
+        stale_lifecycle_words = {
+            "passed", "weakened into", "former cyclone", "remnants of", "dissipated",
+            "last year", "anniversary", "historic", "in 2023", "in 2024", "in 2020",
+            "aftermath", "death toll", "rebuilding", "clearing", "reconstruction"
         }
         try:
             async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
                 resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
                 if resp.status_code == 200:
-                    text_content = resp.text
-                    # Match phrases like "Cyclone <Name>", "named <Name>", "called <Name>"
-                    matches = re.findall(r"(?:Cyclone|Cyclonic Storm|named as|named|called)\s+['\"]?([A-Z][a-z]{2,15})['\"]?", text_content)
-                    for candidate in matches:
-                        cand_clean = candidate.strip()
-                        if cand_clean.lower() not in excluded_words:
-                            return cand_clean.capitalize()
+                    root = ET.fromstring(resp.content)
+                    for item in root.findall(".//item"):
+                        title = item.find("title").text if item.find("title") is not None else ""
+                        desc = item.find("description").text if item.find("description") is not None else ""
+                        full_txt = f"{title} {desc}".lower()
+                        
+                        # Discard dissipated or historical retrospective news
+                        if any(term in full_txt for term in stale_lifecycle_words):
+                            continue
+
+                        matches = re.findall(r"(?:Cyclone|Cyclonic Storm)\s+['\"]?([A-Z][a-z]{2,15})['\"]?", f"{title} {desc}")
+                        for candidate in matches:
+                            cand_clean = candidate.strip()
+                            if cand_clean.lower() not in excluded_words:
+                                return cand_clean.capitalize()
         except Exception:
             pass
         return None
@@ -200,13 +238,11 @@ class LiveIngestionService:
     async def _fetch_imd_bulletins(self) -> List[Dict[str, Any]]:
         """
         Polls IMD RSMC New Delhi and Mausam portals for active tropical cyclone advisories.
+        Fixes Problem #11 (hardcoded coordinates) & Problem #12 (false detection on generic keywords).
         """
         systems = []
         self.sources_status["IMD_RSMC"] = "Polling"
         url = "https://rsmcnewdelhi.imd.gov.in/"
-        
-        # Concurrently check news feeds for potential naming discussion
-        news_name = await self._fetch_meteorological_news_alerts()
         
         try:
             async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
@@ -216,55 +252,63 @@ class LiveIngestionService:
                     soup = BeautifulSoup(resp.text, "html.parser")
                     text_content = soup.get_text()
 
-                    # Look for active system keywords in IMD bulletins
+                    # Require authentic operational bulletin syntax (Fix #12)
+                    # Generic keyword mentions like 'bay of bengal' do NOT trigger cyclones
+                    bulletin_indicators = [
+                        r"TROPICAL CYCLONE ADVISORY NO\.",
+                        r"CYCLONIC STORM BULLETIN NO\.",
+                        r"SPECIAL TROPICAL WEATHER OUTLOOK",
+                        r"DEEP DEPRESSION SPECIAL MESSAGE"
+                    ]
+                    has_active_bulletin = any(re.search(ind, text_content, re.IGNORECASE) for ind in bulletin_indicators)
+
                     keywords = [
                         r"Super Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
                         r"Extremely Severe Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
                         r"Very Severe Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
                         r"Severe Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
                         r"Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
-                        r"Deep Depression\s+over\s+([A-Za-z0-9\/\-\s]+)",
-                        r"Deep Depression\s+([A-Za-z0-9\/\-]+)",
-                        r"Depression\s+over\s+([A-Za-z0-9\/\-\s]+)"
+                        r"Deep Depression\s+over\s+([A-Za-z0-9\/\-\s]+)"
                     ]
 
-                    for kw in keywords:
-                        match = re.search(kw, text_content, re.IGNORECASE)
-                        if match:
-                            matched_text = match.group(0)
-                            cat = self._determine_imd_category_from_text(matched_text)
-                            basin = "Bay of Bengal" if "bay" in text_content.lower() or "bob" in matched_text.lower() else "Arabian Sea"
-                            
-                            # Check if named cyclonic storm or generic depression
-                            name_match = re.search(r"Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?", matched_text, re.IGNORECASE)
-                            if name_match:
-                                final_name = f"Cyclone {name_match.group(1).strip().capitalize()}"
-                                sys_id = f"LIVE-IMD-{name_match.group(1).strip().upper()}"
-                            else:
-                                final_name = "Deep Depression (BOB-05)"
-                                sys_id = "BOB05-2026"
+                    if has_active_bulletin:
+                        for kw in keywords:
+                            match = re.search(kw, text_content, re.IGNORECASE)
+                            if match:
+                                matched_text = match.group(0)
+                                cat = self._determine_imd_category_from_text(matched_text)
+                                basin = "Bay of Bengal" if "bay" in text_content.lower() or "bob" in matched_text.lower() else "Arabian Sea"
+                                
+                                # Extract genuine center coordinates from bulletin (Fix #11)
+                                coords = self._extract_coordinates_from_bulletin(text_content)
+                                if not coords:
+                                    # Without verified coordinates from bulletin, do NOT fabricate fixed 18.1/83.7
+                                    continue
 
-                            systems.append({
-                                "id": sys_id,
-                                "name": final_name,
-                                "basin": basin,
-                                "source": "IMD RSMC New Delhi (Live Bulletins)",
-                                "category": cat,
-                                "intensity_knots": self._category_to_knots(cat),
-                                "lat": 18.1 if basin == "Bay of Bengal" else 17.2,
-                                "lon": 83.7 if basin == "Bay of Bengal" else 67.5,
-                                "central_pressure_hpa": 996,
-                                "movement_speed_kmph": 15,
-                                "movement_direction": "WNW"
-                            })
-                            break
-                    
-                    # If BoB Deep Depression is mentioned in general text
-                    if not systems and ("deep depression" in text_content.lower() or "depression" in text_content.lower() or "bay of bengal" in text_content.lower()):
-                        def_sys = get_default_active_bob_system()
-                        if news_name:
-                            def_sys["name"] = f"Deep Depression BOB-05 (Potential Cyclone {news_name})"
-                        systems.append(def_sys)
+                                lat_extracted, lon_extracted = coords
+
+                                name_match = re.search(r"Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?", matched_text, re.IGNORECASE)
+                                if name_match:
+                                    final_name = f"Cyclone {name_match.group(1).strip().capitalize()}"
+                                    sys_id = f"LIVE-IMD-{name_match.group(1).strip().upper()}"
+                                else:
+                                    final_name = "Deep Depression (IMD RSMC Fix)"
+                                    sys_id = f"LIVE-IMD-{datetime.datetime.utcnow().strftime('%Y%m%d%H')}"
+
+                                systems.append({
+                                    "id": sys_id,
+                                    "name": final_name,
+                                    "basin": basin,
+                                    "source": "IMD RSMC New Delhi (Live Bulletins)",
+                                    "category": cat,
+                                    "intensity_knots": self._category_to_knots(cat),
+                                    "lat": lat_extracted,
+                                    "lon": lon_extracted,
+                                    "central_pressure_hpa": 996,
+                                    "movement_speed_kmph": 15,
+                                    "movement_direction": "WNW"
+                                })
+                                break
         except Exception:
             self.sources_status["IMD_RSMC"] = "Online (Active Monitoring)"
 

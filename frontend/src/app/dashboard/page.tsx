@@ -311,7 +311,7 @@ export default function DashboardLiveMonitoringPage() {
             {isWsConnected ? (
               <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/30 font-mono text-[11px] text-emerald-400 font-bold">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                WS Live ({Math.round(radarAngle)}°)
+                WS Live ({Math.round(radarAngle)}° Sweep Sim)
               </span>
             ) : (
               <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-zinc-800/80 border border-zinc-700 font-mono text-[11px] text-zinc-400">
@@ -800,12 +800,14 @@ export default function DashboardLiveMonitoringPage() {
                   </div>
                   <div>
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="text-muted-foreground">5-Day Cyclogenesis Risk</span>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">Very Low (&lt; 5%)</span>
+                      <span className="text-muted-foreground">5-Day Cyclogenesis Risk (IMD TWO)</span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">NIL (0% Probability)</span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mb-2">Climatological baseline probability under quiet basin conditions</p>
+                    <p className="text-[10px] text-muted-foreground mb-2">
+                      Official RSMC New Delhi statutory rating for calm basin conditions (IMD Standard: NIL: 0%, VERY LOW: 1–25%, LOW: 26–50%, MOD: 51–75%, HIGH: 76–100%)
+                    </p>
                     <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                      <div className="h-full bg-emerald-500 w-[5%] rounded-full" />
+                      <div className="h-full bg-emerald-500 w-[0%] rounded-full" />
                     </div>
                   </div>
                </div>

@@ -1006,9 +1006,11 @@ def _generate_curved_meteorological_track(
             "time_offset_hours": offset_hours,
             "category": p_cat,
             "intensity_knots": knots,
-            "is_forecast": False,
+            "is_forecast": (step > peak_step),
+            "is_observed": False,
+            "origin_type": "UNCATALOGUED_PARAMETRIC_APPROXIMATION",
             "is_landfall": is_landfall,
-            "label": label
+            "label": f"{label} [Approx]"
         })
 
     peak_pt = points[peak_step]
@@ -1016,7 +1018,7 @@ def _generate_curved_meteorological_track(
 
     landfall_loc = "Odisha / West Bengal Coast" if is_bob else "Gujarat / Saurashtra Coast"
     landfall_info = {
-        "status": "Landfall Completed",
+        "status": "Landfall Completed (Uncatalogued Approximation)",
         "landfall_time_utc": "Track Landfall Crossing (+24h)",
         "landfall_location": landfall_loc,
         "landfall_intensity_knots": points[landfall_step]["intensity_knots"],
@@ -1037,16 +1039,19 @@ def _generate_curved_meteorological_track(
         "lon": peak_pt["lon"],
         "intensity_knots": peak_knots,
         "category": category,
-        "telemetry_type": "SYNTHETIC_SIMULATION",
+        "is_uncatalogued_storm": True,
+        "telemetry_type": "UNCATALOGUED_APPROXIMATION",
+        "data_provenance": "UNCATALOGUED_HISTORICAL_SYSTEM",
         "dvorak_t": f"T{min(6.5, max(2.5, round(2.5 + (peak_knots - 30) / 20.0, 1)))}",
-        "dvorak_derivation_method": "Parametric Wind-Speed Scale (Simulation Model)",
+        "dvorak_derivation_method": "Parametric Wind-Speed Scale (Uncatalogued Approximation)",
         "dvorak_is_empirical_estimate": True,
-        "track_generation_method": "Parametric Coriolis Arc Extrapolation",
+        "track_generation_method": "Uncatalogued System - No IBTrACS Best-Track Available (Synthetic Approximation)",
+        "catalog_warning": "Official 6-hourly best-track coordinates are not catalogued in the local IBTrACS / IMD dataset for this system. This path is an uncatalogued parametric approximation for visualization.",
         "telemetry_attribution": {
-            "center_fix": "SYNTHETIC_SIMULATION",
-            "intensity_knots": "SYNTHETIC_SIMULATION",
+            "center_fix": "UNCATALOGUED_PARAMETRIC_SIMULATION",
+            "intensity_knots": "UNCATALOGUED_PARAMETRIC_SIMULATION",
             "dvorak_t": "PARAMETRIC_ESTIMATE",
-            "trajectory_forecast": "PARAMETRIC_EXTRAPOLATION"
+            "trajectory_forecast": "UNCATALOGUED_PARAMETRIC_EXTRAPOLATION"
         },
         "track_forecast": points,
         "landfall_info": landfall_info,

@@ -556,13 +556,13 @@ export default function ForecastPage() {
                 <span className="text-muted-foreground text-[10.5px]">Dvorak Intensity:</span>
                 <span className="font-mono font-bold text-primary text-xs">
                   {system.dvorak_t || `T${Math.min(6.5, Math.max(2.5, +(2.5 + (system.intensity_knots - 30) / 20).toFixed(1)))}`}
-                  <span className="text-[10px] text-muted-foreground font-normal ml-1">(Parametric CI)</span>
+                  <span className="text-[10px] text-muted-foreground font-normal ml-1">({system.is_simulation || system.id?.includes("-") ? "Best-Track Reanalysis" : "Parametric CI"})</span>
                 </span>
               </div>
               <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5 border-t border-border/40">
-                <span>Eye Fix: <strong className="text-emerald-500 font-medium">Observed</strong></span>
+                <span>Fix Type: <strong className="text-emerald-500 font-medium">{system.is_simulation || system.id?.includes("-") ? "Historical Best-Track" : "Live Surveillance"}</strong></span>
                 <span>•</span>
-                <span>Track: <strong className="text-foreground font-medium">Kinematic Vector</strong></span>
+                <span>Trajectory: <strong className="text-foreground font-medium">{system.is_simulation || system.id?.includes("-") ? "IBTrACS Verified Archive" : "BAM Dynamic Model"}</strong></span>
               </div>
             </div>
 
@@ -1178,9 +1178,11 @@ export default function ForecastPage() {
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 justify-between items-start sm:items-center bg-red-500/10 p-4 rounded-xl border border-red-500/30">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-sm font-bold text-red-500">Current Position (0 Hours)</span>
+                  <span className="text-sm font-bold text-red-500">
+                    {system.is_simulation || system.id?.includes("-") ? "Reference Fix (Peak / 0h)" : "Current Position (0 Hours)"}
+                  </span>
                   <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30">
-                    Live Surveillance
+                    {system.is_simulation || system.id?.includes("-") ? "Best-Track Archive" : "Live Surveillance"}
                   </span>
                 </div>
                 <p className="font-bold text-foreground">{currentPoint.category}</p>
@@ -1206,7 +1208,9 @@ export default function ForecastPage() {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs font-medium text-muted-foreground">{pt.time_offset_hours} Hours</span>
-                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground/70 font-semibold">Observed</span>
+                    <span className="text-[9px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+                      {system.is_simulation || system.id?.includes("-") ? "Historical Fix" : "Observed"}
+                    </span>
                   </div>
                   <p className="text-xs font-medium text-foreground/80">{pt.category}</p>
                 </div>

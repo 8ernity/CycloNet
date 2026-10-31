@@ -73,10 +73,15 @@ export function useDataSource() {
 
   // ── Conversion Utilities ──────────────────────────────────────────────────
 
-  const getConvertedKnots = useCallback((baseKnots: number): number => {
+  const getConvertedKnots = useCallback((baseKnots: number, rawJtwcKnots?: number): number => {
+    // If genuine JTWC ATCF/TCFA bulletined wind telemetry is present, use it directly (Fix #41)
+    if (rawJtwcKnots && rawJtwcKnots > 0) {
+      return rawJtwcKnots;
+    }
     if (!baseKnots || baseKnots <= 0) return 0;
     if (dataSource === "JTWC") {
-      // 1-minute sustained wind is typically ~1.14x the 3-minute IMD wind standard
+      // When primary JTWC ATCF feed is absent, apply WMO-No. 558 / Harper et al. (2010) 
+      // statutory conversion (1-min sustained peak wind standard = 1.14x IMD 3-min mean)
       return Math.round(baseKnots * 1.14);
     }
     return baseKnots;

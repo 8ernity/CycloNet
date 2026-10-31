@@ -348,7 +348,7 @@ export default function SettingsPage() {
               </span>
               <p className="text-muted-foreground font-mono">
                 {dataSource === "JTWC"
-                  ? "JTWC 1-Min Winds = Base Knots × 1.14 | Categories: Saffir-Simpson Cat 1-5"
+                  ? "JTWC 1-Min Winds = Direct ATCF Telemetry or WMO TCP 1.14x Standard | Categories: Saffir-Simpson (Cat 1-5)"
                   : dataSource === "CUSTOM"
                   ? "Custom Ingestion Mode active | Listening on user endpoint"
                   : "IMD 3-Min Winds = Base Knots × 1.00 | Categories: WMO Standard (Depression to Super Cyclone)"}

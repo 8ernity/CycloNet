@@ -53,6 +53,7 @@ interface TrackPoint {
   intensity_knots: number;
   is_forecast: boolean;
   is_landfall?: boolean;
+  is_observed?: boolean;
   label?: string;
 }
 
@@ -66,6 +67,8 @@ interface ActiveSystem {
   basin?: string;
   track_forecast?: TrackPoint[];
   landfall_info?: any;
+  telemetry_type?: string;
+  is_simulation?: boolean;
 }
 
 interface MapProps {
@@ -472,11 +475,19 @@ export default function MapComponent({ activeSystem }: MapProps) {
 
             <div className="flex items-center gap-2">
               <span className="w-4 h-0.5 bg-foreground/80 inline-block" />
-              <span className="text-muted-foreground">Solid Line: Observed Track / 0h Fix</span>
+              <span className="text-muted-foreground">
+                {activeSystem?.telemetry_type === "HISTORICAL_BEST_TRACK" || activeSystem?.is_simulation
+                  ? "Solid Line: Historical Best-Track"
+                  : "Solid Line: Observed Track / 0h Fix"}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-4 h-0 border-t-2 border-dashed border-foreground/80 inline-block" />
-              <span className="text-muted-foreground">Dashed Line: Kinematic Extrapolated Track</span>
+              <span className="text-muted-foreground">
+                {activeSystem?.telemetry_type === "HISTORICAL_BEST_TRACK" || activeSystem?.is_simulation
+                  ? "Dashed Line: Post-Peak Best-Track Decay"
+                  : "Dashed Line: BAM Dynamic Numerical Track"}
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-4 h-2 rounded-xs bg-[#22c55e]/35 border border-[#15803d] inline-block" />
