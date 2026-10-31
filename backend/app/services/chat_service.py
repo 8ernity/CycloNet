@@ -462,25 +462,80 @@ class MeteorologicalChatService:
                     print(f"[Gemini Multimodal Exception with {model}] {e}")
                     break
 
-        # Intelligent deterministic fallback
-        return {
-            "dvorak_t_number": 4.5,
-            "category": "Very Severe Cyclonic Storm",
-            "intensity_knots": 85,
-            "estimated_wind_kmh": 155,
-            "central_pressure_hpa": 972,
-            "eye_characterization": "Ragged central dense overcast (CDO) with developing eye boundary",
-            "convective_signature": "Deep symmetric convection with brightness temperature approx -70°C to -75°C",
-            "shear_and_structure": "Low vertical wind shear (< 10 kt) favoring steady intensification",
-            "coastal_impact_level": "VERY HIGH",
-            "recommended_actions": [
-                "Initiate Tier-2 pre-landfall evacuation protocols",
-                "Activate coastal multipurpose shelter standby generators",
-                "Trigger anticipatory parametric insurance liquidity window"
-            ],
-            "timestamp": timestamp,
-            "model_used": "Deterministic ResNet / Dvorak Expert Synthesis"
-        }
+        # Real image-driven inference fallback using local PyTorch ml_service (#8)
+        try:
+            from app.services.ml_service import ml_service
+            pred = ml_service.predict(image_bytes)
+            cat = pred.get("category", "Unclassified Cyclonic Disturbance")
+            cat_short = pred.get("category_short", "CS")
+            knots = pred.get("wind_speed_knots", 45)
+            dvorak_t = pred.get("dvorak_t", "T3.0")
+            is_cyclone = pred.get("is_cyclone", True)
+            
+            t_num = 1.0
+            if dvorak_t and str(dvorak_t).startswith("T"):
+                try:
+                    t_num = float(str(dvorak_t)[1:])
+                except Exception:
+                    t_num = 3.0
+            
+            wind_kmh = int(knots * 1.852)
+            pressure = 1010 - int(knots * 0.65)
+            
+            if not is_cyclone:
+                return {
+                    "dvorak_t_number": 0.0,
+                    "category": "No Cyclone Detected",
+                    "intensity_knots": 0,
+                    "estimated_wind_kmh": 0,
+                    "central_pressure_hpa": 1012,
+                    "eye_characterization": "No organized eye or central dense overcast observed.",
+                    "convective_signature": "Non-cyclonic atmospheric cloud patterns.",
+                    "shear_and_structure": "N/A (Non-cyclonic imagery)",
+                    "coastal_impact_level": "NOMINAL",
+                    "recommended_actions": ["No emergency civil defense measures required."],
+                    "timestamp": timestamp,
+                    "model_used": "PyTorch ResNet-50 Local Model (Gemini Offline)",
+                    "is_fallback": True
+                }
+
+            impact_level = "EXTREME" if knots >= 90 else "VERY HIGH" if knots >= 65 else "MODERATE"
+            return {
+                "dvorak_t_number": t_num,
+                "category": cat,
+                "intensity_knots": knots,
+                "estimated_wind_kmh": wind_kmh,
+                "central_pressure_hpa": pressure,
+                "eye_characterization": f"Convective cloud pattern matching {cat_short} signature ({dvorak_t}).",
+                "convective_signature": f"Core eyewall convection analyzed at ~{knots} kt intensity.",
+                "shear_and_structure": f"Organized spiral bands observed; Dvorak intensity index {dvorak_t}.",
+                "coastal_impact_level": impact_level,
+                "recommended_actions": [
+                    f"Follow {cat} standard emergency action plan.",
+                    "Monitor IMD Doppler weather radar feeds.",
+                    "Verify coastal shelter generator and satellite comms."
+                ],
+                "timestamp": timestamp,
+                "model_used": "PyTorch ResNet-50 Local Model (Gemini Offline)",
+                "is_fallback": True
+            }
+        except Exception as e:
+            print(f"[ML Service fallback error] {e}")
+            return {
+                "dvorak_t_number": 3.0,
+                "category": "Cyclonic Disturbance (Inspection Pending)",
+                "intensity_knots": 45,
+                "estimated_wind_kmh": 83,
+                "central_pressure_hpa": 995,
+                "eye_characterization": "Visual pattern pending full neural network analysis.",
+                "convective_signature": "Satellite frame loaded into processing pipeline.",
+                "shear_and_structure": "Synoptic environment under active evaluation.",
+                "coastal_impact_level": "MODERATE",
+                "recommended_actions": ["Review active radar and barometric feeds."],
+                "timestamp": timestamp,
+                "model_used": "Fallback Synoptic Estimator",
+                "is_fallback": True
+            }
 
     def generate_pre_landfall_briefing(self, storm_data: Dict, infrastructure_data: Dict, language: str = "en") -> Dict:
         """

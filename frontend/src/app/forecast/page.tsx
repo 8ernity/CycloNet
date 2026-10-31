@@ -1059,71 +1059,71 @@ export default function ForecastPage() {
         </div>
       </div>
 
-      {/* Feature 4: Benchmark Comparison (CycloNet AI vs IMD Operational Baseline) */}
+      {/* Feature 4: Operational Baseline Standards (IMD RSMC New Delhi Verification Envelope) */}
       <div className="glass-card p-6 border border-border">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div>
             <div className="flex items-center gap-2">
               <ShieldAlert className="w-5 h-5 text-primary" />
-              <h3 className="font-heading font-bold text-lg text-foreground">AI Benchmark Verification vs. IMD Operational Baseline</h3>
+              <h3 className="font-heading font-bold text-lg text-foreground">IMD Operational Verification Baselines & Standards</h3>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Comparative Mean Absolute Error (MAE) evaluated across North Indian Ocean cyclones (2019&ndash;2024).
+              Official 5-year climatological Mean Absolute Error (MAE) operational limits published by RSMC New Delhi (IMD).
             </p>
           </div>
 
-          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            Average Error Reduction: ~20.5%
+          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            Statutory Evaluation Target
           </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           
           <div className="bg-secondary/20 p-4 rounded-xl border border-border">
-            <span className="text-xs text-muted-foreground block mb-1">24h Track Error</span>
+            <span className="text-xs text-muted-foreground block mb-1">24h Track Envelope</span>
             <div className="flex items-baseline gap-2 mb-1.5">
-              <span className="text-2xl font-heading font-bold text-emerald-400">54 km</span>
-              <span className="text-xs line-through text-muted-foreground">69 km (IMD)</span>
+              <span className="text-2xl font-heading font-bold text-foreground">69 km</span>
+              <span className="text-xs text-muted-foreground">IMD Baseline</span>
             </div>
-            <div className="flex items-center gap-1 text-[11px] text-emerald-500 font-medium">
-              <Zap className="w-3.5 h-3.5" />
-              <span>21.7% track error reduction</span>
+            <div className="flex items-center gap-1 text-[11px] text-blue-400 font-medium">
+              <Activity className="w-3.5 h-3.5" />
+              <span>Operational tolerance boundary</span>
             </div>
           </div>
 
           <div className="bg-secondary/20 p-4 rounded-xl border border-border">
-            <span className="text-xs text-muted-foreground block mb-1">48h Track Error</span>
+            <span className="text-xs text-muted-foreground block mb-1">48h Track Envelope</span>
             <div className="flex items-baseline gap-2 mb-1.5">
-              <span className="text-2xl font-heading font-bold text-emerald-400">98 km</span>
-              <span className="text-xs line-through text-muted-foreground">118 km (IMD)</span>
+              <span className="text-2xl font-heading font-bold text-foreground">118 km</span>
+              <span className="text-xs text-muted-foreground">IMD Baseline</span>
             </div>
-            <div className="flex items-center gap-1 text-[11px] text-emerald-500 font-medium">
-              <Zap className="w-3.5 h-3.5" />
-              <span>16.9% track error reduction</span>
+            <div className="flex items-center gap-1 text-[11px] text-blue-400 font-medium">
+              <Activity className="w-3.5 h-3.5" />
+              <span>Multi-model consensus target</span>
             </div>
           </div>
 
           <div className="bg-secondary/20 p-4 rounded-xl border border-border">
-            <span className="text-xs text-muted-foreground block mb-1">72h Track Error</span>
+            <span className="text-xs text-muted-foreground block mb-1">72h Track Envelope</span>
             <div className="flex items-baseline gap-2 mb-1.5">
-              <span className="text-2xl font-heading font-bold text-emerald-400">148 km</span>
-              <span className="text-xs line-through text-muted-foreground">176 km (IMD)</span>
+              <span className="text-2xl font-heading font-bold text-foreground">176 km</span>
+              <span className="text-xs text-muted-foreground">IMD Baseline</span>
             </div>
-            <div className="flex items-center gap-1 text-[11px] text-emerald-500 font-medium">
-              <Zap className="w-3.5 h-3.5" />
-              <span>15.9% track error reduction</span>
+            <div className="flex items-center gap-1 text-[11px] text-blue-400 font-medium">
+              <Activity className="w-3.5 h-3.5" />
+              <span>Extended outlook uncertainty limit</span>
             </div>
           </div>
 
           <div className="bg-secondary/20 p-4 rounded-xl border border-border">
-            <span className="text-xs text-muted-foreground block mb-1">24h Intensity MAE</span>
+            <span className="text-xs text-muted-foreground block mb-1">24h Intensity Tolerance</span>
             <div className="flex items-baseline gap-2 mb-1.5">
-              <span className="text-2xl font-heading font-bold text-emerald-400">&plusmn;5.6 kt</span>
-              <span className="text-xs line-through text-muted-foreground">&plusmn;8.2 kt (IMD)</span>
+              <span className="text-2xl font-heading font-bold text-foreground">&plusmn;8.2 kt</span>
+              <span className="text-xs text-muted-foreground">IMD Baseline</span>
             </div>
-            <div className="flex items-center gap-1 text-[11px] text-emerald-500 font-medium">
-              <Zap className="w-3.5 h-3.5" />
-              <span>31.7% lower intensity error</span>
+            <div className="flex items-center gap-1 text-[11px] text-blue-400 font-medium">
+              <Activity className="w-3.5 h-3.5" />
+              <span>Dvorak intensity verification</span>
             </div>
           </div>
 
@@ -1132,7 +1132,7 @@ export default function ForecastPage() {
         <div className="mt-4 pt-3 border-t border-border/50 text-[11px] text-muted-foreground flex items-center gap-2">
           <Info className="w-4 h-4 text-primary shrink-0" />
           <span>
-            Baseline reference metrics derived from the India Meteorological Department Annual Tropical Cyclone Reports (RSMC New Delhi).
+            Climatological baselines sourced from India Meteorological Department Annual Tropical Cyclone Reports (RSMC New Delhi). Experimental deep learning models are evaluated against these statutory boundaries under cyclone-disjoint splits.
           </span>
         </div>
       </div>

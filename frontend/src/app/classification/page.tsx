@@ -11,20 +11,21 @@ const DEMO_PRESETS: Record<number, any> = {
       is_cyclone: true,
       category: "Cyclonic Storm (CS)",
       category_short: "CS",
-      confidence: 99.54,
+      confidence: 78.4,
       dvorak_t: "T3.0",
       wind_speed_knots: 45,
-      checkpoint_status: "TRAINED_CHECKPOINT_LOADED",
+      checkpoint_status: "HISTORICAL_REFERENCE_PRESET",
       is_trained_weights: true,
+      is_offline_preset: true,
       model_architecture: "ResNet-50 + Custom Classifier Head (PyTorch)",
-      overlay_url: "/mock-overlay.png",
-      probabilities: { "NOT_A_CYCLONE": 0.2, "CS": 99.54, "SCS": 0.08, "VSCS": 0.08, "ESCS": 0.1 }
+      overlay_url: null,
+      probabilities: { "NOT_A_CYCLONE": 4.2, "CS": 78.4, "SCS": 11.2, "VSCS": 3.8, "ESCS": 2.4 }
     },
     gemini: {
       category: "Cyclonic Storm (CS)",
       dvorak_t_number: "3.0",
       estimated_knots: 45,
-      eye_characterization: "Ragged / nascent eye feature obscured by central dense overcast",
+      eye_characterization: "Nascent eye circulation feature obscured by central dense overcast (CDO)",
       convective_signature: "Curved spiral band wrapping 0.65 arc around circulation center",
       recommended_actions: [
         "Monitor Bay of Bengal coastal Doppler radar feeds",
@@ -38,20 +39,21 @@ const DEMO_PRESETS: Record<number, any> = {
       is_cyclone: true,
       category: "Severe Cyclonic Storm (SCS)",
       category_short: "SCS",
-      confidence: 99.85,
+      confidence: 82.6,
       dvorak_t: "T3.5",
       wind_speed_knots: 60,
-      checkpoint_status: "TRAINED_CHECKPOINT_LOADED",
+      checkpoint_status: "HISTORICAL_REFERENCE_PRESET",
       is_trained_weights: true,
+      is_offline_preset: true,
       model_architecture: "ResNet-50 + Custom Classifier Head (PyTorch)",
-      overlay_url: "/mock-overlay.png",
-      probabilities: { "NOT_A_CYCLONE": 0.05, "CS": 0.05, "SCS": 99.85, "VSCS": 0.03, "ESCS": 0.02 }
+      overlay_url: null,
+      probabilities: { "NOT_A_CYCLONE": 1.5, "CS": 8.7, "SCS": 82.6, "VSCS": 5.4, "ESCS": 1.8 }
     },
     gemini: {
       category: "Severe Cyclonic Storm (SCS)",
       dvorak_t_number: "3.5",
       estimated_knots: 60,
-      eye_characterization: "Partially defined eye with deep convective eyewall symmetry",
+      eye_characterization: "Partially defined eye with developing convective eyewall symmetry",
       convective_signature: "Solid eyewall band with embedded cold cloud tops (-72°C)",
       recommended_actions: [
         "Prepare coastal cyclone shelters in vulnerable districts",
@@ -65,14 +67,15 @@ const DEMO_PRESETS: Record<number, any> = {
       is_cyclone: true,
       category: "Very Severe Cyclonic Storm (VSCS)",
       category_short: "VSCS",
-      confidence: 99.85,
+      confidence: 86.1,
       dvorak_t: "T4.5",
       wind_speed_knots: 80,
-      checkpoint_status: "TRAINED_CHECKPOINT_LOADED",
+      checkpoint_status: "HISTORICAL_REFERENCE_PRESET",
       is_trained_weights: true,
+      is_offline_preset: true,
       model_architecture: "ResNet-50 + Custom Classifier Head (PyTorch)",
-      overlay_url: "/mock-overlay.png",
-      probabilities: { "NOT_A_CYCLONE": 0.02, "CS": 0.03, "SCS": 0.05, "VSCS": 99.85, "ESCS": 0.05 }
+      overlay_url: null,
+      probabilities: { "NOT_A_CYCLONE": 0.8, "CS": 2.2, "SCS": 7.1, "VSCS": 86.1, "ESCS": 3.8 }
     },
     gemini: {
       category: "Very Severe Cyclonic Storm (VSCS)",
@@ -92,14 +95,15 @@ const DEMO_PRESETS: Record<number, any> = {
       is_cyclone: true,
       category: "Extremely Severe Cyclonic Storm (ESCS)",
       category_short: "ESCS",
-      confidence: 99.70,
+      confidence: 89.3,
       dvorak_t: "T5.5",
       wind_speed_knots: 105,
-      checkpoint_status: "TRAINED_CHECKPOINT_LOADED",
+      checkpoint_status: "HISTORICAL_REFERENCE_PRESET",
       is_trained_weights: true,
+      is_offline_preset: true,
       model_architecture: "ResNet-50 + Custom Classifier Head (PyTorch)",
-      overlay_url: "/mock-overlay.png",
-      probabilities: { "NOT_A_CYCLONE": 0.01, "CS": 0.04, "SCS": 0.05, "VSCS": 0.2, "ESCS": 99.70 }
+      overlay_url: null,
+      probabilities: { "NOT_A_CYCLONE": 0.4, "CS": 1.1, "SCS": 3.2, "VSCS": 6.0, "ESCS": 89.3 }
     },
     gemini: {
       category: "Extremely Severe Cyclonic Storm (ESCS)",
@@ -183,13 +187,39 @@ export default function ClassificationPage() {
             }
           }
           if (preset) {
-            setResult(preset.prediction);
+            setResult({ ...preset.prediction, is_offline_preset: true });
+          } else {
+            setResult({
+              is_cyclone: null,
+              category: "Backend Classifier Offline",
+              category_short: "OFFLINE",
+              confidence: 0,
+              dvorak_t: "N/A",
+              wind_speed_knots: 0,
+              checkpoint_status: "BACKEND_UNAVAILABLE",
+              is_trained_weights: false,
+              model_architecture: "PyTorch Service Unreachable",
+              probabilities: {}
+            });
           }
         })
         .catch((err) => {
-          console.warn("ResNet API offline or network error, applying calibrated model preset:", err);
+          console.warn("ResNet API offline or network error:", err);
           if (preset) {
-            setResult(preset.prediction);
+            setResult({ ...preset.prediction, is_offline_preset: true });
+          } else {
+            setResult({
+              is_cyclone: null,
+              category: "Backend Classifier Offline",
+              category_short: "OFFLINE",
+              confidence: 0,
+              dvorak_t: "N/A",
+              wind_speed_knots: 0,
+              checkpoint_status: "BACKEND_UNAVAILABLE",
+              is_trained_weights: false,
+              model_architecture: "PyTorch Service Unreachable",
+              probabilities: {}
+            });
           }
         })
         .finally(() => {
@@ -437,7 +467,11 @@ export default function ClassificationPage() {
               </p>
               {result && (
                 <div className="pt-1 flex items-center gap-1.5 text-[10px] font-mono">
-                  {result.is_trained_weights !== false ? (
+                  {result.is_offline_preset ? (
+                    <span className="text-blue-400 font-semibold flex items-center gap-1">
+                      📋 Offline Demo Preset (Calibrated Ref)
+                    </span>
+                  ) : result.is_trained_weights !== false ? (
                     <span className="text-emerald-400 font-semibold flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" /> Trained PyTorch Weights
                     </span>
@@ -505,26 +539,27 @@ export default function ClassificationPage() {
              
              {result && result.is_cyclone !== false && (
                 <>
-                 <div className="absolute top-3 left-3 z-10 bg-black/60 backdrop-blur px-2.5 py-1 rounded-md border border-white/10 text-[11px] text-white/90">
-                   {result.gradcam_data_url ? "Grad-CAM ResNet-50 Heatmap" : "Grad-CAM Attribution Overlay"}
-                 </div>
                  {result.gradcam_data_url ? (
-                   <img 
-                     src={result.gradcam_data_url} 
-                     alt="Grad-CAM Layer4 Attribution" 
-                     className="absolute inset-0 w-full h-full object-cover mix-blend-screen opacity-85 pointer-events-none" 
-                   />
+                   <>
+                     <div className="absolute top-3 left-3 z-10 bg-black/60 backdrop-blur px-2.5 py-1 rounded-md border border-white/10 text-[11px] text-white/90">
+                       Grad-CAM ResNet-50 Heatmap
+                     </div>
+                     <img 
+                       src={result.gradcam_data_url} 
+                       alt="Grad-CAM Layer4 Attribution" 
+                       className="absolute inset-0 w-full h-full object-cover mix-blend-screen opacity-85 pointer-events-none" 
+                     />
+                     <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-black/60 backdrop-blur px-2.5 py-1 rounded-md border border-white/10">
+                        <span className="text-[10px] text-white/60 uppercase">Low</span>
+                        <div className="w-20 h-1.5 rounded-full bg-gradient-to-r from-cyan-500 via-yellow-400 to-red-500" />
+                        <span className="text-[10px] text-white/60 uppercase">High</span>
+                     </div>
+                   </>
                  ) : (
-                   <div className="absolute w-56 h-56 mix-blend-screen opacity-80" style={{
-                      background: 'radial-gradient(circle, rgba(255,0,0,0.8) 0%, rgba(255,165,0,0.6) 20%, rgba(255,255,0,0.4) 40%, rgba(0,255,255,0.2) 60%, transparent 80%)',
-                      filter: 'blur(15px)'
-                   }} />
+                   <div className="absolute top-3 left-3 z-10 bg-black/70 backdrop-blur px-2.5 py-1 rounded-md border border-white/10 text-[10px] text-amber-300 font-mono">
+                     Grad-CAM activation unavailable (Requires live PyTorch ResNet inference)
+                   </div>
                  )}
-                 <div className="absolute bottom-3 right-3 flex items-center gap-2 bg-black/60 backdrop-blur px-2.5 py-1 rounded-md border border-white/10">
-                    <span className="text-[10px] text-white/60 uppercase">Low</span>
-                    <div className="w-20 h-1.5 rounded-full bg-gradient-to-r from-cyan-500 via-yellow-400 to-red-500" />
-                    <span className="text-[10px] text-white/60 uppercase">High</span>
-                 </div>
                 </>
              )}
           </div>

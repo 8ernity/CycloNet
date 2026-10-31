@@ -162,6 +162,28 @@ class CycloneIntensityService:
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         t = self.transform(img).unsqueeze(0).to(self.device)
         
+        if not self.has_model:
+            return {
+                'is_cyclone': False,
+                'category': 'Model Checkpoint Not Loaded',
+                'category_short': 'UNINITIALIZED',
+                'confidence': 0.0,
+                'dvorak_t': 'N/A',
+                'wind_speed_knots': 0,
+                'checkpoint_status': 'CHECKPOINT_NOT_FOUND',
+                'is_trained_weights': False,
+                'is_uncalibrated_demo': True,
+                'warning': "Model weights not loaded; random weight inference is strictly blocked to prevent misleading predictions (#6).",
+                'model_architecture': 'ResNet-50 + Custom Classifier Head (PyTorch)',
+                'domain_transfer_status': 'RGB_SURROGATE_SURFACE',
+                'domain_notice': 'Transfer learning backbone (ResNet-50) requires trained weights on satellite imagery.',
+                'overlay_url': None,
+                'gradcam_data_url': None,
+                'probabilities': {
+                    self.classes[i]: 0.0 for i in range(len(self.classes))
+                }
+            }
+
         with torch.no_grad():
             feat = self._extract_features(t)
             pooled = self.backbone.avgpool(feat).flatten(1)

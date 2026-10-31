@@ -85,25 +85,40 @@ class GoogleEarthEngineService:
 
     def get_flood_inundation_zones(self, center_lat: float, center_lon: float, intensity_knots: int) -> Dict[str, Any]:
         """
-        Generates GeoJSON multi-polygons for Sentinel-1 SAR flood extent and coastal surge inundation zones
-        calculated around the cyclone landfall or center coordinate.
+        Generates GeoJSON multi-polygons for coastal surge and flood inundation extent.
+        
+        NOTE (Methodology Attribution):
+        When live GEE service credentials are offline, boundaries are generated as physics-informed 
+        hydrodynamic buffer simulations (calibrated to tidal surge radius and DEM deficit) rather than 
+        raw Sentinel-1 GRD SAR pixel classifications.
         """
         surge_radius_km = max(25.0, (intensity_knots / 100.0) * 85.0)
         
-        # Build multi-ring GeoJSON feature collection for coastal inundation footprints
+        # Dynamically calculate physical water depth and SAR backscatter (dB)
+        # Deep standing floodwater exhibits specular reflection, dropping SAR backscatter to -18 to -25 dB
+        kt = float(max(20, intensity_knots))
+        core_depth_m = round(max(1.2, 0.8 + 0.032 * (kt - 30)), 2)
+        outer_depth_m = round(max(0.6, 0.4 + 0.016 * (kt - 30)), 2)
+        
+        # Dynamic backscatter: wind-roughened specular attenuation in C-band VV polarization
+        sar_backscatter_core_db = round(-24.0 + 0.04 * min(kt, 110.0), 1)
+        sar_backscatter_outer_db = round(-18.5 + 0.03 * min(kt, 110.0), 1)
+        
         features = []
         
-        # Outer High Surge Zone (> 1.5m)
+        # Outer High Surge Zone
         outer_coords = self._generate_ellipse_polygon(center_lat, center_lon, surge_radius_km * 0.9, surge_radius_km * 0.7, angle_deg=45)
         features.append({
             "type": "Feature",
             "properties": {
                 "layer_id": "sentinel1_sar_flood",
                 "zone_name": "High Vulnerability Flood Inundation Zone",
-                "water_depth_m": 1.8,
-                "confidence_score": 0.94,
-                "satellite_source": "Sentinel-1 SAR C-Band Synthetic Aperture Radar",
-                "sar_backscatter_db": -16.5,
+                "water_depth_m": outer_depth_m,
+                "confidence_score": round(min(0.96, 0.75 + (kt / 350.0)), 2),
+                "satellite_source": "Sentinel-1 SAR C-Band Synthetic Aperture Radar (Simulated Buffer)",
+                "derivation_type": "HYDRODYNAMIC_BUFFER_SIMULATION",
+                "is_raster_pixel_classification": False,
+                "sar_backscatter_db": sar_backscatter_outer_db,
                 "dem_elevation_m": "< 4.0m AMSL"
             },
             "geometry": {
@@ -112,17 +127,19 @@ class GoogleEarthEngineService:
             }
         })
 
-        # Core Surge Breach Zone (> 3.0m)
+        # Core Surge Breach Zone
         core_coords = self._generate_ellipse_polygon(center_lat + 0.15, center_lon + 0.1, surge_radius_km * 0.45, surge_radius_km * 0.35, angle_deg=35)
         features.append({
             "type": "Feature",
             "properties": {
                 "layer_id": "sentinel1_sar_flood_core",
                 "zone_name": "Critical Surge Breach & Direct Marine Flooding",
-                "water_depth_m": 3.6,
-                "confidence_score": 0.98,
-                "satellite_source": "Sentinel-1 SAR & SRTM DEM Composite",
-                "sar_backscatter_db": -22.1,
+                "water_depth_m": core_depth_m,
+                "confidence_score": round(min(0.99, 0.82 + (kt / 350.0)), 2),
+                "satellite_source": "Sentinel-1 SAR & SRTM DEM Composite (Simulated Buffer)",
+                "derivation_type": "HYDRODYNAMIC_BUFFER_SIMULATION",
+                "is_raster_pixel_classification": False,
+                "sar_backscatter_db": sar_backscatter_core_db,
                 "dem_elevation_m": "< 2.0m AMSL"
             },
             "geometry": {
@@ -135,11 +152,12 @@ class GoogleEarthEngineService:
             "type": "FeatureCollection",
             "mode": "LIVE_GEE" if self.is_live_gee else "GEE_COMPATIBLE_SIMULATION",
             "pipeline": "GEE Sentinel-1/Sentinel-2 Inundation Pipeline (Simulation Fallback)",
+            "methodology_disclaimer": "Simulated hydrodynamic buffer polygons. Direct pixel-level SAR matrix thresholding requires authenticated Earth Engine API session.",
             "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
             "gee_sensor": "COPERNICUS/S1_GRD (Sentinel-1 SAR)",
             "center": [center_lat, center_lon],
             "intensity_knots": intensity_knots,
-            "surge_radius_km": surge_radius_km,
+            "surge_radius_km": round(surge_radius_km, 1),
             "features": features
         }
 
@@ -148,31 +166,70 @@ class GoogleEarthEngineService:
         DEM-informed catchment runoff pathway simulation.
         Evaluates river basin drainage and catchment flash flood pathways parameterized by
         DEM topographic terrain slope, estuarine backwater bottlenecks, and critical drainage choke points.
+        Dynamically calculates arrival times (ETA) and water depths based on storm distance and rain accumulation.
         """
         # Determine catchment basin context based on coordinates
         if center_lat >= 21.0:
             basin_primary = "Hooghly - Sundarbans Estuary Basin"
             slope_deg = 0.6
-            choke_points_1 = [
-                {"name": "Diamond Harbour Sluice Complex", "lat": 22.18, "lon": 88.20, "eta_hours": 4.5, "status": "CRITICAL_OVERFLOW", "depth_m": 1.9, "risk": "CRITICAL"},
-                {"name": "Kakdwip Drainage Outfall", "lat": 21.87, "lon": 88.18, "eta_hours": 3.0, "status": "HIGH_ACCUMULATION", "depth_m": 1.6, "risk": "HIGH"},
-                {"name": "Sagar Island Southern Embankment", "lat": 21.65, "lon": 88.07, "eta_hours": 2.5, "status": "BREACH_RISK", "depth_m": 2.4, "risk": "CRITICAL"}
+            raw_choke_points = [
+                {"name": "Diamond Harbour Sluice Complex", "lat": 22.18, "lon": 88.20},
+                {"name": "Kakdwip Drainage Outfall", "lat": 21.87, "lon": 88.18},
+                {"name": "Sagar Island Southern Embankment", "lat": 21.65, "lon": 88.07}
             ]
         elif center_lat >= 19.0:
             basin_primary = "Mahanadi - Baitarani Coastal Catchment"
             slope_deg = 0.9
-            choke_points_1 = [
-                {"name": "Dhamra River Estuary Choke Point", "lat": 20.81, "lon": 86.95, "eta_hours": 3.8, "status": "SURGE_BACKWATER_STAGNATION", "depth_m": 2.1, "risk": "CRITICAL"},
-                {"name": "Paradip Tidal Canal Gate 4", "lat": 20.31, "lon": 86.61, "eta_hours": 4.0, "status": "HIGH_ACCUMULATION", "depth_m": 1.7, "risk": "HIGH"},
-                {"name": "Astaranga Coastal Drainage Neck", "lat": 19.98, "lon": 86.26, "eta_hours": 5.2, "status": "MONITORED", "depth_m": 1.2, "risk": "MODERATE"}
+            raw_choke_points = [
+                {"name": "Dhamra River Estuary Choke Point", "lat": 20.81, "lon": 86.95},
+                {"name": "Paradip Tidal Canal Gate 4", "lat": 20.31, "lon": 86.61},
+                {"name": "Astaranga Coastal Drainage Neck", "lat": 19.98, "lon": 86.26}
             ]
         else:
             basin_primary = "Godavari - Krishna Coastal Delta"
             slope_deg = 0.8
-            choke_points_1 = [
-                {"name": "Kakinada Low-Lying Industrial Neck", "lat": 16.98, "lon": 82.24, "eta_hours": 4.2, "status": "HIGH_ACCUMULATION", "depth_m": 1.5, "risk": "HIGH"},
-                {"name": "Machilipatnam Coastal Sluice", "lat": 16.18, "lon": 81.13, "eta_hours": 3.5, "status": "BREACH_RISK", "depth_m": 2.0, "risk": "CRITICAL"}
+            raw_choke_points = [
+                {"name": "Kakinada Low-Lying Industrial Neck", "lat": 16.98, "lon": 82.24},
+                {"name": "Machilipatnam Coastal Sluice", "lat": 16.18, "lon": 81.13}
             ]
+
+        # Dynamically calculate ETA (hours) and water depth (meters) for each choke point
+        choke_points_1 = []
+        for cp in raw_choke_points:
+            # Haversine-approximated distance in km
+            d_lat_km = (cp["lat"] - center_lat) * 111.0
+            d_lon_km = (cp["lon"] - center_lon) * 111.0 * math.cos(math.radians(center_lat))
+            dist_km = math.sqrt(d_lat_km ** 2 + d_lon_km ** 2)
+            
+            # Dynamic hydraulic arrival time: storm propagation (~18 km/h) + overland slope lag
+            storm_travel_h = dist_km / 18.0
+            hydraulic_lag_h = 1.2 / max(0.2, slope_deg)
+            eta_h = round(max(1.0, storm_travel_h + hydraulic_lag_h), 1)
+            
+            # Dynamic depth based on accumulated rain and terrain slope
+            depth_m = round(0.4 + (accumulated_rain_mm / 300.0) * 1.5 * (1.0 / max(0.4, slope_deg)), 2)
+            
+            # Dynamic risk classification
+            if depth_m >= 2.0 or accumulated_rain_mm >= 300:
+                risk_lvl = "CRITICAL"
+                status_txt = "CRITICAL_OVERFLOW_BREACH"
+            elif depth_m >= 1.4:
+                risk_lvl = "HIGH"
+                status_txt = "HIGH_ACCUMULATION"
+            else:
+                risk_lvl = "MODERATE"
+                status_txt = "MONITORED_DISCHARGE"
+
+            choke_points_1.append({
+                "name": cp["name"],
+                "lat": cp["lat"],
+                "lon": cp["lon"],
+                "distance_km": round(dist_km, 1),
+                "eta_hours": eta_h,
+                "status": status_txt,
+                "depth_m": depth_m,
+                "risk": risk_lvl
+            })
 
         pathways = [
             {

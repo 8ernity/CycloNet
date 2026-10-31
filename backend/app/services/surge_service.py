@@ -22,29 +22,46 @@ class HydrodynamicSurgeService:
         """
         Calculates peak surge height, inland flood penetration, and coastal risk metrics.
         """
-        # 1. Inverted Barometer Effect: ~1.0 cm per 1 hPa pressure deficit below standard 1013 hPa
+        # 1. Inverted Barometer Effect (Static pressure response):
+        # 1 hPa deficit ~ 0.0101 m static water rise: S_p = (P_ambient - P_c) / (rho_w * g)
         ambient_pressure = 1013.25
         delta_p = max(0.0, ambient_pressure - central_pressure_hpa)
-        inverted_barometer_surge_m = delta_p * 0.01  # e.g. 60 hPa * 0.01 = 0.6m
+        inverted_barometer_surge_m = delta_p * 0.0101  # e.g. 60 hPa * 0.0101 = 0.606m
 
-        # 2. Wind Setup on Shallow Shelf:
-        # Bay of Bengal has extreme shallow continental shelf bathymetry (~1.4x multiplier vs Arabian Sea)
-        shelf_factor = 1.45 if "bengal" in basin.lower() else 1.10
-        
-        # Wind stress proportional to V^2
+        # 2. Wind Setup on Shallow Continental Shelf:
+        # Implements steady-state shallow-water momentum balance: dS/dx = tau_w / (rho_w * g * h)
+        # Garratt drag coefficient formulation: C_d = (0.75 + 0.067 * U_10) * 1e-3 capped at 0.003
         v_knots = max(20.0, float(intensity_knots))
-        wind_surge_m = 0.00018 * (v_knots ** 1.95) * shelf_factor * math.cos(math.radians(max(0, 90 - approach_angle_deg)))
+        u10_ms = v_knots * 0.514444  # convert knots to m/s
+        cd = min(0.0032, (0.75 + 0.067 * u10_ms) * 1e-3)
+        rho_air = 1.225  # kg/m^3
+        rho_water = 1025.0  # sea water kg/m^3
+        gravity = 9.80665  # m/s^2
+        tau_w = rho_air * cd * (u10_ms ** 2)
 
-        # 3. Forward speed resonance factor
-        speed_factor = 1.0 + (min(35.0, forward_speed_kmh) / 120.0)
+        # Continental shelf dimensions (Bay of Bengal has wide, gentle shelf ~160km vs Arabian Sea ~75km)
+        is_bob = "bengal" in basin.lower()
+        shelf_width_m = 165000.0 if is_bob else 75000.0
+        avg_shelf_depth_m = 35.0 if is_bob else 55.0
+        
+        # Angle of approach attenuation: maximum surge occurs when onshore wind aligns normal to coast
+        approach_rad = math.radians(max(15.0, min(90.0, approach_angle_deg)))
+        angle_factor = math.sin(approach_rad)
+
+        # Analytical wind setup: S_w = (tau_w * L) / (rho_w * g * h_bar) * angle_factor
+        wind_surge_m = (tau_w * shelf_width_m) / (rho_water * gravity * avg_shelf_depth_m) * angle_factor
+
+        # 3. Forward Speed Resonance Multiplier (Jelesnianski shallow-water wave resonance)
+        c_wave = math.sqrt(gravity * avg_shelf_depth_m) * 3.6  # shallow wave phase speed in km/h (~66-83 km/h)
+        speed_factor = 1.0 + 0.5 * (min(45.0, forward_speed_kmh) / c_wave)
 
         # 4. Total Peak Storm Surge
         raw_meteorological_surge = (inverted_barometer_surge_m + wind_surge_m) * speed_factor
         total_peak_surge_m = round(raw_meteorological_surge + astronomical_tide_m, 2)
 
-        # 5. Inland Inundation Extent (km) based on 30m DEM slope (avg 0.8m per km in coastal delta)
-        coastal_slope_m_per_km = 0.75 if "bengal" in basin.lower() else 1.6
-        inland_penetration_km = round(max(0.4, (total_peak_surge_m - 0.5) / coastal_slope_m_per_km), 2)
+        # 5. Inland Inundation Extent (km) based on 30m DEM coastal slope
+        coastal_slope_m_per_km = 0.70 if is_bob else 1.55
+        inland_penetration_km = round(max(0.4, (total_peak_surge_m - 0.4) / coastal_slope_m_per_km), 2)
 
         # 6. Categorization
         if total_peak_surge_m >= 4.5:
@@ -74,7 +91,11 @@ class HydrodynamicSurgeService:
             "severity_level": severity,
             "color_hex": color,
             "warning_advisory": warning,
-            "bathymetry_shelf_factor": shelf_factor,
+            "bathymetry_shelf_width_km": round(shelf_width_m / 1000.0, 1),
+            "bathymetry_avg_depth_m": avg_shelf_depth_m,
+            "solver_architecture": "1D_PARAMETRIC_JELESNIANSKI_DEAN_ANALYTICAL_MODEL",
+            "is_2d_mesh_hydrodynamic": False,
+            "operational_disclaimer": "Analytical 1D shallow-shelf integration. For site-specific coastal engineering, full 2D unstructured mesh solvers (ADCIRC / SLOSH / Delft3D) are recommended.",
             "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
         }
 

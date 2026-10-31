@@ -614,6 +614,9 @@ export interface SubstationVulnerabilityAnalysis {
     criticalityFactor: number;
   };
   recommendedAction: string;
+  scoringMethodology: string;
+  is_heuristic_simulation: boolean;
+  methodologyNotice: string;
 }
 
 export function calculateSubstationVulnerability(
@@ -634,11 +637,11 @@ export function calculateSubstationVulnerability(
   // 3. Backup battery / DG runtime capacity before total blackout
   const backupCapacityHrs = sub.criticality === "Extreme" ? 8 : (sub.criticality === "High" ? 6 : 4);
 
-  // 4. Five-factor weighted scoring (0 to 100)
-  // Flood Depth (30%): >2.0m = 100, 0m = 0
-  const floodScore = Math.min(100, (floodDepthM / 2.2) * 100);
-  // Wind Exposure (25%): 120kt = 100, 40kt = 20
-  const windScore = Math.min(100, Math.max(10, (windExposureKts / 120) * 100));
+  // 4. Multi-Attribute Utility Theory (MAUT) parameter weighting
+  // Flood Fragility: Sigmoidal water ingress response (critical busbar submergence begins at 0.8m)
+  const floodScore = Math.min(100, Math.round((1.0 / (1.0 + Math.exp(-3.5 * (floodDepthM - 0.9)))) * 100));
+  // Wind Fragility: Aerodynamic mast shear failure curve (severe risk accelerates above 80 kt)
+  const windScore = Math.min(100, Math.round((1.0 / (1.0 + Math.exp(-0.06 * (windExposureKts - 80)))) * 100));
   // Elevation Deficit (15%): Low elevation (<3m) = high risk
   const elevScore = Math.max(10, Math.min(100, (10 - sub.elevationMeters) * 11));
   // Distance to Coast (10%): Close (<2km) = high risk
@@ -647,11 +650,11 @@ export function calculateSubstationVulnerability(
   const critScore = sub.criticality === "Extreme" ? 95 : (sub.criticality === "High" ? 70 : 40);
 
   const weightedTotal = Math.round(
-    (floodScore * 0.30) +
+    (floodScore * 0.35) +
     (windScore * 0.25) +
     (elevScore * 0.15) +
     (coastScore * 0.10) +
-    (critScore * 0.20)
+    (critScore * 0.15)
   );
 
   const riskScore = Math.min(99, Math.max(12, weightedTotal));
@@ -679,13 +682,16 @@ export function calculateSubstationVulnerability(
     riskScore,
     riskCategory,
     factorBreakdown: {
-      floodFactor: Math.round(floodScore * 0.30),
+      floodFactor: Math.round(floodScore * 0.35),
       windFactor: Math.round(windScore * 0.25),
       elevationFactor: Math.round(elevScore * 0.15),
       coastalFactor: Math.round(coastScore * 0.10),
-      criticalityFactor: Math.round(critScore * 0.20)
+      criticalityFactor: Math.round(critScore * 0.15)
     },
-    recommendedAction
+    recommendedAction,
+    scoringMethodology: "Parametric Multi-Attribute Utility Theory (MAUT) Fragility Model",
+    is_heuristic_simulation: true,
+    methodologyNotice: "Parametric decision-support simulation based on sigmoidal component fragility curves. Does not replace on-site physical SCADA relay telemetry."
   };
 }
 
@@ -698,6 +704,9 @@ export interface RouteVulnerabilityAnalysis {
   riskScore: number;
   alternativeRouteName: string;
   recommendedAction: string;
+  scoringMethodology: string;
+  is_heuristic_simulation: boolean;
+  methodologyNotice: string;
 }
 
 export function calculateRouteVulnerability(
@@ -710,10 +719,13 @@ export function calculateRouteVulnerability(
   const floodDepthM = Number((isLowLying ? Math.max(0.6, (surgeMeters * 0.5) + (rainMm / 400)) : 0.2).toFixed(1));
   const etaToInundationHrs = isLowLying ? Math.max(1.5, Number((8.0 - (stormKnots / 20.0)).toFixed(1))) : 14.0;
 
+  // Dynamic route risk score computed via non-linear logistic inundation function
+  const rawRisk = Math.round((1.0 / (1.0 + Math.exp(-4.0 * (floodDepthM - 0.6)))) * 85 + (stormKnots / 140) * 15);
+  const riskScore = Math.min(99, Math.max(15, rawRisk));
+
   let status: "SAFE_EVACUATION" | "MODERATE_RISK" | "INUNDATED_CLOSED" = "SAFE_EVACUATION";
   let statusBadge = "🔵 SAFE EVACUATION CORRIDOR";
   let statusColor = "#38bdf8"; // Sky blue
-  let riskScore = 22;
   let alternativeRouteName = "Direct Arterial Path Open";
   let recommendedAction = "Corridor is fully clear. Prioritize green-corridor ambulance and bus convoys.";
 
@@ -721,14 +733,12 @@ export function calculateRouteVulnerability(
     status = "INUNDATED_CLOSED";
     statusBadge = "🔴 INUNDATED / ROAD CLOSED";
     statusColor = "#ef4444"; // Red
-    riskScore = 88;
     alternativeRouteName = route.highwayCode === "NH-16" ? "NH-16 Bypass Elevated Flyover (KM 148)" : "State Highway 42 Inland Hill Corridor";
     recommendedAction = `Submerged by ${floodDepthM}m water. Close toll plazas immediately and divert traffic to ${alternativeRouteName}.`;
   } else if (floodDepthM >= 0.5 || stormKnots >= 60) {
     status = "MODERATE_RISK";
     statusBadge = "🟠 HIGH WATERLOGGING RISK";
     statusColor = "#f97316"; // Orange
-    riskScore = 62;
     alternativeRouteName = "Secondary Arterial Ring Road";
     recommendedAction = `Restricted to heavy emergency response vehicles only. ETA to full closure: ${etaToInundationHrs} hours.`;
   }
@@ -741,7 +751,10 @@ export function calculateRouteVulnerability(
     statusColor,
     riskScore,
     alternativeRouteName,
-    recommendedAction
+    recommendedAction,
+    scoringMethodology: "Parametric Inundation-Terrain Multi-Criteria Evaluation (MCE)",
+    is_heuristic_simulation: true,
+    methodologyNotice: "Inundation lag and route risk are parametric hydrodynamic estimates. Confirm highway traffic gates with State Highway Police before dispatching convoys."
   };
 }
 
@@ -755,6 +768,9 @@ export interface ShelterSuitabilityAnalysis {
   suitabilityScore: number;
   isRecommendedDestination: boolean;
   decisionNote: string;
+  scoringMethodology: string;
+  is_heuristic_simulation: boolean;
+  methodologyNotice: string;
 }
 
 export function calculateShelterSuitability(
@@ -791,7 +807,10 @@ export function calculateShelterSuitability(
     powerBackupStatus,
     suitabilityScore: Math.min(99, suitabilityScore),
     isRecommendedDestination,
-    decisionNote
+    decisionNote,
+    scoringMethodology: "Multi-Criteria Decision Analysis (MCDA) Scoring Model",
+    is_heuristic_simulation: true,
+    methodologyNotice: "Occupancy and suitability scores are parametric triage simulations. Real-time headcounts require field verification with District Disaster Management Authorities."
   };
 }
 
