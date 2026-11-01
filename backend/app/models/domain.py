@@ -20,3 +20,15 @@ class CycloneArchive(Base):
     basin = Column(String)
     max_category = Column(String)
     dates = Column(String, nullable=True)
+
+class ActiveCycloneState(Base):
+    """
+    Persisted shared state of active cyclonic systems across multi-worker deployments.
+    Fixes Problem #66 (Active cyclone state stored in process memory instead of Redis/DB).
+    """
+    __tablename__ = "active_cyclone_state"
+
+    id = Column(String, primary_key=True, index=True) # 'CURRENT_ACTIVE_SYSTEMS'
+    active_count = Column(Integer, default=0)
+    systems_json = Column(String, default="[]")
+    last_sync = Column(DateTime, default=datetime.utcnow)

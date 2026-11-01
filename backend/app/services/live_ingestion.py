@@ -1,4 +1,6 @@
 import asyncio
+import os
+import json
 import re
 import datetime
 import xml.etree.ElementTree as ET
@@ -8,7 +10,7 @@ from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
-from app.models.domain import CycloneArchive
+from app.models.domain import CycloneArchive, ActiveCycloneState
 from app.services.ml_service import ml_service
 
 def get_default_active_bob_system() -> Dict[str, Any]:
@@ -80,9 +82,55 @@ class LiveIngestionService:
             "GDACS_UN": "Online (Active Satellite Feed)",
             "ISRO_MOSDAC": "Online (Active Monitoring)"
         }
-        # Start in calm basin state unless genuine live feeds detect an active system
-        self.live_systems: List[Dict[str, Any]] = []
+        self._in_memory_systems: List[Dict[str, Any]] = []
         self._background_task: Optional[asyncio.Task] = None
+
+    @property
+    def live_systems(self) -> List[Dict[str, Any]]:
+        """
+        Retrieves active systems from persistent DB/shared storage.
+        Ensures multi-worker processes share synchronized real-time active cyclone states.
+        Fixes Problem #66 (Active cyclone state stored in process memory instead of Redis/DB).
+        """
+        try:
+            db = SessionLocal()
+            try:
+                rec = db.query(ActiveCycloneState).filter(ActiveCycloneState.id == "CURRENT_ACTIVE_SYSTEMS").first()
+                if rec and rec.systems_json:
+                    return json.loads(rec.systems_json)
+            finally:
+                db.close()
+        except Exception:
+            pass
+        return getattr(self, "_in_memory_systems", [])
+
+    @live_systems.setter
+    def live_systems(self, systems: List[Dict[str, Any]]):
+        """
+        Persists active cyclone state into DB/shared storage for multi-process cross-worker synchronization.
+        """
+        self._in_memory_systems = systems
+        try:
+            db = SessionLocal()
+            try:
+                rec = db.query(ActiveCycloneState).filter(ActiveCycloneState.id == "CURRENT_ACTIVE_SYSTEMS").first()
+                if not rec:
+                    rec = ActiveCycloneState(
+                        id="CURRENT_ACTIVE_SYSTEMS",
+                        active_count=len(systems),
+                        systems_json=json.dumps(systems),
+                        last_sync=datetime.datetime.utcnow()
+                    )
+                    db.add(rec)
+                else:
+                    rec.active_count = len(systems)
+                    rec.systems_json = json.dumps(systems)
+                    rec.last_sync = datetime.datetime.utcnow()
+                db.commit()
+            finally:
+                db.close()
+        except Exception:
+            pass
 
     async def sync_all_sources(self) -> Dict[str, Any]:
         """
@@ -675,8 +723,9 @@ class LiveIngestionService:
         self._calibrate_system_telemetry(system)
         self._persist_to_database(system)
         
-        self.live_systems = [s for s in self.live_systems if s["id"] != sys_id]
-        self.live_systems.insert(0, system)
+        current_systems = [s for s in self.live_systems if s.get("id") != sys_id]
+        current_systems.insert(0, system)
+        self.live_systems = current_systems
         self.last_sync = datetime.datetime.utcnow()
         return system
 
@@ -691,9 +740,11 @@ class LiveIngestionService:
         """
         Background loop executing sync passes and keep-alive heartbeats every `interval_seconds` (default: 8 minutes).
         """
+        from app.core.process_lock import update_worker_heartbeat
         print(f"[Live Ingestion Worker] Background daemon started (polling every {interval_seconds}s).")
         while True:
             try:
+                update_worker_heartbeat()
                 await self.sync_all_sources()
                 
                 # Optional keep-alive ping for hosted containers (configured via environment)

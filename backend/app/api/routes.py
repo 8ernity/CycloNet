@@ -3,7 +3,7 @@ import time
 import asyncio
 import logging
 from collections import defaultdict
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Header, Request
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Header, Request, Response
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -21,40 +21,60 @@ from app.models.domain import CycloneArchive, ClassificationHistory
 logger = logging.getLogger(__name__)
 MAX_IMAGE_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB threshold
 
-# Security: Admin API key for privileged ingestion operations (Fix #25)
-ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "")
+from app.core.auth import verify_admin_key, get_current_user
 
-def verify_admin_key(x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key")):
-    """
-    Validates administration authorization for privileged ingestion controls.
-    If ADMIN_API_KEY is configured in the environment, requests lacking or possessing
-    an invalid key are rejected with HTTP 401 Unauthorized.
-    """
-    if ADMIN_API_KEY:
-        if not x_admin_key or x_admin_key.strip() != ADMIN_API_KEY:
-            raise HTTPException(status_code=401, detail="Unauthorized: Invalid or missing administrative credentials.")
-    else:
-        logger.debug("Privileged ingestion endpoint called without ADMIN_API_KEY enforcement.")
-    return True
-
-# Rate limiting for public AI endpoints (Fix #29)
-_ai_request_log = defaultdict(list)
+# Rate limiting and quota management for public AI endpoints (Fix #29)
+_ai_minute_log = defaultdict(list)
+_ai_hour_log = defaultdict(list)
 AI_RATE_LIMIT_PER_MINUTE = int(os.getenv("AI_RATE_LIMIT_PER_MINUTE", "30"))
+AI_HOURLY_QUOTA_ANON = int(os.getenv("AI_HOURLY_QUOTA_ANON", "120"))
+AI_HOURLY_QUOTA_AUTH = int(os.getenv("AI_HOURLY_QUOTA_AUTH", "600"))
 
-def check_ai_rate_limit(request: Request):
+def check_ai_rate_limit(request: Request, user: Optional[Dict[str, Any]] = None, response: Optional[Response] = None):
+    """
+    Enforces per-minute rate limits and hourly quotas across IP addresses and authenticated users.
+    Fixes Problem #29 (AI endpoint quotas and rate limits).
+    """
     client_ip = request.client.host if request.client else "unknown"
-    now = time.time()
-    cutoff = now - 60.0
+    client_id = f"user_{user['id']}" if user and user.get("id") else f"ip_{client_ip}"
+    is_authenticated = bool(user and user.get("id"))
     
-    # Prune timestamps older than 60 seconds
-    timestamps = [t for t in _ai_request_log[client_ip] if t > cutoff]
-    if len(timestamps) >= AI_RATE_LIMIT_PER_MINUTE:
+    now = time.time()
+    min_cutoff = now - 60.0
+    hour_cutoff = now - 3600.0
+    
+    # 1. Check minute sliding window
+    min_timestamps = [t for t in _ai_minute_log[client_id] if t > min_cutoff]
+    if len(min_timestamps) >= AI_RATE_LIMIT_PER_MINUTE:
+        retry_after = int(60 - (now - min_timestamps[0]))
         raise HTTPException(
             status_code=429,
-            detail=f"Rate limit exceeded: Maximum {AI_RATE_LIMIT_PER_MINUTE} AI requests per minute per IP address."
+            detail=f"Rate limit exceeded: Maximum {AI_RATE_LIMIT_PER_MINUTE} AI requests per minute. Please try again in {retry_after} seconds.",
+            headers={"Retry-After": str(max(1, retry_after))}
         )
-    timestamps.append(now)
-    _ai_request_log[client_ip] = timestamps
+    
+    # 2. Check hourly quota
+    hourly_limit = AI_HOURLY_QUOTA_AUTH if is_authenticated else AI_HOURLY_QUOTA_ANON
+    hour_timestamps = [t for t in _ai_hour_log[client_id] if t > hour_cutoff]
+    if len(hour_timestamps) >= hourly_limit:
+        retry_after = int(3600 - (now - hour_timestamps[0]))
+        raise HTTPException(
+            status_code=429,
+            detail=f"Hourly quota exceeded: Maximum {hourly_limit} AI requests per hour for {'authenticated' if is_authenticated else 'anonymous'} tier.",
+            headers={"Retry-After": str(max(1, retry_after))}
+        )
+    
+    min_timestamps.append(now)
+    hour_timestamps.append(now)
+    _ai_minute_log[client_id] = min_timestamps
+    _ai_hour_log[client_id] = hour_timestamps
+
+    # Inject standard rate limit headers if response object is present
+    if response:
+        remaining = max(0, AI_RATE_LIMIT_PER_MINUTE - len(min_timestamps))
+        response.headers["X-RateLimit-Limit"] = str(AI_RATE_LIMIT_PER_MINUTE)
+        response.headers["X-RateLimit-Remaining"] = str(remaining)
+        response.headers["X-RateLimit-Reset"] = str(int(now + 60))
 
 router = APIRouter()
 
@@ -278,12 +298,18 @@ async def get_classification_history(db: Session = Depends(get_db)):
     ]
 
 @router.post("/chat", response_model=ChatMessageResponse)
-async def chat_with_cyclonet(request: ChatMessageRequest, req: Request, db: Session = Depends(get_db)):
+async def chat_with_cyclonet(
+    request: ChatMessageRequest,
+    req: Request,
+    response: Response,
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """AI chatbot endpoint for answering questions on tropical cyclones, Dvorak analysis, and platform data."""
     if not request.message or not request.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
     
-    check_ai_rate_limit(req)
+    check_ai_rate_limit(req, user=current_user, response=response)
     result = await asyncio.to_thread(chat_service.ask, request.message, history=request.history, db=db, ui_context=request.ui_context)
     return result
 
@@ -497,11 +523,13 @@ class BriefingRequest(BaseModel):
 @router.post("/ai/analyze-multimodal")
 async def analyze_multimodal_satellite(
     req: Request,
+    response: Response,
     file: UploadFile = File(...),
-    prompt: Optional[str] = None
+    prompt: Optional[str] = None,
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
     """Performs multimodal Dvorak and convective structural analysis using Gemini 3.7 Flash."""
-    check_ai_rate_limit(req)
+    check_ai_rate_limit(req, user=current_user, response=response)
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Uploaded file must be a satellite/radar image")
     
@@ -522,9 +550,14 @@ async def analyze_multimodal_satellite(
     }
 
 @router.post("/ai/pre-landfall-briefing")
-async def generate_pre_landfall_briefing(req_body: BriefingRequest, req: Request):
+async def generate_pre_landfall_briefing(
+    req_body: BriefingRequest,
+    req: Request,
+    response: Response,
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+):
     """Generates an authoritative executive pre-landfall briefing for disaster magistrates."""
-    check_ai_rate_limit(req)
+    check_ai_rate_limit(req, user=current_user, response=response)
     briefing = await asyncio.to_thread(
         chat_service.generate_pre_landfall_briefing,
         storm_data=req_body.storm_data,

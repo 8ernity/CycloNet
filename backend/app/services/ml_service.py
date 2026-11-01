@@ -29,6 +29,54 @@ class CycloneClassifierHead(nn.Module):
 class CycloneIntensityService:
     def __init__(self):
         self.device = torch.device("cpu")
+        self.backbone = None
+        self.feature_extractor = None
+        self.classes = ['NOT_A_CYCLONE', 'CS', 'SCS', 'VSCS', 'ESCS']
+        self.class_names = [
+            'Not a Cyclone (Non-Cyclonic System)',
+            'Cyclonic Storm (CS)',
+            'Severe Cyclonic Storm (SCS)',
+            'Very Severe Cyclonic Storm (VSCS)',
+            'Extremely Severe Cyclonic Storm (ESCS)'
+        ]
+        self.head = None
+        self._has_model = False
+        self.model_initialized = False
+
+        self.transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+        
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        default_ckpt = os.path.normpath(os.path.join(base_dir, "models", "cyclone_classifier.pth"))
+        self.checkpoint_path = os.getenv("MODEL_CHECKPOINT_PATH", default_ckpt)
+
+    @property
+    def has_model(self) -> bool:
+        self._ensure_initialized()
+        return self._has_model
+
+    @has_model.setter
+    def has_model(self, val: bool):
+        self._has_model = val
+
+    def _ensure_initialized(self):
+        """
+        Fix #58: Lazy initialization of ResNet-50 backbone and classifier head.
+        Prevents downloading ResNet-50 weights at import time if uncached.
+        """
+        if self.model_initialized:
+            return
+        self.load_model()
+
+    def load_model(self):
+        if self.model_initialized:
+            return
+        self.model_initialized = True
+
+        # 1. Initialize backbone without blocking startup or import
         try:
             weights = ResNet50_Weights.DEFAULT
             self.backbone = resnet50(weights=weights).eval()
@@ -41,23 +89,7 @@ class CycloneIntensityService:
             param.requires_grad = False
         
         self.feature_extractor = nn.Sequential(*list(self.backbone.children())[:-1]).to(self.device)
-        
-        self.transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
-        
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        default_ckpt = os.path.normpath(os.path.join(base_dir, "models", "cyclone_classifier.pth"))
-        self.checkpoint_path = os.getenv("MODEL_CHECKPOINT_PATH", default_ckpt)
-        self.model_initialized = False
-        self.load_model()
 
-    def load_model(self):
-        if self.model_initialized:
-            return
-        self.model_initialized = True
         if os.path.exists(self.checkpoint_path):
             try:
                 checkpoint = torch.load(self.checkpoint_path, map_location=self.device)
@@ -75,28 +107,21 @@ class CycloneIntensityService:
                 if 'state_dict' in checkpoint:
                     self.head.load_state_dict(checkpoint['state_dict'])
                 self.head.eval()
-                self.has_model = True
+                self._has_model = True
                 print(f"Loaded trained PyTorch weights from: {self.checkpoint_path}")
                 return
             except Exception as e:
                 print(f"Error loading PyTorch checkpoint from {self.checkpoint_path}: {e}")
 
         # Fallback initialization so inference never throws AttributeError
-        self.classes = ['NOT_A_CYCLONE', 'CS', 'SCS', 'VSCS', 'ESCS']
-        self.class_names = [
-            'Not a Cyclone (Non-Cyclonic System)',
-            'Cyclonic Storm (CS)',
-            'Severe Cyclonic Storm (SCS)',
-            'Very Severe Cyclonic Storm (VSCS)',
-            'Extremely Severe Cyclonic Storm (ESCS)'
-        ]
         self.head = CycloneClassifierHead(in_features=2048, num_classes=5).to(self.device)
         self.head.eval()
-        self.has_model = False
+        self._has_model = False
         print(f"Notice: Initialized fallback classifier head (checkpoint path: {self.checkpoint_path})")
 
     def _extract_features(self, t: torch.Tensor) -> torch.Tensor:
         """Forward pass through ResNet-50 up to layer4."""
+        self._ensure_initialized()
         x = self.backbone.conv1(t)
         x = self.backbone.bn1(x)
         x = self.backbone.relu(x)

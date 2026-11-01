@@ -2,7 +2,7 @@ import base64
 import os
 import re
 import json
-import urllib.request
+import httpx
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
@@ -221,17 +221,20 @@ class MeteorologicalChatService:
                 }
             }
 
-            req = urllib.request.Request(
-                url,
-                data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"}
-            )
-            with urllib.request.urlopen(req, timeout=20) as response:
-                result = json.loads(response.read().decode("utf-8"))
-                candidates = result.get("candidates", [])
-                if candidates:
-                    raw_text = candidates[0]["content"]["parts"][0]["text"]
-                    return self._clean_response(raw_text)
+            with httpx.Client(timeout=20.0) as client:
+                response = client.post(
+                    url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                )
+                if response.is_success:
+                    result = response.json()
+                    candidates = result.get("candidates", [])
+                    if candidates:
+                        raw_text = candidates[0]["content"]["parts"][0]["text"]
+                        return self._clean_response(raw_text)
+                else:
+                    print(f"[Gemini API HTTP {response.status_code}]: {response.text[:120]}")
         except Exception as e:
             print(f"[Gemini API Exception] {type(e).__name__}: {e}")
             pass
@@ -440,24 +443,24 @@ class MeteorologicalChatService:
                         }
                     }
 
-                    req = urllib.request.Request(
-                        url,
-                        data=json.dumps(payload).encode("utf-8"),
-                        headers={"Content-Type": "application/json"}
-                    )
-                    with urllib.request.urlopen(req, timeout=6) as response:
-                        result = json.loads(response.read().decode("utf-8"))
-                        candidates = result.get("candidates", [])
-                        if candidates:
-                            raw_text = candidates[0]["content"]["parts"][0]["text"]
-                            parsed = json.loads(raw_text)
-                            parsed["timestamp"] = timestamp
-                            parsed["model_used"] = f"Google {model}"
-                            return parsed
-                except urllib.error.HTTPError as he:
-                    print(f"[Gemini Multimodal HTTPError {he.code} with {model}]")
-                    if he.code in (400, 403, 404):
-                        break
+                    with httpx.Client(timeout=6.0) as client:
+                        response = client.post(
+                            url,
+                            json=payload,
+                            headers={"Content-Type": "application/json"}
+                        )
+                        if response.is_success:
+                            result = response.json()
+                            candidates = result.get("candidates", [])
+                            if candidates:
+                                raw_text = candidates[0]["content"]["parts"][0]["text"]
+                                parsed = json.loads(raw_text)
+                                parsed["timestamp"] = timestamp
+                                parsed["model_used"] = f"Google {model}"
+                                return parsed
+                        elif response.status_code in (400, 403, 404):
+                            print(f"[Gemini Multimodal HTTP {response.status_code} with {model}]")
+                            break
                 except Exception as e:
                     print(f"[Gemini Multimodal Exception with {model}] {e}")
                     break
@@ -577,24 +580,24 @@ class MeteorologicalChatService:
                             "responseMimeType": "application/json"
                         }
                     }
-                    req = urllib.request.Request(
-                        url,
-                        data=json.dumps(payload).encode("utf-8"),
-                        headers={"Content-Type": "application/json"}
-                    )
-                    with urllib.request.urlopen(req, timeout=6) as response:
-                        result = json.loads(response.read().decode("utf-8"))
-                        candidates = result.get("candidates", [])
-                        if candidates:
-                            raw_text = candidates[0]["content"]["parts"][0]["text"]
-                            parsed = json.loads(raw_text)
-                            parsed["timestamp"] = timestamp
-                            parsed["model"] = f"Google {model}"
-                            return parsed
-                except urllib.error.HTTPError as he:
-                    print(f"[Gemini Briefing HTTPError {he.code} with {model}]")
-                    if he.code in (400, 403, 404):
-                        break
+                    with httpx.Client(timeout=6.0) as client:
+                        response = client.post(
+                            url,
+                            json=payload,
+                            headers={"Content-Type": "application/json"}
+                        )
+                        if response.is_success:
+                            result = response.json()
+                            candidates = result.get("candidates", [])
+                            if candidates:
+                                raw_text = candidates[0]["content"]["parts"][0]["text"]
+                                parsed = json.loads(raw_text)
+                                parsed["timestamp"] = timestamp
+                                parsed["model"] = f"Google {model}"
+                                return parsed
+                        elif response.status_code in (400, 403, 404):
+                            print(f"[Gemini Briefing HTTP {response.status_code} with {model}]")
+                            break
                 except Exception as e:
                     print(f"[Gemini Briefing Exception with {model}] {e}")
                     break

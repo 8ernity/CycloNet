@@ -44,6 +44,21 @@ export function useCycloneWebSocket() {
       return process.env.NEXT_PUBLIC_WS_URL;
     }
     if (typeof window !== "undefined") {
+      try {
+        const source = localStorage.getItem("cyclonet_data_source");
+        if (source === "CUSTOM") {
+          const customUrl = localStorage.getItem("cyclonet_custom_api_url");
+          if (customUrl && customUrl.trim()) {
+            const clean = customUrl.trim().replace(/\/+$/, "").replace(/\/api$/, "");
+            const wsProto = clean.startsWith("https://") ? "wss://" : "ws://";
+            const hostPath = clean.replace(/^https?:\/\//, "");
+            return `${wsProto}${hostPath}/ws/cyclone-stream`;
+          }
+        }
+      } catch {
+        // Fallback on restricted storage access
+      }
+
       const isHttps = window.location.protocol === "https:";
       const host = window.location.host;
       if (!host.includes("localhost") && !host.includes("127.0.0.1")) {
@@ -112,9 +127,29 @@ export function useCycloneWebSocket() {
     isUnmountedRef.current = false;
     connect();
 
+    const handleSourceChange = () => {
+      if (socketRef.current) {
+        try {
+          socketRef.current.close();
+        } catch {
+          // ignore
+        }
+      }
+      connect();
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("cyclonet:data-source-changed", handleSourceChange);
+      window.addEventListener("storage", handleSourceChange);
+    }
+
     return () => {
       isUnmountedRef.current = true;
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("cyclonet:data-source-changed", handleSourceChange);
+        window.removeEventListener("storage", handleSourceChange);
+      }
       if (socketRef.current) {
         try {
           socketRef.current.close();

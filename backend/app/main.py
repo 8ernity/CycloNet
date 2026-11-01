@@ -53,10 +53,21 @@ app.include_router(ws_router, prefix="")
 async def startup_event():
     import asyncio
     from app.services.live_ingestion import live_ingestion_service
-    # Spawn background periodic ingestion worker (every 15 mins)
-    asyncio.create_task(live_ingestion_service.start_periodic_worker(interval_seconds=900))
+    from app.core.process_lock import acquire_worker_leader_lock
+
+    # In multi-worker deployments, ensure only one worker acts as the background ingestion leader (Fix #67)
+    if acquire_worker_leader_lock():
+        asyncio.create_task(live_ingestion_service.start_periodic_worker(interval_seconds=900))
+    else:
+        print(f"[Worker] Multi-worker deployment detected: Ingestion background task delegated to leader process.")
+
     # Spawn WebSocket live telemetry broadcaster worker
     asyncio.create_task(ws_manager.start_telemetry_broadcaster())
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    from app.core.process_lock import release_worker_leader_lock
+    release_worker_leader_lock()
 
 @app.get("/")
 def root():
