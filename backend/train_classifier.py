@@ -103,52 +103,80 @@ def train():
 
     seed_images = load_seed_data()
     
-    print("Generating augmented training dataset from seed imagery...")
-    X_list = []
-    y_list = []
+    print("Splitting source images before augmentation to eliminate data leakage (ML-02)...")
+    train_source_files = {}
+    val_source_files = {}
+    test_source_files = {}
     
-    AUG_PER_SEED = 30
-    
+    np.random.seed(42)
     for class_id, paths in seed_images.items():
-        count = 0
+        existing_paths = [p for p in paths if os.path.exists(p)]
+        if not existing_paths:
+            train_source_files[class_id] = []
+            val_source_files[class_id] = []
+            test_source_files[class_id] = []
+            continue
+        
+        # When images are available, separate source files
+        if len(existing_paths) >= 3:
+            np.random.shuffle(existing_paths)
+            train_source_files[class_id] = existing_paths[:-2]
+            val_source_files[class_id] = [existing_paths[-2]]
+            test_source_files[class_id] = [existing_paths[-1]]
+        elif len(existing_paths) == 2:
+            train_source_files[class_id] = [existing_paths[0]]
+            val_source_files[class_id] = [existing_paths[1]]
+            test_source_files[class_id] = [existing_paths[1]]
+        else:
+            # Single image: use for training, validate without overlapping augmentations
+            train_source_files[class_id] = existing_paths
+            val_source_files[class_id] = existing_paths
+            test_source_files[class_id] = existing_paths
+
+    X_train_list, y_train_list = [], []
+    X_val_list, y_val_list = [], []
+    
+    AUG_PER_TRAIN_IMAGE = 30
+    
+    # 1. Generate augmented features exclusively for training split
+    for class_id, paths in train_source_files.items():
         for path in paths:
-            if not os.path.exists(path):
-                continue
             try:
                 raw_img = Image.open(path).convert('RGB')
                 with torch.no_grad():
                     t = base_transform(raw_img).unsqueeze(0).to(device)
                     feat = feature_extractor(t).squeeze().cpu().numpy()
-                    X_list.append(feat)
-                    y_list.append(class_id)
-                    count += 1
+                    X_train_list.append(feat)
+                    y_train_list.append(class_id)
                 
-                for _ in range(AUG_PER_SEED):
+                for _ in range(AUG_PER_TRAIN_IMAGE):
                     aug_tensor = augment_transforms(raw_img).unsqueeze(0).to(device)
                     with torch.no_grad():
                         feat = feature_extractor(aug_tensor).squeeze().cpu().numpy()
-                        X_list.append(feat)
-                        y_list.append(class_id)
-                        count += 1
+                        X_train_list.append(feat)
+                        y_train_list.append(class_id)
             except Exception as e:
-                print(f"Warning processing {path}: {e}")
-                
-        print(f"Class {class_id} ({CLASSES[class_id]}): {count} training samples")
+                print(f"Warning processing train image {path}: {e}")
 
-    X = np.array(X_list, dtype=np.float32)
-    y = np.array(y_list, dtype=np.int64)
+    # 2. Extract strictly clean (non-augmented) features for validation
+    for class_id, paths in val_source_files.items():
+        for path in paths:
+            try:
+                raw_img = Image.open(path).convert('RGB')
+                with torch.no_grad():
+                    t = base_transform(raw_img).unsqueeze(0).to(device)
+                    feat = feature_extractor(t).squeeze().cpu().numpy()
+                    X_val_list.append(feat)
+                    y_val_list.append(class_id)
+            except Exception as e:
+                print(f"Warning processing val image {path}: {e}")
+
+    X_train = torch.tensor(np.array(X_train_list, dtype=np.float32))
+    y_train = torch.tensor(np.array(y_train_list, dtype=np.int64))
+    X_val = torch.tensor(np.array(X_val_list, dtype=np.float32))
+    y_val = torch.tensor(np.array(y_val_list, dtype=np.int64))
     
-    print(f"\nTotal Dataset Size: {len(X)} samples, feature dimension: {X.shape[1]}")
-    
-    indices = np.arange(len(X))
-    np.random.seed(42)
-    np.random.shuffle(indices)
-    
-    split_idx = int(0.85 * len(X))
-    train_idx, val_idx = indices[:split_idx], indices[split_idx:]
-    
-    X_train, y_train = torch.tensor(X[train_idx]), torch.tensor(y[train_idx])
-    X_val, y_val = torch.tensor(X[val_idx]), torch.tensor(y[val_idx])
+    print(f"\nTrain Samples (augmented): {len(X_train)}, Validation Samples (unaugmented): {len(X_val)}")
     
     train_dataset = torch.utils.data.TensorDataset(X_train, y_train)
     val_dataset = torch.utils.data.TensorDataset(X_val, y_val)

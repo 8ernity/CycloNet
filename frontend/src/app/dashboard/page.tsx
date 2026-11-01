@@ -168,10 +168,37 @@ export default function DashboardLiveMonitoringPage() {
       .catch(() => {});
   };
 
+  const [ingestError, setIngestError] = useState<string | null>(null);
+
+  const getAuthHeaders = (): Record<string, string> => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("cyclonet_auth_token") || localStorage.getItem("admin_api_key");
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+    }
+    return headers;
+  };
+
   const handleSyncFeeds = async () => {
     setIsSyncingIngest(true);
+    setIngestError(null);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/ingest/sync`, { method: "POST" });
+      const res = await fetch(`${getApiBaseUrl()}/api/ingest/sync`, {
+        method: "POST",
+        headers: getAuthHeaders()
+      });
+      if (res.status === 401 || res.status === 403) {
+        setIngestError("Administrative authorization required to trigger manual ingestion sync.");
+        return;
+      }
+      if (res.status === 429) {
+        setIngestError("Rate limit exceeded. Please wait before triggering another sync.");
+        return;
+      }
+      if (!res.ok) {
+        setIngestError(`Sync failed with HTTP ${res.status}`);
+        return;
+      }
       const data = await res.json();
       setIngestStatus({
         status: "online",
@@ -182,8 +209,9 @@ export default function DashboardLiveMonitoringPage() {
       });
       // Refresh active systems if any newly detected
       fetchActiveSystems(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to sync feeds:", err);
+      setIngestError(err.message || "Ingestion sync error");
     } finally {
       setIsSyncingIngest(false);
     }
@@ -191,12 +219,25 @@ export default function DashboardLiveMonitoringPage() {
 
   const handleTestInject = async () => {
     setIsSyncingIngest(true);
+    setIngestError(null);
     try {
-      await fetch(`${getApiBaseUrl()}/api/ingest/test-inject`, { method: "POST" });
+      const res = await fetch(`${getApiBaseUrl()}/api/ingest/test-inject`, {
+        method: "POST",
+        headers: getAuthHeaders()
+      });
+      if (res.status === 401 || res.status === 403) {
+        setIngestError("Administrative authorization required to inject test drill systems.");
+        return;
+      }
+      if (!res.ok) {
+        setIngestError(`Drill injection failed with HTTP ${res.status}`);
+        return;
+      }
       fetchIngestStatus();
       fetchActiveSystems(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to inject test cyclone:", err);
+      setIngestError(err.message || "Drill injection error");
     } finally {
       setIsSyncingIngest(false);
     }
@@ -204,13 +245,26 @@ export default function DashboardLiveMonitoringPage() {
 
   const handleClearLiveTest = async () => {
     setIsSyncingIngest(true);
+    setIngestError(null);
     try {
-      await fetch(`${getApiBaseUrl()}/api/ingest/clear-test`, { method: "POST" });
+      const res = await fetch(`${getApiBaseUrl()}/api/ingest/clear-test`, {
+        method: "POST",
+        headers: getAuthHeaders()
+      });
+      if (res.status === 401 || res.status === 403) {
+        setIngestError("Administrative authorization required to clear drill systems.");
+        return;
+      }
+      if (!res.ok) {
+        setIngestError(`Clear failed with HTTP ${res.status}`);
+        return;
+      }
       clearSelectedCyclone();
       fetchIngestStatus();
       fetchActiveSystems(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to clear test cyclone:", err);
+      setIngestError(err.message || "Clear drill error");
     } finally {
       setIsSyncingIngest(false);
     }
@@ -229,7 +283,15 @@ export default function DashboardLiveMonitoringPage() {
       const data = await res.json();
       if (data && data.length > 0) {
         setActiveSystem(data[0]);
-        setIsSimulation(true);
+        // LIVE-02: Derive simulation state from authentic backend metadata rather than forcing true
+        const isSim = Boolean(
+          data[0].is_simulation ||
+          data[0].source_type === "DEMO" ||
+          data[0].origin_type === "DEMO" ||
+          (data[0].id && data[0].id.includes("2026")) ||
+          simulate
+        );
+        setIsSimulation(isSim);
       } else {
         setActiveSystem(null);
         setIsSimulation(false);
@@ -300,6 +362,13 @@ export default function DashboardLiveMonitoringPage() {
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       
+      {ingestError && (
+        <div className="p-3 px-4 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs flex items-center justify-between shadow-xs">
+          <span className="font-medium">⚠️ {ingestError}</span>
+          <button onClick={() => setIngestError(null)} className="text-xs font-semibold hover:underline cursor-pointer ml-4">Dismiss</button>
+        </div>
+      )}
+
       {/* Live Ingestion Feed Bar */}
       <div className="p-3 px-4 rounded-xl bg-surface-glass border border-border backdrop-blur-md flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
         <div className="flex items-center gap-3">

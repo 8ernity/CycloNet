@@ -502,7 +502,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
     setTimeout(() => {
       setIsSimulatingPayout(false);
       setPayoutSuccess(true);
-      showToast(`Parametric Liquidity Trigger Verified: Digital disbursement of ${PARAMETRIC_INSURANCE_TRIGGERS[insuranceSimulationTier].totalPoolFunded} simulated!`);
+      showToast(`[SANDBOX SIMULATION] Parametric Liquidity Trigger Evaluated: Simulated disbursement of ${PARAMETRIC_INSURANCE_TRIGGERS[insuranceSimulationTier].totalPoolFunded}. (No live funds transferred)`);
     }, 1800);
   };
 
@@ -1077,21 +1077,21 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
             <div className="glass-card p-5 border-border space-y-2">
               <div className="flex items-center justify-between">
                 <span className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400"><PhoneCall className="w-4 h-4" /></span>
-                <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">98.4% Delivered</span>
+                <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">SIMULATED DRILL</span>
               </div>
-              <p className="text-xs text-muted-foreground">Cell Broadcast & SMS</p>
-              <p className="text-xl font-mono font-bold text-foreground">1,425,000</p>
-              <p className="text-[11px] text-muted-foreground">Avg Latency: 1.8 seconds</p>
+              <p className="text-xs text-muted-foreground">Cell Broadcast & SMS Pipeline</p>
+              <p className="text-xl font-mono font-bold text-foreground">Sandbox Gateway</p>
+              <p className="text-[11px] text-muted-foreground">Live Delivery: NOT_APPLICABLE</p>
             </div>
 
             <div className="glass-card p-5 border-border space-y-2">
               <div className="flex items-center justify-between">
                 <span className="p-2 rounded-lg bg-red-500/10 text-red-400"><Siren className="w-4 h-4" /></span>
-                <span className="text-[11px] font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded">Active 480/480</span>
+                <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">SIMULATED DRILL</span>
               </div>
               <p className="text-xs text-muted-foreground">Coastal Acoustic Sirens</p>
-              <p className="text-xl font-mono font-bold text-foreground">96.5% Coastline</p>
-              <p className="text-[11px] text-muted-foreground">Acoustic Range: 6.5 km</p>
+              <p className="text-xl font-mono font-bold text-foreground">Loopback Test</p>
+              <p className="text-[11px] text-muted-foreground">Live Delivery: NOT_APPLICABLE</p>
             </div>
 
             <div className="glass-card p-5 border-border space-y-2">
@@ -1100,18 +1100,18 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
                 <span className="text-[11px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">Ch 16 / Navtex</span>
               </div>
               <p className="text-xs text-muted-foreground">Coast Guard Marine VHF</p>
-              <p className="text-xl font-mono font-bold text-foreground">Continuous Loop</p>
-              <p className="text-[11px] text-muted-foreground">14 Deep Sea Stations</p>
+              <p className="text-xl font-mono font-bold text-foreground">Loopback Test</p>
+              <p className="text-[11px] text-muted-foreground">Live Delivery: NOT_APPLICABLE</p>
             </div>
 
             <div className="glass-card p-5 border-border space-y-2">
               <div className="flex items-center justify-between">
                 <span className="p-2 rounded-lg bg-amber-500/10 text-amber-400"><ShieldCheck className="w-4 h-4" /></span>
-                <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">Synced</span>
+                <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">SIMULATED DRILL</span>
               </div>
               <p className="text-xs text-muted-foreground">NDMA Sachet Portal</p>
-              <p className="text-xl font-mono font-bold text-foreground">3.2M App Push</p>
-              <p className="text-[11px] text-muted-foreground">OASIS CAP-CP v1.2</p>
+              <p className="text-xl font-mono font-bold text-foreground">OASIS CAP v1.2</p>
+              <p className="text-[11px] text-muted-foreground">Live Delivery: NOT_APPLICABLE</p>
             </div>
           </div>
 

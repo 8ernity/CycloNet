@@ -1,56 +1,133 @@
-import asyncio
+import os
 import json
+import asyncio
 import datetime
-from typing import List, Dict, Any, Set
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+import logging
+from typing import List, Dict, Any, Set, Optional
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
+
 from app.services.live_ingestion import live_ingestion_service
+
+logger = logging.getLogger(__name__)
 
 ws_router = APIRouter()
 
-class WebSocketConnectionManager:
-    def __init__(self):
+MAX_WEBSOCKET_CONNECTIONS = int(os.getenv("MAX_WS_CONNECTIONS", "100"))
+MAX_WS_MESSAGE_BYTES = 4096  # 4 KB limit for client-to-server WebSocket messages
+CLIENT_SEND_TIMEOUT_SECONDS = 1.5
+
+ALLOWED_ORIGINS_ENV = os.getenv("ALLOWED_ORIGINS", "")
+ALLOWED_ORIGIN_PATTERNS = [
+    o.strip().lower() for o in ALLOWED_ORIGINS_ENV.split(",") if o.strip()
+] if ALLOWED_ORIGINS_ENV else [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://cyclonet-frontend.onrender.com"
+]
+
+def is_origin_allowed(origin: Optional[str]) -> bool:
+    """Validates origin header against allowed CORS/WS origins."""
+    if not origin:
+        return True  # Native apps or direct clients without origin header
+    origin_clean = origin.rstrip("/").lower()
+    for allowed in ALLOWED_ORIGIN_PATTERNS:
+        if origin_clean == allowed.rstrip("/"):
+            return True
+        if "localhost" in allowed and ("localhost" in origin_clean or "127.0.0.1" in origin_clean):
+            return True
+    return False
+
+class SecureWebSocketManager:
+    """
+    SEC-07: Hardened WebSocket connection manager with allowed-origin verification,
+    concurrency limits, timeout backpressure, and public/privileged event isolation.
+    """
+    def __init__(self, max_connections: int = MAX_WEBSOCKET_CONNECTIONS):
         self.active_connections: Set[WebSocket] = set()
+        self.max_connections = max_connections
         self.radar_angle: float = 0.0
         self.pulse_counter: int = 0
-        self._broadcaster_task: asyncio.Task = None
+        self._lock = asyncio.Lock()
 
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.add(websocket)
-        # Send initial connection handshake
-        await websocket.send_json({
-            "type": "handshake",
-            "message": "Connected to CycloNet Real-Time Meteorological Surveillance Stream",
-            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
-            "active_connections": len(self.active_connections)
-        })
+    async def connect(self, websocket: WebSocket) -> bool:
+        """Enforces origin verification and connection limits before accepting."""
+        origin = websocket.headers.get("origin")
+        if not is_origin_allowed(origin):
+            logger.warning("[WebSocket] Rejected connection from unauthorized origin: %s", origin)
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Unauthorized origin")
+            return False
 
-    def disconnect(self, websocket: WebSocket):
-        if websocket in self.active_connections:
-            self.active_connections.remove(websocket)
+        async with self._lock:
+            if len(self.active_connections) >= self.max_connections:
+                logger.warning("[WebSocket] Connection limit reached (%d). Rejecting client.", self.max_connections)
+                await websocket.close(code=status.WS_1013_TRY_AGAIN_LATER, reason="Connection capacity reached")
+                return False
 
-    async def broadcast(self, data: Dict[str, Any]):
+            await websocket.accept()
+            self.active_connections.add(websocket)
+
+        # Initial connection handshake
+        try:
+            await asyncio.wait_for(
+                websocket.send_json({
+                    "type": "handshake",
+                    "message": "Connected to CycloNet Real-Time Meteorological Surveillance Stream",
+                    "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+                    "active_connections": len(self.active_connections)
+                }),
+                timeout=CLIENT_SEND_TIMEOUT_SECONDS
+            )
+        except Exception:
+            await self.disconnect(websocket)
+            return False
+
+        return True
+
+    async def disconnect(self, websocket: WebSocket):
+        async with self._lock:
+            if websocket in self.active_connections:
+                self.active_connections.remove(websocket)
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+
+    async def _safe_send(self, ws: WebSocket, data: Dict[str, Any]) -> Optional[WebSocket]:
+        """Sends data with timeout; returns ws if dead/timed out so it can be evicted."""
+        try:
+            await asyncio.wait_for(ws.send_json(data), timeout=CLIENT_SEND_TIMEOUT_SECONDS)
+            return None
+        except Exception:
+            return ws
+
+    async def broadcast_public(self, data: Dict[str, Any]):
+        """
+        Broadcasts public telemetry concurrently with timeout to prevent slow clients from blocking others.
+        """
         if not self.active_connections:
             return
-        
-        dead_connections = set()
-        for connection in self.active_connections:
-            try:
-                await connection.send_json(data)
-            except Exception:
-                dead_connections.add(connection)
-        
+
+        async with self._lock:
+            current_clients = list(self.active_connections)
+
+        dead_connections = await asyncio.gather(
+            *[self._safe_send(ws, data) for ws in current_clients],
+            return_exceptions=False
+        )
+
+        # Evict dead or non-responsive connections
         for dead in dead_connections:
-            self.disconnect(dead)
+            if dead:
+                await self.disconnect(dead)
 
     async def broadcast_alert(self, alert_data: Dict[str, Any]):
-        """Pushes immediate high-priority emergency alert to all connected operators."""
+        """Pushes emergency alert push notification to connected surveillance dashboards."""
         payload = {
             "type": "emergency_alert_push",
             "alert": alert_data,
             "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
         }
-        await self.broadcast(payload)
+        await self.broadcast_public(payload)
 
     async def start_telemetry_broadcaster(self):
         """Background continuous stream of radar angle, live ingestion status, and meteorological telemetry."""
@@ -86,31 +163,48 @@ class WebSocketConnectionManager:
                     "connected_clients": len(self.active_connections)
                 }
 
-                await self.broadcast(telemetry_payload)
+                await self.broadcast_public(telemetry_payload)
             except Exception as e:
-                # Keep background loop running
-                pass
+                logger.debug("[WebSocket Broadcaster] Error in telemetry tick: %s", e)
 
             await asyncio.sleep(2.0)
 
-ws_manager = WebSocketConnectionManager()
+ws_manager = SecureWebSocketManager()
 
 @ws_router.websocket("/ws/cyclone-stream")
 async def cyclone_websocket_endpoint(websocket: WebSocket):
-    await ws_manager.connect(websocket)
+    connected = await ws_manager.connect(websocket)
+    if not connected:
+        return
+
     try:
         while True:
+            # Enforce message size and timeout limits
             data = await websocket.receive_text()
+            if len(data.encode("utf-8")) > MAX_WS_MESSAGE_BYTES:
+                logger.warning("[WebSocket] Client message exceeded max bytes (%d). Terminating connection.", MAX_WS_MESSAGE_BYTES)
+                await websocket.close(code=status.WS_1009_MESSAGE_TOO_BIG, reason="Message payload exceeds maximum limit")
+                break
+
             try:
                 msg = json.loads(data)
+                if not isinstance(msg, dict):
+                    continue
+
                 if msg.get("action") == "ping":
-                    await websocket.send_json({
-                        "type": "pong",
-                        "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
-                    })
-            except Exception:
-                pass
+                    await asyncio.wait_for(
+                        websocket.send_json({
+                            "type": "pong",
+                            "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
+                        }),
+                        timeout=CLIENT_SEND_TIMEOUT_SECONDS
+                    )
+            except json.JSONDecodeError:
+                # Ignore malformed client payload
+                continue
     except WebSocketDisconnect:
-        ws_manager.disconnect(websocket)
-    except Exception:
-        ws_manager.disconnect(websocket)
+        pass
+    except Exception as e:
+        logger.debug("[WebSocket] Disconnected with error: %s", e)
+    finally:
+        await ws_manager.disconnect(websocket)

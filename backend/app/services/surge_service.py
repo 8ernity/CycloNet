@@ -60,34 +60,38 @@ class HydrodynamicSurgeService:
         total_peak_surge_m = round(raw_meteorological_surge + astronomical_tide_m, 2)
 
         # 5. Inland Inundation Extent (km) based on 30m DEM coastal slope
+        # Remove artificial minimum inland flooding when physically unjustified (GEO-04)
         coastal_slope_m_per_km = 0.70 if is_bob else 1.55
-        inland_penetration_km = round(max(0.4, (total_peak_surge_m - 0.4) / coastal_slope_m_per_km), 2)
+        excess_surge = max(0.0, total_peak_surge_m - 0.4)
+        inland_penetration_km = round(excess_surge / coastal_slope_m_per_km, 2) if excess_surge > 0 else 0.0
 
         # 6. Categorization
         if total_peak_surge_m >= 4.5:
             severity = "CATASTROPHIC_INUNDATION"
             color = "#ef4444"
-            warning = "Complete inundation of coastal barrier islands and embankment breach across 5km belt."
+            warning = "Potential inundation of coastal barrier islands and embankment breach across coastal belt."
         elif total_peak_surge_m >= 3.0:
             severity = "SEVERE_SURGE"
             color = "#f97316"
-            warning = "Overtopping of saline embankments, submergence of 400kV substations and NH coastal links."
+            warning = "Risk of overtopping saline embankments and flooding of low-lying coastal feeder roads."
         elif total_peak_surge_m >= 1.5:
             severity = "MODERATE_SURGE"
             color = "#eab308"
-            warning = "Localized coastal flooding in low-lying creeks, estuaries, and beachfront settlements."
+            warning = "Localized coastal flooding in low-lying tidal creeks, estuaries, and beachfront settlements."
         else:
             severity = "MINOR_SURGE"
             color = "#10b981"
-            warning = "Low tidal surge within normal high-water mark; minimal structural threat."
+            warning = "Water levels within or near astronomical high-water mark; minimal structural threat."
 
         return {
+            "total_storm_tide_m": total_peak_surge_m,
             "peak_surge_height_m": total_peak_surge_m,
             "meteorological_surge_m": round(raw_meteorological_surge, 2),
             "astronomical_tide_m": astronomical_tide_m,
             "inverted_barometer_m": round(inverted_barometer_surge_m, 2),
             "wind_setup_m": round(wind_surge_m, 2),
             "inland_penetration_km": inland_penetration_km,
+            "uncertainty_range_m": [round(max(0.0, total_peak_surge_m * 0.8), 2), round(total_peak_surge_m * 1.25, 2)],
             "severity_level": severity,
             "color_hex": color,
             "warning_advisory": warning,
@@ -95,12 +99,15 @@ class HydrodynamicSurgeService:
             "bathymetry_avg_depth_m": avg_shelf_depth_m,
             "solver_architecture": "1D_PARAMETRIC_JELESNIANSKI_DEAN_ANALYTICAL_MODEL",
             "is_2d_mesh_hydrodynamic": False,
-            "operational_disclaimer": "Analytical 1D shallow-shelf integration. For site-specific coastal engineering, full 2D unstructured mesh solvers (ADCIRC / SLOSH / Delft3D) are recommended.",
+            "operational_disclaimer": "Experimental simplified 1D parametric formulation. Does not replace operational 2D hydrodynamic numerical solvers (ADCIRC, SLOSH, Delft3D) (GEO-04).",
             "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
         }
 
     def generate_coastal_surge_profile(self, cyclone_name: str, lat: float, lon: float, intensity_knots: int) -> List[Dict[str, Any]]:
-        """Generates coastal sector vulnerability breakdown along the coastline."""
+        """
+        Generates coastal sector vulnerability breakdown along the coastline.
+        Accurately labelled as illustrative scenario without claiming field telemetry (GEO-05).
+        """
         pres = max(910, 1010 - int(intensity_knots * 0.75))
         surge_calc = self.calculate_surge(intensity_knots, pres, basin="Bay of Bengal" if lon > 80 else "Arabian Sea")
         peak = surge_calc["peak_surge_height_m"]
@@ -110,25 +117,28 @@ class HydrodynamicSurgeService:
                 "sector_name": "Landfall Epicenter & Right Forward Quadrant",
                 "offset_km": "+25km Northeast",
                 "estimated_surge_m": peak,
-                "inundation_depth_m": f"{peak - 0.5:.1f}m - {peak:.1f}m",
+                "inundation_depth_m": f"{max(0.0, peak - 0.5):.1f}m - {peak:.1f}m",
                 "risk_rating": "EXTREME",
-                "critical_assets": ["Primary Port Terminal", "400kV Feeder Substation", "Coastal Evacuation Artery"]
+                "is_illustrative_scenario": True,
+                "critical_assets": ["Primary Port Terminal (Scenario)", "400kV Feeder Substation (Scenario)", "Coastal Evacuation Artery (Scenario)"]
             },
             {
                 "sector_name": "Left Forward Quadrant (Offshore Wind Sector)",
                 "offset_km": "-35km Southwest",
-                "estimated_surge_m": max(0.8, round(peak * 0.55, 2)),
-                "inundation_depth_m": f"{max(0.4, peak * 0.4):.1f}m - {peak * 0.55:.1f}m",
+                "estimated_surge_m": max(0.5, round(peak * 0.55, 2)),
+                "inundation_depth_m": f"{max(0.0, peak * 0.4):.1f}m - {peak * 0.55:.1f}m",
                 "risk_rating": "HIGH",
-                "critical_assets": ["Fishing Harbors", "220kV Secondary Grid", "Salt Pan Embankments"]
+                "is_illustrative_scenario": True,
+                "critical_assets": ["Fishing Harbors (Scenario)", "220kV Secondary Grid (Scenario)", "Salt Pan Embankments (Scenario)"]
             },
             {
                 "sector_name": "Estuarine / River Confluence Zone",
                 "offset_km": "+60km North-East",
-                "estimated_surge_m": max(1.2, round(peak * 0.85, 2)),
-                "inundation_depth_m": f"{peak * 0.7:.1f}m - {peak * 0.85:.1f}m",
+                "estimated_surge_m": max(0.8, round(peak * 0.85, 2)),
+                "inundation_depth_m": f"{max(0.0, peak * 0.7):.1f}m - {peak * 0.85:.1f}m",
                 "risk_rating": "CRITICAL",
-                "critical_assets": ["Bridge Abutments", "Municipal Water Treatment Plant", "Rural Cyclone Shelters"]
+                "is_illustrative_scenario": True,
+                "critical_assets": ["Bridge Abutments (Scenario)", "Municipal Water Treatment Plant (Scenario)", "Rural Cyclone Shelters (Scenario)"]
             }
         ]
         return sectors

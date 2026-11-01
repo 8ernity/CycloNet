@@ -298,7 +298,7 @@ npm run dev
 
 ## 🧪 Running the Automated Test Suite
 
-### Run Backend PyTest Suite (22 Unit & Integration Tests)
+### Run Backend PyTest Suite (43 Comprehensive Unit, Security & Integration Tests)
 ```bash
 cd backend
 python -m pytest tests/ -v
@@ -312,7 +312,16 @@ npm run build
 
 ---
 
+## ⚠️ Operational Meteorological & Civil Defense Disclaimer
+
+> [!IMPORTANT]
+> **Operational Disclaimer:** CycloNet is an advanced scientific research, vulnerability modeling, and decision-support demonstration platform. It is **NOT** a replacement or substitute for official, authoritative weather forecasts, tropical cyclone advisories, or emergency evacuation directives issued by the **India Meteorological Department (IMD)**, **Joint Typhoon Warning Center (JTWC)**, **National Disaster Management Authority (NDMA)**, or respective regional civil defense authorities.
+> Always follow instructions from authorized government agencies during active weather emergencies.
+
+---
+
 ## 📝 License & Attribution
 
 Distributed under the **MIT License**.  
 Satellite imagery & meteorological telemetry courtesy of **ISRO (INSAT-3DR)**, **IMD**, and **NOAA/NHC**.
+

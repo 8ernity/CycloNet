@@ -16,8 +16,8 @@ class MeteorologicalChatService:
     def __init__(self):
         self._load_local_env()
         self.gemini_api_key = os.getenv("GEMINI_API_KEY", "")
-        self.model_name = os.getenv("GEMINI_MODEL", "gemini-3.7-flash")
-        self.candidate_models = ["gemini-3.7-flash", "gemini-2.5-flash", "gemini-1.5-flash"]
+        self.model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        self.candidate_models = ["gemini-2.5-flash", "gemini-1.5-flash"]
 
     @staticmethod
     def _load_local_env():
@@ -465,25 +465,43 @@ class MeteorologicalChatService:
                     print(f"[Gemini Multimodal Exception with {model}] {e}")
                     break
 
-        # Real image-driven inference fallback using local PyTorch ml_service (#8)
+        # Real image-driven inference fallback using local PyTorch ml_service (ML-07)
         try:
             from app.services.ml_service import ml_service
+            if not ml_service.has_model:
+                return {
+                    "status": "ANALYSIS_UNAVAILABLE",
+                    "category": "Analysis Unavailable (Model Weights Uninitialized)",
+                    "dvorak_t_number": None,
+                    "intensity_knots": None,
+                    "estimated_wind_kmh": None,
+                    "central_pressure_hpa": None,
+                    "eye_characterization": "Automated multimodal Dvorak analysis unavailable.",
+                    "convective_signature": "Local ML weights uninitialized and Gemini API offline.",
+                    "shear_and_structure": "Numerical inference withheld to avoid fabricated values (ML-07).",
+                    "coastal_impact_level": "UNKNOWN",
+                    "recommended_actions": ["Refer directly to official IMD/RSMC tropical cyclone advisories."],
+                    "timestamp": timestamp,
+                    "model_used": "UNAVAILABLE",
+                    "is_fallback": True
+                }
+
             pred = ml_service.predict(image_bytes)
-            cat = pred.get("category", "Unclassified Cyclonic Disturbance")
+            cat = pred.get("category", "Unclassified Disturbance")
             cat_short = pred.get("category_short", "CS")
-            knots = pred.get("wind_speed_knots", 45)
-            dvorak_t = pred.get("dvorak_t", "T3.0")
+            knots = pred.get("wind_speed_knots")
+            dvorak_t = pred.get("dvorak_t")
             is_cyclone = pred.get("is_cyclone", True)
             
-            t_num = 1.0
+            t_num = None
             if dvorak_t and str(dvorak_t).startswith("T"):
                 try:
                     t_num = float(str(dvorak_t)[1:])
                 except Exception:
-                    t_num = 3.0
+                    t_num = None
             
-            wind_kmh = int(knots * 1.852)
-            pressure = 1010 - int(knots * 0.65)
+            wind_kmh = int(knots * 1.852) if knots is not None else None
+            pressure = None
             
             if not is_cyclone:
                 return {
@@ -491,7 +509,7 @@ class MeteorologicalChatService:
                     "category": "No Cyclone Detected",
                     "intensity_knots": 0,
                     "estimated_wind_kmh": 0,
-                    "central_pressure_hpa": 1012,
+                    "central_pressure_hpa": None,
                     "eye_characterization": "No organized eye or central dense overcast observed.",
                     "convective_signature": "Non-cyclonic atmospheric cloud patterns.",
                     "shear_and_structure": "N/A (Non-cyclonic imagery)",
@@ -502,16 +520,16 @@ class MeteorologicalChatService:
                     "is_fallback": True
                 }
 
-            impact_level = "EXTREME" if knots >= 90 else "VERY HIGH" if knots >= 65 else "MODERATE"
+            impact_level = "EXTREME" if knots and knots >= 90 else "VERY HIGH" if knots and knots >= 65 else "MODERATE"
             return {
                 "dvorak_t_number": t_num,
                 "category": cat,
                 "intensity_knots": knots,
                 "estimated_wind_kmh": wind_kmh,
                 "central_pressure_hpa": pressure,
-                "eye_characterization": f"Convective cloud pattern matching {cat_short} signature ({dvorak_t}).",
-                "convective_signature": f"Core eyewall convection analyzed at ~{knots} kt intensity.",
-                "shear_and_structure": f"Organized spiral bands observed; Dvorak intensity index {dvorak_t}.",
+                "eye_characterization": f"Convective cloud pattern matching {cat_short} signature.",
+                "convective_signature": f"Core eyewall convection classified as {cat}.",
+                "shear_and_structure": "Spiral bands observed.",
                 "coastal_impact_level": impact_level,
                 "recommended_actions": [
                     f"Follow {cat} standard emergency action plan.",
@@ -525,18 +543,19 @@ class MeteorologicalChatService:
         except Exception as e:
             print(f"[ML Service fallback error] {e}")
             return {
-                "dvorak_t_number": 3.0,
-                "category": "Cyclonic Disturbance (Inspection Pending)",
-                "intensity_knots": 45,
-                "estimated_wind_kmh": 83,
-                "central_pressure_hpa": 995,
-                "eye_characterization": "Visual pattern pending full neural network analysis.",
-                "convective_signature": "Satellite frame loaded into processing pipeline.",
-                "shear_and_structure": "Synoptic environment under active evaluation.",
-                "coastal_impact_level": "MODERATE",
-                "recommended_actions": ["Review active radar and barometric feeds."],
+                "status": "ANALYSIS_UNAVAILABLE",
+                "category": "Analysis Unavailable (Processing Error)",
+                "dvorak_t_number": None,
+                "intensity_knots": None,
+                "estimated_wind_kmh": None,
+                "central_pressure_hpa": None,
+                "eye_characterization": "Satellite frame could not be analyzed.",
+                "convective_signature": "No valid model response.",
+                "shear_and_structure": "Inference withheld.",
+                "coastal_impact_level": "UNKNOWN",
+                "recommended_actions": ["Consult authoritative IMD bulletins."],
                 "timestamp": timestamp,
-                "model_used": "Fallback Synoptic Estimator",
+                "model_used": "UNAVAILABLE",
                 "is_fallback": True
             }
 

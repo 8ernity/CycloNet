@@ -1,6 +1,8 @@
 import os
 import json
 import uuid
+import hashlib
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 
@@ -212,51 +214,55 @@ CYCLONE ADVISORY BULLETIN NO. {b_num}
         return bulletins
 
     def generate_cap_xml(self, system: Dict[str, Any]) -> str:
-        """Generates standard OASIS CAP-CP (Common Alerting Protocol v1.2) XML in Test/Sandbox status."""
-        alert_id = f"IN-IMD-CAP-TEST-{uuid.uuid4().hex[:8].upper()}"
+        """
+        SEC-12 & AI-06: Generates valid OASIS CAP-CP v1.2 XML using xml.etree.ElementTree.
+        Properly escapes all XML elements and clearly marks simulation advisories as Exercise/Test.
+        """
+        alert_id = f"IN-IMD-CAP-EXERCISE-{uuid.uuid4().hex[:8].upper()}"
         sent_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
-        name = system.get("name", "Cyclone")
-        knots = system.get("intensity_knots", 65)
-        category = system.get("category", "Severe Cyclonic Storm")
-        basin = system.get("basin", "Bay of Bengal")
-        lat = system.get("lat", 17.5)
-        lon = system.get("lon", 84.5)
+        name = str(system.get("name", "Cyclone"))
+        knots = int(system.get("intensity_knots", 65))
+        category = str(system.get("category", "Severe Cyclonic Storm"))
+        basin = str(system.get("basin", "Bay of Bengal"))
+        lat = float(system.get("lat", 17.5))
+        lon = float(system.get("lon", 84.5))
         alert = self.get_alert_level(knots)
 
         severity = "Extreme" if knots >= 90 else ("Severe" if knots >= 48 else "Moderate")
         urgency = "Immediate" if knots >= 64 else "Expected"
 
-        cap_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
-  <identifier>{alert_id}</identifier>
-  <sender>cyclonet-simulated-engine@ndma-compatible.in</sender>
-  <sent>{sent_time}</sent>
-  <status>Test</status>
-  <msgType>Alert</msgType>
-  <scope>Public</scope>
-  <code>NDMA-CAP-CP-v1.2-SANDBOX</code>
-  <info>
-    <category>Met</category>
-    <event>{category} {name} (Simulation)</event>
-    <urgency>{urgency}</urgency>
-    <severity>{severity}</severity>
-    <certainty>Observed</certainty>
-    <eventCode>
-      <valueName>IMD-Phenomenon</valueName>
-      <value>TC-{category.replace(' ', '_')}</value>
-    </eventCode>
-    <expires>{(datetime.utcnow() + timedelta(hours=12)).strftime('%Y-%m-%dT%H:%M:%S+00:00')}</expires>
-    <senderName>National Disaster Management Authority (NDMA) Compatible Simulation Engine / CycloNet Sandbox</senderName>
-    <headline>{alert['level']} WARNING: {category} {name} active in {basin} (Test Advisory)</headline>
-    <description>{category} {name} located at {lat:.2f}N, {lon:.2f}E with sustained winds of {knots} kts ({int(knots*1.852)} km/h). {alert['desc']}</description>
-    <instruction>{alert['action']}</instruction>
-    <area>
-      <areaDesc>Coastal districts of {basin}</areaDesc>
-      <circle>{lat},{lon},150.0</circle>
-    </area>
-  </info>
-</alert>"""
-        return cap_xml
+        root = ET.Element("alert", xmlns="urn:oasis:names:tc:emergency:cap:1.2")
+        ET.SubElement(root, "identifier").text = alert_id
+        ET.SubElement(root, "sender").text = "cyclonet-simulation-engine@ndma-compatible.in"
+        ET.SubElement(root, "sent").text = sent_time
+        ET.SubElement(root, "status").text = "Exercise"
+        ET.SubElement(root, "msgType").text = "Alert"
+        ET.SubElement(root, "scope").text = "Public"
+        ET.SubElement(root, "code").text = "NDMA-CAP-CP-v1.2-EXERCISE"
+
+        info = ET.SubElement(root, "info")
+        ET.SubElement(info, "category").text = "Met"
+        ET.SubElement(info, "event").text = f"{category} {name} (Exercise Simulation)"
+        ET.SubElement(info, "urgency").text = urgency
+        ET.SubElement(info, "severity").text = severity
+        ET.SubElement(info, "certainty").text = "Possible"  # AI-06: Not "Observed" for simulations
+        
+        event_code = ET.SubElement(info, "eventCode")
+        ET.SubElement(event_code, "valueName").text = "IMD-Phenomenon"
+        ET.SubElement(event_code, "value").text = f"TC-{category.replace(' ', '_')}"
+
+        expires_time = (datetime.utcnow() + timedelta(hours=12)).strftime('%Y-%m-%dT%H:%M:%S+00:00')
+        ET.SubElement(info, "expires").text = expires_time
+        ET.SubElement(info, "senderName").text = "CycloNet Anticipatory Early Warning Engine (Exercise Mode)"
+        ET.SubElement(info, "headline").text = f"{alert['level']} WARNING: {category} {name} active in {basin} (Exercise Advisory)"
+        ET.SubElement(info, "description").text = f"[EXERCISE SIMULATION] {category} {name} located at {lat:.2f}N, {lon:.2f}E with sustained winds of {knots} kts ({int(knots*1.852)} km/h). {alert['desc']}"
+        ET.SubElement(info, "instruction").text = alert['action']
+
+        area = ET.SubElement(info, "area")
+        ET.SubElement(area, "areaDesc").text = f"Coastal districts of {basin}"
+        ET.SubElement(area, "circle").text = f"{lat:.2f},{lon:.2f},150.0"
+
+        return ET.tostring(root, encoding="utf-8", xml_declaration=True).decode("utf-8")
 
     def simulate_emergency_broadcast(self, system: Dict[str, Any], alert_type: str, channels: List[str]) -> Dict[str, Any]:
         """Simulates a multi-channel emergency alert dispatch with delivery metrics."""
@@ -344,42 +350,45 @@ CYCLONE ADVISORY BULLETIN NO. {b_num}
         severity = "Extreme" if risk_level.upper() in ["CRITICAL", "EXTREME"] or wind >= 90 else "Severe"
         urgency = "Immediate" if risk_level.upper() in ["CRITICAL", "EXTREME"] or surge >= 2.5 else "Expected"
 
-        # 1. OASIS CAP-CP v1.2 XML (Explicitly marked as Test status)
-        cap_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
-  <identifier>{dispatch_uuid}</identifier>
-  <sender>cyclonet-simulated-engine@ndma-compatible.in</sender>
-  <sent>{now.strftime("%Y-%m-%dT%H:%M:%S+00:00")}</sent>
-  <status>Test</status>
-  <msgType>Alert</msgType>
-  <scope>Public</scope>
-  <code>NDMA-CAP-CP-v1.2-SANDBOX</code>
-  <info>
-    <category>Met</category>
-    <event>Tropical Cyclone Flash Evacuation Advisory (Simulation)</event>
-    <urgency>{urgency}</urgency>
-    <severity>{severity}</severity>
-    <certainty>Observed</certainty>
-    <eventCode>
-      <valueName>IMD-Phenomenon</valueName>
-      <value>TC-SURGE-WIND</value>
-    </eventCode>
-    <expires>{(now + timedelta(hours=12)).strftime('%Y-%m-%dT%H:%M:%S+00:00')}</expires>
-    <senderName>National Disaster Management Authority (NDMA) Compatible Simulation Engine / CycloNet Sandbox</senderName>
-    <headline>{risk_level.upper()} ALERT: {cyclone_name} Threat Approaching {region} (Test)</headline>
-    <description>[TEST ADVISORY] Anticipatory Risk Forecaster indicates peak storm surge of {surge:.1f}m and gale winds of {wind:.0f} kt ({wind_kmh} km/h). Immediate evacuation of inundation zones mandated.</description>
-    <instruction>Evacuate designated low-lying coastal belt to nearest Multipurpose Cyclone Shelters. Avoid arterial roads marked with red choke points. Disconnect non-critical electrical lines.</instruction>
-    <area>
-      <areaDesc>{region} Coastal Corridor and Low-Lying Catchment</areaDesc>
-    </area>
-  </info>
-</alert>"""
+        # 1. OASIS CAP-CP v1.2 XML serialized with ElementTree (SEC-12 & AI-06)
+        cap_root = ET.Element("alert", xmlns="urn:oasis:names:tc:emergency:cap:1.2")
+        ET.SubElement(cap_root, "identifier").text = dispatch_uuid
+        ET.SubElement(cap_root, "sender").text = "cyclonet-simulation-engine@ndma-compatible.in"
+        ET.SubElement(cap_root, "sent").text = now.strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        ET.SubElement(cap_root, "status").text = "Exercise"
+        ET.SubElement(cap_root, "msgType").text = "Alert"
+        ET.SubElement(cap_root, "scope").text = "Public"
+        ET.SubElement(cap_root, "code").text = "NDMA-CAP-CP-v1.2-EXERCISE"
+
+        info = ET.SubElement(cap_root, "info")
+        ET.SubElement(info, "category").text = "Met"
+        ET.SubElement(info, "event").text = "Tropical Cyclone Flash Evacuation Advisory (Exercise Simulation)"
+        ET.SubElement(info, "urgency").text = urgency
+        ET.SubElement(info, "severity").text = severity
+        ET.SubElement(info, "certainty").text = "Possible"  # AI-06: Not "Observed" for simulations
+        
+        event_code = ET.SubElement(info, "eventCode")
+        ET.SubElement(event_code, "valueName").text = "IMD-Phenomenon"
+        ET.SubElement(event_code, "value").text = "TC-SURGE-WIND"
+
+        expires_time = (now + timedelta(hours=12)).strftime('%Y-%m-%dT%H:%M:%S+00:00')
+        ET.SubElement(info, "expires").text = expires_time
+        ET.SubElement(info, "senderName").text = "CycloNet Anticipatory Early Warning Simulator (Exercise Mode)"
+        ET.SubElement(info, "headline").text = f"{risk_level.upper()} ALERT: {cyclone_name} Threat Approaching {region} (Exercise)"
+        ET.SubElement(info, "description").text = f"[EXERCISE ADVISORY] Anticipatory Risk Forecaster indicates peak storm surge of {surge:.1f}m and gale winds of {wind:.0f} kt ({wind_kmh} km/h). Immediate evacuation of inundation zones mandated."
+        ET.SubElement(info, "instruction").text = "Evacuate designated low-lying coastal belt to nearest Multipurpose Cyclone Shelters. Avoid arterial roads marked with red choke points. Disconnect non-critical electrical lines."
+
+        area = ET.SubElement(info, "area")
+        ET.SubElement(area, "areaDesc").text = f"{region} Coastal Corridor and Low-Lying Catchment"
+
+        cap_xml = ET.tostring(cap_root, encoding="utf-8", xml_declaration=True).decode("utf-8")
+        real_hash = hashlib.sha256(cap_xml.encode("utf-8")).hexdigest()
 
         # 2. SMS Cell Broadcast Payloads (Multilingual)
         sms_payload = {
-            "english": f"[TEST ALERT] NDMA EMERGENCY: {risk_level} cyclone risk in {region}. Peak surge {surge}m, wind {wind_kmh} km/h. Evacuate to designated cyclone shelters immediately. Dial 1070 for rescue.",
-            "hindi": f"[प्रायोगिक चेतावनी] एनडीएमए आपातकालीन: {region} में {risk_level} चक्रवात का खतरा। {surge}m तूफानी लहर और {wind_kmh} km/h हवा की संभावना। तुरंत नजदीकी चक्रवात आश्रय में जाएं। आपातकालीन नंबर 1070।",
-            "regional": f"[পরীক্ষামূলক সতর্কতা] জরুরি সাইক্লোন সতর্কতা: {region} উপকূলে {risk_level} সাইক্লোন সতর্কতা। {surge}m জলোচ্ছ্বাস ও {wind_kmh} km/h তীব্র ঝড়। দ্রুত বহুমুখী আশ্রয়কেন্দ্রে আশ্রয় নিন।"
+            "english": f"[EXERCISE ALERT] NDMA SIMULATION: {risk_level} cyclone risk in {region}. Peak surge {surge}m, wind {wind_kmh} km/h. Evacuate to designated cyclone shelters immediately. Dial 1070 for rescue.",
+            "hindi": f"[प्रायोगिक अभ्यास] एनडीएमए सिमुलेशन: {region} में {risk_level} चक्रवात का खतरा। {surge}m तूफानी लहर और {wind_kmh} km/h हवा की संभावना। तुरंत नजदीकी चक्रवात आश्रय में जाएं। आपातकालीन नंबर 1070।",
+            "regional": f"[অনুশীলনী সতর্কতা] জরুরি সাইক্লোন মহড়া: {region} উপকূলে {risk_level} সাইক্লোন সতর্কতা। {surge}m জলোচ্ছ্বাস ও {wind_kmh} km/h তীব্র ঝড়। দ্রুত বহুমুখী আশ্রয়কেন্দ্রে আশ্রয় নিন।"
         }
 
         # 3. NDMA SACHET App Broadcast Feed (JSON format)
@@ -410,7 +419,7 @@ CYCLONE ADVISORY BULLETIN NO. {b_num}
         }
 
         # 5. Coast Guard / NAVTEX VHF Channel 16 Broadcast
-        vhf_payload = f"[TEST TRANSMISSION] ALL STATIONS, ALL STATIONS, ALL STATIONS. THIS IS COAST GUARD MARINE RESCUE SUB-CENTRE SIMULATION. {risk_level} CYCLONE ADVISORY IN FORCE FOR {region.upper()}. ESTIMATED SURGE {surge} METRES, WINDS {wind} KNOTS GUSTING TO {int(wind*1.25)} KNOTS. ALL FISHING TRAWLERS AND OFFSHORE VESSELS ADVISE RETURN TO SAFE HARBOUR IMMEDIATELY. BREAK."
+        vhf_payload = f"[EXERCISE TRANSMISSION] ALL STATIONS, ALL STATIONS, ALL STATIONS. THIS IS COAST GUARD MARINE RESCUE SUB-CENTRE SIMULATION. {risk_level} CYCLONE ADVISORY IN FORCE FOR {region.upper()}. ESTIMATED SURGE {surge} METRES, WINDS {wind} KNOTS GUSTING TO {int(wind*1.25)} KNOTS. ALL FISHING TRAWLERS AND OFFSHORE VESSELS ADVISE RETURN TO SAFE HARBOUR IMMEDIATELY. BREAK."
 
         # 6. Municipal & District Magistrate Action Directives
         municipal_directives = [
@@ -420,18 +429,18 @@ CYCLONE ADVISORY BULLETIN NO. {b_num}
             f"Activate emergency DG diesel generator power backups and satellite comms at all 18 Multipurpose Shelters."
         ]
 
-        # Channel Delivery Statuses (Transparent Sandbox Simulation)
+        # Channel Delivery Statuses (AI-05: Transparent Sandbox Simulation without fabricated delivery numbers)
         channel_results = {}
         if "CAP" in norm_channels:
-            channel_results["CAP"] = {"status": "SIMULATED_SUCCESS", "format": "OASIS CAP-CP v1.2 XML (Test)", "dispatched_to": "NDMA-Compatible CAP Endpoint — Sandbox Simulation"}
+            channel_results["CAP"] = {"status": "SIMULATED_EXERCISE", "format": "OASIS CAP-CP v1.2 XML (Exercise)", "dispatched_to": "NDMA-Compatible Sandbox Endpoint", "delivery_rate": "NOT_APPLICABLE (SIMULATED)"}
         if "SMS" in norm_channels:
-            channel_results["SMS"] = {"status": "SIMULATED_SUCCESS", "format": "Cell Broadcast 3-Lang SMS", "dispatched_to": "Telecom Service Providers (TSPs) Gateway Simulator"}
+            channel_results["SMS"] = {"status": "SIMULATED_EXERCISE", "format": "Cell Broadcast 3-Lang SMS", "dispatched_to": "TSP Gateway Simulator", "delivery_rate": "NOT_APPLICABLE (SIMULATED)"}
         if "SACHET" in norm_channels:
-            channel_results["SACHET"] = {"status": "SIMULATED_SUCCESS", "format": "NDMA SACHET Geo-Push Feed", "payload_status": "Simulated Drill Payload (Drill Mode - No Live Subscribers)"}
+            channel_results["SACHET"] = {"status": "SIMULATED_EXERCISE", "format": "NDMA SACHET Geo-Push Feed", "payload_status": "Drill Mode (No Live Subscribers)", "delivery_rate": "NOT_APPLICABLE (SIMULATED)"}
         if "SIREN" in norm_channels:
-            channel_results["SIREN"] = {"status": "SIMULATED_SUCCESS", "format": "Electronic Acoustic Warning Array", "schema_status": "Simulated Acoustic Protocol Trigger (Drill Exercise)"}
+            channel_results["SIREN"] = {"status": "SIMULATED_EXERCISE", "format": "Electronic Acoustic Warning Array", "schema_status": "Acoustic Protocol Trigger (Exercise)", "delivery_rate": "NOT_APPLICABLE (SIMULATED)"}
         if "VHF" in norm_channels:
-            channel_results["VHF"] = {"status": "SIMULATED_SUCCESS", "format": "Marine NAVTEX / VHF Ch 16", "coverage": "Offshore Fishing Fleet Broadcast Script"}
+            channel_results["VHF"] = {"status": "SIMULATED_EXERCISE", "format": "Marine NAVTEX / VHF Ch 16", "coverage": "Offshore Fishing Fleet Broadcast Script", "delivery_rate": "NOT_APPLICABLE (SIMULATED)"}
 
         return {
             "status": "SIMULATED_DISPATCH_COMPLETE",
@@ -453,9 +462,9 @@ CYCLONE ADVISORY BULLETIN NO. {b_num}
             "vhf_payload": vhf_payload,
             "municipal_briefing": municipal_directives,
             "audit_trail": {
-                "initiator": "CycloNet Automated Anticipatory Early Warning Engine (Sandbox Simulation)",
-                "dispatch_latency_ms": 142,
-                "cryptographic_hash": f"SHA256:{uuid.uuid4().hex}"
+                "initiator": "CycloNet Anticipatory Early Warning Simulator (Exercise Mode)",
+                "dispatch_latency_ms": "NOT_APPLICABLE (SIMULATED)",
+                "cryptographic_hash": f"SHA256:{real_hash}"
             }
         }
 

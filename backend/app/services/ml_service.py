@@ -26,6 +26,32 @@ class CycloneClassifierHead(nn.Module):
     def forward(self, x):
         return self.net(x)
 
+def validate_image_payload(image_bytes: bytes) -> str:
+    """
+    SEC-08: Validates file signature (magic bytes) and dimensions.
+    Rejects malformed images, unsupported formats, and decompression bombs.
+    """
+    if len(image_bytes) < 8:
+        raise ValueError("Uploaded file is too small to be a valid image.")
+    if image_bytes[:3] == b"\xff\xd8\xff":
+        fmt = "JPEG"
+    elif image_bytes[:8] == b"\x89PNG\r\n\x1a\n":
+        fmt = "PNG"
+    else:
+        raise ValueError("Unsupported format: Only genuine JPEG and PNG image payloads are accepted.")
+
+    Image.MAX_IMAGE_PIXELS = 16_000_000
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as img:
+            w, h = img.size
+            if w > 4096 or h > 4096:
+                raise ValueError(f"Image dimensions ({w}x{h}) exceed maximum allowed dimensions (4096x4096).")
+    except Exception as e:
+        if isinstance(e, ValueError):
+            raise
+        raise ValueError(f"Corrupt or malformed image payload: {e}")
+    return fmt
+
 class CycloneIntensityService:
     def __init__(self):
         self.device = torch.device("cpu")
@@ -77,22 +103,26 @@ class CycloneIntensityService:
         self.model_initialized = True
 
         # 1. Initialize backbone without blocking startup or import
+        backbone_pretrained = False
         try:
             weights = ResNet50_Weights.DEFAULT
             self.backbone = resnet50(weights=weights).eval()
+            backbone_pretrained = True
         except Exception as e:
-            # Fix #58: Graceful fallback when weights cannot be downloaded at startup
+            # Fix #58 & ML-03: Graceful fallback when weights cannot be downloaded at startup
             print(f"[Notice] Could not download ImageNet weights at startup ({e}). Falling back to unweighted ResNet-50 backbone.")
             self.backbone = resnet50(weights=None).eval()
+            backbone_pretrained = False
 
         for param in self.backbone.parameters():
             param.requires_grad = False
         
         self.feature_extractor = nn.Sequential(*list(self.backbone.children())[:-1]).to(self.device)
 
-        if os.path.exists(self.checkpoint_path):
+        # ML-03 & SEC-09: Require pretrained backbone AND safe weights_only=True deserialization
+        if os.path.exists(self.checkpoint_path) and backbone_pretrained:
             try:
-                checkpoint = torch.load(self.checkpoint_path, map_location=self.device)
+                checkpoint = torch.load(self.checkpoint_path, map_location=self.device, weights_only=True)
                 self.classes = checkpoint.get('classes', ['NOT_A_CYCLONE', 'CS', 'SCS', 'VSCS', 'ESCS'])
                 self.class_names = checkpoint.get('class_names', [
                     'Not a Cyclone (Non-Cyclonic System)',
@@ -184,6 +214,7 @@ class CycloneIntensityService:
 
     def predict(self, image_bytes: bytes):
         """Runs genuine PyTorch forward pass inference with softmax confidence scores in <50ms."""
+        validate_image_payload(image_bytes)
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         t = self.transform(img).unsqueeze(0).to(self.device)
         
@@ -193,8 +224,11 @@ class CycloneIntensityService:
                 'category': 'Model Checkpoint Not Loaded',
                 'category_short': 'UNINITIALIZED',
                 'confidence': 0.0,
-                'dvorak_t': 'N/A',
-                'wind_speed_knots': 0,
+                'dvorak_t': None,
+                'dvorak_estimate_available': False,
+                'wind_speed_knots': None,
+                'wind_speed_estimate_available': False,
+                'intensity_notice': 'Operational quantitative wind speeds and Dvorak T-numbers require calibrated objective thermal infrared (TIR) analysis. Category classification alone does not substitute for numerical wind retrieval (ML-06).',
                 'checkpoint_status': 'CHECKPOINT_NOT_FOUND',
                 'is_trained_weights': False,
                 'is_uncalibrated_demo': True,
@@ -224,29 +258,16 @@ class CycloneIntensityService:
         # Calculate genuine Grad-CAM activation heatmap
         gradcam_url = self._compute_gradcam(feat, pred_idx) if is_cyclone else None
 
-        knots_map = {
-            'NOT_A_CYCLONE': 0,
-            'CS': 45,
-            'SCS': 60,
-            'VSCS': 80,
-            'ESCS': 105
-        }
-        
-        dvorak_map = {
-            'NOT_A_CYCLONE': 'N/A',
-            'CS': 'T3.0',
-            'SCS': 'T3.5',
-            'VSCS': 'T4.5',
-            'ESCS': 'T5.5'
-        }
-        
         return {
             'is_cyclone': is_cyclone,
             'category': pred_name,
             'category_short': pred_class if is_cyclone else 'NOT A CYCLONE',
             'confidence': round(conf, 2),
-            'dvorak_t': dvorak_map.get(pred_class, 'N/A'),
-            'wind_speed_knots': knots_map.get(pred_class, 0),
+            'dvorak_t': None,
+            'dvorak_estimate_available': False,
+            'wind_speed_knots': None,
+            'wind_speed_estimate_available': False,
+            'intensity_notice': 'Operational quantitative wind speeds and Dvorak T-numbers require calibrated objective thermal infrared (TIR) analysis. Category classification alone does not substitute for numerical wind retrieval (ML-06).',
             'checkpoint_status': 'TRAINED_CHECKPOINT_LOADED' if self.has_model else 'DEMO_PRETRAINED_BACKBONE',
             'is_trained_weights': self.has_model,
             'is_uncalibrated_demo': not self.has_model,
@@ -254,7 +275,7 @@ class CycloneIntensityService:
             'model_architecture': 'ResNet-50 + Custom Classifier Head (PyTorch)',
             'domain_transfer_status': 'RGB_SURROGATE_SURFACE',
             'domain_notice': 'Transfer learning backbone (ResNet-50) is pretrained on ImageNet optical natural images. Operational cyclone categorization requires fine-tuning on calibrated INSAT-3DR / Meteosat-9 infrared brightness temperature grids (TIR1/TIR2/WV).',
-            'overlay_url': '/mock-overlay.png' if is_cyclone else None,
+            'overlay_url': None,
             'gradcam_data_url': gradcam_url,
             'probabilities': {
                 self.classes[i]: round(float(probs[i]) * 100.0, 2) for i in range(len(self.classes))

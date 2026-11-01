@@ -59,10 +59,13 @@ export function Sidebar() {
     }
   }, []);
 
-  const displayName = isLoaded && clerkUser ? (clerkUser.fullName || clerkUser.primaryEmailAddress?.emailAddress?.split("@")[0] || "Officer") : localUser.name;
-  const displayRole = "OFFICER";
-  const displayInitials = isLoaded && clerkUser ? (displayName.slice(0, 2).toUpperCase()) : localUser.initials;
-  const avatarUrl = isLoaded && clerkUser ? clerkUser.imageUrl : null;
+  const isAuthenticated = Boolean(isLoaded && clerkUser);
+  const displayName = isAuthenticated
+    ? (clerkUser?.fullName || clerkUser?.primaryEmailAddress?.emailAddress?.split("@")[0] || "Officer")
+    : "Guest Visitor";
+  const displayRole = isAuthenticated ? "VERIFIED OPERATOR" : "PUBLIC DEMO";
+  const displayInitials = isAuthenticated ? displayName.slice(0, 2).toUpperCase() : "GV";
+  const avatarUrl = isAuthenticated ? clerkUser?.imageUrl : null;
 
   const handleLogout = async () => {
     if (typeof window !== "undefined") {

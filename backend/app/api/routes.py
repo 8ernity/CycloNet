@@ -2,13 +2,14 @@ import os
 import time
 import asyncio
 import logging
-from collections import defaultdict
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Header, Request, Response
+import datetime
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Header, Request, Response, Query
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
-from app.services.ml_service import ml_service
+from app.services.ml_service import ml_service, validate_image_payload
 from app.services.chat_service import chat_service
 from app.services.gee_service import gee_service
 from app.services.surge_service import surge_service
@@ -17,64 +18,11 @@ from app.services.best_tracks import get_cyclone_trajectory
 from app.services.live_ingestion import live_ingestion_service
 from app.core.database import get_db
 from app.models.domain import CycloneArchive, ClassificationHistory
+from app.core.auth import verify_admin_key, get_current_user, require_authenticated_user, require_admin_user
+from app.core.rate_limit import enforce_rate_limit
 
 logger = logging.getLogger(__name__)
 MAX_IMAGE_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB threshold
-
-from app.core.auth import verify_admin_key, get_current_user
-
-# Rate limiting and quota management for public AI endpoints (Fix #29)
-_ai_minute_log = defaultdict(list)
-_ai_hour_log = defaultdict(list)
-AI_RATE_LIMIT_PER_MINUTE = int(os.getenv("AI_RATE_LIMIT_PER_MINUTE", "30"))
-AI_HOURLY_QUOTA_ANON = int(os.getenv("AI_HOURLY_QUOTA_ANON", "120"))
-AI_HOURLY_QUOTA_AUTH = int(os.getenv("AI_HOURLY_QUOTA_AUTH", "600"))
-
-def check_ai_rate_limit(request: Request, user: Optional[Dict[str, Any]] = None, response: Optional[Response] = None):
-    """
-    Enforces per-minute rate limits and hourly quotas across IP addresses and authenticated users.
-    Fixes Problem #29 (AI endpoint quotas and rate limits).
-    """
-    client_ip = request.client.host if request.client else "unknown"
-    client_id = f"user_{user['id']}" if user and user.get("id") else f"ip_{client_ip}"
-    is_authenticated = bool(user and user.get("id"))
-    
-    now = time.time()
-    min_cutoff = now - 60.0
-    hour_cutoff = now - 3600.0
-    
-    # 1. Check minute sliding window
-    min_timestamps = [t for t in _ai_minute_log[client_id] if t > min_cutoff]
-    if len(min_timestamps) >= AI_RATE_LIMIT_PER_MINUTE:
-        retry_after = int(60 - (now - min_timestamps[0]))
-        raise HTTPException(
-            status_code=429,
-            detail=f"Rate limit exceeded: Maximum {AI_RATE_LIMIT_PER_MINUTE} AI requests per minute. Please try again in {retry_after} seconds.",
-            headers={"Retry-After": str(max(1, retry_after))}
-        )
-    
-    # 2. Check hourly quota
-    hourly_limit = AI_HOURLY_QUOTA_AUTH if is_authenticated else AI_HOURLY_QUOTA_ANON
-    hour_timestamps = [t for t in _ai_hour_log[client_id] if t > hour_cutoff]
-    if len(hour_timestamps) >= hourly_limit:
-        retry_after = int(3600 - (now - hour_timestamps[0]))
-        raise HTTPException(
-            status_code=429,
-            detail=f"Hourly quota exceeded: Maximum {hourly_limit} AI requests per hour for {'authenticated' if is_authenticated else 'anonymous'} tier.",
-            headers={"Retry-After": str(max(1, retry_after))}
-        )
-    
-    min_timestamps.append(now)
-    hour_timestamps.append(now)
-    _ai_minute_log[client_id] = min_timestamps
-    _ai_hour_log[client_id] = hour_timestamps
-
-    # Inject standard rate limit headers if response object is present
-    if response:
-        remaining = max(0, AI_RATE_LIMIT_PER_MINUTE - len(min_timestamps))
-        response.headers["X-RateLimit-Limit"] = str(AI_RATE_LIMIT_PER_MINUTE)
-        response.headers["X-RateLimit-Remaining"] = str(remaining)
-        response.headers["X-RateLimit-Reset"] = str(int(now + 60))
 
 router = APIRouter()
 
@@ -181,6 +129,7 @@ async def get_active_systems(simulate: bool = False, cyclone_id: Optional[str] =
       - Returns empty list when the basin is calm.
     When simulate is True or cyclone_id is passed:
       - Returns real historical best-track data from IBTrACS/IMD for tracking & forecast analytics.
+      - Returns 404 if cyclone_id is passed but not found (DATA-03).
     """
     if not simulate and not cyclone_id:
         # Check if the live ingestion worker has discovered any live active systems
@@ -188,14 +137,23 @@ async def get_active_systems(simulate: bool = False, cyclone_id: Optional[str] =
             return live_ingestion_service.live_systems
         return []
 
-    # Look up cyclone if cyclone_id passed, else default to Biparjoy
     target = None
     if cyclone_id:
+        for sys in live_ingestion_service.live_systems:
+            if sys.get("id") == cyclone_id or sys.get("name", "").lower() == cyclone_id.lower():
+                return [sys]
         target = db.query(CycloneArchive).filter(
-            (CycloneArchive.id.ilike(f"%{cyclone_id}%")) | (CycloneArchive.name.ilike(f"%{cyclone_id}%"))
+            (CycloneArchive.id == cyclone_id) | (func.lower(CycloneArchive.name) == cyclone_id.lower())
         ).first()
-    if not target:
-        target = db.query(CycloneArchive).filter_by(id="ARB01-2023").first()
+        if not target:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Cyclone '{cyclone_id}' not found in active telemetry or historical archives."
+            )
+    elif simulate:
+        target = db.query(CycloneArchive).filter_by(id="BOB05-2026").first()
+        if not target:
+            target = db.query(CycloneArchive).filter_by(id="ARB01-2023").first()
 
     name = target.name if target else "Biparjoy"
     c_id = target.id if target else "ARB01-2023"
@@ -205,24 +163,67 @@ async def get_active_systems(simulate: bool = False, cyclone_id: Optional[str] =
     result = get_cyclone_trajectory(c_id, name, basin, cat)
     return [result]
 
+@router.get("/cyclones")
+async def get_cyclones_catalog(db: Session = Depends(get_db)):
+    """
+    Returns complete cyclone catalog including active live systems and historical database entries.
+    Fixes Problem LIVE-03 (nonexistent /api/cyclones endpoint).
+    """
+    catalog = []
+    for sys in live_ingestion_service.live_systems:
+        catalog.append({
+            "id": sys.get("id"),
+            "name": sys.get("name"),
+            "year": str(datetime.datetime.utcnow().year),
+            "maxCategory": sys.get("category"),
+            "basin": sys.get("basin"),
+            "dates": "Current Active",
+            "is_live": True,
+            "is_simulation": sys.get("is_simulation", False)
+        })
+    cyclones = db.query(CycloneArchive).all()
+    for c in cyclones:
+        catalog.append({
+            "id": c.id,
+            "name": c.name,
+            "year": str(c.year) if c.year else "",
+            "maxCategory": c.max_category,
+            "basin": c.basin,
+            "dates": c.dates or str(c.year),
+            "is_live": False,
+            "is_simulation": "2026" in c.id or "SIM" in c.id
+        })
+    return catalog
+
 @router.post("/classify")
-async def classify_image(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def classify_image(
+    req: Request,
+    response: Response,
+    file: UploadFile = File(...),
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Classifies an uploaded satellite frame using ML and stores result in DB."""
-    if not file.content_type.startswith("image/"):
+    enforce_rate_limit(req, endpoint_type="classify", user=current_user, response=response)
+    if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
     
     image_bytes = await file.read(MAX_IMAGE_SIZE_BYTES + 1)
     if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
         raise HTTPException(status_code=413, detail="File size exceeds maximum allowable limit (15 MB).")
     
+    validate_image_payload(image_bytes)
+    
     try:
         result = ml_service.predict(image_bytes)
         
-        # Log classification request to SQLite Database (FR-08)
+        # Log classification request scoped to user (SEC-13)
+        user_id = current_user.get("id") if current_user else None
         new_record = ClassificationHistory(
-            filename=file.filename,
+            filename=file.filename or "uploaded_satellite_frame.jpg",
             predicted_category=result.get("category", "Unknown"),
-            confidence=float(result.get("confidence", "0").replace("%", "")) if isinstance(result.get("confidence"), str) else result.get("confidence", 0.0)
+            confidence=float(result.get("confidence", "0").replace("%", "")) if isinstance(result.get("confidence"), str) else float(result.get("confidence", 0.0)),
+            user_id=user_id
         )
         db.add(new_record)
         db.commit()
@@ -240,7 +241,12 @@ async def classify_image(file: UploadFile = File(...), db: Session = Depends(get
         raise HTTPException(status_code=500, detail="Internal processing error during satellite classification.")
 
 @router.get("/history/search")
-async def search_history(query: str = "", db: Session = Depends(get_db)):
+async def search_history(
+    query: str = Query("", max_length=100),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db)
+):
     """Fetches historical cyclones from SQLite database populated via imdtrack."""
     q = db.query(CycloneArchive)
     if query.strip():
@@ -251,7 +257,7 @@ async def search_history(query: str = "", db: Session = Depends(get_db)):
             CycloneArchive.id.ilike(term) |
             CycloneArchive.dates.ilike(term)
         )
-    cyclones = q.all()
+    cyclones = q.offset(offset).limit(limit).all()
     
     MONTHS_MAP = {
         'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
@@ -284,9 +290,15 @@ async def search_history(query: str = "", db: Session = Depends(get_db)):
     ]
 
 @router.get("/history/classifications")
-async def get_classification_history(db: Session = Depends(get_db)):
-    """Fetches past AI image classifications."""
-    records = db.query(ClassificationHistory).order_by(ClassificationHistory.timestamp.desc()).limit(50).all()
+async def get_classification_history(
+    current_user: Dict[str, Any] = Depends(require_authenticated_user),
+    db: Session = Depends(get_db)
+):
+    """Fetches past AI image classifications isolated to the authenticated user (SEC-13)."""
+    user_id = current_user["id"]
+    records = db.query(ClassificationHistory).filter(
+        ClassificationHistory.user_id == user_id
+    ).order_by(ClassificationHistory.timestamp.desc()).limit(50).all()
     return [
         {
             "id": r.id,
@@ -309,7 +321,7 @@ async def chat_with_cyclonet(
     if not request.message or not request.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
     
-    check_ai_rate_limit(req, user=current_user, response=response)
+    enforce_rate_limit(req, endpoint_type="chat", user=current_user, response=response)
     result = await asyncio.to_thread(chat_service.ask, request.message, history=request.history, db=db, ui_context=request.ui_context)
     return result
 
@@ -334,10 +346,17 @@ async def get_cyclone_bulletins(cyclone_id: Optional[str] = None, simulate: bool
         target = None
         if cyclone_id:
             target = db.query(CycloneArchive).filter(
-                (CycloneArchive.id.ilike(f"%{cyclone_id}%")) | (CycloneArchive.name.ilike(f"%{cyclone_id}%"))
+                (CycloneArchive.id == cyclone_id) | (func.lower(CycloneArchive.name) == cyclone_id.lower())
             ).first()
+            if not target:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Cyclone '{cyclone_id}' was not found in bulletins archives."
+                )
         if not target:
-            target = db.query(CycloneArchive).filter_by(id="ARB01-2023").first()
+            target = db.query(CycloneArchive).filter_by(id="BOB05-2026").first()
+            if not target:
+                target = db.query(CycloneArchive).filter_by(id="ARB01-2023").first()
         
         c_id = target.id if target else "ARB01-2023"
         name = target.name if target else "Biparjoy"
@@ -380,24 +399,24 @@ async def get_cyclone_bulletins(cyclone_id: Optional[str] = None, simulate: bool
     }
 
 class AlertDispatchRequest(BaseModel):
-    region: str = "Sundarbans Coastal Belt"
-    risk_level: str = "CRITICAL"
-    surge: float = 3.4
-    wind: float = 125.0
+    region: str = Field("Sundarbans Coastal Belt", max_length=120)
+    risk_level: str = Field("CRITICAL", max_length=30)
+    surge: float = Field(3.4, ge=-5.0, le=25.0)
+    wind: float = Field(125.0, ge=0.0, le=400.0)
     channels: List[str] = ["CAP", "SMS", "SACHET", "SIREN", "VHF"]
-    cyclone_name: Optional[str] = "Active Cyclone"
+    cyclone_name: Optional[str] = Field("Active Cyclone", max_length=100)
 
 @router.post("/alerts/dispatch")
-async def dispatch_advisory(req: AlertDispatchRequest):
+async def dispatch_advisory(
+    req: AlertDispatchRequest,
+    request: Request,
+    response: Response,
+    current_user: Dict[str, Any] = Depends(require_authenticated_user)
+):
     """
-    Executes automated end-to-end early warning advisory dispatch across:
-    - OASIS CAP-CP v1.2 XML
-    - SMS Cell Broadcast
-    - NDMA SACHET Mobile Push Feed
-    - Coastal Acoustic Siren Array
-    - Marine NAVTEX / VHF Ch 16 Broadcast
-    - Municipal & District Magistrate Action Directives
+    Executes early warning advisory dispatch (SEC-04, AI-04: requires authenticated user).
     """
+    enforce_rate_limit(request, endpoint_type="admin", user=current_user, response=response)
     result = report_service.dispatch_multi_channel_advisory(
         region=req.region,
         risk_level=req.risk_level,
@@ -414,17 +433,30 @@ async def dispatch_advisory(req: AlertDispatchRequest):
     return result
 
 @router.post("/alerts/broadcast-test")
-async def broadcast_emergency_alert(req: BroadcastRequest, db: Session = Depends(get_db)):
-    """Simulates multi-channel NDMA CAP-CP emergency broadcast dispatch."""
-    # Find system info
+async def broadcast_emergency_alert(
+    req: BroadcastRequest,
+    request: Request,
+    response: Response,
+    current_user: Optional[Dict[str, Any]] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Simulates multi-channel NDMA CAP-CP emergency broadcast dispatch in sandbox."""
+    enforce_rate_limit(request, endpoint_type="admin", user=current_user, response=response)
     target = None
     if req.system_id:
         target = db.query(CycloneArchive).filter(
-            (CycloneArchive.id.ilike(f"%{req.system_id}%")) | (CycloneArchive.name.ilike(f"%{req.system_id}%"))
+            (CycloneArchive.id == req.system_id) | (func.lower(CycloneArchive.name) == req.system_id.lower())
         ).first()
+        if not target:
+            raise HTTPException(
+                status_code=404,
+                detail=f"System '{req.system_id}' was not found in catalog for broadcast test."
+            )
     
     if not target:
-        target = db.query(CycloneArchive).filter_by(id="ARB01-2023").first()
+        target = db.query(CycloneArchive).filter_by(id="BOB05-2026").first()
+        if not target:
+            target = db.query(CycloneArchive).filter_by(id="ARB01-2023").first()
     
     sys_dict = {
         "name": target.name if target else "Biparjoy",
@@ -458,13 +490,27 @@ async def get_gee_layers():
     }
 
 @router.get("/gee/flood-inundation")
-async def get_gee_flood_inundation(lat: float = 18.2, lon: float = 84.8, knots: int = 85):
-    """Generates Sentinel-1 SAR synthetic aperture radar coastal flood extent GeoJSON."""
+async def get_gee_flood_inundation(
+    req: Request,
+    response: Response,
+    lat: float = Query(18.2, ge=-90.0, le=90.0),
+    lon: float = Query(84.8, ge=-180.0, le=180.0),
+    knots: int = Query(85, ge=0, le=350)
+):
+    """Generates Sentinel-1 SAR coastal flood extent GeoJSON."""
+    enforce_rate_limit(req, endpoint_type="simulation", user=None, response=response)
     return gee_service.get_flood_inundation_zones(lat, lon, knots)
 
 @router.get("/gee/rainfall-pathways")
-async def get_gee_rainfall_pathways(lat: float = 18.2, lon: float = 84.8, rain_mm: float = 280.0):
+async def get_gee_rainfall_pathways(
+    req: Request,
+    response: Response,
+    lat: float = Query(18.2, ge=-90.0, le=90.0),
+    lon: float = Query(84.8, ge=-180.0, le=180.0),
+    rain_mm: float = Query(280.0, ge=0.0, le=2500.0)
+):
     """Generates DEM-informed catchment runoff pathway simulation and critical drainage choke points."""
+    enforce_rate_limit(req, endpoint_type="simulation", user=None, response=response)
     return {
         "status": "success",
         "mode": "DEM_INFORMED_RUNOFF_SIMULATION",
@@ -480,14 +526,17 @@ async def get_gee_rainfall_pathways(lat: float = 18.2, lon: float = 84.8, rain_m
 
 @router.get("/surge/calculate")
 async def calculate_storm_surge(
-    knots: float = 85.0,
-    pressure_hpa: float = 965.0,
-    forward_speed: float = 18.0,
-    angle_deg: float = 75.0,
-    tide_m: float = 1.2,
-    basin: str = "Bay of Bengal"
+    req: Request,
+    response: Response,
+    knots: float = Query(85.0, ge=0.0, le=350.0),
+    pressure_hpa: float = Query(965.0, ge=800.0, le=1050.0),
+    forward_speed: float = Query(18.0, ge=0.0, le=150.0),
+    angle_deg: float = Query(75.0, ge=0.0, le=360.0),
+    tide_m: float = Query(1.2, ge=-5.0, le=15.0),
+    basin: str = Query("Bay of Bengal", max_length=50)
 ):
     """Calculates peak hydrodynamic storm surge and inland inundation using the Jelesnianski parametric formulation."""
+    enforce_rate_limit(req, endpoint_type="simulation", user=None, response=response)
     return surge_service.calculate_surge(
         intensity_knots=knots,
         central_pressure_hpa=pressure_hpa,
@@ -499,10 +548,10 @@ async def calculate_storm_surge(
 
 @router.get("/surge/profile")
 async def get_coastal_surge_profile(
-    name: str = "Cyclone",
-    lat: float = 18.2,
-    lon: float = 84.8,
-    knots: int = 85
+    name: str = Query("Cyclone", max_length=100),
+    lat: float = Query(18.2, ge=-90.0, le=90.0),
+    lon: float = Query(84.8, ge=-180.0, le=180.0),
+    knots: int = Query(85, ge=0, le=350)
 ):
     """Generates quadrant-by-quadrant coastal surge profiles and critical asset risk ratings."""
     return {
@@ -512,30 +561,35 @@ async def get_coastal_surge_profile(
     }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Track 5: Gemini 3.7 Flash Multimodal AI & Pre-Landfall Briefings
+# Track 5: Gemini Multimodal AI & Pre-Landfall Briefings
 # ─────────────────────────────────────────────────────────────────────────────
 
 class BriefingRequest(BaseModel):
     storm_data: Dict[str, Any]
     infrastructure_data: Optional[Dict[str, Any]] = None
-    language: str = "en"
+    language: str = Field("en", max_length=10)
 
 @router.post("/ai/analyze-multimodal")
 async def analyze_multimodal_satellite(
     req: Request,
     response: Response,
     file: UploadFile = File(...),
-    prompt: Optional[str] = None,
+    prompt: Optional[str] = Query(None, max_length=500),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Performs multimodal Dvorak and convective structural analysis using Gemini 3.7 Flash."""
-    check_ai_rate_limit(req, user=current_user, response=response)
+    """Performs multimodal Dvorak and convective structural analysis using Gemini."""
+    enforce_rate_limit(req, endpoint_type="multimodal", user=current_user, response=response)
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Uploaded file must be a satellite/radar image")
     
     image_bytes = await file.read(MAX_IMAGE_SIZE_BYTES + 1)
     if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
         raise HTTPException(status_code=413, detail="File size exceeds maximum allowable limit (15 MB).")
+    
+    try:
+        validate_image_payload(image_bytes)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     
     analysis = await asyncio.to_thread(
         chat_service.analyze_satellite_image,
@@ -557,7 +611,7 @@ async def generate_pre_landfall_briefing(
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
     """Generates an authoritative executive pre-landfall briefing for disaster magistrates."""
-    check_ai_rate_limit(req, user=current_user, response=response)
+    enforce_rate_limit(req, endpoint_type="briefing", user=current_user, response=response)
     briefing = await asyncio.to_thread(
         chat_service.generate_pre_landfall_briefing,
         storm_data=req_body.storm_data,
