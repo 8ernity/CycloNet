@@ -7,8 +7,8 @@ def seed_historical_data(db: Session):
     across Bay of Bengal and Arabian Sea basins (1999–2024).
     """
     historical_systems = [
-        # 2026 Active System
-        {"id": "BOB05-2026", "name": "Deep Depression (BOB-05)", "year": 2026, "basin": "Bay of Bengal", "max_category": "Deep Depression", "dates": "22 Sep - Present (Active)"},
+        # 2026 Baseline Simulation & Operational Drill Record (LIVE-10)
+        {"id": "BOB05-2026", "name": "Deep Depression (BOB-05)", "year": 2026, "basin": "Bay of Bengal", "max_category": "Deep Depression", "dates": "23 Sep - 26 Sep 2026 (Operational Drill)"},
         
         # 2024 Season
         {"id": "BOB09-2024", "name": "Fengal", "year": 2024, "basin": "Bay of Bengal", "max_category": "Cyclonic Storm", "dates": "27 Nov - 01 Dec 2024"},

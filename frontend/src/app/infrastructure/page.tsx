@@ -1512,10 +1512,13 @@ export default function InfrastructurePage() {
             ))}
           </div>
 
-          <div className="glass-card p-6 border-border flex items-center justify-between gap-4">
+          <div className="glass-card p-6 border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h4 className="font-bold text-sm text-foreground">Digital Parametric Liquidity Disbursement</h4>
-              <p className="text-xs text-muted-foreground">Simulates anticipatory funding release directly to District SDRF emergency accounts.</p>
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-sm text-foreground">Digital Parametric Liquidity Disbursement (Simulation)</h4>
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 font-mono">SANDBOX DRILL</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">Illustrative simulation of anticipatory funding release. No actual financial transactions or bank transfers are executed.</p>
             </div>
             <button
               onClick={() => {
@@ -1523,13 +1526,13 @@ export default function InfrastructurePage() {
                 setTimeout(() => {
                   setIsSimulatingPayout(false);
                   setPayoutSuccess(true);
-                  showToast(`Parametric Liquidity Transfer of ${PARAMETRIC_INSURANCE_TRIGGERS[insuranceSimulationTier].totalPoolFunded} executed!`);
+                  showToast(`[SANDBOX SIMULATION] Parametric Liquidity Trigger Evaluated for ${PARAMETRIC_INSURANCE_TRIGGERS[insuranceSimulationTier].totalPoolFunded}. (No live funds disbursed)`);
                 }, 1400);
               }}
               disabled={isSimulatingPayout}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer shadow-lg shadow-emerald-600/20"
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer shadow-lg shadow-emerald-600/20 whitespace-nowrap"
             >
-              {isSimulatingPayout ? "Verifying Satellite Indices..." : "Trigger Pre-Landfall Payout"}
+              {isSimulatingPayout ? "Evaluating Trigger Criteria..." : "Simulate Sandbox Payout Trigger"}
             </button>
           </div>
         </div>

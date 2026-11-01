@@ -6,6 +6,7 @@ class ClassificationHistory(Base):
     __tablename__ = "classification_history"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True, nullable=True) # SEC-13: Owner identity
     filename = Column(String, index=True)
     predicted_category = Column(String)
     confidence = Column(Float)

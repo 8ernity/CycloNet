@@ -49,9 +49,9 @@ export function StatsTicker() {
           />
           <AnimatedStat
             icon={Activity}
-            value={120}
+            value={48}
             suffix="+"
-            label="Historical Storms Cataloged"
+            label="Sourced Historical Storms"
             tint="sky"
           />
           <AnimatedStat

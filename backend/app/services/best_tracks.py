@@ -881,10 +881,13 @@ def get_cyclone_trajectory(cyclone_id: str, name: str, basin: str, category: str
 
     peak_idx = data.get("peak_index", 0)
     peak_pt = data["points"][peak_idx]
+    is_active = data.get("is_active", False)
 
     formatted_points = []
     for i, pt in enumerate(data["points"]):
-        is_fc = (i > peak_idx)
+        # Historical points occurring after peak intensity are NOT forecasts (DATA-04)
+        is_fc = (i > peak_idx) if is_active else pt.get("is_forecast", False)
+        is_obs = not is_fc
         offset_h = pt.get("time_offset_hours", 0)
         abbr = IMD_ABBR.get(pt.get("category", ""), "CS")
         desc = pt.get("desc", "")
@@ -904,6 +907,8 @@ def get_cyclone_trajectory(cyclone_id: str, name: str, basin: str, category: str
             "category": pt["category"],
             "intensity_knots": pt["intensity_knots"],
             "is_forecast": is_fc,
+            "is_observed": is_obs,
+            "origin_type": "HISTORICAL_OBSERVATION" if is_obs else "OFFICIAL_FORECAST_TRACK",
             "is_landfall": is_landfall,
             "label": label
         })
@@ -919,6 +924,7 @@ def get_cyclone_trajectory(cyclone_id: str, name: str, basin: str, category: str
         "lon": peak_pt["lon"],
         "intensity_knots": peak_pt["intensity_knots"],
         "category": data["category"],
+        "is_simulation": False,
         "telemetry_type": "HISTORICAL_BEST_TRACK",
         "dvorak_t": f"T{min(6.5, max(2.5, round(2.5 + (peak_pt['intensity_knots'] - 30) / 20.0, 1)))}",
         "dvorak_derivation_method": "Empirical Dvorak CI from Historical Max Wind",
@@ -1006,11 +1012,11 @@ def _generate_curved_meteorological_track(
             "time_offset_hours": offset_hours,
             "category": p_cat,
             "intensity_knots": knots,
-            "is_forecast": (step > peak_step),
+            "is_forecast": False,
             "is_observed": False,
-            "origin_type": "UNCATALOGUED_PARAMETRIC_APPROXIMATION",
+            "origin_type": "ILLUSTRATIVE_SIMULATION",
             "is_landfall": is_landfall,
-            "label": f"{label} [Approx]"
+            "label": f"{label} [Simulated Scenario]"
         })
 
     peak_pt = points[peak_step]
@@ -1018,17 +1024,17 @@ def _generate_curved_meteorological_track(
 
     landfall_loc = "Odisha / West Bengal Coast" if is_bob else "Gujarat / Saurashtra Coast"
     landfall_info = {
-        "status": "Landfall Completed (Uncatalogued Approximation)",
-        "landfall_time_utc": "Track Landfall Crossing (+24h)",
-        "landfall_location": landfall_loc,
+        "status": "Landfall (Illustrative Scenario Only)",
+        "landfall_time_utc": "Simulated Timeline (+24h)",
+        "landfall_location": f"{landfall_loc} (Hypothetical Scenario)",
         "landfall_intensity_knots": points[landfall_step]["intensity_knots"],
         "landfall_intensity_kmph": int(points[landfall_step]["intensity_knots"] * 1.852),
         "landfall_gusts_kmph": int(points[landfall_step]["intensity_knots"] * 1.852 * 1.25),
         "landfall_category": points[landfall_step]["category"],
-        "central_pressure_hpa": 980 if peak_knots > 60 else 995,
-        "storm_surge_m": "1.5 - 2.5m" if peak_knots > 60 else "0.5 - 1.0m",
-        "inland_decay": "Weakened over inland sector into Depression",
-        "impact_sector": landfall_loc
+        "central_pressure_hpa": None,
+        "storm_surge_m": "Not Measured (Simulation Scenario)",
+        "inland_decay": "Simulated inland dissipation",
+        "impact_sector": f"{landfall_loc} (Scenario)"
     }
 
     return {
@@ -1039,19 +1045,21 @@ def _generate_curved_meteorological_track(
         "lon": peak_pt["lon"],
         "intensity_knots": peak_knots,
         "category": category,
+        "is_simulation": True,
         "is_uncatalogued_storm": True,
-        "telemetry_type": "UNCATALOGUED_APPROXIMATION",
-        "data_provenance": "UNCATALOGUED_HISTORICAL_SYSTEM",
+        "track_unavailable": True,
+        "telemetry_type": "ILLUSTRATIVE_SIMULATION",
+        "data_provenance": "SYNTHETIC_SIMULATION (UNCATALOGUED)",
         "dvorak_t": f"T{min(6.5, max(2.5, round(2.5 + (peak_knots - 30) / 20.0, 1)))}",
-        "dvorak_derivation_method": "Parametric Wind-Speed Scale (Uncatalogued Approximation)",
+        "dvorak_derivation_method": "Parametric Wind-Speed Scale (Simulated Approximation)",
         "dvorak_is_empirical_estimate": True,
-        "track_generation_method": "Uncatalogued System - No IBTrACS Best-Track Available (Synthetic Approximation)",
-        "catalog_warning": "Official 6-hourly best-track coordinates are not catalogued in the local IBTrACS / IMD dataset for this system. This path is an uncatalogued parametric approximation for visualization.",
+        "track_generation_method": "Illustrative Synthetic Simulation (No Official IMD Best-Track In Catalog)",
+        "catalog_warning": "Official 6-hourly best-track coordinates are not catalogued in the local IBTrACS / IMD dataset for this system. This path is an illustrative synthetic simulation, not observed historical fact.",
         "telemetry_attribution": {
-            "center_fix": "UNCATALOGUED_PARAMETRIC_SIMULATION",
-            "intensity_knots": "UNCATALOGUED_PARAMETRIC_SIMULATION",
+            "center_fix": "SYNTHETIC_SIMULATION",
+            "intensity_knots": "SYNTHETIC_SIMULATION",
             "dvorak_t": "PARAMETRIC_ESTIMATE",
-            "trajectory_forecast": "UNCATALOGUED_PARAMETRIC_EXTRAPOLATION"
+            "trajectory_forecast": "SYNTHETIC_SIMULATION"
         },
         "track_forecast": points,
         "landfall_info": landfall_info,

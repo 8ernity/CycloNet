@@ -112,13 +112,15 @@ class GoogleEarthEngineService:
             "type": "Feature",
             "properties": {
                 "layer_id": "sentinel1_sar_flood",
-                "zone_name": "High Vulnerability Flood Inundation Zone",
+                "zone_name": "High Vulnerability Flood Inundation Zone (Simulation)",
                 "water_depth_m": outer_depth_m,
-                "confidence_score": round(min(0.96, 0.75 + (kt / 350.0)), 2),
+                "confidence_score": None,
+                "confidence_score_simulated": round(min(0.96, 0.75 + (kt / 350.0)), 2),
                 "satellite_source": "Sentinel-1 SAR C-Band Synthetic Aperture Radar (Simulated Buffer)",
                 "derivation_type": "HYDRODYNAMIC_BUFFER_SIMULATION",
                 "is_raster_pixel_classification": False,
-                "sar_backscatter_db": sar_backscatter_outer_db,
+                "sar_backscatter_db": None,
+                "sar_backscatter_simulated_db": sar_backscatter_outer_db,
                 "dem_elevation_m": "< 4.0m AMSL"
             },
             "geometry": {
@@ -133,13 +135,15 @@ class GoogleEarthEngineService:
             "type": "Feature",
             "properties": {
                 "layer_id": "sentinel1_sar_flood_core",
-                "zone_name": "Critical Surge Breach & Direct Marine Flooding",
+                "zone_name": "Surge Breach & Direct Marine Flooding (Simulation)",
                 "water_depth_m": core_depth_m,
-                "confidence_score": round(min(0.99, 0.82 + (kt / 350.0)), 2),
+                "confidence_score": None,
+                "confidence_score_simulated": round(min(0.99, 0.82 + (kt / 350.0)), 2),
                 "satellite_source": "Sentinel-1 SAR & SRTM DEM Composite (Simulated Buffer)",
                 "derivation_type": "HYDRODYNAMIC_BUFFER_SIMULATION",
                 "is_raster_pixel_classification": False,
-                "sar_backscatter_db": sar_backscatter_core_db,
+                "sar_backscatter_db": None,
+                "sar_backscatter_simulated_db": sar_backscatter_core_db,
                 "dem_elevation_m": "< 2.0m AMSL"
             },
             "geometry": {
@@ -148,11 +152,16 @@ class GoogleEarthEngineService:
             }
         })
 
+        # Never return mode=LIVE_GEE merely because a connection was initialized (GEO-02)
+        # Mode reflects the actual data pipeline used to generate the result geometry
+        is_actual_pixel_classification = False
+        mode_str = "LIVE_GEE" if (self.is_live_gee and is_actual_pixel_classification) else "SIMULATED_EXTENT"
+
         return {
             "type": "FeatureCollection",
-            "mode": "LIVE_GEE" if self.is_live_gee else "GEE_COMPATIBLE_SIMULATION",
+            "mode": mode_str,
             "pipeline": "GEE Sentinel-1/Sentinel-2 Inundation Pipeline (Simulation Fallback)",
-            "methodology_disclaimer": "Simulated hydrodynamic buffer polygons. Direct pixel-level SAR matrix thresholding requires authenticated Earth Engine API session.",
+            "methodology_disclaimer": "Simulated hydrodynamic buffer polygons. Direct pixel-level SAR matrix thresholding requires authenticated Earth Engine API session with active image overpass.",
             "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
             "gee_sensor": "COPERNICUS/S1_GRD (Sentinel-1 SAR)",
             "center": [center_lat, center_lon],
@@ -292,7 +301,7 @@ class GoogleEarthEngineService:
         if km_per_lon == 0:
             km_per_lon = 1.0
 
-        for i in range(num_points + 1):
+        for i in range(num_points):
             theta = (2 * math.pi * i) / num_points
             dx_km = radius_km_x * math.cos(theta)
             dy_km = radius_km_y * math.sin(theta)
@@ -301,10 +310,12 @@ class GoogleEarthEngineService:
             rot_dx = dx_km * cos_a - dy_km * sin_a
             rot_dy = dx_km * sin_a + dy_km * cos_a
             
-            p_lat = lat + (rot_dy / km_per_lat)
-            p_lon = lon + (rot_dx / km_per_lon)
+            p_lat = max(-90.0, min(90.0, lat + (rot_dy / km_per_lat)))
+            p_lon = max(-180.0, min(180.0, lon + (rot_dx / km_per_lon)))
             coords.append([round(p_lon, 4), round(p_lat, 4)])
             
+        # Strictly close GeoJSON polygon ring (first point == last point) (GEO-03)
+        coords.append(coords[0])
         return coords
 
 gee_service = GoogleEarthEngineService()
