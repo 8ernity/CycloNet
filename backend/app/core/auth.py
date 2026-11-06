@@ -73,38 +73,87 @@ def is_valid_admin_key(candidate: Optional[str]) -> bool:
         return False
     return secrets.compare_digest(candidate.strip(), ADMIN_API_KEY.strip())
 
-def parse_role_from_claims(claims: Dict[str, Any]) -> Role:
+def parse_role_from_claims(claims: Dict[str, Any], token_type: Optional[str] = None) -> Role:
     """
-    SEC-02: Strict exact matching against defined role enumeration.
-    Eliminates substring checks such as 'admin in role' which allow privilege escalation
-    from strings like 'not_an_admin' or 'bad_administrator'.
+    SEC-02 & FIX-03: Strict exact matching against defined role enumeration.
+    Privileged roles (ADMINISTRATOR, AUTHORIZED_OPERATOR) are only granted from:
+    1. For Clerk tokens: 'public_metadata.role', 'public_metadata.cyclonet_role', or verified 'org_role'.
+       Unverified top-level claims from user profiles CANNOT grant operator or admin status.
+    2. For verified internal tokens (token_type='internal'): trusted 'cyclonet_role' or 'role'.
     """
-    raw_role = (
-        claims.get("cyclonet_role")
-        or claims.get("org_role")
-        or claims.get("role")
-        or ""
-    )
-    if isinstance(raw_role, str):
-        normalized = raw_role.strip().lower()
-        return ROLE_MAPPING.get(normalized, Role.PUBLIC_VIEWER)
-    elif isinstance(raw_role, (list, tuple)):
-        highest = Role.PUBLIC_VIEWER
-        for item in raw_role:
-            if isinstance(item, str):
-                matched = ROLE_MAPPING.get(item.strip().lower(), Role.PUBLIC_VIEWER)
-                if ROLE_HIERARCHY[matched] > ROLE_HIERARCHY[highest]:
-                    highest = matched
-        return highest
-    return Role.PUBLIC_VIEWER
+    if token_type is None:
+        token_type = claims.get("_token_type", "clerk")
+
+    if token_type == "clerk":
+        # Check backend-controlled public_metadata
+        public_meta = claims.get("public_metadata")
+        if isinstance(public_meta, dict):
+            meta_role = public_meta.get("cyclonet_role") or public_meta.get("role")
+            if meta_role and isinstance(meta_role, str):
+                matched = ROLE_MAPPING.get(meta_role.strip().lower(), Role.PUBLIC_VIEWER)
+                if matched != Role.PUBLIC_VIEWER:
+                    return matched
+
+        # Check verified organization membership role
+        org_role = claims.get("org_role")
+        if org_role and isinstance(org_role, str):
+            matched = ROLE_MAPPING.get(org_role.strip().lower(), Role.PUBLIC_VIEWER)
+            if matched != Role.PUBLIC_VIEWER:
+                return matched
+
+        # Top-level claims on Clerk tokens: Can only grant up to AUTHENTICATED_ANALYST.
+        # User-supplied claims cannot grant AUTHORIZED_OPERATOR or ADMINISTRATOR!
+        raw_role = claims.get("cyclonet_role") or claims.get("role") or ""
+        if isinstance(raw_role, str):
+            matched = ROLE_MAPPING.get(raw_role.strip().lower(), Role.PUBLIC_VIEWER)
+            if ROLE_HIERARCHY[matched] >= ROLE_HIERARCHY[Role.AUTHORIZED_OPERATOR]:
+                logger.warning(
+                    "[Auth] Untrusted top-level role claim '%s' attempted privilege escalation. Demoting to AUTHENTICATED_ANALYST.",
+                    raw_role
+                )
+                return Role.AUTHENTICATED_ANALYST
+            return matched
+        return Role.PUBLIC_VIEWER
+    else:
+        # Verified internal HMAC tokens
+        raw_role = (
+            claims.get("cyclonet_role")
+            or claims.get("org_role")
+            or claims.get("role")
+            or ""
+        )
+        if isinstance(raw_role, str):
+            normalized = raw_role.strip().lower()
+            return ROLE_MAPPING.get(normalized, Role.PUBLIC_VIEWER)
+        elif isinstance(raw_role, (list, tuple)):
+            highest = Role.PUBLIC_VIEWER
+            for item in raw_role:
+                if isinstance(item, str):
+                    matched = ROLE_MAPPING.get(item.strip().lower(), Role.PUBLIC_VIEWER)
+                    if ROLE_HIERARCHY[matched] > ROLE_HIERARCHY[highest]:
+                        highest = matched
+            return highest
+        return Role.PUBLIC_VIEWER
 
 def decode_token_payload(token: str) -> Optional[Dict[str, Any]]:
     """
-    SEC-01 & SEC-03: Cryptographically verifies JWT signatures from Clerk or configured JWT provider.
+    SEC-01, SEC-03, FIX-03: Cryptographically verifies JWT signatures.
+    Separates Clerk (RS256) from internal application (HS256) tokens.
     Strictly verifies signatures, expiration (exp), not-before (nbf), and algorithm allowlist.
-    NEVER decodes unverified payloads or accepts test keys in production.
+    NEVER decodes unverified payloads or accepts forged algorithm=none tokens.
     """
     if not token or not token.strip():
+        return None
+
+    # Inspect algorithm without verifying signature first to select correct verification path
+    try:
+        header = jwt.get_unverified_header(token)
+    except Exception:
+        return None
+
+    alg = header.get("alg")
+    if alg not in ("RS256", "HS256"):
+        logger.warning("[Auth] Rejected token with disallowed algorithm '%s'", alg)
         return None
 
     options = {
@@ -119,74 +168,87 @@ def decode_token_payload(token: str) -> Optional[Dict[str, Any]]:
     if CLERK_AUDIENCE:
         options["verify_aud"] = True
 
-    # 1. Verify with Clerk PEM Public Key (RS256)
-    if CLERK_PEM_PUBLIC_KEY and CLERK_PEM_PUBLIC_KEY.strip():
+    # 1. Clerk RS256 Verification Path
+    if alg == "RS256":
+        # 1a. Verify with Clerk PEM Public Key
+        if CLERK_PEM_PUBLIC_KEY and CLERK_PEM_PUBLIC_KEY.strip():
+            try:
+                pem = CLERK_PEM_PUBLIC_KEY.strip()
+                if not pem.startswith("-----BEGIN"):
+                    pem = f"-----BEGIN PUBLIC KEY-----\n{pem}\n-----END PUBLIC KEY-----"
+                decoded = jwt.decode(
+                    token,
+                    pem,
+                    algorithms=["RS256"],
+                    issuer=CLERK_ISSUER or None,
+                    audience=CLERK_AUDIENCE or None,
+                    options=options
+                )
+                decoded["_token_type"] = "clerk"
+                return decoded
+            except jwt.ExpiredSignatureError:
+                logger.info("[Auth] Token signature has expired.")
+                return None
+            except jwt.InvalidTokenError as e:
+                logger.debug("[Auth] RS256 PEM token verification failed: %s", e)
+                return None
+
+        # 1b. Verify via Clerk JWKS Client (RS256 with key rotation and kid match)
+        jwks = get_jwks_client()
+        if jwks:
+            try:
+                signing_key = jwks.get_signing_key_from_jwt(token)
+                decoded = jwt.decode(
+                    token,
+                    signing_key.key,
+                    algorithms=["RS256"],
+                    issuer=CLERK_ISSUER or None,
+                    audience=CLERK_AUDIENCE or None,
+                    options=options
+                )
+                decoded["_token_type"] = "clerk"
+                return decoded
+            except jwt.ExpiredSignatureError:
+                logger.info("[Auth] JWKS token signature has expired.")
+                return None
+            except Exception as e:
+                logger.debug("[Auth] JWKS token verification failed: %s", e)
+                return None
+
+        # If RS256 token but no Clerk public keys configured, reject
+        logger.warning("[Auth] RS256 token received but no Clerk public key/JWKS configured; rejecting.")
+        return None
+
+    # 2. Internal HS256 Verification Path
+    if alg == "HS256":
+        hmac_secret = (JWT_SECRET_KEY or os.getenv("JWT_SECRET_KEY", "")).strip()
+
+        # Fail closed if no secret configured
+        if not hmac_secret:
+            logger.debug("[Auth] No cryptographic verification secret configured; failing closed.")
+            return None
+
+        if len(hmac_secret) < 32 and ENVIRONMENT == "production":
+            logger.error("[Auth] In production, JWT_SECRET_KEY must be at least 32 characters; failing closed.")
+            return None
+
         try:
-            pem = CLERK_PEM_PUBLIC_KEY.strip()
-            if not pem.startswith("-----BEGIN"):
-                pem = f"-----BEGIN PUBLIC KEY-----\n{pem}\n-----END PUBLIC KEY-----"
-            return jwt.decode(
+            decoded = jwt.decode(
                 token,
-                pem,
-                algorithms=["RS256"],
-                issuer=CLERK_ISSUER or None,
-                audience=CLERK_AUDIENCE or None,
-                options=options
+                hmac_secret,
+                algorithms=["HS256"],
+                options={"verify_signature": True, "require": ["exp"], "verify_exp": True}
             )
+            decoded["_token_type"] = "internal"
+            return decoded
         except jwt.ExpiredSignatureError:
-            logger.info("[Auth] Token signature has expired.")
+            logger.info("[Auth] HS256 token signature has expired.")
             return None
         except jwt.InvalidTokenError as e:
-            logger.debug("[Auth] RS256 PEM token verification failed: %s", e)
+            logger.debug("[Auth] HS256 token verification failed: %s", e)
             return None
 
-    # 2. Verify via Clerk JWKS Client (RS256 with key rotation and kid match)
-    jwks = get_jwks_client()
-    if jwks:
-        try:
-            signing_key = jwks.get_signing_key_from_jwt(token)
-            return jwt.decode(
-                token,
-                signing_key.key,
-                algorithms=["RS256"],
-                issuer=CLERK_ISSUER or None,
-                audience=CLERK_AUDIENCE or None,
-                options=options
-            )
-        except jwt.ExpiredSignatureError:
-            logger.info("[Auth] JWKS token signature has expired.")
-            return None
-        except Exception as e:
-            logger.debug("[Auth] JWKS token verification failed: %s", e)
-            return None
-
-    # 3. Verify via configured internal HMAC Secret Key (HS256) - SEC-03
-    # Note: CLERK_SECRET_KEY is NEVER used as an HS256 secret key (SEC-03).
-    hmac_secret = (JWT_SECRET_KEY or os.getenv("JWT_SECRET_KEY", "")).strip()
-
-    # SEC-01: Disallow hardcoded fallback in production code. Fail closed!
-    if not hmac_secret:
-        logger.debug("[Auth] No cryptographic verification secret configured; failing closed.")
-        return None
-
-    if len(hmac_secret) < 32:
-        logger.warning("[Auth] JWT_SECRET_KEY is shorter than 32 bytes minimum recommendation.")
-
-    try:
-        return jwt.decode(
-            token,
-            hmac_secret,
-            algorithms=["HS256"],
-            issuer=CLERK_ISSUER or None,
-            audience=CLERK_AUDIENCE or None,
-            options=options
-        )
-    except jwt.ExpiredSignatureError:
-        logger.info("[Auth] HS256 token signature has expired.")
-        return None
-    except jwt.InvalidTokenError as e:
-        logger.debug("[Auth] HS256 token verification failed: %s", e)
-        return None
+    return None
 
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Security(security_bearer),

@@ -164,28 +164,29 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   // Header Title
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text("CYCLONET METEOROLOGICAL INTELLIGENCE PLATFORM", margin, 10);
+  doc.setFontSize(11);
+  doc.text("CYCLONET DECISION SUPPORT & RESEARCH PLATFORM", margin, 10);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(252, 211, 77); // Amber-300
+  doc.text("EXERCISE / SIMULATION ADVISORY • NOT FOR OPERATIONAL EMERGENCY USE", margin, 15.5);
 
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(203, 213, 225); // Slate-300
-  doc.text("OFFICIAL TROPICAL CYCLONE WARNING & THREAT ASSESSMENT BULLETIN", margin, 15.5);
-
-  doc.setFontSize(7);
+  doc.setFontSize(6.5);
   doc.setTextColor(148, 163, 184); // Slate-400
   const agencyLabel = sourceInfo?.label ? `${sourceInfo.label} (${sourceInfo.avgWindow || "3-Min"})` : "RSMC / IMD Protocol (3-Min Sustained)";
-  doc.text(`${agencyLabel} • OASIS CAP-CP v1.2 • Generated: ${dateStr}`, margin, 20.5);
+  doc.text(`${agencyLabel} • Simulation Benchmark • Generated: ${dateStr}`, margin, 20.5);
 
   // Badge on Header Right
   doc.setFillColor(...accentColor);
-  doc.roundedRect(pageWidth - margin - 36, 6, 36, 13, 2, 2, "F");
+  doc.roundedRect(pageWidth - margin - 40, 6, 40, 13, 2, 2, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.text(`${alertLevel} WARNING`, pageWidth - margin - 18, 12, { align: "center" });
-  doc.setFontSize(6);
-  doc.text("ACTION DIRECTIVE", pageWidth - margin - 18, 16, { align: "center" });
+  doc.setFontSize(8);
+  doc.text(`${alertLevel} DRILL`, pageWidth - margin - 20, 11.5, { align: "center" });
+  doc.setFontSize(5.5);
+  doc.text("EXERCISE ADVISORY", pageWidth - margin - 20, 16, { align: "center" });
 
   y = 32;
 
@@ -431,7 +432,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
     // Row 2: Left operational context, Right page numbers
     doc.setFontSize(6.2);
     doc.setTextColor(148, 163, 184); // Slate-400
-    doc.text("Demonstration Meteorological Advisory & Threat Assessment (CAP-CP Protocol)", margin, footerY + 6.5);
+    doc.text("EXERCISE / SIMULATION ONLY • NOT AN OFFICIAL GOVERNMENT WARNING • Consult IMD/NDMA for official advisories", margin, footerY + 6.5);
     doc.text(`Page ${page} of ${totalPages}`, pageWidth - margin, footerY + 6.5, { align: "right" });
   }
 

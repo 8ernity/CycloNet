@@ -366,7 +366,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
           { signal: "Danger Signal No. VII", meaning: "Severe cyclone expected to cross coast." }
         ],
       });
-      showToast(`Generated & downloaded official Cyclone PDF report (${sourceBadge.shortLabel})!`);
+      showToast(`Generated & downloaded Cyclone PDF advisory (${sourceBadge.shortLabel})!`);
     } catch (err: any) {
       console.error("PDF generation failed:", err);
       showToast(`PDF generation error: ${err?.message || "Please check console"}`);
@@ -585,7 +585,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
             Alerts & Meteorological Reports
           </h1>
           <p className="text-sm text-muted-foreground">
-            Official RSMC New Delhi weather bulletins, OASIS CAP-CP warning protocols, infrastructure exposure, and parametric insurance triggers.
+            RSMC weather bulletins, OASIS CAP-CP warning protocols (Exercise), infrastructure exposure, and parametric insurance scenarios.
           </p>
         </div>
 
@@ -619,7 +619,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
           {/* Export CAP-CP XML */}
           <button
             onClick={handleDownloadXml}
-            title="Download OASIS CAP-CP v1.2 XML Document"
+            title="Download OASIS CAP-CP v1.2 XML Document (Exercise Status)"
             className="flex items-center gap-1.5 px-3 py-2 bg-secondary/70 hover:bg-secondary border border-border rounded-lg text-xs font-medium text-foreground transition-colors"
           >
             <ShieldAlert className="w-3.5 h-3.5 text-orange-400" /> CAP XML
@@ -628,7 +628,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
           {/* Download PDF */}
           <button
             onClick={handleDownloadPdf}
-            title="Download Official Cyclone Meteorological PDF Report"
+            title="Download Cyclone Meteorological PDF Advisory (Exercise Simulation)"
             className="flex items-center gap-1.5 px-3.5 py-2 bg-primary text-primary-foreground hover:bg-primary/90 font-bold rounded-lg text-xs shadow-lg shadow-primary/20 transition-all cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" /> Download PDF
@@ -1004,7 +1004,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/80 pb-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono font-bold text-primary">OFFICIAL DOCUMENT</span>
+                      <span className="text-xs font-mono font-bold text-primary">BULLETIN RECORD</span>
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-secondary text-foreground">
                         {selectedBulletin.id}
                       </span>
@@ -1024,7 +1024,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
                     </button>
                     <button
                       onClick={handleDownloadPdf}
-                      title="Download Official Cyclone Meteorological PDF Report"
+                      title="Download Cyclone Meteorological PDF Advisory (Exercise Simulation)"
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium transition-colors cursor-pointer"
                     >
                       <Download className="w-3.5 h-3.5" /> Download PDF

@@ -7,7 +7,7 @@ import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
 import { useCycloneWebSocket } from "@/hooks/useCycloneWebSocket";
 import { useLanguage } from "@/context/LanguageContext";
-import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
+import { API_BASE_URL, getApiBaseUrl, apiFetch } from "@/lib/api";
 
 const MapComponent = dynamic(() => import('@/components/MapComponent'), { 
   ssr: false,
@@ -153,8 +153,7 @@ export default function DashboardLiveMonitoringPage() {
   const displayCategory = activeSystem ? getConvertedCategory(activeSystem.intensity_knots, activeSystem.category) : "Nominal";
 
   useEffect(() => {
-    fetch(`${getApiBaseUrl()}/api/cyclones`)
-      .then(res => res.json())
+    apiFetch<ActiveSystem[]>("/api/cyclones")
       .then(data => {
         if (Array.isArray(data)) setCyclonesList(data);
       })
@@ -162,44 +161,20 @@ export default function DashboardLiveMonitoringPage() {
   }, []);
 
   const fetchIngestStatus = () => {
-    fetch(`${getApiBaseUrl()}/api/ingest/status`)
-      .then(res => res.json())
+    apiFetch<any>("/api/ingest/status")
       .then(data => setIngestStatus(data))
       .catch(() => {});
   };
 
   const [ingestError, setIngestError] = useState<string | null>(null);
 
-  const getAuthHeaders = (): Record<string, string> => {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("cyclonet_auth_token");
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-    }
-    return headers;
-  };
-
   const handleSyncFeeds = async () => {
     setIsSyncingIngest(true);
     setIngestError(null);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/ingest/sync`, {
-        method: "POST",
-        headers: getAuthHeaders()
+      const data = await apiFetch<any>("/api/ingest/sync", {
+        method: "POST"
       });
-      if (res.status === 401 || res.status === 403) {
-        setIngestError("Administrative authorization required to trigger manual ingestion sync.");
-        return;
-      }
-      if (res.status === 429) {
-        setIngestError("Rate limit exceeded. Please wait before triggering another sync.");
-        return;
-      }
-      if (!res.ok) {
-        setIngestError(`Sync failed with HTTP ${res.status}`);
-        return;
-      }
-      const data = await res.json();
       setIngestStatus({
         status: "online",
         last_sync: data.synced_at,
@@ -207,11 +182,15 @@ export default function DashboardLiveMonitoringPage() {
         active_systems_count: data.active_systems_count || 0,
         sources_status: data.sources_status
       });
-      // Refresh active systems if any newly detected
       fetchActiveSystems(false);
     } catch (err: any) {
-      console.error("Failed to sync feeds:", err);
-      setIngestError(err.message || "Ingestion sync error");
+      if (err.status === 401 || err.status === 403) {
+        setIngestError("Administrative authorization required to trigger manual ingestion sync.");
+      } else if (err.status === 429) {
+        setIngestError("Rate limit exceeded. Please wait before triggering another sync.");
+      } else {
+        setIngestError(err.message || "Ingestion sync error");
+      }
     } finally {
       setIsSyncingIngest(false);
     }
@@ -221,23 +200,17 @@ export default function DashboardLiveMonitoringPage() {
     setIsSyncingIngest(true);
     setIngestError(null);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/ingest/test-inject`, {
-        method: "POST",
-        headers: getAuthHeaders()
+      await apiFetch<any>("/api/ingest/test-inject", {
+        method: "POST"
       });
-      if (res.status === 401 || res.status === 403) {
-        setIngestError("Administrative authorization required to inject test drill systems.");
-        return;
-      }
-      if (!res.ok) {
-        setIngestError(`Drill injection failed with HTTP ${res.status}`);
-        return;
-      }
       fetchIngestStatus();
       fetchActiveSystems(false);
     } catch (err: any) {
-      console.error("Failed to inject test cyclone:", err);
-      setIngestError(err.message || "Drill injection error");
+      if (err.status === 401 || err.status === 403) {
+        setIngestError("Administrative authorization required to inject test drill systems.");
+      } else {
+        setIngestError(err.message || "Drill injection error");
+      }
     } finally {
       setIsSyncingIngest(false);
     }
@@ -247,24 +220,18 @@ export default function DashboardLiveMonitoringPage() {
     setIsSyncingIngest(true);
     setIngestError(null);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/ingest/clear-test`, {
-        method: "POST",
-        headers: getAuthHeaders()
+      await apiFetch<any>("/api/ingest/clear-test", {
+        method: "POST"
       });
-      if (res.status === 401 || res.status === 403) {
-        setIngestError("Administrative authorization required to clear drill systems.");
-        return;
-      }
-      if (!res.ok) {
-        setIngestError(`Clear failed with HTTP ${res.status}`);
-        return;
-      }
       clearSelectedCyclone();
       fetchIngestStatus();
       fetchActiveSystems(false);
     } catch (err: any) {
-      console.error("Failed to clear test cyclone:", err);
-      setIngestError(err.message || "Clear drill error");
+      if (err.status === 401 || err.status === 403) {
+        setIngestError("Administrative authorization required to clear drill systems.");
+      } else {
+        setIngestError(err.message || "Clear drill error");
+      }
     } finally {
       setIsSyncingIngest(false);
     }
@@ -272,15 +239,13 @@ export default function DashboardLiveMonitoringPage() {
 
   const fetchActiveSystems = async (simulate: boolean = false, cycloneId?: string | null) => {
     setLoading(true);
-    let url = `${getApiBaseUrl()}/api/active-systems`;
+    let path = "/api/active-systems";
     const targetId = cycloneId || (simulate ? selectedCycloneId : null);
     if (simulate || targetId) {
-      url += `?simulate=true${targetId ? `&cyclone_id=${encodeURIComponent(targetId)}` : ""}`;
+      path += `?simulate=true${targetId ? `&cyclone_id=${encodeURIComponent(targetId)}` : ""}`;
     }
     try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      const data = await apiFetch<any[]>(path);
       if (data && data.length > 0) {
         setActiveSystem(data[0]);
         // LIVE-02: Derive simulation state from authentic backend metadata rather than forcing true
@@ -298,8 +263,6 @@ export default function DashboardLiveMonitoringPage() {
       }
     } catch (err) {
       console.warn("Notice: Active systems feed temporarily unavailable or initializing:", err);
-      setActiveSystem(null);
-      setIsSimulation(false);
     } finally {
       setLoading(false);
     }

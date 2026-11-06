@@ -46,12 +46,38 @@ export function getApiBaseUrl(): string {
 export function getStoredAuthToken(): string | null {
   if (typeof window !== "undefined") {
     try {
-      return localStorage.getItem("cyclonet_auth_token") || null;
+      // FIX 04: Prefer short-lived session storage credentials before long-lived localStorage
+      return sessionStorage.getItem("cyclonet_auth_token") || localStorage.getItem("cyclonet_auth_token") || null;
     } catch {
       return null;
     }
   }
   return null;
+}
+
+export function setStoredAuthToken(token: string, persistent: boolean = false): void {
+  if (typeof window !== "undefined") {
+    try {
+      if (persistent) {
+        localStorage.setItem("cyclonet_auth_token", token);
+      } else {
+        sessionStorage.setItem("cyclonet_auth_token", token);
+      }
+    } catch {
+      // Ignore in restricted environments
+    }
+  }
+}
+
+export function clearStoredAuthToken(): void {
+  if (typeof window !== "undefined") {
+    try {
+      sessionStorage.removeItem("cyclonet_auth_token");
+      localStorage.removeItem("cyclonet_auth_token");
+    } catch {
+      // Ignore
+    }
+  }
 }
 
 export function isTrustedOrigin(url: string): boolean {
@@ -76,7 +102,7 @@ export function isTrustedOrigin(url: string): boolean {
 
 /**
  * Robust fetch wrapper with timeout, exponential backoff retries with jitter,
- * authentication header attachment, and Retry-After handling (UI-01, SEC-05, SEC-06).
+ * authentication header attachment, and Retry-After handling (UI-01, SEC-05, SEC-06, FIX-04).
  */
 export async function apiFetch<T = any>(
   endpoint: string,
@@ -96,12 +122,18 @@ export async function apiFetch<T = any>(
 
   const headers = new Headers(fetchOptions.headers || {});
   const authToken = token || getStoredAuthToken();
-  if (authToken && !headers.has("Authorization")) {
-    // SEC-06: Never forward authentication tokens to arbitrary custom or untrusted origins
+
+  // FIX 04: Centralized origin check on Authorization headers
+  if (headers.has("Authorization")) {
+    if (!isTrustedOrigin(url)) {
+      console.warn(`[Security] Stripped explicitly supplied Authorization header destined for untrusted origin: ${url}`);
+      headers.delete("Authorization");
+    }
+  } else if (authToken) {
     if (isTrustedOrigin(url)) {
       headers.set("Authorization", `Bearer ${authToken}`);
     } else {
-      console.warn(`[Security] Withheld Bearer token from unverified custom origin: ${url}`);
+      console.warn(`[Security] Withheld Bearer token from unverified origin: ${url}`);
     }
   }
 

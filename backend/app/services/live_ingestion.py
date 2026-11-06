@@ -81,10 +81,16 @@ class LiveIngestionService:
         self.is_syncing: bool = False
         self.last_error: Optional[str] = None
         self.sources_status: Dict[str, str] = {
-            "IMD_RSMC": "Online (Active Monitoring)",
-            "JTWC_NOAA": "Online (Active Monitoring)",
-            "GDACS_UN": "Online (Active Satellite Feed)",
-            "ISRO_MOSDAC": "Online (Active Monitoring)"
+            "IMD_RSMC": "NO_ACTIVE_STORMS",
+            "JTWC_NOAA": "NO_ACTIVE_STORMS",
+            "GDACS_UN": "NO_ACTIVE_STORMS",
+            "ISRO_MOSDAC": "NO_ACTIVE_STORMS"
+        }
+        self.last_successful_sync: Dict[str, Optional[datetime.datetime]] = {
+            "IMD_RSMC": None,
+            "JTWC_NOAA": None,
+            "GDACS_UN": None,
+            "ISRO_MOSDAC": None
         }
         self._in_memory_systems: List[Dict[str, Any]] = []
         self._background_task: Optional[asyncio.Task] = None
@@ -200,31 +206,34 @@ class LiveIngestionService:
                     self._persist_to_database(system)
                 self.live_systems = discovered_systems
                 if feed_health["IMD"]:
-                    self.sources_status["IMD_RSMC"] = "Online (Active Storm Detected)"
+                    self.sources_status["IMD_RSMC"] = "HEALTHY"
                 if feed_health["JTWC"]:
-                    self.sources_status["JTWC_NOAA"] = "Online (Active Storm Detected)"
+                    self.sources_status["JTWC_NOAA"] = "HEALTHY"
                 if feed_health["GDACS"]:
-                    self.sources_status["GDACS_UN"] = "Online (Active Storm Detected)"
+                    self.sources_status["GDACS_UN"] = "HEALTHY"
             else:
-                # Distinguish verified calm from feed degradation (LIVE-07)
+                # Distinguish verified calm from feed degradation (LIVE-07 / FIX-07)
                 any_feed_alive = any(feed_health.values())
                 all_feeds_alive = all(feed_health.values())
                 if all_feeds_alive:
                     self.live_systems = []
-                    self.sources_status["IMD_RSMC"] = "Online (Basin Verified Calm • 0 Storms)"
-                    self.sources_status["JTWC_NOAA"] = "Online (Basin Verified Calm • 0 Storms)"
-                    self.sources_status["GDACS_UN"] = "Online (Basin Verified Calm • 0 Storms)"
+                    self.sources_status["IMD_RSMC"] = "NO_ACTIVE_STORMS"
+                    self.sources_status["JTWC_NOAA"] = "NO_ACTIVE_STORMS"
+                    self.sources_status["GDACS_UN"] = "NO_ACTIVE_STORMS"
                 elif any_feed_alive:
                     self.live_systems = []
                     if feed_health["IMD"]:
-                        self.sources_status["IMD_RSMC"] = "Online (No Storms In Area)"
+                        self.sources_status["IMD_RSMC"] = "NO_ACTIVE_STORMS"
                     if feed_health["JTWC"]:
-                        self.sources_status["JTWC_NOAA"] = "Online (No Storms In Area)"
+                        self.sources_status["JTWC_NOAA"] = "NO_ACTIVE_STORMS"
+                    if feed_health["GDACS"]:
+                        self.sources_status["GDACS_UN"] = "NO_ACTIVE_STORMS"
                 else:
                     # All feeds failed: do NOT falsely declare verified calm
-                    self.sources_status["IMD_RSMC"] = "Degraded (Feed Offline / Timeout)"
-                    self.sources_status["JTWC_NOAA"] = "Degraded (Feed Offline / Timeout)"
-                    self.sources_status["GDACS_UN"] = "Degraded (Feed Offline / Timeout)"
+                    self.sources_status["IMD_RSMC"] = "UNAVAILABLE"
+                    self.sources_status["JTWC_NOAA"] = "UNAVAILABLE"
+                    self.sources_status["GDACS_UN"] = "UNAVAILABLE"
+                    print("[Live Ingestion Alert] CRITICAL: All cyclone monitoring feeds are currently UNAVAILABLE!")
 
             self.last_sync = datetime.datetime.utcnow()
 
@@ -378,6 +387,16 @@ class LiveIngestionService:
                                     final_name = "Deep Depression (IMD RSMC Fix)"
                                     sys_id = f"LIVE-IMD-{datetime.datetime.utcnow().strftime('%Y%m%d%H')}"
 
+                                # FIX-06: Extract genuine central pressure, speed and direction from bulletin; NEVER fabricate 996 / 15 / WNW
+                                p_match = re.search(r"(?:CENTRAL\s+PRESSURE|PRESSURE|ECP)\s*(?:IS|ESTIMATED\s+AT)?\s*(\d{3,4})\s*(?:HPA|MB)", text_content, re.IGNORECASE)
+                                pressure_val = int(p_match.group(1)) if p_match else None
+
+                                s_match = re.search(r"(?:SPEED|MOVED|MOVING\s+AT)\s*(\d{1,3})\s*(?:KMPH|KM/H|KT|KNOTS)", text_content, re.IGNORECASE)
+                                speed_val = int(s_match.group(1)) if s_match else None
+
+                                d_match = re.search(r"(?:DIRECTION|TOWARDS?|MOVING)\s+([A-Z]{1,3}|NORTH|SOUTH|EAST|WEST|NORTHWEST|NORTHEAST|SOUTHWEST|SOUTHEAST)", text_content, re.IGNORECASE)
+                                dir_val = d_match.group(1).upper() if d_match else None
+
                                 systems.append({
                                     "id": sys_id,
                                     "name": final_name,
@@ -387,13 +406,34 @@ class LiveIngestionService:
                                     "intensity_knots": self._category_to_knots(cat),
                                     "lat": lat_extracted,
                                     "lon": lon_extracted,
-                                    "central_pressure_hpa": 996,
-                                    "movement_speed_kmph": 15,
-                                    "movement_direction": "WNW"
+                                    "central_pressure_hpa": pressure_val,
+                                    "movement_speed_kmph": speed_val,
+                                    "movement_direction": dir_val,
+                                    "wind_convention": "3_MIN_SUSTAINED",
+                                    "data_quality": {
+                                        "central_pressure": "OBSERVED" if pressure_val is not None else "UNAVAILABLE",
+                                        "movement_speed": "OBSERVED" if speed_val is not None else "UNAVAILABLE",
+                                        "movement_direction": "OBSERVED" if dir_val is not None else "UNAVAILABLE",
+                                        "center_fix": "OBSERVED"
+                                    },
+                                    "observation_time_utc": datetime.datetime.utcnow().isoformat() + "Z"
                                 })
                                 break
-        except Exception:
-            self.sources_status["IMD_RSMC"] = "Online (Active Monitoring)"
+
+                        if systems:
+                            self.sources_status["IMD_RSMC"] = "HEALTHY"
+                            self.last_successful_sync["IMD_RSMC"] = datetime.datetime.utcnow()
+                        else:
+                            self.sources_status["IMD_RSMC"] = "NO_ACTIVE_STORMS"
+                            self.last_successful_sync["IMD_RSMC"] = datetime.datetime.utcnow()
+                    else:
+                        self.sources_status["IMD_RSMC"] = "NO_ACTIVE_STORMS"
+                        self.last_successful_sync["IMD_RSMC"] = datetime.datetime.utcnow()
+                else:
+                    self.sources_status["IMD_RSMC"] = f"FAILED (HTTP {resp.status_code})"
+        except Exception as e:
+            self.sources_status["IMD_RSMC"] = f"FAILED ({type(e).__name__})"
+            self.last_error = f"IMD fetch notice: {e}"
 
         return systems
 
@@ -410,7 +450,6 @@ class LiveIngestionService:
             async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
                 resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
                 if resp.status_code == 200:
-                    self.sources_status["GDACS_UN"] = "Online (Active Feed)"
                     root = ET.fromstring(resp.content)
                     ns_geo = "{http://www.georss.org/georss}"
                     
@@ -446,6 +485,7 @@ class LiveIngestionService:
                                         name_match = re.search(r"cyclone\s+([A-Za-z0-9\-]+)", title, re.IGNORECASE)
                                         raw_name = name_match.group(1).strip() if name_match else "BOB-05"
                                         
+                                        # FIX-06: Do NOT fabricate pressure/speed/direction when absent from GeoRSS
                                         systems.append({
                                             "id": f"LIVE-GDACS-{raw_name.upper()}",
                                             "name": "Deep Depression (BOB-05)" if "one" in raw_name.lower() or "bob" in raw_name.lower() else f"Cyclone {raw_name.capitalize()}",
@@ -456,16 +496,31 @@ class LiveIngestionService:
                                             "telemetry_type": "LIVE",
                                             "category": cat,
                                             "intensity_knots": max(30, knots),
+                                            "wind_convention": "1_MIN_SUSTAINED",
                                             "lat": round(lat_val, 2),
                                             "lon": round(lon_val, 2),
-                                            "central_pressure_hpa": 996,
-                                            "movement_speed_kmph": 15,
-                                            "movement_direction": "WNW"
+                                            "central_pressure_hpa": None,
+                                            "movement_speed_kmph": None,
+                                            "movement_direction": None,
+                                            "data_quality": {
+                                                "central_pressure": "UNAVAILABLE",
+                                                "movement_speed": "UNAVAILABLE",
+                                                "movement_direction": "UNAVAILABLE",
+                                                "center_fix": "OBSERVED"
+                                            },
+                                            "observation_time_utc": datetime.datetime.utcnow().isoformat() + "Z"
                                         })
+
+                    if systems:
+                        self.sources_status["GDACS_UN"] = "HEALTHY"
+                        self.last_successful_sync["GDACS_UN"] = datetime.datetime.utcnow()
+                    else:
+                        self.sources_status["GDACS_UN"] = "NO_ACTIVE_STORMS"
+                        self.last_successful_sync["GDACS_UN"] = datetime.datetime.utcnow()
                 else:
-                    self.sources_status["GDACS_UN"] = "Online (Standby)"
+                    self.sources_status["GDACS_UN"] = f"FAILED (HTTP {resp.status_code})"
         except Exception as e:
-            self.sources_status["GDACS_UN"] = "Online (Standby)"
+            self.sources_status["GDACS_UN"] = f"FAILED ({type(e).__name__})"
             print(f"[Live Ingestion] GDACS feed notice: {e}")
             
         return systems
@@ -536,14 +591,27 @@ class LiveIngestionService:
                             "lon": lon_val,
                             "central_pressure_hpa": pressure_val,
                             "movement_speed_kmph": motion_speed_kmph,
-                            "movement_direction": motion_dir,
+                            "movement_direction": motion_dir if motion_dir != "Unavailable" else None,
                             "advisory_number": advisory_no,
+                            "data_quality": {
+                                "central_pressure": "OBSERVED" if pressure_val is not None else "UNAVAILABLE",
+                                "movement_speed": "OBSERVED" if motion_speed_kmph is not None else "UNAVAILABLE",
+                                "movement_direction": "OBSERVED" if (motion_dir and motion_dir != "Unavailable") else "UNAVAILABLE",
+                                "center_fix": "OBSERVED"
+                            },
                             "observation_time_utc": datetime.datetime.utcnow().isoformat() + "Z"
                         })
+
+                    if systems:
+                        self.sources_status["JTWC_NOAA"] = "HEALTHY"
+                        self.last_successful_sync["JTWC_NOAA"] = datetime.datetime.utcnow()
+                    else:
+                        self.sources_status["JTWC_NOAA"] = "NO_ACTIVE_STORMS"
+                        self.last_successful_sync["JTWC_NOAA"] = datetime.datetime.utcnow()
                 else:
-                    self.sources_status["JTWC_NOAA"] = "Online (Active Monitoring)"
-        except Exception:
-            self.sources_status["JTWC_NOAA"] = "Online (Active Monitoring)"
+                    self.sources_status["JTWC_NOAA"] = f"FAILED (HTTP {resp.status_code})"
+        except Exception as e:
+            self.sources_status["JTWC_NOAA"] = f"FAILED ({type(e).__name__})"
 
         return systems
 
@@ -819,12 +887,16 @@ class LiveIngestionService:
 
     async def start_periodic_worker(self, interval_seconds: int = 480):
         """
-        Background loop executing sync passes and keep-alive heartbeats every `interval_seconds` (default: 8 minutes).
+        Background loop executing sync passes every `interval_seconds`.
+        Verifies active leadership status before each pass (FIX-02).
         """
-        from app.core.process_lock import update_worker_heartbeat
+        from app.core.process_lock import is_leader, update_worker_heartbeat
         print(f"[Live Ingestion Worker] Background daemon started (polling every {interval_seconds}s).")
         while True:
             try:
+                if not is_leader():
+                    print("[Live Ingestion Worker] Process is no longer leader. Halting ingestion loop.")
+                    break
                 update_worker_heartbeat()
                 await self.sync_all_sources()
                 

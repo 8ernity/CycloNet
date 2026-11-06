@@ -251,7 +251,9 @@ class CycloneIntensityService:
             pred_idx = int(np.argmax(probs))
             conf = float(probs[pred_idx]) * 100.0
             
-            # ML-05: Uncertainty quantification via normalized Shannon entropy
+            # FIX-11: Multi-metric predictive uncertainty heuristic
+            # 1. Maximum Softmax Probability (MSP floor)
+            # 2. Normalized Shannon Entropy
             eps = 1e-12
             probs_safe = np.clip(probs, eps, 1.0)
             entropy = -float(np.sum(probs_safe * np.log(probs_safe)))
@@ -259,20 +261,34 @@ class CycloneIntensityService:
             max_entropy = float(np.log(num_classes)) if num_classes > 1 else 1.0
             normalized_entropy = float(entropy / max_entropy)
 
-            # ML-05: Out-of-distribution (OOD) & low-confidence abstention
-            # Suppress forced classification when model is uncertain or entropy is near maximum
-            is_abstained = (conf < 35.0) or (normalized_entropy > 0.88)
+            # 3. Free Energy Score (Liu et al., NeurIPS 2020: Energy-based OOD detection)
+            # Energy E(x; f) = -T * log(sum(exp(f_i(x) / T))) with T=1.0
+            energy_score = -float(torch.logsumexp(logits, dim=1).item())
+
+            # Heuristic abstention when uncertainty is elevated or energy is high
+            is_abstained = (conf < 35.0) or (normalized_entropy > 0.88) or (energy_score > -2.0)
+            uncertainty_flag = "UNCERTAIN_PREDICTION" if is_abstained else "NORMAL"
             
         if is_abstained:
             return {
                 'status': 'INSUFFICIENT_CONFIDENCE',
                 'is_cyclone': False,
                 'is_abstained': True,
+                'uncertainty_flag': 'UNCERTAIN_PREDICTION',
                 'category': 'Insufficient Confidence (Abstained)',
                 'category_short': 'ABSTAINED',
                 'confidence': round(conf, 2),
                 'normalized_entropy': round(normalized_entropy, 3),
-                'abstention_reason': f'Input image shows high predictive uncertainty (normalized entropy: {normalized_entropy:.2f}, max probability: {conf:.1f}%). The classifier abstains from forced prediction on ambiguous or out-of-distribution patterns (ML-05).',
+                'energy_score': round(energy_score, 3),
+                'predictive_uncertainty_heuristic': {
+                    'normalized_entropy': round(normalized_entropy, 3),
+                    'max_softmax_probability': round(conf / 100.0, 3),
+                    'energy_score': round(energy_score, 3),
+                    'heuristic_method': 'Normalized Shannon Entropy + MSP Floor + Free Energy Score',
+                    'scientific_status': 'UNVALIDATED_HEURISTIC_PREVIEW',
+                    'disclaimer': 'Entropy and free energy scores provide empirical predictive uncertainty screening, not certified formal OOD guarantees. Operational certification requires validation against independent multi-sensor OOD benchmark datasets (FIX-11).'
+                },
+                'abstention_reason': f'Input image shows high predictive uncertainty (normalized entropy: {normalized_entropy:.2f}, energy: {energy_score:.2f}, max probability: {conf:.1f}%). The classifier abstains from forced prediction on ambiguous or out-of-distribution patterns (FIX-11).',
                 'dvorak_t': None,
                 'dvorak_estimate_available': False,
                 'wind_speed_knots': None,
@@ -303,10 +319,20 @@ class CycloneIntensityService:
             'status': 'SUCCESS',
             'is_cyclone': is_cyclone,
             'is_abstained': False,
+            'uncertainty_flag': uncertainty_flag,
             'category': pred_name,
             'category_short': pred_class if is_cyclone else 'NOT A CYCLONE',
             'confidence': round(conf, 2),
             'normalized_entropy': round(normalized_entropy, 3),
+            'energy_score': round(energy_score, 3),
+            'predictive_uncertainty_heuristic': {
+                'normalized_entropy': round(normalized_entropy, 3),
+                'max_softmax_probability': round(conf / 100.0, 3),
+                'energy_score': round(energy_score, 3),
+                'heuristic_method': 'Normalized Shannon Entropy + MSP Floor + Free Energy Score',
+                'scientific_status': 'UNVALIDATED_HEURISTIC_PREVIEW',
+                'disclaimer': 'Entropy and free energy scores provide empirical predictive uncertainty screening, not certified formal OOD guarantees.'
+            },
             'dvorak_t': None,
             'dvorak_estimate_available': False,
             'wind_speed_knots': None,

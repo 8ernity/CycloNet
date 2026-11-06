@@ -2,16 +2,19 @@ import os
 import time
 import math
 import logging
+import uuid
 from collections import OrderedDict
 from typing import Optional, Dict, Any, Tuple
 from fastapi import Request, Response, HTTPException
 
 logger = logging.getLogger(__name__)
 
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
 REDIS_URL = os.getenv("REDIS_URL", "").strip()
+REDIS_FAIL_CLOSED = os.getenv("REDIS_FAIL_CLOSED", "false").lower() in ("true", "1", "yes")
 MAX_IN_MEMORY_CLIENTS = 5000
 
-# Endpoint-specific limits (minute limit, hour limit) for (anonymous, authenticated) - SEC-07
+# Endpoint-specific limits (minute limit, hour limit) for (anonymous, authenticated) - SEC-07 / FIX-01
 DEFAULT_QUOTAS = {
     "chat": {"min_anon": 30, "min_auth": 60, "hr_anon": 120, "hr_auth": 600},
     "multimodal": {"min_anon": 10, "min_auth": 30, "hr_anon": 50, "hr_auth": 300},
@@ -21,7 +24,7 @@ DEFAULT_QUOTAS = {
     "admin": {"min_anon": 10, "min_auth": 30, "hr_anon": 60, "hr_auth": 200},
 }
 
-# Optional Redis client for multi-worker / distributed deployments (SEC-07)
+# Optional Redis client for multi-worker / distributed deployments (SEC-07 / FIX-01)
 _redis_client = None
 if REDIS_URL:
     try:
@@ -30,8 +33,67 @@ if REDIS_URL:
         _redis_client.ping()
         logger.info("[RateLimit] Successfully connected to Redis at %s", REDIS_URL.split("@")[-1])
     except Exception as e:
-        logger.warning("[RateLimit] Could not initialize Redis client (%s); falling back to in-memory limiter.", e)
+        logger.warning("[RateLimit] Could not initialize Redis client (%s); fallback policy active.", e)
         _redis_client = None
+
+# FIX 01: Single atomic Redis Lua script evaluating both minute and hour sliding windows
+# KEYS[1] = minute key, KEYS[2] = hour key
+# ARGV[1] = now, ARGV[2] = min_limit, ARGV[3] = hr_limit, ARGV[4] = unique member, ARGV[5] = min_ttl, ARGV[6] = hr_ttl
+ATOMIC_RATE_LIMIT_LUA = """
+local min_key = KEYS[1]
+local hr_key = KEYS[2]
+local now = tonumber(ARGV[1])
+local min_limit = tonumber(ARGV[2])
+local hr_limit = tonumber(ARGV[3])
+local member = ARGV[4]
+local min_ttl = tonumber(ARGV[5])
+local hr_ttl = tonumber(ARGV[6])
+
+local min_cutoff = now - 60.0
+local hr_cutoff = now - 3600.0
+
+-- 1. Remove expired entries
+redis.call('ZREMRANGEBYSCORE', min_key, '-inf', min_cutoff)
+redis.call('ZREMRANGEBYSCORE', hr_key, '-inf', hr_cutoff)
+
+-- 2. Count active entries
+local min_count = redis.call('ZCARD', min_key)
+local hr_count = redis.call('ZCARD', hr_key)
+
+-- 3. Check minute limit
+if min_count >= min_limit then
+    local oldest = redis.call('ZRANGE', min_key, 0, 0, 'WITHSCORES')
+    local retry_after = 60
+    if oldest and #oldest >= 2 then
+        local oldest_ts = tonumber(oldest[2])
+        retry_after = math.max(1, math.ceil(60.0 - (now - oldest_ts)))
+    end
+    return {0, 0, retry_after, 'minute'}
+end
+
+-- 4. Check hour limit
+if hr_count >= hr_limit then
+    local oldest = redis.call('ZRANGE', hr_key, 0, 0, 'WITHSCORES')
+    local retry_after = 3600
+    if oldest and #oldest >= 2 then
+        local oldest_ts = tonumber(oldest[2])
+        retry_after = math.max(1, math.ceil(3600.0 - (now - oldest_ts)))
+    end
+    return {0, 0, retry_after, 'hour'}
+end
+
+-- 5. Add unique member to both windows atomically
+redis.call('ZADD', min_key, now, member)
+redis.call('ZADD', hr_key, now, member)
+
+-- 6. Set TTLs
+redis.call('EXPIRE', min_key, min_ttl)
+redis.call('EXPIRE', hr_key, hr_ttl)
+
+-- 7. Return success and remaining in minute window
+local remaining_min = math.max(0, min_limit - (min_count + 1))
+return {1, remaining_min, 0, 'ok'}
+"""
 
 class BoundedSlidingWindowLimiter:
     """
@@ -107,41 +169,38 @@ def check_redis_rate_limit(
     now: float
 ) -> Optional[Tuple[bool, int, int]]:
     """
-    SEC-07: Atomic Redis sliding-window check using sorted sets.
-    Returns (allowed, remaining, retry_after), or None if Redis operation fails.
+    FIX 01: Atomic Redis sliding-window check using a single Lua script.
+    Evaluates both minute and hour windows without race conditions.
+    Returns (allowed, remaining, retry_after), or None if Redis is unavailable/fails.
     """
     if not _redis_client:
         return None
 
     try:
-        pipe = _redis_client.pipeline()
         min_key = f"ratelimit:{key_prefix}:{client_id}:min"
-        min_cutoff = now - 60.0
+        hr_key = f"ratelimit:{key_prefix}:{client_id}:hr"
+        request_member = f"{now:.6f}:{uuid.uuid4().hex[:8]}"
 
-        # Remove elements older than 60s and fetch count
-        pipe.zremrangebyscore(min_key, 0, min_cutoff)
-        pipe.zcard(min_key)
-        pipe.zrange(min_key, 0, 0, withscores=True)
-        results = pipe.execute()
-
-        current_min_count = results[1]
-        oldest_entry = results[2]
-
-        if current_min_count >= min_limit:
-            oldest_ts = oldest_entry[0][1] if oldest_entry else min_cutoff
-            retry_after = max(1, int(math.ceil(60.0 - (now - oldest_ts))))
-            return False, 0, retry_after
-
-        # Add current timestamp to window
-        pipe = _redis_client.pipeline()
-        pipe.zadd(min_key, {str(now): now})
-        pipe.expire(min_key, 120)
-        pipe.execute()
-
-        remaining = max(0, min_limit - (current_min_count + 1))
-        return True, remaining, 0
+        result = _redis_client.eval(
+            ATOMIC_RATE_LIMIT_LUA,
+            2,
+            min_key,
+            hr_key,
+            str(now),
+            str(min_limit),
+            str(hr_limit),
+            request_member,
+            "120",
+            "7200"
+        )
+        if result and isinstance(result, (list, tuple)) and len(result) >= 3:
+            allowed = bool(result[0])
+            remaining = int(result[1])
+            retry_after = int(result[2])
+            return allowed, remaining, retry_after
+        return None
     except Exception as e:
-        logger.debug("[RateLimit] Redis sliding window operation failed: %s", e)
+        logger.warning("[RateLimit] Atomic Redis rate check failed: %s", e)
         return None
 
 def enforce_rate_limit(
@@ -151,7 +210,7 @@ def enforce_rate_limit(
     response: Optional[Response] = None
 ):
     """
-    SEC-07: Distributed atomic rate limiter enforcing per-minute limits and hourly quotas.
+    SEC-07 & FIX-01: Distributed atomic rate limiter enforcing per-minute limits and hourly quotas.
     Returns consistent HTTP 429 responses and Retry-After headers.
     """
     client_ip = request.client.host if request.client else "unknown"
@@ -164,11 +223,19 @@ def enforce_rate_limit(
 
     now = time.time()
 
-    # Try Redis distributed limiter first (SEC-07)
+    # Try Redis distributed limiter first (FIX 01)
     redis_res = check_redis_rate_limit(endpoint_type, client_id, min_limit, hr_limit, now)
     if redis_res is not None:
         allowed, remaining, retry_after = redis_res
     else:
+        # In production with fail-closed policy enabled, reject if distributed Redis is down
+        if ENVIRONMENT == "production" and REDIS_FAIL_CLOSED:
+            logger.error("[RateLimit] Redis unavailable in production with REDIS_FAIL_CLOSED=true; failing closed.")
+            raise HTTPException(
+                status_code=503,
+                detail="Rate limiting service temporarily unavailable (fail-closed policy)."
+            )
+
         # Fall back to bounded in-memory sliding window
         allowed, remaining, retry_after = _in_memory_limiter.check_limit(
             client_id=f"{endpoint_type}:{client_id}",
@@ -176,6 +243,18 @@ def enforce_rate_limit(
             hr_limit=hr_limit,
             now=now
         )
+
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded for {endpoint_type}: limit is {min_limit} requests/minute. Try again in {retry_after}s.",
+            headers={"Retry-After": str(retry_after)}
+        )
+
+    if response:
+        response.headers["X-RateLimit-Limit"] = str(min_limit)
+        response.headers["X-RateLimit-Remaining"] = str(remaining)
+        response.headers["X-RateLimit-Reset"] = str(int(now + 60))
 
     if not allowed:
         raise HTTPException(

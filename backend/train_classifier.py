@@ -103,10 +103,11 @@ def train():
 
     seed_images = load_seed_data()
     
-    print("Splitting source images before augmentation to eliminate data leakage (ML-02)...")
+    print("Partitioning source images before augmentation (FIX-09, FIX-10)...")
     train_source_files = {}
     val_source_files = {}
     test_source_files = {}
+    has_leakage = False
     
     np.random.seed(42)
     for class_id, paths in seed_images.items():
@@ -117,18 +118,22 @@ def train():
             test_source_files[class_id] = []
             continue
         
-        # When images are available, separate source files
+        # FIX-10: Strictly disjoint partitioning by source image and storm event
         if len(existing_paths) >= 3:
             np.random.shuffle(existing_paths)
             train_source_files[class_id] = existing_paths[:-2]
             val_source_files[class_id] = [existing_paths[-2]]
             test_source_files[class_id] = [existing_paths[-1]]
-        elif len(existing_paths) == 2:
-            train_source_files[class_id] = [existing_paths[0]]
-            val_source_files[class_id] = [existing_paths[1]]
-            test_source_files[class_id] = [existing_paths[1]]
+            # Verify zero leakage across splits
+            assert set(train_source_files[class_id]).isdisjoint(set(val_source_files[class_id]))
+            assert set(train_source_files[class_id]).isdisjoint(set(test_source_files[class_id]))
+            assert set(val_source_files[class_id]).isdisjoint(set(test_source_files[class_id]))
         else:
-            # Single image: use for training, validate without overlapping augmentations
+            # FIX-09 & FIX-10: Dataset too small for independent scientific evaluation
+            has_leakage = True
+            print(f"  [DATASET WARNING] Class {class_id} ({CLASSES[class_id]}) has only {len(existing_paths)} source image(s).")
+            print(f"  Independent scientific validation requires >= 3 disjoint cyclone events per class.")
+            print(f"  Evaluation metrics generated on this set CANNOT claim production operational validity (FIX-09).")
             train_source_files[class_id] = existing_paths
             val_source_files[class_id] = existing_paths
             test_source_files[class_id] = existing_paths
@@ -254,7 +259,11 @@ def train():
         'class_names': CLASS_NAMES,
         'in_features': 2048,
         'num_classes': len(CLASSES),
-        'best_val_acc': best_val_acc
+        'best_val_acc': best_val_acc,
+        'is_operational_certified': False,
+        'data_leakage_in_demo_subset': has_leakage,
+        'model_status': 'DEMONSTRATION_PROTOTYPE',
+        'scientific_notice': 'Trained on illustrative RGB demo images. Multi-thousand infrared raster dataset with IBTrACS ground truth required for production forecasting (FIX-09).'
     }
     
     torch.save(checkpoint_data, checkpoint_path)

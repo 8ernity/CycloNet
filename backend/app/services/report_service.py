@@ -445,7 +445,8 @@ CYCLONE ADVISORY BULLETIN NO. {b_num}
         return {
             "status": "SIMULATED_DISPATCH_COMPLETE",
             "mode": "SANDBOX_SIMULATION",
-            "production_dispatch_ready": True,
+            "production_dispatch_ready": False,
+            "dispatch_authorization_status": "EXERCISE_SIMULATION_ONLY - NOT AUTHORIZED FOR OPERATIONAL BROADCAST",
             "dispatch_id": dispatch_uuid,
             "timestamp": now.strftime("%Y-%m-%d %H:%M:%S UTC"),
             "region": region,
@@ -461,6 +462,7 @@ CYCLONE ADVISORY BULLETIN NO. {b_num}
             "siren_payload": siren_payload,
             "vhf_payload": vhf_payload,
             "municipal_briefing": municipal_directives,
+            "operational_warning": "CycloNet is an experimental research decision-support simulator. Operational broadcast to public channels requires statutory authorization from national disaster management authorities (NDMA/IMD).",
             "audit_trail": {
                 "initiator": "CycloNet Anticipatory Early Warning Simulator (Exercise Mode)",
                 "dispatch_latency_ms": "NOT_APPLICABLE (SIMULATED)",

@@ -14,6 +14,11 @@ if raw_db_url.startswith("postgres://"):
 SQLALCHEMY_DATABASE_URL = raw_db_url
 
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+    if os.getenv("ENVIRONMENT") == "production":
+        logger.warning(
+            "[Database] PRODUCTION WARNING: Running with SQLite fallback in production. "
+            "Configure DATABASE_URL to connect to a managed PostgreSQL cluster."
+        )
     connect_args = {"check_same_thread": False}
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,

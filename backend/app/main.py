@@ -8,7 +8,12 @@ from app.api.routes import router
 from app.api.websocket import ws_router, ws_manager
 from app.core.database import engine, Base, SessionLocal
 from app.models import domain
-from app.core.process_lock import acquire_worker_leader_lock, release_worker_leader_lock
+from app.core.process_lock import (
+    acquire_worker_leader_lock,
+    release_worker_leader_lock,
+    run_worker_heartbeat_task,
+    is_leader
+)
 from app.services.live_ingestion import live_ingestion_service
 from app.services.ml_service import ml_service
 
@@ -30,8 +35,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[Lifespan] Database initialization warning: {e}")
 
-    # In multi-worker deployments, ensure only one worker acts as the background ingestion leader (DB-03, DB-04)
+    # In multi-worker deployments, ensure only one worker acts as the background ingestion leader (DB-03, DB-04, FIX-02)
     if acquire_worker_leader_lock():
+        # Spawn dedicated heartbeat renewal task (renews lease every 15s to keep 60s lease alive)
+        heartbeat_task = asyncio.create_task(run_worker_heartbeat_task(interval_seconds=15))
+        _background_tasks.append(heartbeat_task)
+
+        # Spawn ingestion loop
         ingest_task = asyncio.create_task(live_ingestion_service.start_periodic_worker(interval_seconds=900))
         _background_tasks.append(ingest_task)
     else:
@@ -111,8 +121,9 @@ def health_live():
     return {"status": "alive"}
 
 @app.get("/health/ready")
+@app.get("/ready")
 def health_ready(response: Response):
-    """Readiness probe: checks database connectivity and core services."""
+    """Readiness probe: checks database connectivity, Redis, and core services."""
     db_ok = False
     try:
         db = SessionLocal()
@@ -122,14 +133,27 @@ def health_ready(response: Response):
     except Exception:
         db_ok = False
 
+    redis_ok = None
+    redis_url = os.getenv("REDIS_URL", "").strip()
+    if redis_url:
+        try:
+            import redis
+            rc = redis.from_url(redis_url, socket_timeout=1.5)
+            rc.ping()
+            redis_ok = True
+        except Exception:
+            redis_ok = False
+
     if not db_ok:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-        return {"status": "unready", "database": "unreachable"}
+        return {"status": "unready", "database": "unreachable", "redis": redis_ok}
 
     return {
         "status": "ready",
         "database": "connected",
+        "redis": "connected" if redis_ok is True else ("not_configured" if redis_ok is None else "unreachable"),
         "model_loaded": getattr(ml_service, "has_model", False),
+        "is_worker_leader": is_leader(),
         "ingestion_sources": live_ingestion_service.sources_status
     }
 
@@ -150,5 +174,6 @@ def health(response: Response):
         "status": status_str,
         "database": "connected" if db_ok else "unreachable",
         "model_loaded": getattr(ml_service, "has_model", False),
+        "is_worker_leader": is_leader(),
         "ingestion_sources": live_ingestion_service.sources_status
     }
