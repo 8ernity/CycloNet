@@ -102,39 +102,39 @@ class MeteorologicalReportService:
         ]
 
     def get_affected_districts(self, basin: str, lat: float, lon: float) -> List[Dict[str, str]]:
-        """Identifies vulnerable coastal districts based on active coordinates and basin."""
+        """Identifies vulnerable coastal districts based on active coordinates and basin (DATA-08, ALERT-04)."""
         is_bob = "bengal" in basin.lower() or lon > 77.0
         if is_bob:
             if lat >= 19.5:
                 return [
-                    {"district": "Puri, Odisha", "risk": "Extremely High", "state": "Odisha", "shelters": "485 Active", "evacuation": "Mandatory"},
-                    {"district": "Jagatsinghpur, Odisha", "risk": "Extremely High", "state": "Odisha", "shelters": "360 Active", "evacuation": "Mandatory"},
-                    {"district": "Kendrapara & Bhadrak", "risk": "High", "state": "Odisha", "shelters": "520 Active", "evacuation": "High Priority"},
-                    {"district": "South 24 Parganas, WB", "risk": "High", "state": "West Bengal", "shelters": "410 Active", "evacuation": "High Priority"},
-                    {"district": "East Midnapore, WB", "risk": "Moderate", "state": "West Bengal", "shelters": "290 Active", "evacuation": "Selective"}
+                    {"district": "Puri, Odisha", "risk": "Extremely High", "state": "Odisha", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
+                    {"district": "Jagatsinghpur, Odisha", "risk": "Extremely High", "state": "Odisha", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
+                    {"district": "Kendrapara & Bhadrak", "risk": "High", "state": "Odisha", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
+                    {"district": "South 24 Parganas, WB", "risk": "High", "state": "West Bengal", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
+                    {"district": "East Midnapore, WB", "risk": "Moderate", "state": "West Bengal", "shelters": "Data unverified (consult DDMA)", "advisory": "Moderate Hazard Zone"}
                 ]
             elif lat >= 16.0:
                 return [
-                    {"district": "Srikakulam, AP", "risk": "Extremely High", "state": "Andhra Pradesh", "shelters": "380 Active", "evacuation": "Mandatory"},
-                    {"district": "Visakhapatnam, AP", "risk": "Extremely High", "state": "Andhra Pradesh", "shelters": "420 Active", "evacuation": "Mandatory"},
-                    {"district": "Vizianagaram, AP", "risk": "High", "state": "Andhra Pradesh", "shelters": "290 Active", "evacuation": "High Priority"},
-                    {"district": "Ganjam, Odisha", "risk": "High", "state": "Odisha", "shelters": "340 Active", "evacuation": "High Priority"},
-                    {"district": "Kakinada, AP", "risk": "Moderate", "state": "Andhra Pradesh", "shelters": "210 Active", "evacuation": "Selective"}
+                    {"district": "Srikakulam, AP", "risk": "Extremely High", "state": "Andhra Pradesh", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
+                    {"district": "Visakhapatnam, AP", "risk": "Extremely High", "state": "Andhra Pradesh", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
+                    {"district": "Vizianagaram, AP", "risk": "High", "state": "Andhra Pradesh", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
+                    {"district": "Ganjam, Odisha", "risk": "High", "state": "Odisha", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
+                    {"district": "Kakinada, AP", "risk": "Moderate", "state": "Andhra Pradesh", "shelters": "Data unverified (consult DDMA)", "advisory": "Moderate Hazard Zone"}
                 ]
             else:
                 return [
-                    {"district": "Chennai Coastal Zone", "risk": "High", "state": "Tamil Nadu", "shelters": "310 Active", "evacuation": "High Priority"},
-                    {"district": "Nellore, AP", "risk": "High", "state": "Andhra Pradesh", "shelters": "280 Active", "evacuation": "High Priority"},
-                    {"district": "Nagapattinam, TN", "risk": "Moderate", "state": "Tamil Nadu", "shelters": "240 Active", "evacuation": "Selective"},
-                    {"district": "Cuddalore, TN", "risk": "Moderate", "state": "Tamil Nadu", "shelters": "190 Active", "evacuation": "Selective"}
+                    {"district": "Chennai Coastal Zone", "risk": "High", "state": "Tamil Nadu", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
+                    {"district": "Nellore, AP", "risk": "High", "state": "Andhra Pradesh", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
+                    {"district": "Nagapattinam, TN", "risk": "Moderate", "state": "Tamil Nadu", "shelters": "Data unverified (consult DDMA)", "advisory": "Moderate Hazard Zone"},
+                    {"district": "Cuddalore, TN", "risk": "Moderate", "state": "Tamil Nadu", "shelters": "Data unverified (consult DDMA)", "advisory": "Moderate Hazard Zone"}
                 ]
         else:
             return [
-                {"district": "Kutch & Dwarka, GJ", "risk": "Extremely High", "state": "Gujarat", "shelters": "410 Active", "evacuation": "Mandatory"},
-                {"district": "Porbandar, GJ", "risk": "Extremely High", "state": "Gujarat", "shelters": "320 Active", "evacuation": "Mandatory"},
-                {"district": "Gir Somnath & Junagadh", "risk": "High", "state": "Gujarat", "shelters": "350 Active", "evacuation": "High Priority"},
-                {"district": "Mumbai Suburban, MH", "risk": "Moderate", "state": "Maharashtra", "shelters": "290 Active", "evacuation": "Selective"},
-                {"district": "Raigad & Ratnagiri, MH", "risk": "Moderate", "state": "Maharashtra", "shelters": "220 Active", "evacuation": "Selective"}
+                {"district": "Kutch & Dwarka, GJ", "risk": "Extremely High", "state": "Gujarat", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
+                {"district": "Porbandar, GJ", "risk": "Extremely High", "state": "Gujarat", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
+                {"district": "Gir Somnath & Junagadh", "risk": "High", "state": "Gujarat", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
+                {"district": "Mumbai Suburban, MH", "risk": "Moderate", "state": "Maharashtra", "shelters": "Data unverified (consult DDMA)", "advisory": "Moderate Hazard Zone"},
+                {"district": "Raigad & Ratnagiri, MH", "risk": "Moderate", "state": "Maharashtra", "shelters": "Data unverified (consult DDMA)", "advisory": "Moderate Hazard Zone"}
             ]
 
     def generate_official_bulletins(self, system: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -374,9 +374,9 @@ CYCLONE ADVISORY BULLETIN NO. {b_num}
         expires_time = (now + timedelta(hours=12)).strftime('%Y-%m-%dT%H:%M:%S+00:00')
         ET.SubElement(info, "expires").text = expires_time
         ET.SubElement(info, "senderName").text = "CycloNet Anticipatory Early Warning Simulator (Exercise Mode)"
-        ET.SubElement(info, "headline").text = f"{risk_level.upper()} ALERT: {cyclone_name} Threat Approaching {region} (Exercise)"
-        ET.SubElement(info, "description").text = f"[EXERCISE ADVISORY] Anticipatory Risk Forecaster indicates peak storm surge of {surge:.1f}m and gale winds of {wind:.0f} kt ({wind_kmh} km/h). Immediate evacuation of inundation zones mandated."
-        ET.SubElement(info, "instruction").text = "Evacuate designated low-lying coastal belt to nearest Multipurpose Cyclone Shelters. Avoid arterial roads marked with red choke points. Disconnect non-critical electrical lines."
+        ET.SubElement(info, "headline").text = f"{risk_level.upper()} ADVISORY (EXERCISE): {cyclone_name} Simulation for {region}"
+        ET.SubElement(info, "description").text = f"[EXERCISE SIMULATION ONLY] Experimental Risk Forecaster calculates potential surge of {surge:.1f}m and gale winds of {wind:.0f} kt ({wind_kmh} km/h). Follow official IMD/NDMA orders."
+        ET.SubElement(info, "instruction").text = "SIMULATION EXERCISE: Coastal communities should monitor official directives from District Disaster Management Authorities and IMD bulletins. Verify local shelter routes through official emergency services."
 
         area = ET.SubElement(info, "area")
         ET.SubElement(area, "areaDesc").text = f"{region} Coastal Corridor and Low-Lying Catchment"
@@ -386,9 +386,9 @@ CYCLONE ADVISORY BULLETIN NO. {b_num}
 
         # 2. SMS Cell Broadcast Payloads (Multilingual)
         sms_payload = {
-            "english": f"[EXERCISE ALERT] NDMA SIMULATION: {risk_level} cyclone risk in {region}. Peak surge {surge}m, wind {wind_kmh} km/h. Evacuate to designated cyclone shelters immediately. Dial 1070 for rescue.",
-            "hindi": f"[प्रायोगिक अभ्यास] एनडीएमए सिमुलेशन: {region} में {risk_level} चक्रवात का खतरा। {surge}m तूफानी लहर और {wind_kmh} km/h हवा की संभावना। तुरंत नजदीकी चक्रवात आश्रय में जाएं। आपातकालीन नंबर 1070।",
-            "regional": f"[অনুশীলনী সতর্কতা] জরুরি সাইক্লোন মহড়া: {region} উপকূলে {risk_level} সাইক্লোন সতর্কতা। {surge}m জলোচ্ছ্বাস ও {wind_kmh} km/h তীব্র ঝড়। দ্রুত বহুমুখী আশ্রয়কেন্দ্রে আশ্রয় নিন।"
+            "english": f"[EXERCISE SIMULATION] NDMA DRILL: {risk_level} cyclone scenario in {region}. Peak surge {surge}m, wind {wind_kmh} km/h. Monitor official DDMA directives. Dial 1070 for emergency services.",
+            "hindi": f"[प्रायोगिक अभ्यास] एनडीएमए सिमुलेशन: {region} में {risk_level} चक्रवात परिदृश्य। {surge}m लहर, {wind_kmh} km/h हवा। आधिकारिक डीडीएमए निर्देशों का पालन करें। आपातकालीन नंबर 1070।",
+            "regional": f"[অনুশীলনী সতর্কতা] জরুরি মহড়া: {region} উপকূলে {risk_level} সাইক্লোন পরিস্থিতি। {surge}m জলোচ্ছ্বাস ও {wind_kmh} km/h তীব্র ঝড়। স্থানীয় সরকারি নির্দেশাবলী অনুসরণ করুন।"
         }
 
         # 3. NDMA SACHET App Broadcast Feed (JSON format)
@@ -404,8 +404,8 @@ CYCLONE ADVISORY BULLETIN NO. {b_num}
                 "wind_speed_knots": wind,
                 "wind_speed_kmh": wind_kmh
             },
-            "action_directive": "MANDATORY_EVACUATION",
-            "safe_shelters_active": 18,
+            "action_directive": "EXERCISE_SCENARIO_ADVISORY",
+            "safe_shelters_active": "Illustrative open-data proxy (verify with DDMA)",
             "broadcast_valid_until_utc": (now + timedelta(hours=8)).isoformat() + "Z"
         }
 
@@ -421,12 +421,12 @@ CYCLONE ADVISORY BULLETIN NO. {b_num}
         # 5. Coast Guard / NAVTEX VHF Channel 16 Broadcast
         vhf_payload = f"[EXERCISE TRANSMISSION] ALL STATIONS, ALL STATIONS, ALL STATIONS. THIS IS COAST GUARD MARINE RESCUE SUB-CENTRE SIMULATION. {risk_level} CYCLONE ADVISORY IN FORCE FOR {region.upper()}. ESTIMATED SURGE {surge} METRES, WINDS {wind} KNOTS GUSTING TO {int(wind*1.25)} KNOTS. ALL FISHING TRAWLERS AND OFFSHORE VESSELS ADVISE RETURN TO SAFE HARBOUR IMMEDIATELY. BREAK."
 
-        # 6. Municipal & District Magistrate Action Directives
+        # 6. Municipal & District Magistrate Action Directives (ALERT-04, DATA-08)
         municipal_directives = [
-            f"Mandatory evacuation of {region} low-lying coastal belt (< 3.0m elevation AMSL) within 6 hours.",
-            f"Pre-stage NDRF/SDRF water-rescue teams with inflatable motorized boats at identified drainage choke points.",
-            f"Order temporary shutdown of exposed 220kV/33kV coastal substations to prevent catastrophic transformer arc flash.",
-            f"Activate emergency DG diesel generator power backups and satellite comms at all 18 Multipurpose Shelters."
+            f"Coordinate with District Disaster Management Authorities (DDMA) for official evacuation orders across low-lying coastal belts (< 3.0m elevation AMSL) of {region}.",
+            f"Pre-stage NDRF/SDRF water-rescue teams with motorized boats at identified drainage choke points.",
+            f"Review contingency de-energization plans for coastal 220kV/33kV substations to prevent saltwater flashovers.",
+            f"Verify operational readiness of emergency backup generators and satellite comms at designated Multipurpose Cyclone Shelters."
         ]
 
         # Channel Delivery Statuses (AI-05: Transparent Sandbox Simulation without fabricated delivery numbers)

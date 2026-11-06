@@ -25,17 +25,40 @@ ALLOWED_ORIGIN_PATTERNS = [
     "https://cyclonet-frontend.onrender.com"
 ]
 
+from urllib.parse import urlparse
+
 def is_origin_allowed(origin: Optional[str]) -> bool:
-    """Validates origin header against allowed CORS/WS origins."""
+    """
+    SEC-08: Strictly validates WebSocket origin header against explicit allowed origins.
+    Never uses substring checks like 'localhost in origin'.
+    """
     if not origin:
-        return True  # Native apps or direct clients without origin header
-    origin_clean = origin.rstrip("/").lower()
-    for allowed in ALLOWED_ORIGIN_PATTERNS:
-        if origin_clean == allowed.rstrip("/"):
-            return True
-        if "localhost" in allowed and ("localhost" in origin_clean or "127.0.0.1" in origin_clean):
-            return True
-    return False
+        return True  # Non-browser clients, health monitors, or same-origin direct calls
+
+    try:
+        parsed = urlparse(origin)
+        scheme = parsed.scheme.lower()
+        if scheme not in ("http", "https", "ws", "wss"):
+            return False
+        hostname = (parsed.hostname or "").lower()
+        port = parsed.port
+        origin_clean = f"{scheme}://{hostname}{f':{port}' if port else ''}"
+
+        for allowed in ALLOWED_ORIGIN_PATTERNS:
+            allowed_clean = allowed.rstrip("/").lower()
+            if allowed_clean == "*":
+                if os.getenv("ENVIRONMENT") == "production":
+                    continue
+                return True
+            if origin_clean == allowed_clean:
+                return True
+            # Safely match localhost on local development ports
+            if allowed_clean in ("http://localhost:3000", "http://127.0.0.1:3000"):
+                if hostname in ("localhost", "127.0.0.1") and port in (3000, 3001, 8000):
+                    return True
+        return False
+    except Exception:
+        return False
 
 class SecureWebSocketManager:
     """

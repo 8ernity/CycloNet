@@ -251,6 +251,47 @@ class CycloneIntensityService:
             pred_idx = int(np.argmax(probs))
             conf = float(probs[pred_idx]) * 100.0
             
+            # ML-05: Uncertainty quantification via normalized Shannon entropy
+            eps = 1e-12
+            probs_safe = np.clip(probs, eps, 1.0)
+            entropy = -float(np.sum(probs_safe * np.log(probs_safe)))
+            num_classes = len(self.classes)
+            max_entropy = float(np.log(num_classes)) if num_classes > 1 else 1.0
+            normalized_entropy = float(entropy / max_entropy)
+
+            # ML-05: Out-of-distribution (OOD) & low-confidence abstention
+            # Suppress forced classification when model is uncertain or entropy is near maximum
+            is_abstained = (conf < 35.0) or (normalized_entropy > 0.88)
+            
+        if is_abstained:
+            return {
+                'status': 'INSUFFICIENT_CONFIDENCE',
+                'is_cyclone': False,
+                'is_abstained': True,
+                'category': 'Insufficient Confidence (Abstained)',
+                'category_short': 'ABSTAINED',
+                'confidence': round(conf, 2),
+                'normalized_entropy': round(normalized_entropy, 3),
+                'abstention_reason': f'Input image shows high predictive uncertainty (normalized entropy: {normalized_entropy:.2f}, max probability: {conf:.1f}%). The classifier abstains from forced prediction on ambiguous or out-of-distribution patterns (ML-05).',
+                'dvorak_t': None,
+                'dvorak_estimate_available': False,
+                'wind_speed_knots': None,
+                'wind_speed_estimate_available': False,
+                'intensity_notice': 'Operational quantitative wind speeds and Dvorak T-numbers require calibrated objective thermal infrared (TIR) analysis. Category classification alone does not substitute for numerical wind retrieval (ML-06).',
+                'checkpoint_status': 'TRAINED_CHECKPOINT_LOADED' if self.has_model else 'DEMO_PRETRAINED_BACKBONE',
+                'is_trained_weights': self.has_model,
+                'is_uncalibrated_demo': not self.has_model,
+                'warning': 'Predictive uncertainty exceeded confidence threshold; prediction abstained to prevent false hazard alerts.',
+                'model_architecture': 'ResNet-50 + Custom Classifier Head (PyTorch)',
+                'domain_transfer_status': 'RGB_SURROGATE_SURFACE',
+                'domain_notice': 'Transfer learning backbone (ResNet-50) is pretrained on ImageNet optical natural images. Operational cyclone categorization requires fine-tuning on calibrated INSAT-3DR / Meteosat-9 infrared brightness temperature grids (TIR1/TIR2/WV).',
+                'overlay_url': None,
+                'gradcam_data_url': None,
+                'probabilities': {
+                    self.classes[i]: round(float(probs[i]) * 100.0, 2) for i in range(len(self.classes))
+                }
+            }
+
         pred_class = self.classes[pred_idx]
         pred_name = self.class_names[pred_idx]
         is_cyclone = (pred_class != 'NOT_A_CYCLONE')
@@ -259,10 +300,13 @@ class CycloneIntensityService:
         gradcam_url = self._compute_gradcam(feat, pred_idx) if is_cyclone else None
 
         return {
+            'status': 'SUCCESS',
             'is_cyclone': is_cyclone,
+            'is_abstained': False,
             'category': pred_name,
             'category_short': pred_class if is_cyclone else 'NOT A CYCLONE',
             'confidence': round(conf, 2),
+            'normalized_entropy': round(normalized_entropy, 3),
             'dvorak_t': None,
             'dvorak_estimate_available': False,
             'wind_speed_knots': None,

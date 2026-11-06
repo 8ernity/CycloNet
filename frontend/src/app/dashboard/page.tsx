@@ -173,7 +173,7 @@ export default function DashboardLiveMonitoringPage() {
   const getAuthHeaders = (): Record<string, string> => {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (typeof window !== "undefined") {
-      const token = localStorage.getItem("cyclonet_auth_token") || localStorage.getItem("admin_api_key");
+      const token = localStorage.getItem("cyclonet_auth_token");
       if (token) headers["Authorization"] = `Bearer ${token}`;
     }
     return headers;

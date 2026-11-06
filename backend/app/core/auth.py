@@ -3,7 +3,8 @@ import time
 import datetime
 import secrets
 import logging
-from typing import Optional, Dict, Any
+from enum import Enum
+from typing import Optional, Dict, Any, List
 from fastapi import Header, HTTPException, Depends, Request, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
@@ -11,7 +12,7 @@ from jwt import PyJWKClient
 
 logger = logging.getLogger(__name__)
 
-# Security configuration - SEC-02: No hardcoded fallback credentials!
+# Security configuration - SEC-01, SEC-02, SEC-03
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "")
 CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY", "")
 CLERK_PEM_PUBLIC_KEY = os.getenv("CLERK_PEM_PUBLIC_KEY", "")
@@ -19,14 +20,41 @@ CLERK_JWKS_URL = os.getenv("CLERK_JWKS_URL", "")
 CLERK_ISSUER = os.getenv("CLERK_ISSUER", "")
 CLERK_AUDIENCE = os.getenv("CLERK_AUDIENCE", "")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
+ENVIRONMENT = os.getenv("ENVIRONMENT", "production").lower()
 
 security_bearer = HTTPBearer(auto_error=False)
 
 # Cached JWKS client for Clerk public key rotation - SEC-01
 _jwks_client: Optional[PyJWKClient] = None
 
+# SEC-02: Role Enumeration and Hierarchy
+class Role(str, Enum):
+    PUBLIC_VIEWER = "public_viewer"
+    AUTHENTICATED_ANALYST = "authenticated_analyst"
+    AUTHORIZED_OPERATOR = "authorized_operator"
+    ADMINISTRATOR = "administrator"
+
+ROLE_MAPPING: Dict[str, Role] = {
+    "admin": Role.ADMINISTRATOR,
+    "administrator": Role.ADMINISTRATOR,
+    "operator": Role.AUTHORIZED_OPERATOR,
+    "authorized_operator": Role.AUTHORIZED_OPERATOR,
+    "analyst": Role.AUTHENTICATED_ANALYST,
+    "authenticated_analyst": Role.AUTHENTICATED_ANALYST,
+    "member": Role.AUTHENTICATED_ANALYST,
+    "viewer": Role.PUBLIC_VIEWER,
+    "public_viewer": Role.PUBLIC_VIEWER,
+}
+
+ROLE_HIERARCHY: Dict[Role, int] = {
+    Role.PUBLIC_VIEWER: 1,
+    Role.AUTHENTICATED_ANALYST: 2,
+    Role.AUTHORIZED_OPERATOR: 3,
+    Role.ADMINISTRATOR: 4,
+}
+
 def get_jwks_client() -> Optional[PyJWKClient]:
-    """Returns a cached PyJWKClient for Clerk's JWKS endpoint with rotation support."""
+    """Returns a cached PyJWKClient for Clerk's JWKS endpoint with rotation support (SEC-01)."""
     global _jwks_client
     jwks_url = CLERK_JWKS_URL or (f"{CLERK_ISSUER.rstrip('/')}/.well-known/jwks.json" if CLERK_ISSUER else "")
     if jwks_url and _jwks_client is None:
@@ -45,11 +73,36 @@ def is_valid_admin_key(candidate: Optional[str]) -> bool:
         return False
     return secrets.compare_digest(candidate.strip(), ADMIN_API_KEY.strip())
 
+def parse_role_from_claims(claims: Dict[str, Any]) -> Role:
+    """
+    SEC-02: Strict exact matching against defined role enumeration.
+    Eliminates substring checks such as 'admin in role' which allow privilege escalation
+    from strings like 'not_an_admin' or 'bad_administrator'.
+    """
+    raw_role = (
+        claims.get("cyclonet_role")
+        or claims.get("org_role")
+        or claims.get("role")
+        or ""
+    )
+    if isinstance(raw_role, str):
+        normalized = raw_role.strip().lower()
+        return ROLE_MAPPING.get(normalized, Role.PUBLIC_VIEWER)
+    elif isinstance(raw_role, (list, tuple)):
+        highest = Role.PUBLIC_VIEWER
+        for item in raw_role:
+            if isinstance(item, str):
+                matched = ROLE_MAPPING.get(item.strip().lower(), Role.PUBLIC_VIEWER)
+                if ROLE_HIERARCHY[matched] > ROLE_HIERARCHY[highest]:
+                    highest = matched
+        return highest
+    return Role.PUBLIC_VIEWER
+
 def decode_token_payload(token: str) -> Optional[Dict[str, Any]]:
     """
-    SEC-01: Cryptographically verifies JWT signatures from Clerk or standard JWT providers.
-    Strictly verifies signatures, expiration, and algorithm allowlisting.
-    NEVER decodes unverified base64 payloads to authenticate users or grant roles.
+    SEC-01 & SEC-03: Cryptographically verifies JWT signatures from Clerk or configured JWT provider.
+    Strictly verifies signatures, expiration (exp), not-before (nbf), and algorithm allowlist.
+    NEVER decodes unverified payloads or accepts test keys in production.
     """
     if not token or not token.strip():
         return None
@@ -57,7 +110,9 @@ def decode_token_payload(token: str) -> Optional[Dict[str, Any]]:
     options = {
         "verify_signature": True,
         "require": ["exp"],
-        "verify_exp": True
+        "verify_exp": True,
+        "verify_nbf": True,
+        "verify_iat": True,
     }
     if CLERK_ISSUER:
         options["verify_iss"] = True
@@ -80,12 +135,12 @@ def decode_token_payload(token: str) -> Optional[Dict[str, Any]]:
             )
         except jwt.ExpiredSignatureError:
             logger.info("[Auth] Token signature has expired.")
-            raise HTTPException(status_code=401, detail="Token has expired. Please refresh your session.")
+            return None
         except jwt.InvalidTokenError as e:
-            logger.debug("[Auth] RS256 token verification failed: %s", e)
+            logger.debug("[Auth] RS256 PEM token verification failed: %s", e)
             return None
 
-    # 2. Verify via Clerk JWKS Client (RS256 with key rotation)
+    # 2. Verify via Clerk JWKS Client (RS256 with key rotation and kid match)
     jwks = get_jwks_client()
     if jwks:
         try:
@@ -99,39 +154,39 @@ def decode_token_payload(token: str) -> Optional[Dict[str, Any]]:
                 options=options
             )
         except jwt.ExpiredSignatureError:
-            raise HTTPException(status_code=401, detail="Token has expired. Please refresh your session.")
+            logger.info("[Auth] JWKS token signature has expired.")
+            return None
         except Exception as e:
             logger.debug("[Auth] JWKS token verification failed: %s", e)
             return None
 
-    # 3. Verify via configured HMAC Secret Key (HS256)
-    hmac_secret = (
-        CLERK_SECRET_KEY or
-        JWT_SECRET_KEY or
-        os.getenv("JWT_SECRET_KEY", "") or
-        os.getenv("CLERK_SECRET_KEY", "") or
-        "test-jwt-secret-key-32byteslong!!"
-    ).strip()
-    if hmac_secret:
-        try:
-            return jwt.decode(
-                token,
-                hmac_secret.strip(),
-                algorithms=["HS256"],
-                issuer=CLERK_ISSUER or None,
-                audience=CLERK_AUDIENCE or None,
-                options=options
-            )
-        except jwt.ExpiredSignatureError:
-            raise HTTPException(status_code=401, detail="Token has expired. Please refresh your session.")
-        except jwt.InvalidTokenError as e:
-            logger.debug("[Auth] HS256 token verification failed: %s", e)
-            return None
+    # 3. Verify via configured internal HMAC Secret Key (HS256) - SEC-03
+    # Note: CLERK_SECRET_KEY is NEVER used as an HS256 secret key (SEC-03).
+    hmac_secret = (JWT_SECRET_KEY or os.getenv("JWT_SECRET_KEY", "")).strip()
 
-    # SEC-01 & SEC-02: If no verification key/secret is configured, fail closed.
-    # Refuse to authenticate forged or unverified tokens!
-    logger.debug("[Auth] No verification key configured in environment; rejecting token.")
-    return None
+    # SEC-01: Disallow hardcoded fallback in production code. Fail closed!
+    if not hmac_secret:
+        logger.debug("[Auth] No cryptographic verification secret configured; failing closed.")
+        return None
+
+    if len(hmac_secret) < 32:
+        logger.warning("[Auth] JWT_SECRET_KEY is shorter than 32 bytes minimum recommendation.")
+
+    try:
+        return jwt.decode(
+            token,
+            hmac_secret,
+            algorithms=["HS256"],
+            issuer=CLERK_ISSUER or None,
+            audience=CLERK_AUDIENCE or None,
+            options=options
+        )
+    except jwt.ExpiredSignatureError:
+        logger.info("[Auth] HS256 token signature has expired.")
+        return None
+    except jwt.InvalidTokenError as e:
+        logger.debug("[Auth] HS256 token verification failed: %s", e)
+        return None
 
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Security(security_bearer),
@@ -139,16 +194,18 @@ async def get_current_user(
 ) -> Optional[Dict[str, Any]]:
     """
     SEC-01 & SEC-03: Resolves authenticated user identity ONLY from cryptographically
-    verified credentials (JWT or verified admin API key).
+    verified credentials (verified JWT or verified admin API key).
     """
-    # 1. Check X-Admin-Key header
+    # 1. Check X-Admin-Key header with constant-time comparison
     if is_valid_admin_key(x_admin_key):
         return {
             "id": "admin-system",
-            "role": "admin",
+            "role": Role.ADMINISTRATOR.value,
+            "role_enum": Role.ADMINISTRATOR,
             "email": "admin@cyclonet.internal",
             "auth_type": "api_key",
-            "is_admin": True
+            "is_admin": True,
+            "is_operator": True
         }
 
     # 2. Check Bearer token
@@ -161,10 +218,12 @@ async def get_current_user(
     if is_valid_admin_key(token):
         return {
             "id": "admin-system",
-            "role": "admin",
+            "role": Role.ADMINISTRATOR.value,
+            "role_enum": Role.ADMINISTRATOR,
             "email": "admin@cyclonet.internal",
             "auth_type": "api_key",
-            "is_admin": True
+            "is_admin": True,
+            "is_operator": True
         }
 
     # Verify cryptographic signature of JWT
@@ -181,17 +240,20 @@ async def get_current_user(
     if not user_id:
         return None
 
-    # SEC-01: Only accept role from cryptographically verified claims
-    role = (claims.get("role") or claims.get("org_role") or "operator").lower()
-    is_admin = "admin" in role or claims.get("is_admin") is True
+    # SEC-02: Exact role matching from verified claims
+    role = parse_role_from_claims(claims)
+    is_admin = (role == Role.ADMINISTRATOR)
+    is_operator = (role in (Role.ADMINISTRATOR, Role.AUTHORIZED_OPERATOR))
 
     return {
         "id": str(user_id),
-        "role": "admin" if is_admin else "operator",
+        "role": "admin" if is_admin else ("operator" if is_operator else "analyst"),
+        "role_enum": role,
         "email": claims.get("email"),
         "claims": claims,
-        "auth_type": "clerk_jwt",
-        "is_admin": is_admin
+        "auth_type": "jwt",
+        "is_admin": is_admin,
+        "is_operator": is_operator
     }
 
 async def require_authenticated_user(
@@ -209,18 +271,33 @@ async def require_authenticated_user(
         )
     return current_user
 
-async def require_admin_user(
-    current_user: Dict[str, Any] = Depends(require_authenticated_user)
+def require_role(minimum_role: Role):
+    """
+    SEC-02: Enforces hierarchical role-based authorization.
+    Rejects users with insufficient privileges with HTTP 403.
+    """
+    async def role_dependency(
+        current_user: Dict[str, Any] = Depends(require_authenticated_user)
+    ) -> Dict[str, Any]:
+        user_role = current_user.get("role_enum", Role.PUBLIC_VIEWER)
+        if ROLE_HIERARCHY.get(user_role, 0) < ROLE_HIERARCHY.get(minimum_role, 0):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Forbidden: {minimum_role.value.replace('_', ' ').title()} privileges required."
+            )
+        return current_user
+    return role_dependency
+
+async def require_operator_user(
+    current_user: Dict[str, Any] = Depends(require_role(Role.AUTHORIZED_OPERATOR))
 ) -> Dict[str, Any]:
-    """
-    SEC-04: Enforces administrative privileges.
-    Rejects authenticated users with insufficient privileges with HTTP 403.
-    """
-    if not current_user.get("is_admin") and current_user.get("role") != "admin":
-        raise HTTPException(
-            status_code=403,
-            detail="Forbidden: Administrative privileges required."
-        )
+    """SEC-04: Enforces Authorized Operator or higher privileges."""
+    return current_user
+
+async def require_admin_user(
+    current_user: Dict[str, Any] = Depends(require_role(Role.ADMINISTRATOR))
+) -> Dict[str, Any]:
+    """SEC-04: Enforces Administrator privileges."""
     return current_user
 
 def verify_admin_key(
@@ -232,7 +309,7 @@ def verify_admin_key(
     Accepts:
     1. Constant-time match on X-Admin-Key header
     2. Bearer token matching ADMIN_API_KEY
-    3. Cryptographically verified JWT with admin role claim
+    3. Cryptographically verified JWT with exact admin role claim
     Fails closed if ADMIN_API_KEY is not configured or token is invalid.
     """
     # 1. Constant-time check on X-Admin-Key header
@@ -245,11 +322,11 @@ def verify_admin_key(
         if is_valid_admin_key(token):
             return True
 
-        # Check cryptographically verified JWT claims for admin role
+        # Check cryptographically verified JWT claims for exact admin role
         claims = decode_token_payload(token)
         if claims:
-            role = (claims.get("role") or claims.get("org_role") or "").lower()
-            if "admin" in role or claims.get("is_admin") is True:
+            role = parse_role_from_claims(claims)
+            if role == Role.ADMINISTRATOR:
                 return True
 
     # Reject unauthorized access
@@ -259,19 +336,11 @@ def verify_admin_key(
         headers={"WWW-Authenticate": "Bearer"}
     )
 
-def get_hmac_secret() -> str:
-    """Returns configured HMAC secret or test key for HS256 validation."""
-    return (
-        CLERK_SECRET_KEY or
-        JWT_SECRET_KEY or
-        os.getenv("JWT_SECRET_KEY", "") or
-        os.getenv("CLERK_SECRET_KEY", "") or
-        "test-jwt-secret-key-32byteslong!!"
-    ).strip()
-
 def make_test_token(sub: str = "user_test_123", role: str = "member", exp_minutes: int = 60) -> str:
-    """Helper to generate signed, cryptographically valid tokens for tests."""
-    secret = get_hmac_secret()
+    """Helper to generate signed, cryptographically valid tokens for test suites."""
+    secret = (JWT_SECRET_KEY or os.getenv("JWT_SECRET_KEY", "")).strip()
+    if not secret:
+        raise ValueError("Cannot make test token: JWT_SECRET_KEY is not configured in environment.")
     payload = {
         "sub": sub,
         "role": role,

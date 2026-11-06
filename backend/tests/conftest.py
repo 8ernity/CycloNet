@@ -1,18 +1,26 @@
 import os
 import jwt
 import datetime
+import pytest
 
 # Ensure test environment variables are loaded prior to app imports
+os.environ["ENVIRONMENT"] = "test"
 os.environ["ADMIN_API_KEY"] = "test-remediation-admin-key-2026"
 os.environ["JWT_SECRET_KEY"] = "test-remediation-secret-key-32byteslong!!"
 os.environ["CLERK_SECRET_KEY"] = "test-clerk-secret-key"
 
-import pytest
 from app.core import auth
+from app.core.database import init_db
 
 # Re-read environment variables in auth module for test runner
 auth.ADMIN_API_KEY = os.environ["ADMIN_API_KEY"]
 auth.JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_environment():
+    """Initializes database schema and seed records before running test suites."""
+    init_db()
+    yield
 
 def make_valid_test_token(sub: str = "user_test_123", role: str = "member", exp_minutes: int = 60) -> str:
     """Helper to generate signed, cryptographically valid tokens for test suites."""

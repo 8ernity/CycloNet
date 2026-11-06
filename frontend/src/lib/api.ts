@@ -54,9 +54,29 @@ export function getStoredAuthToken(): string | null {
   return null;
 }
 
+export function isTrustedOrigin(url: string): boolean {
+  try {
+    const parsed = new URL(url, typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
+    const currentOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+    if (parsed.origin === currentOrigin) return true;
+
+    // Compare against configured first-party backend base URL
+    const backendOrigin = new URL(API_BASE_URL).origin;
+    if (parsed.origin === backendOrigin) return true;
+
+    // Allow localhost / loopback for local development
+    if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Robust fetch wrapper with timeout, exponential backoff retries with jitter,
- * authentication header attachment, and Retry-After handling (UI-01, SEC-05).
+ * authentication header attachment, and Retry-After handling (UI-01, SEC-05, SEC-06).
  */
 export async function apiFetch<T = any>(
   endpoint: string,
@@ -77,7 +97,12 @@ export async function apiFetch<T = any>(
   const headers = new Headers(fetchOptions.headers || {});
   const authToken = token || getStoredAuthToken();
   if (authToken && !headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${authToken}`);
+    // SEC-06: Never forward authentication tokens to arbitrary custom or untrusted origins
+    if (isTrustedOrigin(url)) {
+      headers.set("Authorization", `Bearer ${authToken}`);
+    } else {
+      console.warn(`[Security] Withheld Bearer token from unverified custom origin: ${url}`);
+    }
   }
 
   let attempt = 0;

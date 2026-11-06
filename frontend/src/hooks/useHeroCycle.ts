@@ -43,9 +43,11 @@ export function useHeroCycle(): HeroCycleState {
   useEffect(() => {
     if (shouldReduceMotion) {
       clearScheduled();
-      setSceneIndex(0);
-      setPhase('idle');
-      return;
+      const resetId = setTimeout(() => {
+        setSceneIndex(0);
+        setPhase('idle');
+      }, 0);
+      return () => clearTimeout(resetId);
     }
 
     if (!isVisibleRef.current) return;

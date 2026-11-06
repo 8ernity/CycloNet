@@ -18,7 +18,13 @@ from app.services.best_tracks import get_cyclone_trajectory
 from app.services.live_ingestion import live_ingestion_service
 from app.core.database import get_db
 from app.models.domain import CycloneArchive, ClassificationHistory
-from app.core.auth import verify_admin_key, get_current_user, require_authenticated_user, require_admin_user
+from app.core.auth import (
+    verify_admin_key,
+    get_current_user,
+    require_authenticated_user,
+    require_operator_user,
+    require_admin_user
+)
 from app.core.rate_limit import enforce_rate_limit
 
 logger = logging.getLogger(__name__)
@@ -212,7 +218,10 @@ async def classify_image(
     if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
         raise HTTPException(status_code=413, detail="File size exceeds maximum allowable limit (15 MB).")
     
-    validate_image_payload(image_bytes)
+    try:
+        validate_image_payload(image_bytes)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     
     try:
         result = ml_service.predict(image_bytes)
@@ -411,10 +420,10 @@ async def dispatch_advisory(
     req: AlertDispatchRequest,
     request: Request,
     response: Response,
-    current_user: Dict[str, Any] = Depends(require_authenticated_user)
+    current_user: Dict[str, Any] = Depends(require_operator_user)
 ):
     """
-    Executes early warning advisory dispatch (SEC-04, AI-04: requires authenticated user).
+    Executes early warning advisory dispatch (SEC-04, AI-04: requires authorized operator).
     """
     enforce_rate_limit(request, endpoint_type="admin", user=current_user, response=response)
     result = report_service.dispatch_multi_channel_advisory(
@@ -437,10 +446,10 @@ async def broadcast_emergency_alert(
     req: BroadcastRequest,
     request: Request,
     response: Response,
-    current_user: Optional[Dict[str, Any]] = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(require_operator_user),
     db: Session = Depends(get_db)
 ):
-    """Simulates multi-channel NDMA CAP-CP emergency broadcast dispatch in sandbox."""
+    """Simulates multi-channel NDMA CAP-CP emergency broadcast dispatch in sandbox (SEC-04: requires operator)."""
     enforce_rate_limit(request, endpoint_type="admin", user=current_user, response=response)
     target = None
     if req.system_id:

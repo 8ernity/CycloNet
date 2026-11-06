@@ -311,7 +311,7 @@ class MeteorologicalChatService:
                 "   - **T5.5 - T6.0**: Extremely Severe Cyclonic Storm ($100 - 115\\text{ kt}$)\n"
                 "   - **T6.5 - T8.0**: Super Cyclonic Storm / Cat 5 ($125 - 170+\\text{ kt}$)\n\n"
                 "#### In CycloNet:\n"
-                "Our deep learning classifier (ResNet-50) maps convective satellite features to equivalent Dvorak T-numbers and continuous sustained wind speeds.",
+                "Our deep learning classifier (ResNet-50) categorizes cloud features into discrete intensity classes. Operational quantitative wind speeds and official Dvorak T-numbers require calibrated objective thermal infrared (TIR) analysis; visual classification alone does not substitute for numerical wind retrieval (ML-07).",
                 "dvorak_technique",
                 ["Vernon Dvorak (NOAA / NESDIS)", "WMO Tropical Cyclone Operational Plan"]
             )
@@ -621,30 +621,33 @@ class MeteorologicalChatService:
                     print(f"[Gemini Briefing Exception with {model}] {e}")
                     break
 
-        # High-fidelity deterministic fallback briefing
+        # High-fidelity deterministic scenario briefing (DATA-08, GEO-07, ALERT-04)
         return {
             "storm_name": name,
             "category": category,
             "intensity_knots": knots,
+            "is_simulation": True,
+            "provenance": "Experimental Decision-Support Scenario Model",
+            "disclaimer": "EXPERIMENTAL SCENARIO BRIEFING - NOT AN OFFICIAL GOVERNMENT EVACUATION ORDER OR ADVISORY. Always adhere to directives from the India Meteorological Department (IMD) and National Disaster Management Authority (NDMA).",
             "executive_summary": (
-                f"Anticipatory pre-landfall alert for {name} ({category}, {wind_kmh} km/h). "
-                f"Hydrodynamic surge modeling predicts peak coastal sea surface elevation of {surge_m}m. "
-                "Immediate infrastructure hardening and pre-landfall community mobilization required across coastal districts."
+                f"Anticipatory pre-landfall scenario briefing for {name} ({category}, estimated {wind_kmh} km/h). "
+                f"Parametric storm surge modeling calculates peak coastal water elevation of {surge_m}m. "
+                "Advisory for local decision-support and contingency planning only."
             ),
-            "surge_inundation_threat": f"Peak surge elevation of {surge_m}m will breach low-lying coastal embankments up to 3.5km inland during high tide.",
-            "grid_substation_vulnerabilities": "6 of 9 monitored 400kV/220kV power substations lie within 4km of the coastline. Advise selective de-energization of vulnerable feeders to prevent transformer saltwater flashovers.",
-            "evacuation_corridors": "National Highway arterial causeways are vulnerable to flash inundation. Divert heavy evacuation convoys to elevated inland secondary routes.",
-            "shelter_readiness": "20 multipurpose cyclone shelters active with 24,000 person aggregate capacity and 480 medical triage beds. Pre-stock backup diesel generators and clean drinking water.",
-            "parametric_payout_recommendation": f"Current sustained wind threshold ({knots} KT >= 65 KT) qualifies for instant pre-landfall parametric liquidity release (US$ 2.5M - 5.0M) for emergency cash transfers.",
+            "surge_inundation_threat": f"Estimated peak surge elevation of {surge_m}m may overtop low-lying coastal embankments in exposed sectors. Terrain elevation must be verified locally.",
+            "grid_substation_vulnerabilities": "Monitored coastal 400kV/220kV transmission hubs may face salt-spray contamination and inundation risks. Review utility contingency protocols.",
+            "evacuation_corridors": "Low-lying causeways face inundation risks. Consult local traffic police and district emergency operations for verified route clearances.",
+            "shelter_readiness": "District shelter inventories displayed are illustrative open-data estimates. Consult local District Disaster Management Authorities (DDMA) for verified operational shelter status and active capacity.",
+            "parametric_payout_recommendation": f"Hypothetical scenario estimate: Index trigger threshold ({knots} KT >= 65 KT) would qualify under modeled parametric catastrophe terms. No contractual policy is in force and this does not authorize or guarantee financial disbursements.",
             "action_checklist": [
-                "Issue mandatory evacuation notices for low-lying coastal hamlets (< 5m elevation)",
-                "Deploy mobile generator sets and satellite comms to primary medical shelters",
-                "Execute controlled shutdown of vulnerable coastal 220kV switchyards",
-                "Disperse emergency food packets and water purification kits to forward staging bases",
-                "Trigger automated OASIS CAP-CP XML alerts to all municipal cell towers"
+                "Coordinate with District Disaster Management Authorities (DDMA) regarding official shelter readiness",
+                "Verify backup emergency power systems and VHF/satellite communication lines at local operations centers",
+                "Monitor official IMD Doppler Weather Radar bulletins and cyclone warnings",
+                "Refer citizens strictly to official civil defense and state government alerts",
+                "Review local contingency staging protocols and relief distribution plans"
             ],
             "timestamp": timestamp,
-            "model": "CycloNet Anticipatory Resilience Engine"
+            "model": "CycloNet Scenario Intelligence Engine"
         }
 
 chat_service = MeteorologicalChatService()

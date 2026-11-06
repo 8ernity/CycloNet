@@ -60,11 +60,12 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Standardize CORS between ALLOWED_ORIGINS and CORS_ORIGINS (DEV-06)
+# Standardize CORS between ALLOWED_ORIGINS and CORS_ORIGINS (DEV-06, SEC-10)
 raw_origins = os.getenv("ALLOWED_ORIGINS") or os.getenv("CORS_ORIGINS", "")
+env = os.getenv("ENVIRONMENT", "production").lower()
 if raw_origins and raw_origins.strip() != "*":
     allowed_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
-elif raw_origins.strip() == "*":
+elif raw_origins.strip() == "*" and env != "production":
     allowed_origins = ["*"]
 else:
     allowed_origins = [
@@ -78,9 +79,23 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# SEC-10: Security Headers Middleware
+from starlette.requests import Request
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 app.include_router(router, prefix="/api")
 app.include_router(ws_router, prefix="/api")

@@ -54,15 +54,10 @@ export default function ArchivePage() {
 
   const { selectedCycloneId, selectCyclone } = useActiveCyclone();
 
-  // Sync selectedCyclone with global selectedCycloneId when cyclones list loads
-  useEffect(() => {
-    if (cyclones.length > 0 && selectedCycloneId) {
-      const match = cyclones.find(c => c.id === selectedCycloneId || c.name.toLowerCase() === selectedCycloneId.toLowerCase());
-      if (match) {
-        setSelectedCyclone(match);
-      }
-    }
-  }, [cyclones, selectedCycloneId]);
+  // Derive active cyclone from explicit user selection or global context without cascading effect
+  const activeSelectedCyclone = selectedCyclone || (
+    selectedCycloneId ? cyclones.find(c => c.id === selectedCycloneId || c.name.toLowerCase() === selectedCycloneId.toLowerCase()) || null : null
+  );
 
   // Close filter dropdown on outside click
   useEffect(() => {
@@ -128,16 +123,16 @@ export default function ArchivePage() {
         basinFilter,
         categoryFilter,
         sortOrder,
-        activeSystem: selectedCyclone ? {
-          id: selectedCyclone.id,
-          name: selectedCyclone.name,
-          basin: selectedCyclone.basin,
-          category: selectedCyclone.maxCategory,
-          dates: selectedCyclone.dates
+        activeSystem: activeSelectedCyclone ? {
+          id: activeSelectedCyclone.id,
+          name: activeSelectedCyclone.name,
+          basin: activeSelectedCyclone.basin,
+          category: activeSelectedCyclone.maxCategory,
+          dates: activeSelectedCyclone.dates
         } : null
       };
     }
-  }, [activeTab, cyclones.length, searchQuery, basinFilter, categoryFilter, sortOrder, selectedCyclone]);
+  }, [activeTab, cyclones.length, searchQuery, basinFilter, categoryFilter, sortOrder, activeSelectedCyclone]);
 
   // Helper to extract timestamp from cyclone dates for precise chronological ordering
   const getCycloneTimestamp = (c: CycloneHistory): number => {
@@ -457,7 +452,7 @@ export default function ArchivePage() {
           ) : activeTab === "cyclones" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {displayedCyclones.map((cyclone) => {
-                const isSelected = selectedCyclone?.id === cyclone.id;
+                const isSelected = activeSelectedCyclone?.id === cyclone.id;
                 return (
                   <div
                     key={cyclone.id}

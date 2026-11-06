@@ -377,30 +377,34 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
     const convertedCategory = getConvertedCategory(system?.intensity_knots || 65, system?.category);
     const xmlContent = capXml || `<?xml version="1.0" encoding="UTF-8"?>
 <alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
-  <identifier>IN-IMD-CAP-${Date.now()}</identifier>
-  <sender>rsmc-newdelhi@imd.gov.in</sender>
-  <status>Actual</status>
+  <identifier>CYCLONET-CAP-EXERCISE-${Date.now()}</identifier>
+  <sender>cyclonet-simulation-engine@exercise.cyclonet.internal</sender>
+  <sent>${new Date().toISOString()}</sent>
+  <status>Exercise</status>
   <msgType>Alert</msgType>
   <scope>Public</scope>
+  <code>CYCLONET-EXERCISE-SIMULATION</code>
   <info>
     <category>Met</category>
-    <event>${convertedCategory} ${system?.name || "Active"}</event>
-    <urgency>Immediate</urgency>
+    <event>${convertedCategory} ${system?.name || "Active"} (Exercise Simulation)</event>
+    <urgency>Expected</urgency>
     <severity>Severe</severity>
-    <headline>${alertInfo.title}</headline>
-    <description>${alertInfo.desc}</description>
+    <certainty>Possible</certainty>
+    <headline>[EXERCISE SIMULATION] ${alertInfo.title}</headline>
+    <description>[EXERCISE / SIMULATION ONLY - NOT AN OFFICIAL GOVERNMENT WARNING] ${alertInfo.desc}</description>
+    <instruction>SIMULATION EXERCISE: Adhere strictly to official advisories from the India Meteorological Department (IMD) and State Disaster Management Authorities.</instruction>
   </info>
 </alert>`;
     const blob = new Blob([xmlContent], { type: "application/xml" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `CAP-ALERT-${system?.name || "CYCLONE"}-${Date.now()}.xml`;
+    a.download = `CAP-EXERCISE-${system?.name || "CYCLONE"}-${Date.now()}.xml`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast("Downloaded OASIS CAP-CP XML Alert Document");
+    showToast("Downloaded OASIS CAP-CP XML Exercise Document");
   };
 
   const handleDownloadJson = () => {

@@ -22,6 +22,7 @@ The platform unifies **Deep Convolutional Neural Networks (ResNet-50)**, **GEE-C
 
 ## 📋 Table of Contents
 
+- [📚 Production Hardening & Architecture Documentation](#-production-hardening--architecture-documentation)
 - [✨ Key Platform Capabilities](#-key-platform-capabilities)
 - [🌊 Track 5: Cyclone Impact & Infrastructure Vulnerability Forecaster](#-track-5-cyclone-impact--infrastructure-vulnerability-forecaster)
 - [🤖 Gemini 3.7 Flash Multimodal AI & Dual-Inference](#-gemini-37-flash-multimodal-ai--dual-inference)
@@ -34,6 +35,19 @@ The platform unifies **Deep Convolutional Neural Networks (ResNet-50)**, **GEE-C
 - [🚀 Quickstart & Installation](#-quickstart--installation)
 - [🧪 Running the Automated Test Suite](#-running-the-automated-test-suite)
 - [📝 License & Attribution](#-license--attribution)
+
+---
+
+## 📚 Production Hardening & Architecture Documentation
+
+All comprehensive architectural specifications, security audits, and verification reports are maintained in the [`docs/`](docs/) directory:
+
+- 🛡️ **[Security & Reliability Audit Report](docs/AUDIT_REPORT.md)**: Breakdown of all 22 verified vulnerabilities, root cause analyses, and fixes across SEC, DATA, ML, GEO, ALERT, UI, and BACK phases.
+- 📋 **[Remediation Changelog](docs/REMEDIATION_LOG.md)**: File-by-file log documenting all code modifications, diff rationales, and verification commands.
+- 🏗️ **[System Architecture](docs/ARCHITECTURE.md)**: System topology diagrams, RBAC authorization hierarchy, Clerk JWKS key rotation, and distributed worker election.
+- 🧠 **[Machine Learning & Physics Evaluation](docs/MODEL_EVALUATION.md)**: ResNet-50 domain analysis, normalized Shannon entropy uncertainty quantification, OOD abstention, and Grad-CAM interpretability.
+- 🚀 **[Production Readiness Guide](docs/PRODUCTION_READINESS.md)**: Production deployment checklist, Render cloud configuration, rate limiting policies, and operational decision-support boundaries.
+- 🧪 **[Test Execution Report](docs/TEST_REPORT.md)**: Summary of all 49 passing automated backend tests and Next.js Turbopack production build verification.
 
 ---
 

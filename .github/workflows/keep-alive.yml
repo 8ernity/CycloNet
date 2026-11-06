@@ -1,3 +1,7 @@
+# NOTICE (DEV-05): This workflow provides a temporary synthetic traffic ping to mitigate
+# free-tier inactivity spin-down on Render. Artificial pings DO NOT constitute operational
+# high availability (HA) or an emergency decision-support SLA. Production deployments require
+# paid always-on instances with persistent compute, multi-AZ failover, and managed monitoring.
 name: Keep Render Services Alive
 
 on:

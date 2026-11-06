@@ -95,9 +95,9 @@ export default function SettingsPage() {
     if (typeof window !== "undefined") {
       localStorage.setItem("cyclonet_sms_alerts", String(nextVal));
       if (nextVal) {
-        showToast("Emergency Audio & Alert Broadcasts enabled (requires active carrier gateway webhook or drill mode).");
+        showToast("Local Emergency Siren & Sandbox Drill Mode enabled (browser simulated).");
       } else {
-        showToast("Emergency Red Alert Broadcasts muted.");
+        showToast("Emergency siren & drill mode muted.");
       }
     }
   };
@@ -187,8 +187,8 @@ export default function SettingsPage() {
             
             <div className="flex items-center justify-between p-3.5 bg-secondary/20 rounded-xl border border-border">
               <div>
-                <p className="font-semibold text-sm text-foreground">Emergency Red Alert Audio / SMS</p>
-                <p className="text-xs text-muted-foreground">High-threat sound & TSP gateway dispatch trigger.</p>
+                <p className="font-semibold text-sm text-foreground">Emergency Siren Audio & Drill Mode</p>
+                <p className="text-xs text-muted-foreground">Local browser siren audio & simulated CAP dispatch drill trigger (client sandbox).</p>
               </div>
               <button 
                 onClick={handleToggleSms}
@@ -199,7 +199,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="pt-2 text-[10.5px] text-muted-foreground border-t border-border/40 font-mono">
-              Gateway Status: {notifications ? "🟢 Web Push Active" : "⚪ Web Push Dormant"} • {smsAlerts ? "🟡 Carrier SMS (Drill Sandbox Active)" : "⚪ SMS Idle"}
+              Gateway Status: {notifications ? "🟢 Browser Notification Active" : "⚪ Notification Muted"} • {smsAlerts ? "🟡 Local Drill Siren Active (Sandbox)" : "⚪ Siren Idle"}
             </div>
           </div>
         </div>

@@ -10,6 +10,8 @@
 
 # ── Python & Runtimes ──────────────────────────────────────────────────
 __pycache__/
+**/__pycache__/
+*.pyc
 *.py[cod]
 *$py.class
 *.so
@@ -72,7 +74,11 @@ coverage/
 Thumbs.db
 Desktop.ini
 
-# ── Temporary debug scripts ────────────────────────────────────────────
+# ── Temporary debug scripts & Locks ─────────────────────────────────────
 /test_*.py
 !backend/tests/
 !backend/tests/**
+backend/tests/**/__pycache__/
+backend/tests/**/*.pyc
+*.lock
+worker_leader.lock

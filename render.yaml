@@ -16,7 +16,7 @@ services:
       - key: GEMINI_MODEL
         value: gemini-3.7-flash
       - key: CORS_ORIGINS
-        value: "*"
+        value: "https://cyclonet-frontend.onrender.com"
 
   # ── CycloNet Frontend (Next.js 16 + Tailwind CSS) ───────────────────────────
   - type: web
