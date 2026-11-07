@@ -1,12 +1,19 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
+import { useAuth } from "@clerk/nextjs";
+import { setAuthTokenProvider } from "@/lib/api";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { ChatbotWidget } from "@/components/ChatbotWidget";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const { getToken } = useAuth();
+  useEffect(() => {
+    setAuthTokenProvider(getToken);
+    return () => setAuthTokenProvider(null);
+  }, [getToken]);
   const pathname = usePathname();
   const isAuthPage = pathname === "/login" || pathname === "/signup";
   const isFullScreenPage = pathname === "/";

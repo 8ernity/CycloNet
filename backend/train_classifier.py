@@ -155,51 +155,60 @@ def partition_dataset_strictly_disjoint(
     - Zero event ID overlap across splits.
     - Raises InsufficientDatasetError if requirements are not met.
     """
-    train_samples: List[DatasetSample] = []
-    val_samples: List[DatasetSample] = []
-    test_samples: List[DatasetSample] = []
-
-    rng = np.random.default_rng(seed)
-
-    for class_id, samples in samples_by_class.items():
-        if not samples:
-            raise InsufficientDatasetError(f"Class {class_id} ({CLASSES[class_id]}) has 0 samples.")
-
-        # Group samples by event_id
-        events_map: Dict[str, List[DatasetSample]] = {}
-        for s in samples:
-            key = s.event_id if s.event_id else s.sha256
-            events_map.setdefault(key, []).append(s)
-
-        unique_events = list(events_map.keys())
-        if len(unique_events) < min_events_per_class:
+    # A storm changes intensity over its lifetime. Assign the event once globally,
+    # never independently for each class. Input ordering must not change assignment.
+    events = {}
+    class_events = {}
+    for class_id, samples in sorted(samples_by_class.items()):
+        class_events[class_id] = set()
+        for sample in samples:
+            if not sample.event_id:
+                raise InsufficientDatasetError('Independent event IDs are required')
+            events.setdefault(sample.event_id, []).append(sample)
+            class_events[class_id].add(sample.event_id)
+        if len(class_events[class_id]) < max(3, min_events_per_class):
             raise InsufficientDatasetError(
-                f"Class {class_id} ({CLASSES[class_id]}) has only {len(unique_events)} independent event(s). "
-                f"A minimum of {min_events_per_class} independent events per class is required to build "
-                f"disjoint train, validation, and test splits without spatial/temporal data leakage."
-            )
+                f'Class {class_id} has insufficient independent events; a minimum of '
+                f'{max(3, min_events_per_class)} independent events is required')
+    if not events:
+        raise InsufficientDatasetError('No independent events supplied')
+    rng = np.random.default_rng(seed)
+    event_labels = {event: {s.class_id for s in rows} for event, rows in events.items()}
+    labels = sorted(class_events, key=lambda label: (len(class_events[label]), label))
+    for _ in range(256):
+        assignment, covered = {}, [set(), set(), set()]
+        failed = False
+        for label in labels:
+            for split in range(3):
+                if label in covered[split]:
+                    continue
+                candidates = sorted(class_events[label] - assignment.keys())
+                if not candidates:
+                    failed = True
+                    break
+                rng.shuffle(candidates)
+                event = max(candidates, key=lambda e: len(event_labels[e] - covered[split]))
+                assignment[event] = split
+                covered[split].update(event_labels[event])
+            if failed:
+                break
+        if failed:
+            continue
+        for event in sorted(events.keys() - assignment.keys()):
+            assignment[event] = int(rng.choice(3, p=[.6, .2, .2]))
+        splits = tuple([] for _ in range(3))
+        for event in sorted(events):
+            splits[assignment[event]].extend(sorted(events[event], key=lambda s: (s.class_id, s.path)))
+        verify_dataset_manifest(*splits)
+        return splits
+    raise InsufficientDatasetError('Cannot assign whole storms with every class in all three splits')
 
-        shuffled_events = list(unique_events)
-        rng.shuffle(shuffled_events)
+def train(*args, **kwargs):
+    from app.services.training_pipeline import run_training
+    return run_training(*args, **kwargs)
 
-        # Allocate at least 1 event to test, 1 to val, remainder to train
-        test_event_keys = [shuffled_events[-1]]
-        val_event_keys = [shuffled_events[-2]]
-        train_event_keys = shuffled_events[:-2]
 
-        for k in train_event_keys:
-            train_samples.extend(events_map[k])
-        for k in val_event_keys:
-            val_samples.extend(events_map[k])
-        for k in test_event_keys:
-            test_samples.extend(events_map[k])
-
-    # Validate disjointness
-    verify_dataset_manifest(train_samples, val_samples, test_samples)
-
-    return train_samples, val_samples, test_samples
-
-def train():
+def inspect_demo_seed_data():
     """
     Production training entry point.
     Rejects insufficient or uncalibrated seed data with InsufficientDatasetError.
@@ -231,8 +240,16 @@ def train():
     print("Disjoint partitioning passed all verification checks.")
 
 if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description="Train from a versioned independent-event manifest")
+    parser.add_argument("manifest", nargs="?")
+    parser.add_argument("--output-dir", default="artifacts/research")
+    parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument("--batch-size", type=int, default=16)
+    parser.add_argument("--seed", type=int, default=42)
+    args = parser.parse_args()
     try:
-        train()
+        train(args.manifest, args.output_dir, epochs=args.epochs, batch_size=args.batch_size, seed=args.seed)
     except InsufficientDatasetError as e:
         print(f"\n[INSUFFICIENT_DATASET_HALT] {e}")
         print("Production training halted safely to prevent unscientific model fabrication.")

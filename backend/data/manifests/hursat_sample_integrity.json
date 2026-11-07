@@ -1,0 +1,598 @@
+{
+  "source_url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/2015/HURSAT_b1_v06_2015157N13069_ASHOBAA_c20170721.tar.gz",
+  "event_id": "2015157N13069",
+  "archive_sha256": "6d3a774bec9ea8058f94d753d3a8240f930d9333eb0df13ddbfac0b9af60b958",
+  "archive_bytes": 22650481,
+  "frame_count": 98,
+  "frames": [
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.06.0600.20.MET-7.022.hursat-b1.v06.nc",
+      "bytes": 367932,
+      "sha256": "6d93264ed536b454517c918521c2a1087a4352cb3359ac03c58170ad72eaa853",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.06.0600.78.MSG-3.022.hursat-b1.v06.nc",
+      "bytes": 459282,
+      "sha256": "ef7d2aa9006426b8fa1c8bb14a9674e6a6d0eca6d8d42d7c62d15f980f50562f",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.06.0900.21.MET-7.022.hursat-b1.v06.nc",
+      "bytes": 376695,
+      "sha256": "6217d01c5fb5e2eb6d8789f72b1c83745d5abc8d005db81d606c2147f7ef3268",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.06.0900.78.MSG-3.022.hursat-b1.v06.nc",
+      "bytes": 462039,
+      "sha256": "8615849da30d4734a759dd38da8637910d513f46d4fd7c26c7efe39a78ce6651",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.06.1200.21.MET-7.022.hursat-b1.v06.nc",
+      "bytes": 368879,
+      "sha256": "ff7b9b3a35ddff87c3ad423f11ef3fe9fad49e9508a8a1541dbde675ff6250ef",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.06.1200.79.MSG-3.022.hursat-b1.v06.nc",
+      "bytes": 458220,
+      "sha256": "9657038bf7b7a2738a23f4a75f666f959a258309be266500c3074c3804d02973",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.06.1500.21.MET-7.022.hursat-b1.v06.nc",
+      "bytes": 327578,
+      "sha256": "6f054dcd4743b1459a3603673d7b17bb3549ef93a4df13c885efa1b40c0bec6a",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.06.1500.79.MSG-3.022.hursat-b1.v06.nc",
+      "bytes": 411196,
+      "sha256": "5ca10c56d4f59b6708ae65657a47bf70a3ba682ee788ba13f31bc2ee5cbd77a5",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.06.1800.22.MET-7.022.hursat-b1.v06.nc",
+      "bytes": 329386,
+      "sha256": "5ecc203ca76cb13829e0338644450cb899f3f80fcbc347a9902978c65b5f4fe1",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.06.1800.79.MSG-3.022.hursat-b1.v06.nc",
+      "bytes": 416336,
+      "sha256": "327cd4aca85d825374a634ebc7ef113d64f0f8bd49ab7dbbc0f566afa2d0e8ff",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.06.2100.22.MET-7.024.hursat-b1.v06.nc",
+      "bytes": 322156,
+      "sha256": "8edccfde8c95101acb9ec164a26b3bff5f84b49ad8bc48d6bb56e83b6a0bd782",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.06.2100.79.MSG-3.024.hursat-b1.v06.nc",
+      "bytes": 414229,
+      "sha256": "905307ff4b952b10445d2bd448e73ad4778fd5961c9d036ec846ec77c2011cc2",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.07.0000.22.MET-7.026.hursat-b1.v06.nc",
+      "bytes": 314332,
+      "sha256": "4f25ff5580f3ab1dcd49f86ca3a80fc126fc00c7908252c664f7f5ee2abf4c77",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.07.0000.79.MSG-3.026.hursat-b1.v06.nc",
+      "bytes": 406246,
+      "sha256": "13cf8fe6d289706354e7f70ac02994f0f437270fd96936f5c5adfb4756522686",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.07.0300.23.MET-7.028.hursat-b1.v06.nc",
+      "bytes": 365620,
+      "sha256": "fe8627ad608cdd1e00670cb851ff4c514969ec371bb4233a81b6755dfc95f99f",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.07.0300.79.MSG-3.028.hursat-b1.v06.nc",
+      "bytes": 475752,
+      "sha256": "4e40912069f5ba7dc172f212abdab02ac1e0c805766914958d42bbce6b6dee52",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.07.0600.23.MET-7.030.hursat-b1.v06.nc",
+      "bytes": 379932,
+      "sha256": "93446e01b52b8a2edef4fbe44975b250945e502f603d79f6fad2bd220dcc5c98",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.07.0600.79.MSG-3.030.hursat-b1.v06.nc",
+      "bytes": 474604,
+      "sha256": "fbf524a2402e0da949d6ce57b86566bffa823a2c3b2f78f512c849bd85522cfa",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.07.0900.23.MET-7.030.hursat-b1.v06.nc",
+      "bytes": 390246,
+      "sha256": "91491e4885340d592a6089ad228c726466a396bedc7652084f9271109aec5861",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.07.0900.79.MSG-3.030.hursat-b1.v06.nc",
+      "bytes": 480635,
+      "sha256": "18b4b9234f3a4ec4f6eef197ca6d2bda0219a4fb76bab87c11d220e3000b69e5",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.07.1200.23.MET-7.030.hursat-b1.v06.nc",
+      "bytes": 383045,
+      "sha256": "e646cc3fb0946e1e30136e01d4b917b5d143ea59e306456f2406edb5d283753e",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.07.1200.79.MSG-3.030.hursat-b1.v06.nc",
+      "bytes": 474643,
+      "sha256": "c101262f13a42c4956b32156baca3dafc8e03a280abf30c689758317b40d1e74",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.07.1500.24.MET-7.030.hursat-b1.v06.nc",
+      "bytes": 335097,
+      "sha256": "b782c6cd8fa620dabbcce5a65e788bbc0ce2ff2e87b3840ca58dc108f606bc1f",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.07.1500.79.MSG-3.030.hursat-b1.v06.nc",
+      "bytes": 427285,
+      "sha256": "2dcc4a4d1ef3da9257fc5bce500eedeaebc42a5ef09866b1ea03a6e89fc13fe1",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.07.1800.24.MET-7.030.hursat-b1.v06.nc",
+      "bytes": 333270,
+      "sha256": "9c202f67e506e5a7c27d7fbfdfae1cec9714d5970c70dc073a6b5d149cd37079",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.07.1800.79.MSG-3.030.hursat-b1.v06.nc",
+      "bytes": 426334,
+      "sha256": "2f067b23f34a65726294b8c697e966ede8b26a5b20a5d5eff755598cc3ea88d6",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.07.2100.24.MET-7.031.hursat-b1.v06.nc",
+      "bytes": 323969,
+      "sha256": "1ed5e0fba7a01a3a90012216c19a97c033fae12a22ae820dceb5e0f653c872aa",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.07.2100.78.MSG-3.031.hursat-b1.v06.nc",
+      "bytes": 428241,
+      "sha256": "751b4371dd175bf6456ddbbeba9a2fa077f49608d3c2e7a30102d9309dba7e08",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.08.0000.24.MET-7.033.hursat-b1.v06.nc",
+      "bytes": 313275,
+      "sha256": "713c268be08b241a43ff564441f92b9d6538cf9593b8fef7392f306b7f529946",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.08.0000.78.MSG-3.033.hursat-b1.v06.nc",
+      "bytes": 427773,
+      "sha256": "9ee5d686083d4eee5f6fc936b3ac02f36a5f5857a0979effe05f09d4e2805334",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.08.0300.24.MET-7.035.hursat-b1.v06.nc",
+      "bytes": 366477,
+      "sha256": "b574cff342f1c13c33d4b386ba2bc984ce9d23989a08f1d8bde65e5aa3f4c26f",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.08.0300.78.MSG-3.035.hursat-b1.v06.nc",
+      "bytes": 498902,
+      "sha256": "b864dea791fdc463a65ae543f44ff393bd8b4eb1be0db51d5452831a5ef76f4e",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.08.0600.24.MET-7.037.hursat-b1.v06.nc",
+      "bytes": 382138,
+      "sha256": "d66e88254090fbd54c9d2e6a5a6c91fa0d9b61e85d1e42eb1049ae7110bbdc48",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.08.0600.77.MSG-3.037.hursat-b1.v06.nc",
+      "bytes": 497983,
+      "sha256": "e98835a73c6404b790dfa7535183a76a631ead10c7839081e901d610e7be46d0",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.08.0900.24.MET-7.037.hursat-b1.v06.nc",
+      "bytes": 387579,
+      "sha256": "e609cfe2272ae50836e5a12ecaf603fd3e4cf47df2fd28c688f9cb97ff507ff0",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.08.0900.77.MSG-3.037.hursat-b1.v06.nc",
+      "bytes": 506684,
+      "sha256": "eddcc60c701f2fa36819a7c1e37d45f1845b9bc5a727ee9e90c5cfc7c0a376f0",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.08.1200.25.MET-7.037.hursat-b1.v06.nc",
+      "bytes": 377850,
+      "sha256": "bc337d880a184c502997f4958ce9d14710eff3f07566ed1011d68a6abd1eeb49",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.08.1200.77.MSG-3.037.hursat-b1.v06.nc",
+      "bytes": 505577,
+      "sha256": "33325a019af853aae21c6e160ec434e730007663cfac3eda49d49c9501ceeca0",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.08.1500.25.MET-7.038.hursat-b1.v06.nc",
+      "bytes": 328907,
+      "sha256": "e37e3b26f8262db352cea8e375e1d9748d6086b287a0f8458692d04e3df62ab9",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.08.1500.77.MSG-3.038.hursat-b1.v06.nc",
+      "bytes": 455259,
+      "sha256": "9e5cd66e064356dfa38462d47da2f1f04f4a2e42718911bdb559aedc727c5bee",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.08.1800.25.MET-7.040.hursat-b1.v06.nc",
+      "bytes": 326997,
+      "sha256": "3b6743a8f0ae266cbace3eafbc0741018e3de1563a1db93a14e99232ed7e3ed2",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.08.1800.76.MSG-3.040.hursat-b1.v06.nc",
+      "bytes": 460333,
+      "sha256": "870581b3cae4520f8f5b98130665ed80a2c6320b75ac05fc0d2c216c76e13be3",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.08.2100.25.MET-7.040.hursat-b1.v06.nc",
+      "bytes": 318820,
+      "sha256": "fdab6a1b958caf438fd6aa85220b32da610f8c2dc3c868b98f66f2d7ff1cb37a",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.08.2100.76.MSG-3.040.hursat-b1.v06.nc",
+      "bytes": 467821,
+      "sha256": "6a44370a17fbb25560cf5f55384d821562de5587cbbca18646f090cc170df479",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.09.0000.25.MET-7.040.hursat-b1.v06.nc",
+      "bytes": 310799,
+      "sha256": "b08c823c7fdb0bb39cc3379477458d415686f523202127dcb5f2b91f64f07dad",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.09.0000.76.MSG-3.040.hursat-b1.v06.nc",
+      "bytes": 467949,
+      "sha256": "da7bc32765ec11aeeeab04802fb7357e29bb0c51ff3c489c4192bcb413655767",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.09.0300.25.MET-7.040.hursat-b1.v06.nc",
+      "bytes": 363694,
+      "sha256": "d9bb190bbee85ee59b15329387d056293571a8c931a2fe6c7fa5bdeca84bb7ff",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.09.0300.75.MSG-3.040.hursat-b1.v06.nc",
+      "bytes": 558617,
+      "sha256": "cf8d6f8475447a1731f3958ce5351ff8fe4a47cbb54fe5f728f10ac1cdbe3dd5",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.09.0600.25.MET-7.040.hursat-b1.v06.nc",
+      "bytes": 373093,
+      "sha256": "bb6d1039cce100ea70025e74b8a63c080533e91c7c2ccc194e9b93b5b040494f",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.09.0600.75.MSG-3.040.hursat-b1.v06.nc",
+      "bytes": 558030,
+      "sha256": "595df26ed580e8e868df69720680dacce4c79301d9b98caaacb7d73baedd05a0",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.09.0900.26.MET-7.041.hursat-b1.v06.nc",
+      "bytes": 375732,
+      "sha256": "b39d396a2900808682e1e18c69a20f5287d95598484186182279df4068e880b9",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.09.0900.75.MSG-3.041.hursat-b1.v06.nc",
+      "bytes": 567233,
+      "sha256": "93d08e7fe4370ba82e98779872a9c99ef584289abe8528762a44147bce85cde4",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.09.1200.26.MET-7.042.hursat-b1.v06.nc",
+      "bytes": 365140,
+      "sha256": "49238fd21b2db53794e59b20629c92f95d2eaf4321bf459991d19f87b2530413",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.09.1200.74.MSG-3.042.hursat-b1.v06.nc",
+      "bytes": 563389,
+      "sha256": "3abf5f815a0a3b3e8e4fe73af87e743becc30281579b2bdbe8c8000b2e8e39cd",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.09.1500.26.MET-7.044.hursat-b1.v06.nc",
+      "bytes": 320853,
+      "sha256": "d1d2ed91c9afd9d764eca0b209cdda34889e21b20f4fea7daa9ad878d60ae6f1",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.09.1500.74.MSG-3.044.hursat-b1.v06.nc",
+      "bytes": 491982,
+      "sha256": "652275666fc1521f827ed2ee13296f68b1ba49972c0fe104c353ab649f1b89c8",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.09.1800.26.MET-7.047.hursat-b1.v06.nc",
+      "bytes": 318128,
+      "sha256": "7f4902040057b929d3ee71c2450cd1c3ec1e4947a25af88a3218e6e4b3b24e7c",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.09.1800.73.MSG-3.047.hursat-b1.v06.nc",
+      "bytes": 488258,
+      "sha256": "aae3b37f2a3957140395ba0b57852f64f521376a49b88eafa6fe023e4166ef96",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.09.2100.26.MET-7.047.hursat-b1.v06.nc",
+      "bytes": 309034,
+      "sha256": "ab08baf7c68c74e1a666824a94a373f9a82d8d0751b81bb35d738581c9f52579",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.09.2100.73.MSG-3.047.hursat-b1.v06.nc",
+      "bytes": 485785,
+      "sha256": "225e26a047c3f21b14d264fad480c19f758288bf058ec2afb90373f0e787c5e6",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.10.0000.26.MET-7.047.hursat-b1.v06.nc",
+      "bytes": 298776,
+      "sha256": "3b7a60cc11eba6287b25ed96550d57022afb400609d8cdc90022b49a92c3456a",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.10.0000.73.MSG-3.047.hursat-b1.v06.nc",
+      "bytes": 476726,
+      "sha256": "95e4b3af5d9467a0bf1df9c2c785349024a18df601e2c3cd8c66c92b940dbc23",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.10.0300.25.MET-7.047.hursat-b1.v06.nc",
+      "bytes": 343276,
+      "sha256": "fd4a1b8b473d778b80424c88bb2b78ee0aaa74c530e0e57ba76cc98892546db5",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.10.0300.73.MSG-3.047.hursat-b1.v06.nc",
+      "bytes": 572161,
+      "sha256": "ef7e0534bbe50909e056a737738ab0f21b15907c48a170570a34be7815f02bc8",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.10.0600.25.MET-7.047.hursat-b1.v06.nc",
+      "bytes": 357604,
+      "sha256": "aa30a079b2de467b4cb9571428f88af1bdb20dce1c4d70ae26353cf4776e680a",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.10.0600.72.MSG-3.047.hursat-b1.v06.nc",
+      "bytes": 572241,
+      "sha256": "b2c8451179566d1210c1d81283a8a8e0dc5ca7b2e9a84853df393274ddd723f0",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.10.0900.25.MET-7.046.hursat-b1.v06.nc",
+      "bytes": 362948,
+      "sha256": "955e7d1e3996474c1e75153eac729ccd19207c6d6e6f9166df5d8be41dfc5923",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.10.0900.72.MSG-3.046.hursat-b1.v06.nc",
+      "bytes": 579749,
+      "sha256": "678c3dc06356bbf13bdaa8be772e8dc25999c7102a96d7c23ac79dd35461786d",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.10.1200.25.MET-7.045.hursat-b1.v06.nc",
+      "bytes": 358526,
+      "sha256": "123cff99d8a7567ca59be286b1dd65a9849771441f42b90320f097a3eb2ee147",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.10.1200.72.MSG-3.045.hursat-b1.v06.nc",
+      "bytes": 577845,
+      "sha256": "b63fa20f576d2b94625e5a282f7d9073572ebf4fe63105a9423acce014ebe426",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.10.1500.25.MET-7.043.hursat-b1.v06.nc",
+      "bytes": 318627,
+      "sha256": "8fc08542e7463dad8a4419fe0c2474e87e14e334762c389884d5b9bb477c44a4",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.10.1500.72.MSG-3.043.hursat-b1.v06.nc",
+      "bytes": 502662,
+      "sha256": "809980e29a2a2caaed5fc8b03e6f93c2c6703a5a436de77bddfe1d2334a9a6bb",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.10.1800.25.MET-7.042.hursat-b1.v06.nc",
+      "bytes": 315304,
+      "sha256": "59bbbde5c68a5349dc48afa01b37833fae94e1ac5f9c7f2127da684eaeb4e80b",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.10.1800.72.MSG-3.042.hursat-b1.v06.nc",
+      "bytes": 495211,
+      "sha256": "ba83e5b14df687c4d03eb861af6a40a5e96673171b057d7a05455fb96315a3a2",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.10.2100.25.MET-7.041.hursat-b1.v06.nc",
+      "bytes": 306999,
+      "sha256": "4be5440f11458d6e78b6c66de43da98c3b84b7ac0f6ab81012b9d1422da7f286",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.10.2100.72.MSG-3.041.hursat-b1.v06.nc",
+      "bytes": 493091,
+      "sha256": "d049aeecf866cf935b06be6a6d1351fea20e72e1b24f29354a033e0e0ca22932",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.11.0000.25.MET-7.040.hursat-b1.v06.nc",
+      "bytes": 296464,
+      "sha256": "886091ce2d2c8a3c1b90836273c534af03338ab728a5b7aecd8b39349642c63f",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.11.0000.72.MSG-3.040.hursat-b1.v06.nc",
+      "bytes": 485933,
+      "sha256": "1e0aa9613c6e2ee0f51934136457700d075104da1d8551e5ee5f019ae90ee574",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.11.0300.25.MET-7.039.hursat-b1.v06.nc",
+      "bytes": 334728,
+      "sha256": "e397b07b9cbcde290b8469ba2790222b7ccd7c5fe5fb1aa998534ace14230068",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.11.0300.72.MSG-3.039.hursat-b1.v06.nc",
+      "bytes": 573586,
+      "sha256": "c8c2e24f3be96efbd6c132f41e58ea4d027886e29fb10e3c0264a8f2b9199725",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.11.0600.25.MET-7.037.hursat-b1.v06.nc",
+      "bytes": 349094,
+      "sha256": "0d8a68bd1f52128f3755d6378a9ff24b151a6092d115c43acb93b6aa65621dfc",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.11.0600.71.MSG-3.037.hursat-b1.v06.nc",
+      "bytes": 567549,
+      "sha256": "143f5ca862fc1260edb5e66d964897a7e737fe95bd57a07b1ff965499dad4647",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.11.0900.25.MET-7.036.hursat-b1.v06.nc",
+      "bytes": 358415,
+      "sha256": "9c663b9ba51f36cb1219c8bc8122868fb2a0bdbc4e8583b59cdb0bdb023fc4e4",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.11.0900.71.MSG-3.036.hursat-b1.v06.nc",
+      "bytes": 578257,
+      "sha256": "b2b59849e6f483cc90cfe05a3e025acbb4a232738890e1e274cace69a5940f83",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.11.1200.25.MET-7.035.hursat-b1.v06.nc",
+      "bytes": 356316,
+      "sha256": "3a4bb33c4c7bc3dba910aaf1cb9b3ea36ac322f54e698e723a13d0e9544f1bc3",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.11.1200.71.MSG-3.035.hursat-b1.v06.nc",
+      "bytes": 579074,
+      "sha256": "c834c1f1a04369eb78b18deaa3fcc97d001b0e8c405b60aae0b8e18b260b65db",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.11.1500.25.MET-7.033.hursat-b1.v06.nc",
+      "bytes": 319352,
+      "sha256": "e74bdaca763a9b9b792567ac394639c1895bc801b871ac00da302c34d9469198",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.11.1500.71.MSG-3.033.hursat-b1.v06.nc",
+      "bytes": 513098,
+      "sha256": "f3e9409877045f0374063623c642e3468a964891f783275823d619416c8fac6a",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.11.1800.25.MET-7.030.hursat-b1.v06.nc",
+      "bytes": 316685,
+      "sha256": "d39aee84710898a0d7c57cdfd838bd8f8be80ae0ea5fee13d79cee4261f01c01",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.11.1800.71.MSG-3.030.hursat-b1.v06.nc",
+      "bytes": 512892,
+      "sha256": "8479f165c3fbc3b836cb4eb0953f8443f1678b62cc20695e6876b76e14c14bac",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.11.2100.25.MET-7.029.hursat-b1.v06.nc",
+      "bytes": 310492,
+      "sha256": "5af1ae7d72597411c2f31a9e90c88c9d143d30471767dc69cb54db69a49989bd",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.11.2100.71.MSG-3.029.hursat-b1.v06.nc",
+      "bytes": 512905,
+      "sha256": "50c1da7052f9a059da97fbac429dabe4854c38690725799f54ca855b2c1aed81",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.12.0000.25.MET-7.028.hursat-b1.v06.nc",
+      "bytes": 299996,
+      "sha256": "eb3acaee19ab6d7b31dfc8d7fa540e0940060832d85a69f12d7bca7e64417535",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.12.0000.71.MSG-3.028.hursat-b1.v06.nc",
+      "bytes": 495950,
+      "sha256": "72465e03c4334ff3218755f2ee8abab020f6f7dda65274cbaeb50bd6c11fd547",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.12.0300.25.MET-7.027.hursat-b1.v06.nc",
+      "bytes": 335504,
+      "sha256": "27440e06c62a477b8c71b3183e79ca498cdbb5d7ea9acdb0a439c819b2051dbb",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.12.0300.71.MSG-3.027.hursat-b1.v06.nc",
+      "bytes": 580253,
+      "sha256": "03f70ce7fe44e1e2ab190d44c7ca7a13f611e826f814b941f719fd76d855e3d3",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.12.0600.25.MET-7.026.hursat-b1.v06.nc",
+      "bytes": 350737,
+      "sha256": "db5791f64eb7b4de22807bbb0b39a7e062db307bab7e6de849d468ec29a34760",
+      "magic_hex": "894844460d0a1a0a"
+    },
+    {
+      "member": "2015157N13069.ASHOBAA.2015.06.12.0600.70.MSG-3.026.hursat-b1.v06.nc",
+      "bytes": 571540,
+      "sha256": "fe38a0cf8403fdd638cbf5d0b4fc49bf86e0b582f107545c263919492ae9da70",
+      "magic_hex": "894844460d0a1a0a"
+    }
+  ],
+  "note": "Raw archive integrity inventory only; no pixel preprocessing, label join, accuracy or training-readiness claim"
+}

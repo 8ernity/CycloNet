@@ -159,14 +159,14 @@ export function IngestPanel({ phase }: PanelProps) {
   );
 }
 
-function PipelineSource({ name, icon: Icon, rate, delay, color, shouldReduceMotion }: any) {
-  const colorMap: any = {
+function PipelineSource({ name, icon: Icon, rate, delay, color, shouldReduceMotion }: { name: string; icon: React.ElementType; rate: string; delay: number; color: string; shouldReduceMotion: boolean | null }) {
+  const colorMap: Record<string, string> = {
     blue: "bg-blue-500/10 text-blue-500 border-blue-500/20",
     emerald: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
     indigo: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20",
   };
   
-  const iconColorMap: any = {
+  const iconColorMap: Record<string, string> = {
     blue: "text-blue-500",
     emerald: "text-emerald-500",
     indigo: "text-indigo-500",

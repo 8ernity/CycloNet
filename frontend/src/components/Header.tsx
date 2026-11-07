@@ -1,4 +1,5 @@
 "use client";
+import { useMounted } from "@/hooks/useBrowserState";
 
 import React from "react";
 import { Menu, Wind } from "lucide-react";
@@ -8,13 +9,11 @@ import { CycloneLogo } from "@/components/CycloneLogo";
 import { NeonThemeToggle } from "@/components/NeonThemeToggle";
 
 export function Header() {
-  const [mounted, setMounted] = React.useState(false);
+  const mounted = useMounted();
   const pathname = usePathname();
   const { selectedCycloneId, selectedCycloneName } = useActiveCyclone();
 
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
+
 
   const getPageTitle = () => {
     switch (pathname) {

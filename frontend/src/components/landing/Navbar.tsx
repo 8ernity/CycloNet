@@ -1,4 +1,5 @@
 "use client";
+import { useMounted } from "@/hooks/useBrowserState";
 
 import React, { useState, useEffect } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence, useMotionValueEvent } from 'framer-motion';
@@ -22,11 +23,9 @@ export function Navbar() {
   const [activeItem, setActiveItem] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolledPast, setIsScrolledPast] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+
 
   useMotionValueEvent(scrollY, "change", (latest) => {
     setIsScrolledPast(latest > 10);

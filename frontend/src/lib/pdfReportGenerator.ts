@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import autoTable, { applyPlugin } from "jspdf-autotable";
+import autoTable, { applyPlugin, type UserOptions } from "jspdf-autotable";
 
 // Register jspdf-autotable plugin if available
 try {
@@ -17,7 +17,12 @@ export interface CyclonePdfData {
     basin?: string;
     lat?: number;
     lon?: number;
-    intensity_knots?: number;
+    intensity_knots?: number | null;
+    central_pressure_hpa?: number | null;
+    source?: string;
+    observation_time_utc?: string | null;
+    retrieved_at?: string | null;
+    is_simulation?: boolean;
     category?: string;
   };
   alertInfo?: {
@@ -36,7 +41,7 @@ export interface CyclonePdfData {
     number?: number;
     timestamp_utc?: string;
     timestamp_ist?: string;
-    intensity_knots?: number;
+    intensity_knots?: number | null;
     intensity_kmh?: number;
     gusts_kmh?: number;
     central_pressure_hpa?: number;
@@ -60,59 +65,18 @@ export interface CyclonePdfData {
 /**
  * Universal safe invoker for jspdf-autotable across different bundler environments (Next.js/Webpack/Turbopack/ESM)
  */
-function runAutoTable(docInstance: any, options: any): void {
-  try {
-    if (typeof (autoTable as any) === "function") {
-      (autoTable as any)(docInstance, options);
-      return;
-    }
-  } catch (err) {
-    console.warn("Direct autoTable invocation warning:", err);
-  }
-
-  try {
-    if (typeof (autoTable as any)?.default === "function") {
-      (autoTable as any).default(docInstance, options);
-      return;
-    }
-  } catch (err) {
-    console.warn("autoTable.default invocation warning:", err);
-  }
-
-  try {
-    if (typeof (autoTable as any)?.autoTable === "function") {
-      (autoTable as any).autoTable(docInstance, options);
-      return;
-    }
-  } catch (err) {
-    console.warn("autoTable.autoTable invocation warning:", err);
-  }
-
-  try {
-    if (typeof docInstance.autoTable === "function") {
-      docInstance.autoTable(options);
-      return;
-    }
-  } catch (err) {
-    console.warn("doc.autoTable execution warning:", err);
-  }
-
-  console.error("jspdf-autotable function not available on jsPDF instance or imports");
+function runAutoTable(docInstance: jsPDF, options: UserOptions): void {
+  autoTable(docInstance, options);
 }
 
-/**
- * Safe calculation of final Y position after an autoTable draw
- */
-function getTableFinalY(docInstance: any, fallbackY: number): number {
-  if (docInstance?.lastAutoTable?.finalY != null && !isNaN(docInstance.lastAutoTable.finalY)) {
-    return docInstance.lastAutoTable.finalY + 6;
-  }
-  return fallbackY + 36;
+function getTableFinalY(docInstance: jsPDF, fallbackY: number): number {
+  const last = (docInstance as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable;
+  return last && Number.isFinite(last.finalY) ? last.finalY + 6 : fallbackY + 36;
 }
 
 export function generateCyclonePdfReport(data: CyclonePdfData): void {
   const system = data.system || {};
-  const alertInfo = data.alertInfo || { level: "ORANGE", title: "CYCLONE WARNING", desc: "Active meteorological threat." };
+  const alertInfo = data.alertInfo || { level: "DATA_UNAVAILABLE", title: "Data unavailable", desc: "Consult official agencies." };
   const sourceInfo = data.sourceInfo;
   const affectedDistricts = data.affectedDistricts || [];
   const portSignals = data.portSignals || [];
@@ -129,13 +93,13 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   const maxContentY = pageHeight - 20; // Safe bottom boundary before footer
   let y = 14;
 
-  const hasKnots = typeof system.intensity_knots === "number" && !isNaN(system.intensity_knots) && system.intensity_knots > 0;
+  const hasKnots = typeof system.intensity_knots === "number" && !isNaN(system.intensity_knots) && system.intensity_knots >= 0;
   const knots = hasKnots ? Number(system.intensity_knots) : null;
   const kmh = knots !== null ? Math.round(knots * 1.852) : null;
-  const gusts = kmh !== null ? Math.round(kmh * 1.25) : null;
-  const surge = knots !== null ? Number((Math.max(0.8, (knots * 0.035) + 0.5)).toFixed(1)) : null;
-  const wave = knots !== null ? Number((Math.max(2.0, (knots * 0.08) + 1.0)).toFixed(1)) : null;
-  const pressure = knots !== null ? 1010 - Math.round(knots * 0.65) : null;
+  const gusts = null;
+  const surge = null;
+  const wave = null;
+  const pressure = system.central_pressure_hpa ?? null;
   const now = new Date();
   const dateStr = now.toUTCString();
 
@@ -146,7 +110,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   const systemLat = hasCoords ? (system.lat as number) : null;
   const systemLon = hasCoords ? (system.lon as number) : null;
   const systemId = system.id || "N/A (Pending Reference Code)";
-  const alertLevel = (alertInfo.level || "ORANGE").toUpperCase();
+  const alertLevel = (alertInfo.level || "DATA_UNAVAILABLE").toUpperCase();
 
   // ── 1. Top Official Header Banner ──────────────────────────────────────────
   doc.setFillColor(15, 23, 42); // Slate-900
@@ -175,7 +139,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(148, 163, 184); // Slate-400
-  const agencyLabel = sourceInfo?.label ? `${sourceInfo.label} (${sourceInfo.avgWindow || "3-Min"})` : "RSMC / IMD Protocol (3-Min Sustained)";
+  const agencyLabel = sourceInfo?.label ? `${sourceInfo.label} (${sourceInfo.avgWindow || "3-Min"})` : "Source not available";
   doc.text(`${agencyLabel} • Simulation Benchmark • Generated: ${dateStr}`, margin, 20.5);
 
   // Badge on Header Right
@@ -208,7 +172,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
     ? `${systemLat.toFixed(2)}°N, ${systemLon.toFixed(2)}°E`
     : "Not available";
   doc.text(`Basin: ${systemBasin}  |  Center Fix: ${coordFixStr}  |  Ref Code: ${systemId}  |  Scale: ${scaleRef}`, margin + 4, y + 11);
-  doc.text(`Status Directive: ${alertInfo.title || "Severe Cyclone Alert"}`, margin + 4, y + 16);
+  doc.text(`Status Directive: ${alertInfo.title || "Data unavailable"}`, margin + 4, y + 16);
 
   y += 24;
 
@@ -216,7 +180,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.setTextColor(15, 23, 42);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
-  doc.text("1. OBSERVED SYNOPTIC TELEMETRY (AUTHORITATIVE SOURCE)", margin, y);
+  doc.text("1. SUPPLIED SOURCE TELEMETRY (EXPERIMENTAL REPORT)", margin, y);
   y += 3.5;
 
   const windHeaderLabel = sourceInfo?.shortLabel ? `Max Sustained Wind (${sourceInfo.shortLabel}):` : "Max Sustained Wind (3-min):";
@@ -224,6 +188,8 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   const pressureValStr = pressure !== null ? `${pressure} hPa` : "Not available";
 
   const paramData = [
+    ["Source issue time", system.observation_time_utc || "Not available", "Retrieved", system.retrieved_at || "Not available"],
+    ["Simulation", system.is_simulation ? "Yes — synthetic / replay" : "No", "Source", system.source || "Not available"],
     [
       { content: windHeaderLabel, styles: { fontStyle: "bold" as const } },
       windValStr,
@@ -234,7 +200,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
       { content: "Center Fix Coordinates:", styles: { fontStyle: "bold" as const } },
       coordFixStr,
       { content: "Observational Provenance:", styles: { fontStyle: "bold" as const } },
-      sourceInfo?.label || "Authoritative Meteorological Center Bulletin"
+      system.source || "Not available"
     ]
   ];
 
@@ -429,7 +395,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   // ── 7. Clean, Non-Colliding Footer Across All Pages ─────────────────────────
   const totalPages = (typeof doc.getNumberOfPages === "function") 
     ? doc.getNumberOfPages() 
-    : ((doc as any).internal?.getNumberOfPages ? (doc as any).internal.getNumberOfPages() : 1);
+    : doc.getNumberOfPages();
     
   // Deterministic document checksum based on storm parameters and synoptic window
   const payloadToHash = `${systemId}-${systemName}-${knots}-${alertLevel}-${now.toISOString().slice(0, 13)}`;

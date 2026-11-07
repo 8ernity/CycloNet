@@ -1,5 +1,8 @@
 # <img src="frontend/public/logo.svg" width="32" height="32" style="vertical-align: middle; display: inline-block; margin-right: 8px;" alt="CycloNet Logo" /> CycloNet — Intelligent Tropical Cyclone Tracking & Satellite Intensity Estimation Platform
 
+> **V5 deployment status (7 November 2026):** Experimental only. Local regression, database, browser, and dependency checks are documented in [Production readiness](docs/PRODUCTION_READINESS.md). No scientifically validated model or satellite flood detector is bundled. Satellite observations return unavailable; reports and broadcasts are experimental exercises. Live production rollout and managed recovery are not verified. This status supersedes older feature claims below.
+
+
 > **Next-Generation Meteorological & Infrastructure Vulnerability Intelligence Platform combining Deep Learning Computer Vision, GEE-Compatible Satellite Inundation Pipelines, Parametric Hydrodynamic Storm Surge Modeling, and Gemini 3.7 Flash Multimodal AI Reasoning.**
 
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.110+-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com)

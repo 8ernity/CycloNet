@@ -43,7 +43,7 @@ async def test_jtwc_malformed_feed_does_not_result_in_verified_calm():
         assert service.sources_status["JTWC_NOAA"] != "NO_ACTIVE_STORMS"
 
 @pytest.mark.asyncio
-async def test_empty_valid_advisory_produces_no_active_storms():
+async def test_undated_empty_advisory_cannot_verify_calm():
     """4. An empty valid advisory can produce NO_ACTIVE_STORMS when source format and coverage support that."""
     service = LiveIngestionService()
     mock_imd = MagicMock(status_code=200, text="<html><body>Routine bulletin: No cyclonic disturbances over Bay of Bengal or Arabian Sea.</body></html>")
@@ -60,10 +60,10 @@ async def test_empty_valid_advisory_produces_no_active_storms():
 
     with patch("httpx.AsyncClient.get", side_effect=mock_fetch_all):
         sync_result = await service.sync_all_sources()
-        assert service.sources_status["IMD_RSMC"] == "NO_ACTIVE_STORMS"
-        assert service.sources_status["GDACS_UN"] == "NO_ACTIVE_STORMS"
-        assert service.sources_status["JTWC_NOAA"] == "NO_ACTIVE_STORMS"
-        assert sync_result["status"] == "success"
+        assert service.sources_status["IMD_RSMC"] == "DEGRADED"
+        assert service.sources_status["GDACS_UN"] == "DEGRADED"
+        assert service.sources_status["JTWC_NOAA"] == "DEGRADED"
+        assert sync_result["status"] == "outage"
         assert sync_result["active_systems_count"] == 0
 
 @pytest.mark.asyncio
@@ -79,8 +79,8 @@ async def test_two_failed_feeds_and_one_valid_feed_produce_partial_monitoring():
 
     with patch("httpx.AsyncClient.get", side_effect=mock_fetch):
         sync_result = await service.sync_all_sources()
-        assert sync_result["status"] == "partial_monitoring"
-        assert service.sources_status["GDACS_UN"] == "NO_ACTIVE_STORMS"
+        assert sync_result["status"] == "outage"
+        assert service.sources_status["GDACS_UN"] == "DEGRADED"
         assert "FAILED" in service.sources_status["IMD_RSMC"]
         assert "FAILED" in service.sources_status["JTWC_NOAA"]
 
@@ -108,7 +108,7 @@ async def test_three_failed_feeds_preserve_last_valid_records_as_stale():
         assert service.live_systems[0]["is_stale"] is True
 
 @pytest.mark.asyncio
-async def test_recovered_feed_correctly_replaces_stale_information():
+async def test_undated_recovery_preserves_stale_information():
     """7. A recovered feed correctly replaces stale information."""
     service = LiveIngestionService()
     stale_system = {
@@ -139,9 +139,10 @@ async def test_recovered_feed_correctly_replaces_stale_information():
 
     with patch("httpx.AsyncClient.get", side_effect=mock_recover):
         sync_result = await service.sync_all_sources()
-        assert sync_result["status"] == "success"
-        assert len(service.live_systems) == 0
-        assert service.sources_status["IMD_RSMC"] == "NO_ACTIVE_STORMS"
+        assert sync_result["status"] == "outage"
+        assert len(service.live_systems) == 1
+        assert service.live_systems[0]["is_stale"]
+        assert service.sources_status["IMD_RSMC"] == "DEGRADED"
 
 @pytest.mark.asyncio
 async def test_missing_wind_and_pressure_remain_null_end_to_end():
@@ -150,6 +151,7 @@ async def test_missing_wind_and_pressure_remain_null_end_to_end():
     gdacs_xml = """<?xml version="1.0" encoding="utf-8"?>
     <rss version="2.0" xmlns:georss="http://www.georss.org/georss">
       <channel>
+        <title>GDACS</title>
         <item>
           <title>Tropical Cyclone Alert - North Indian Ocean</title>
           <description>System developing in central Bay of Bengal without reported anemometer wind</description>
@@ -162,7 +164,7 @@ async def test_missing_wind_and_pressure_remain_null_end_to_end():
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = mock_resp
         res = await service._fetch_gdacs_active_systems()
-        assert res.status == FeedStatus.HEALTHY
+        assert res.status == FeedStatus.STALE
         assert len(res.systems) == 1
         sys = res.systems[0]
         assert sys["intensity_knots"] is None, "Missing wind must be None, never defaulted to 65 km/h or 30 kt"

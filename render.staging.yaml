@@ -1,0 +1,95 @@
+# Proposed staging resources; not deployed or verified. Paid plans.
+services:
+  # ── CycloNet Backend (FastAPI + PyTorch + Gemini AI) ────────────────────────
+  - type: web
+    name: cyclonet-backend-staging
+    branch: staging
+    autoDeployTrigger: "off"
+    runtime: python
+    rootDir: backend
+    plan: standard
+    region: oregon
+    buildCommand: "pip install --require-hashes --extra-index-url https://download.pytorch.org/whl/cpu -r requirements-linux.lock"
+    preDeployCommand: "alembic upgrade head"
+    healthCheckPath: /health/ready
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.15
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cyclonet-db-staging
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: cyclonet-redis-staging
+          property: connectionString
+      - key: REDIS_FAIL_CLOSED
+        value: "true"
+      - key: CLERK_ISSUER
+        sync: false
+      - key: CLERK_JWKS_URL
+        sync: false
+      - key: CLERK_AUTHORIZED_PARTIES
+        value: "https://cyclonet-frontend-staging.onrender.com"
+      - key: GEE_PROJECT_ID
+        value: cyclonet-ee-staging-8ernity
+      - key: REQUIRE_VALIDATED_ML
+        value: "false" # Experimental API only; no validated model is bundled.
+      - key: GEMINI_API_KEY
+        sync: false # Set securely in Render dashboard
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: CORS_ORIGINS
+        value: "https://cyclonet-frontend-staging.onrender.com"
+
+  # ── CycloNet Frontend (Next.js 16 + Tailwind CSS) ───────────────────────────
+  - type: web
+    name: cyclonet-frontend-staging
+    branch: staging
+    autoDeployTrigger: "off"
+    runtime: node
+    rootDir: frontend
+    plan: starter
+    region: oregon
+    buildCommand: "npm ci && npm run build"
+    startCommand: "npm run start"
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.0
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          name: cyclonet-backend-staging
+          type: web
+          property: host
+      - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+        sync: false # Set securely in Render dashboard
+      - key: CLERK_SECRET_KEY
+        sync: false # Set securely in Render dashboard
+      - key: NEXT_PUBLIC_CLERK_SIGN_IN_URL
+        value: /login
+      - key: NEXT_PUBLIC_CLERK_SIGN_UP_URL
+        value: /login?mode=signup
+      - key: NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL
+        value: /
+      - key: NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL
+        value: /
+
+  # ── CycloNet Redis Cache & Distributed Lock Store ───────────────────────────
+  - type: redis
+    name: cyclonet-redis-staging
+    plan: starter
+    region: oregon
+    maxmemoryPolicy: noeviction
+    ipAllowList: []
+
+databases:
+  # ── CycloNet PostgreSQL Production Database ─────────────────────────────────
+  - name: cyclonet-db-staging
+    databaseName: cyclonet
+    user: cyclonet
+    plan: basic-256mb
+    region: oregon

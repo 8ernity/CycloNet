@@ -1,0 +1,72 @@
+<testsuites id="" name="" tests="2" failures="2" skipped="0" errors="0" time="143.857285">
+<testsuite name="reports.spec.ts" timestamp="2026-11-07T16:23:21.239Z" hostname="" tests="2" failures="2" skipped="0" time="28.222" errors="0">
+<testcase name="outage dashboard and assistant context never imply healthy feeds or calm" classname="reports.spec.ts" time="14.493">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\reports-outage-dashboard-a-2c5e3-imply-healthy-feeds-or-calm\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  reports.spec.ts:3:1 › outage dashboard and assistant context never imply healthy feeds or calm ───
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('IMD RSMC: FAILED', { exact: true })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByText('IMD RSMC: FAILED', { exact: true }) with timeout 5000ms
+      - waiting for getByText('IMD RSMC: FAILED', { exact: true })
+
+
+       6 |   await page.route('**/api/ingest/status', route => route.fulfill({json:{status:'degraded',last_sync:null,is_syncing:false,active_systems_count:0,sources_status:{IMD_RSMC:'FAILED',JTWC_NOAA:'STALE'},basin_status:'STATUS_UNCERTAIN'}}));
+       7 |   await page.goto('/dashboard');
+    >  8 |   await expect(page.getByText('IMD RSMC: FAILED', {exact:true})).toBeVisible();
+         |                                                                  ^
+       9 |   await expect(page.getByText('JTWC/NOAA: STALE', {exact:true})).toBeVisible();
+      10 |   await expect(page.locator('body')).not.toContainText(/basin calm|basin quiet|feeds nominal|15 - 25 km\/h|Beaufort Scale 3|: Online/i);
+      11 |   await expect.poll(() => page.evaluate(() => window.__cyclonet_current_context?.basin_status)).toBe('STATUS_UNCERTAIN');
+        at D:\Projects\CycloneTracker\frontend\tests\browser\reports.spec.ts:8:66
+
+    Error Context: ..\..\test-results\reports-outage-dashboard-a-2c5e3-imply-healthy-feeds-or-calm\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="current-year stale observations are neither drills nor verified live data" classname="reports.spec.ts" time="13.729">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\reports-current-year-stale-6dd60-ills-nor-verified-live-data\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  reports.spec.ts:14:1 › current-year stale observations are neither drills nor verified live data ─
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('STALE SOURCE OBSERVATION', { exact: true }).first()
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByText('STALE SOURCE OBSERVATION', { exact: true }).first() with timeout 5000ms
+      - waiting for getByText('STALE SOURCE OBSERVATION', { exact: true }).first()
+
+
+      18 |   await page.goto('/dashboard');
+      19 |   await expect(page.getByText('Retained storm', {exact:true}).first()).toBeVisible();
+    > 20 |   await expect(page.getByText('STALE SOURCE OBSERVATION', {exact:true}).first()).toBeVisible();
+         |                                                                                  ^
+      21 |   await expect(page.locator('body')).not.toContainText(/SYNTHETIC DRILL|LIVE SURVEILLANCE|Live verified/);
+      22 |   await expect.poll(() => page.evaluate(() => window.__cyclonet_current_context?.isSimulation)).toBe(false);
+      23 | });
+        at D:\Projects\CycloneTracker\frontend\tests\browser\reports.spec.ts:20:82
+
+    Error Context: ..\..\test-results\reports-current-year-stale-6dd60-ills-nor-verified-live-data\error-context.md
+]]>
+</failure>
+</testcase>
+</testsuite>
+</testsuites>

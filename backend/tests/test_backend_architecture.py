@@ -70,7 +70,10 @@ def test_problem_58_lazy_resnet_loading():
     # Accessing has_model triggers lazy initialization cleanly
     assert isinstance(service.has_model, bool)
     assert service.model_initialized is True
-    assert service.backbone is not None
+    # Legacy checkpoint lacks validated metadata: do not initialize random weights.
+    assert service.checkpoint_loaded is False
+    assert service.scientifically_validated is False
+    assert service.backbone is None
 
 def test_problem_66_db_state_persistence():
     """Verify #66: Active cyclone state is persisted to database, not only process heap."""

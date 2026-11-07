@@ -22,7 +22,8 @@ def test_unauthenticated_satellite_flood_service_returns_unavailable_without_pol
     assert res["status"] == "SATELLITE_DATA_UNAVAILABLE"
     assert res["is_satellite_measured"] is False
     assert len(res["features"]) == 0
-    assert "No authenticated Earth Engine session" in res["reason"]
+    assert res['capability_status'] == 'DISABLED'
+    assert 'validated SAR pipeline' in res['reason']
 
 def test_flood_simulation_service_labels_simulated_extent_and_origin():
     """

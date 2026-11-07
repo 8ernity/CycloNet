@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import { type TrackPoint, type IngestStatus, type CatalogItem } from "@/types/api";
+import React, { useState, useEffect, useRef } from "react";
 import { AlertCircle, CloudRain, MapPin, Navigation, Wind, ShieldCheck, Play, RotateCcw, Activity, Eye, RefreshCw, Radio } from "lucide-react";
 import dynamic from 'next/dynamic';
 
@@ -7,7 +8,7 @@ import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
 import { useCycloneWebSocket } from "@/hooks/useCycloneWebSocket";
 import { useLanguage } from "@/context/LanguageContext";
-import { API_BASE_URL, getApiBaseUrl, apiFetch } from "@/lib/api";
+import { API_BASE_URL, getApiBaseUrl, apiFetch, ApiClientError } from "@/lib/api";
 
 const MapComponent = dynamic(() => import('@/components/MapComponent'), { 
   ssr: false,
@@ -20,19 +21,25 @@ interface ActiveSystem {
   category: string;
   lat: number;
   lon: number;
-  intensity_knots: number;
+  intensity_knots: number | null;
   basin?: string;
+  observation_time_utc?: string | null;
+  source?: string | null;
+  source_type?: string;
+  origin_type?: string;
   is_simulation?: boolean;
   year?: string;
   is_live_telemetry?: boolean;
+  is_stale?: boolean;
+  reconciliation_status?: string;
   telemetry_badge?: string;
   telemetry_type?: string;
   dvorak_t?: string;
   dvorak_derivation_method?: string;
   dvorak_is_empirical_estimate?: boolean;
   track_generation_method?: string;
-  telemetry_attribution?: any;
-  track_forecast?: any[];
+  telemetry_attribution?: Record<string, string>;
+  track_forecast?: TrackPoint[];
   landfall_info?: {
     status?: string;
     landfall_time_utc?: string;
@@ -53,12 +60,12 @@ const getStormDetails = (sys: ActiveSystem | null) => {
   if (!sys) {
     return { 
       basinName: "RSMC New Delhi Jurisdiction", 
-      landfall: "Nil Expected • Basin Quiet", 
-      landfallLocation: "IMD Tropical Weather Outlook",
-      landfallStatus: "Nominal",
+      landfall: "Not available",
+      landfallLocation: "Awaiting verified source data",
+      landfallStatus: "Unknown",
       isCompleted: false,
-      surge: "Normal Tidal Levels",
-      decay: "No active vortex",
+      surge: "Not available",
+      decay: "Not available",
       impactSector: "Nil"
     };
   }
@@ -73,14 +80,14 @@ const getStormDetails = (sys: ActiveSystem | null) => {
       landfallLocation: sys.landfall_info.landfall_location || sys.landfall_info.impact_sector || "Coastal Sector",
       landfallStatus: sys.landfall_info.status || (sys.is_landfall_completed ? "Landfall Completed" : "Active Tracking"),
       isCompleted: !!sys.is_landfall_completed,
-      surge: sys.landfall_info.storm_surge_m || "1.0 - 2.5m",
+      surge: sys.landfall_info.storm_surge_m || "Not available",
       decay: sys.landfall_info.inland_decay || "Inland dissipation",
       impactSector: sys.landfall_info.impact_sector || sys.landfall_info.landfall_location || "Coastal Belt"
     };
   }
 
   // Check if track_forecast has any point with is_landfall
-  const landfallPt = sys.track_forecast?.find((p: any) => p.is_landfall);
+  const landfallPt = sys.track_forecast?.find((p) => p.is_landfall);
   if (landfallPt) {
     return {
       basinName: sys.basin || defaultBasin,
@@ -88,14 +95,14 @@ const getStormDetails = (sys: ActiveSystem | null) => {
       landfallLocation: landfallPt.label && landfallPt.label.includes("(") ? landfallPt.label.split("(")[1].replace(")", "").trim() : "Coastal Sector",
       landfallStatus: "Landfall Crossing",
       isCompleted: false,
-      surge: "1.5 - 3.0m",
+      surge: "Not available",
       decay: "Inland dissipation",
       impactSector: sys.basin || "Coastal Corridor"
     };
   }
 
   // Check if track_forecast has forecast points
-  const forecastPts = sys.track_forecast?.filter((p: any) => p.is_forecast) || [];
+  const forecastPts = sys.track_forecast?.filter((p) => p.is_forecast) || [];
   if (forecastPts.length > 0) {
     const nextFix = forecastPts[0];
     let timing = "+12h Outlook";
@@ -114,7 +121,7 @@ const getStormDetails = (sys: ActiveSystem | null) => {
       landfallLocation: location,
       landfallStatus: "Approaching Coast",
       isCompleted: false,
-      surge: "1.0 - 2.0m",
+      surge: "Not available",
       decay: "Under observation",
       impactSector: location
     };
@@ -123,25 +130,35 @@ const getStormDetails = (sys: ActiveSystem | null) => {
   // Fallback for systems without active forecast points
   return {
     basinName: sys.basin || defaultBasin,
-    landfall: "Track Complete",
+    landfall: "Not available",
     landfallLocation: sys.basin ? `Archived • ${sys.basin}` : "Regional Ocean Basin",
-    landfallStatus: "Archived",
-    isCompleted: true,
-    surge: "N/A",
-    decay: "Dissipated",
-    impactSector: "Post-Storm Archive"
+    landfallStatus: "Unknown",
+    isCompleted: false,
+    surge: "Not available",
+    decay: "Not available",
+    impactSector: "Not available"
   };
 };
+
+function telemetryMode(system: ActiveSystem | null) {
+  if (!system) return "UNAVAILABLE";
+  if (system.is_simulation || system.source_type === "DEMO" || system.origin_type === "OPERATIONAL_DRILL") return "SIMULATION";
+  if (system.telemetry_type === "HISTORICAL_BEST_TRACK") return "HISTORICAL";
+  if (system.is_stale || system.reconciliation_status === "ACTIVE_STALE") return "STALE";
+  if (system.reconciliation_status === "ACTIVE_VERIFIED") return "LIVE";
+  return "UNVERIFIED";
+}
 
 export default function DashboardLiveMonitoringPage() {
   const { selectedCycloneId, selectCyclone, clearSelectedCyclone } = useActiveCyclone();
   const { dataSource, getConvertedKnots, getConvertedKmh, getConvertedGusts, getConvertedCategory, getSourceBadge } = useDataSource();
   const [activeSystem, setActiveSystem] = useState<ActiveSystem | null>(null);
   const [isSimulation, setIsSimulation] = useState(false);
+  const activeRequest = useRef(0);
   const [loading, setLoading] = useState(true);
-  const [ingestStatus, setIngestStatus] = useState<any>(null);
+  const [ingestStatus, setIngestStatus] = useState<IngestStatus | null>(null);
   const [isSyncingIngest, setIsSyncingIngest] = useState(false);
-  const [cyclonesList, setCyclonesList] = useState<any[]>([]);
+  const [cyclonesList, setCyclonesList] = useState<CatalogItem[]>([]);
 
   const { isConnected: isWsConnected, radarAngle } = useCycloneWebSocket();
   const { t } = useLanguage();
@@ -149,8 +166,8 @@ export default function DashboardLiveMonitoringPage() {
   const sourceBadge = getSourceBadge();
   const displayKnots = activeSystem ? getConvertedKnots(activeSystem.intensity_knots) : 0;
   const displayKmh = activeSystem ? getConvertedKmh(activeSystem.intensity_knots) : 0;
-  const displayGusts = activeSystem ? getConvertedGusts(activeSystem.intensity_knots) : 0;
-  const displayCategory = activeSystem ? getConvertedCategory(activeSystem.intensity_knots, activeSystem.category) : "Nominal";
+  const displayGusts = activeSystem ? getConvertedGusts(activeSystem.intensity_knots) : null;
+  const displayCategory = activeSystem ? getConvertedCategory(activeSystem.intensity_knots, activeSystem.category) : "Not available";
 
   useEffect(() => {
     apiFetch<ActiveSystem[]>("/api/cyclones")
@@ -161,9 +178,9 @@ export default function DashboardLiveMonitoringPage() {
   }, []);
 
   const fetchIngestStatus = () => {
-    apiFetch<any>("/api/ingest/status")
+    apiFetch<IngestStatus>("/api/ingest/status")
       .then(data => setIngestStatus(data))
-      .catch(() => {});
+      .catch(() => setIngestStatus(null));
   };
 
   const [ingestError, setIngestError] = useState<string | null>(null);
@@ -172,24 +189,25 @@ export default function DashboardLiveMonitoringPage() {
     setIsSyncingIngest(true);
     setIngestError(null);
     try {
-      const data = await apiFetch<any>("/api/ingest/sync", {
+      const data = await apiFetch<IngestStatus & {synced_at: string | null}>("/api/ingest/sync", {
         method: "POST"
       });
       setIngestStatus({
-        status: "online",
+        status: data.status,
+        basin_status: data.basin_status,
         last_sync: data.synced_at,
         is_syncing: false,
         active_systems_count: data.active_systems_count || 0,
         sources_status: data.sources_status
       });
       fetchActiveSystems(false);
-    } catch (err: any) {
-      if (err.status === 401 || err.status === 403) {
+    } catch (err: unknown) {
+      if (err instanceof ApiClientError && (err.status === 401 || err.status === 403)) {
         setIngestError("Administrative authorization required to trigger manual ingestion sync.");
-      } else if (err.status === 429) {
+      } else if (err instanceof ApiClientError && err.status === 429) {
         setIngestError("Rate limit exceeded. Please wait before triggering another sync.");
       } else {
-        setIngestError(err.message || "Ingestion sync error");
+        setIngestError((err instanceof Error ? err.message : "Request failed") || "Ingestion sync error");
       }
     } finally {
       setIsSyncingIngest(false);
@@ -200,16 +218,16 @@ export default function DashboardLiveMonitoringPage() {
     setIsSyncingIngest(true);
     setIngestError(null);
     try {
-      await apiFetch<any>("/api/ingest/test-inject", {
+      await apiFetch<{status: string; message?: string}>("/api/ingest/test-inject", {
         method: "POST"
       });
       fetchIngestStatus();
       fetchActiveSystems(false);
-    } catch (err: any) {
-      if (err.status === 401 || err.status === 403) {
+    } catch (err: unknown) {
+      if (err instanceof ApiClientError && (err.status === 401 || err.status === 403)) {
         setIngestError("Administrative authorization required to inject test drill systems.");
       } else {
-        setIngestError(err.message || "Drill injection error");
+        setIngestError((err instanceof Error ? err.message : "Request failed") || "Drill injection error");
       }
     } finally {
       setIsSyncingIngest(false);
@@ -220,17 +238,17 @@ export default function DashboardLiveMonitoringPage() {
     setIsSyncingIngest(true);
     setIngestError(null);
     try {
-      await apiFetch<any>("/api/ingest/clear-test", {
+      await apiFetch<{status: string; message?: string}>("/api/ingest/clear-test", {
         method: "POST"
       });
       clearSelectedCyclone();
       fetchIngestStatus();
       fetchActiveSystems(false);
-    } catch (err: any) {
-      if (err.status === 401 || err.status === 403) {
+    } catch (err: unknown) {
+      if (err instanceof ApiClientError && (err.status === 401 || err.status === 403)) {
         setIngestError("Administrative authorization required to clear drill systems.");
       } else {
-        setIngestError(err.message || "Clear drill error");
+        setIngestError((err instanceof Error ? err.message : "Request failed") || "Clear drill error");
       }
     } finally {
       setIsSyncingIngest(false);
@@ -238,6 +256,7 @@ export default function DashboardLiveMonitoringPage() {
   };
 
   const fetchActiveSystems = async (simulate: boolean = false, cycloneId?: string | null) => {
+    const requestId = ++activeRequest.current;
     setLoading(true);
     let path = "/api/active-systems";
     const targetId = cycloneId || (simulate ? selectedCycloneId : null);
@@ -245,34 +264,33 @@ export default function DashboardLiveMonitoringPage() {
       path += `?simulate=true${targetId ? `&cyclone_id=${encodeURIComponent(targetId)}` : ""}`;
     }
     try {
-      const data = await apiFetch<any[]>(path);
+      const data = await apiFetch<ActiveSystem[]>(path);
+      if (requestId !== activeRequest.current) return;
       if (data && data.length > 0) {
         setActiveSystem(data[0]);
-        // LIVE-02: Derive simulation state from authentic backend metadata rather than forcing true
-        const isSim = Boolean(
-          data[0].is_simulation ||
-          data[0].source_type === "DEMO" ||
-          data[0].origin_type === "DEMO" ||
-          (data[0].id && data[0].id.includes("2026")) ||
-          simulate
-        );
-        setIsSimulation(isSim);
+        setIsSimulation(telemetryMode(data[0]) === "SIMULATION");
       } else {
         setActiveSystem(null);
         setIsSimulation(false);
       }
     } catch (err) {
+      if (requestId !== activeRequest.current) return;
+      setActiveSystem(null);
+      setIsSimulation(false);
       console.warn("Notice: Active systems feed temporarily unavailable or initializing:", err);
     } finally {
-      setLoading(false);
+      if (requestId === activeRequest.current) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchIngestStatus();
-    const interval = setInterval(fetchIngestStatus, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    const interval = setInterval(() => {
+      fetchIngestStatus();
+      fetchActiveSystems(Boolean(selectedCycloneId), selectedCycloneId);
+    }, 30000);
+    return () => { clearInterval(interval); activeRequest.current++; };
+  }, [selectedCycloneId]);
 
   useEffect(() => {
     let targetId = selectedCycloneId;
@@ -292,12 +310,26 @@ export default function DashboardLiveMonitoringPage() {
   }, [selectedCycloneId]);
 
   const stormMeta = getStormDetails(activeSystem);
+  const mode = telemetryMode(activeSystem);
+  const modeLabel = {UNAVAILABLE: "BASIN STATUS UNCERTAIN", SIMULATION: "SYNTHETIC EXERCISE DRILL",
+    HISTORICAL: "HISTORICAL ARCHIVE REPLAY", STALE: "STALE SOURCE OBSERVATION",
+    LIVE: "CURRENT SOURCE OBSERVATION", UNVERIFIED: "SOURCE STATUS UNVERIFIED"}[mode];
+  const modeDescription = {UNAVAILABLE: "No current source observations are available.",
+    SIMULATION: "Synthetic scenario for demonstration; not a measured storm.",
+    HISTORICAL: "Historical best-track replay. Not a current storm.",
+    STALE: "Retained source observation; current conditions are unverified.",
+    LIVE: "Current source observation for experimental decision support.",
+    UNVERIFIED: "Source provenance or freshness could not be verified."}[mode];
+  const modeClass = mode === "SIMULATION" ? "bg-purple-500/15 text-purple-400 border-purple-500/30"
+    : mode === "LIVE" ? "bg-rose-500/15 text-rose-400 border-rose-500/30"
+    : mode === "HISTORICAL" ? "bg-blue-500/15 text-blue-400 border-blue-500/30"
+    : "bg-amber-500/15 text-amber-500 border-amber-500/30";
 
   // Expose live UI screen telemetry to window context for CycloNet AI assistant
   useEffect(() => {
     if (typeof window !== "undefined") {
       const meta = getStormDetails(activeSystem);
-      (window as any).__cyclonet_current_context = {
+      window.__cyclonet_current_context = {
         page: "Live Monitoring",
         isSimulation,
         activeSystem: activeSystem ? {
@@ -309,18 +341,19 @@ export default function DashboardLiveMonitoringPage() {
           lon: activeSystem.lon,
           coordinates: `${activeSystem.lat.toFixed(1)}°N, ${activeSystem.lon.toFixed(1)}°E`,
           intensity_knots: activeSystem.intensity_knots,
-          wind_kmh: Math.round(activeSystem.intensity_knots * 1.852),
-          gusting_kmh: Math.round(activeSystem.intensity_knots * 1.852 * 1.05),
+          wind_kmh: (activeSystem.intensity_knots == null ? null : Math.round(activeSystem.intensity_knots * 1.852)),
+          gusting_kmh: (activeSystem.intensity_knots == null ? null : Math.round(activeSystem.intensity_knots * 1.852 * 1.05)),
           track_points_count: activeSystem.track_forecast?.length || 0,
           current_position_label: `${activeSystem.lat.toFixed(1)}°N, ${activeSystem.lon.toFixed(1)}°E`,
           landfall: meta.landfall,
           landfallLocation: meta.landfallLocation,
           simulation_active: isSimulation,
         } : null,
-        basin_status: activeSystem ? `Active System: ${activeSystem.name}` : "Basin Quiet (0 active storms)"
+        basin_status: ingestStatus?.basin_status ?? "STATUS_UNCERTAIN",
+        observation_status: mode
       };
     }
-  }, [activeSystem, isSimulation]);
+  }, [activeSystem, isSimulation, ingestStatus, mode]);
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
@@ -351,14 +384,14 @@ export default function DashboardLiveMonitoringPage() {
                 HTTP Polling
               </span>
             )}
-            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 font-mono text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-              IMD RSMC: Online
+            <span className="px-2 py-0.5 rounded-md bg-secondary border border-border font-mono text-[11px] text-muted-foreground font-medium">
+              IMD RSMC: {ingestStatus?.sources_status?.IMD_RSMC ?? "UNAVAILABLE"}
             </span>
-            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 font-mono text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-              JTWC/NOAA: Online
+            <span className="px-2 py-0.5 rounded-md bg-secondary border border-border font-mono text-[11px] text-muted-foreground font-medium">
+              JTWC/NOAA: {ingestStatus?.sources_status?.JTWC_NOAA ?? "UNAVAILABLE"}
             </span>
             <span className="px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 font-mono text-[11px] text-blue-600 dark:text-blue-400 font-medium">
-              INSAT-3DR
+              Satellite observations unavailable
             </span>
           </div>
           {ingestStatus?.last_sync && (
@@ -388,15 +421,13 @@ export default function DashboardLiveMonitoringPage() {
             className="px-3 py-1.5 rounded-lg bg-secondary border border-border text-foreground text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-xs"
           >
             <option value="LIVE_SCAN">
-              {activeSystem && activeSystem.is_live_telemetry
-                ? `🔴 Live Detected: ${activeSystem.name}`
-                : "📡 Live Ingestion: Basin Calm (0 Storms)"}
+              {mode === "LIVE" ? `Current source: ${activeSystem?.name}` : "Live ingestion: check source status"}
             </option>
             {cyclonesList.map((c) => {
               const displayName = c.name.startsWith("Cyclone") || c.name.startsWith("Deep") || c.name.startsWith("Super") 
                 ? c.name 
                 : `Cyclone ${c.name}`;
-              const isDrill = c.id.includes("2026") || (c as any).is_simulation;
+              const isDrill = c.is_simulation;
               return (
                 <option key={c.id} value={c.id}>
                   {isDrill ? "🧪 Drill: " : "🏛️ Historical: "}{displayName} ({c.year})
@@ -405,34 +436,9 @@ export default function DashboardLiveMonitoringPage() {
             })}
           </select>
 
-          <span 
-            className={`px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${
-              activeSystem && activeSystem.is_live_telemetry
-                ? "bg-rose-500/15 text-rose-400 border-rose-500/30"
-                : activeSystem && (activeSystem.is_simulation || activeSystem.id.includes("2026"))
-                  ? "bg-purple-500/15 text-purple-400 border-purple-500/30"
-                  : activeSystem
-                    ? "bg-blue-500/15 text-blue-400 border-blue-500/30"
-                    : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-            }`} 
-            title={
-              activeSystem && activeSystem.is_live_telemetry
-                ? "Live verified meteorological telemetry from GDACS/IMD"
-                : activeSystem && (activeSystem.is_simulation || activeSystem.id.includes("2026"))
-                  ? "Synthetic drill exercise for operational testing"
-                  : activeSystem
-                    ? "Verified historical post-storm best-track observations"
-                    : "North Indian Ocean basin is calm (zero active storms)"
-            }
-          >
+          <span className={`px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 ${modeClass}`} title={modeDescription}>
             <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-            {activeSystem && activeSystem.is_live_telemetry 
-              ? "🔴 LIVE SURVEILLANCE" 
-              : activeSystem && (activeSystem.is_simulation || activeSystem.id.includes("2026"))
-                ? "🟣 SYNTHETIC DRILL"
-                : activeSystem 
-                  ? "🔵 HISTORICAL REPLAY" 
-                  : "🟢 BASIN CALM (NOMINAL)"}
+            {modeLabel}
           </span>
 
           <button
@@ -450,39 +456,17 @@ export default function DashboardLiveMonitoringPage() {
       {/* Explicit Mode & Civil Defense Advisory Banner (#34 & #36) */}
       <div className="p-3 px-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs bg-secondary/30 border-border">
         <div className="flex items-center gap-2.5 flex-wrap">
-          <span className={`px-2 py-0.5 rounded font-mono font-bold text-[11px] uppercase tracking-wider ${
-            activeSystem?.is_live_telemetry
-              ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-              : activeSystem?.is_simulation || activeSystem?.id?.includes("2026")
-                ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
-                : activeSystem
-                  ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                  : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-          }`}>
-            {activeSystem?.is_live_telemetry
-              ? "OPERATIONAL LIVE SURVEILLANCE"
-              : activeSystem?.is_simulation || activeSystem?.id?.includes("2026")
-                ? "SYNTHETIC EXERCISE DRILL"
-                : activeSystem
-                  ? `HISTORICAL ARCHIVE REPLAY (${activeSystem.name})`
-                  : "BASIN CALM (0 STORMS)"}
+          <span className={`px-2 py-0.5 rounded font-mono font-bold text-[11px] uppercase tracking-wider border ${modeClass}`}>
+            {modeLabel}
           </span>
-          <span className="text-muted-foreground">
-            {activeSystem?.is_live_telemetry
-              ? "Live verified atmospheric telemetry stream from GDACS & IMD."
-              : activeSystem?.is_simulation || activeSystem?.id?.includes("2026")
-                ? "Simulated kinematic scenario for disaster response rehearsal."
-                : activeSystem
-                  ? "Replaying validated historical cyclone observations. Not an active storm."
-                  : "Continuous real-time satellite surveillance active."}
-          </span>
+          <span className="text-muted-foreground">{modeDescription}</span>
         </div>
         <div className="text-[10.5px] text-muted-foreground md:text-right shrink-0">
           <span className="font-semibold text-foreground/80">Civil Defense Advisory:</span> Statutory evacuation directives follow IMD (RSMC New Delhi) and NDMA orders.
         </div>
       </div>
 
-      {/* Calm Basin Alert Banner with Quick Simulation Launch */}
+      {/* Unavailable source status with explicit historical replay selection */}
       {!activeSystem && (
         <div className="glass-card p-4 sm:p-5 border-emerald-500/30 bg-emerald-950/10 backdrop-blur-md flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-sm animate-in fade-in duration-300">
           <div className="flex items-start sm:items-center gap-3.5">
@@ -492,14 +476,14 @@ export default function DashboardLiveMonitoringPage() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  NO ACTIVE CYCLONES DETECTED
+                  NO VERIFIED CURRENT OBSERVATIONS
                 </span>
                 <span className="text-xs text-muted-foreground font-mono">
-                  IMD RSMC • GDACS • JTWC Feeds Nominal
+                  Source coverage or freshness unverified
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                The North Indian Ocean basin (Bay of Bengal & Arabian Sea) is currently calm. Run live telemetry polling or launch a historical simulation below.
+                Current basin conditions could not be verified. Retry live sources or explicitly choose a historical simulation.
               </p>
             </div>
           </div>
@@ -539,7 +523,7 @@ export default function DashboardLiveMonitoringPage() {
                 {activeSystem ? "Active System" : "Basin Status"}
               </p>
               <h3 className="text-2xl font-heading font-bold text-foreground mt-1">
-                {activeSystem ? activeSystem.name : "No Active Cyclones"}
+                {activeSystem ? activeSystem.name : "Current status unavailable"}
               </h3>
             </div>
             <div className={`p-2 rounded-lg ${activeSystem ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-500 dark:text-emerald-400"}`}>
@@ -555,7 +539,7 @@ export default function DashboardLiveMonitoringPage() {
             ) : (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold text-xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Basin Quiet • Calm Conditions
+                Basin conditions uncertain
               </span>
             )}
           </div>
@@ -570,8 +554,8 @@ export default function DashboardLiveMonitoringPage() {
               </p>
               <h3 className="text-2xl font-heading font-bold text-foreground mt-1">
                 {activeSystem
-                  ? `${displayKmh} km/h (${displayKnots} kts)`
-                  : "15 - 25 km/h"}
+                  ? `${displayKmh ?? "Not available"} km/h (${displayKnots ?? "Not available"} kts)`
+                  : "Not available"}
               </h3>
             </div>
             <div className="p-2 bg-secondary rounded-lg border border-border">
@@ -581,10 +565,10 @@ export default function DashboardLiveMonitoringPage() {
           <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
             {activeSystem ? (
               <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                Gusting to {displayGusts} km/h
+                Gusting to {displayGusts ?? "Not available"} km/h
               </span>
             ) : (
-              <span className="text-emerald-600 dark:text-emerald-400 font-medium">Beaufort Scale 3–4 (Gentle)</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-medium">No measured wind available</span>
             )}
             <span>• {sourceBadge.avgWindow}</span>
           </div>
@@ -648,7 +632,7 @@ export default function DashboardLiveMonitoringPage() {
             <div className="absolute bottom-4 left-4 right-4 z-10 p-3 px-4 rounded-xl bg-card/95 backdrop-blur-md border border-border flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl">
               <div className="flex items-center gap-2.5 text-xs text-muted-foreground">
                 <Activity className="w-4 h-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
-                <span>No active cyclonic storms right now. Want to test the tracking and forecast visualization?</span>
+                <span>Current storm status is unavailable. Historical visualization remains available.</span>
               </div>
               <button
                 onClick={() => fetchActiveSystems(true)}
@@ -665,41 +649,21 @@ export default function DashboardLiveMonitoringPage() {
         <div className="flex flex-col gap-6">
           <div className="glass-card p-5">
             <h3 className="font-heading font-semibold text-lg border-b border-border pb-3 mb-4">
-              {activeSystem ? "Latest Storm Bulletins" : "IMD Tropical Outlook"}
+              {activeSystem ? "Latest Storm Bulletins" : "Source Availability"}
             </h3>
             <div className="space-y-4">
               {activeSystem ? (
                 (() => {
-                  const kmh = Math.round((activeSystem.intensity_knots || 0) * 1.852);
-                  const isSuperOrExtreme = (activeSystem.intensity_knots || 0) >= 90;
-                  const isSevere = (activeSystem.intensity_knots || 0) >= 48;
+                  const kmh = (activeSystem.intensity_knots == null ? "Not available" : Math.round(activeSystem.intensity_knots * 1.852));
+                  const isSuperOrExtreme = activeSystem.intensity_knots != null && activeSystem.intensity_knots >= 90;
+                  const isSevere = activeSystem.intensity_knots != null && activeSystem.intensity_knots >= 48;
                   const basinName = activeSystem.basin || "North Indian Ocean";
                   const isArabian = basinName.toLowerCase().includes("arabian");
 
                   const dynamicBulletins = [
-                    { 
-                      time: "14:30 IST", 
-                      text: `${activeSystem.name} centered near ${activeSystem.lat?.toFixed(1) || "15.0"}°N, ${activeSystem.lon?.toFixed(1) || "80.0"}°E over the ${basinName}. Sustained core winds: ${activeSystem.intensity_knots || 45} KT (${kmh} km/h).`, 
-                      type: "info" 
-                    },
-                    { 
-                      time: "11:00 IST", 
-                      text: isSuperOrExtreme 
-                        ? `System classified as ${activeSystem.category || "Super Cyclone"}. Severe storm surge and coastal emergency alerts active.`
-                        : isSevere
-                          ? `System classified as ${activeSystem.category || "Severe Cyclonic Storm"}. Squally weather and heavy rainfall warnings in effect.`
-                          : `System classified as ${activeSystem.category || "Cyclonic Storm"}. Moderate convective bands active over the ${isArabian ? 'Arabian Sea' : 'Bay of Bengal'}.`, 
-                      type: (isSuperOrExtreme || isSevere ? "alert" : "info") 
-                    },
-                    { 
-                      time: "08:15 IST", 
-                      text: isSuperOrExtreme
-                        ? "INSAT-3D / Dvorak analysis indicates distinct eye structure with intense central dense overcast (CDO)."
-                        : isSevere
-                          ? "INSAT-3D IR imagery indicates tightly wrapped curved convective banding into the circulation center."
-                          : "INSAT-3D multispectral imagery indicates moderate cloud cluster with sheared convective banding.", 
-                      type: "update" 
-                    },
+                    { time: activeSystem.observation_time_utc ?? "Issue time not available",
+                      text: `${activeSystem.name}: ${activeSystem.intensity_knots ?? "Not available"} kt. Source: ${activeSystem.source ?? "Not available"}.`, type: "info" },
+                    { time: "Experimental analysis", text: "Landfall, rainfall, surge and protective actions require current official advisories.", type: "info" },
                   ];
 
                   return dynamicBulletins.map((bulletin, i) => (
@@ -719,9 +683,7 @@ export default function DashboardLiveMonitoringPage() {
                 })()
               ) : (
                 [
-                  { time: "Current", text: "No cyclogenesis likely over the North Indian Ocean during the next 120 hours.", type: "calm" },
-                  { time: "Synoptic", text: "Surface pressure gradients are normal; equatorial vertical wind shear remains moderate.", type: "info" },
-                  { time: "Satellite", text: "INSAT-3DR and OceanSat-3 scatterometer scans confirm absence of organized low pressure vortices.", type: "update" },
+                  { time: "Source unavailable", text: "No verified current observations are available. Basin conditions are uncertain; consult official agencies.", type: "info" },
                 ].map((bulletin, i) => (
                   <div key={i} className="flex gap-3 relative">
                     <div className="mt-1">
@@ -750,7 +712,7 @@ export default function DashboardLiveMonitoringPage() {
                </h3>
                {activeSystem && (
                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20 font-mono">
-                   {activeSystem.telemetry_type || "OBSERVED + KINEMATIC"}
+                   {activeSystem.telemetry_type || modeLabel}
                  </span>
                )}
              </div>
@@ -762,50 +724,50 @@ export default function DashboardLiveMonitoringPage() {
                      <span className="text-muted-foreground">0h Center Eye Fix:</span>
                      <span className="font-semibold text-foreground flex items-center gap-1">
                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                       Observed Telemetry ({activeSystem.lat.toFixed(1)}°N, {activeSystem.lon.toFixed(1)}°E)
+                       {mode === "SIMULATION" ? "Simulated" : "Source fix"} ({activeSystem.lat.toFixed(1)}°N, {activeSystem.lon.toFixed(1)}°E)
                      </span>
                    </div>
                    <div className="flex justify-between items-center text-[11px]">
                      <span className="text-muted-foreground">Sustained Core Wind:</span>
                      <span className="font-semibold text-foreground">
-                       Observed ({activeSystem.intensity_knots || 35} KT)
+                       {mode === "SIMULATION" ? "Simulated" : "Source value"} ({activeSystem.intensity_knots ?? "Not available"} KT)
                      </span>
                    </div>
                    <div className="flex justify-between items-center text-[11px]">
                      <span className="text-muted-foreground">Dvorak Intensity:</span>
                      <span className="font-mono font-bold text-primary">
-                       {activeSystem.dvorak_t || "T2.5"} <span className="font-normal text-[10px] text-muted-foreground">(Parametric Wind Scale)</span>
+                       {activeSystem.dvorak_t || "Not available"} <span className="font-normal text-[10px] text-muted-foreground">(Parametric Wind Scale)</span>
                      </span>
                    </div>
                    <div className="flex justify-between items-center text-[11px]">
                      <span className="text-muted-foreground">Forward Trajectory:</span>
                      <span className="font-semibold text-foreground text-[10.5px]">
-                       Kinematic Vector Extrapolation (+12h/+24h/+48h)
+                       {activeSystem.track_generation_method ?? "Forecast unavailable"}
                      </span>
                    </div>
                  </div>
 
                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                   ℹ️ <strong className="text-foreground">Transparency Note:</strong> Live center fixes and core wind speeds are ingested from external feeds. Forward tracks and the Dvorak T-number are CycloNet-derived parametric estimates. Full satellite IR/VIS Dvorak vision analysis is available in the <a href="/classification" className="text-primary underline font-medium">Classification</a> tab.
+                   ℹ️ <strong className="text-foreground">Transparency Note:</strong> Live center fixes and core wind speeds are ingested from external feeds. Forward tracks and the Dvorak T-number are CycloNet-derived parametric estimates. Experimental image classification is available in the <a href="/classification" className="text-primary underline font-medium">Classification</a> tab.
                  </p>
 
                  <div className="space-y-3 pt-2 border-t border-border/50">
                    <div>
                      <div className="flex justify-between text-xs mb-1.5">
                        <span className="text-muted-foreground">Telemetry Provenance</span>
-                       <span className="font-semibold text-emerald-600 dark:text-emerald-400">94.2% Ingestion Accuracy</span>
+                       <span className="font-semibold text-emerald-600 dark:text-emerald-400">Accuracy not independently verified</span>
                      </div>
                      <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                       <div className="h-full bg-emerald-500 w-[94.2%] rounded-full" />
+                       <div className="h-full bg-emerald-500 w-0 rounded-full" />
                      </div>
                    </div>
                    <div>
                      <div className="flex justify-between text-xs mb-1.5">
                        <span className="text-muted-foreground">Trajectory Kinematic Fit</span>
-                       <span className="font-semibold text-foreground">88.5% Cross-Track Concordance</span>
+                       <span className="font-semibold text-foreground">Not independently validated</span>
                      </div>
                      <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
-                       <div className="h-full bg-primary/70 w-[88.5%] rounded-full" />
+                       <div className="h-full bg-primary/70 w-0 rounded-full" />
                      </div>
                    </div>
                  </div>
@@ -815,16 +777,16 @@ export default function DashboardLiveMonitoringPage() {
                   <div>
                     <div className="flex justify-between text-sm mb-2">
                       <span className="text-muted-foreground">Satellite Ingestion Status</span>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">Operational (100%)</span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">Unavailable</span>
                     </div>
                     <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                      <div className="h-full bg-emerald-500 w-[100%] rounded-full" />
+                      <div className="h-full bg-emerald-500 w-0 rounded-full" />
                     </div>
                   </div>
                   <div>
                     <div className="flex justify-between text-sm mb-2">
                       <span className="text-muted-foreground">Organized Vortex Anomaly</span>
-                      <span className="font-semibold text-foreground">0 Detected</span>
+                      <span className="font-semibold text-foreground">Not available</span>
                     </div>
                     <div className="h-2 rounded-full bg-secondary overflow-hidden">
                       <div className="h-full bg-primary/40 w-[0%] rounded-full" />
@@ -833,10 +795,10 @@ export default function DashboardLiveMonitoringPage() {
                   <div>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-muted-foreground">5-Day Cyclogenesis Risk (IMD TWO)</span>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">NIL (0% Probability)</span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">Not available</span>
                     </div>
                     <p className="text-[10px] text-muted-foreground mb-2">
-                      Official RSMC New Delhi statutory rating for calm basin conditions (IMD Standard: NIL: 0%, VERY LOW: 1–25%, LOW: 26–50%, MOD: 51–75%, HIGH: 76–100%)
+                      No current agency-issued outlook was retrieved. Missing data does not establish calm.
                     </p>
                     <div className="h-2 rounded-full bg-secondary overflow-hidden">
                       <div className="h-full bg-emerald-500 w-[0%] rounded-full" />

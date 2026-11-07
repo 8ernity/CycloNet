@@ -56,7 +56,7 @@ interface TrackPoint {
   lon: number;
   time_offset_hours: number;
   category: string;
-  intensity_knots: number;
+  intensity_knots: number | null;
   is_forecast: boolean;
   is_landfall?: boolean;
   label?: string;
@@ -68,10 +68,10 @@ interface ActiveSystem {
   basin: string;
   lat: number;
   lon: number;
-  intensity_knots: number;
+  intensity_knots: number | null;
   category: string;
   track_forecast: TrackPoint[];
-  landfall_info?: any;
+  landfall_info?: import("@/types/api").LandfallInfo;
 }
 
 const PRESETS = [
@@ -110,9 +110,10 @@ export default function ComparePage() {
   const [selectedId1, setSelectedId1] = useState<string>("BOB03-2020"); // Amphan
   const [selectedId2, setSelectedId2] = useState<string>("BOB02-2019"); // Fani
   
-  const [system1, setSystem1] = useState<ActiveSystem | null>(null);
-  const [system2, setSystem2] = useState<ActiveSystem | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [result1, setSystem1] = useState<ActiveSystem | null>(null);
+  const [result2, setSystem2] = useState<ActiveSystem | null>(null);
+  const system1 = result1?.id === selectedId1 ? result1 : null;
+  const system2 = result2?.id === selectedId2 ? result2 : null;
 
   // Load list of all historical cyclones
   useEffect(() => {
@@ -132,41 +133,41 @@ export default function ComparePage() {
 
   // Fetch trajectory data for System 1
   useEffect(() => {
+    const controller = new AbortController();
     async function fetchSys1() {
       try {
-        const res = await fetch(`${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${selectedId1}`);
+        const res = await fetch(`${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${selectedId1}`, {signal: controller.signal});
         if (res.ok) {
           const data = await res.json();
-          if (data && data.length > 0) setSystem1(data[0]);
+          if (!controller.signal.aborted) setSystem1(data?.[0] ?? null);
         }
       } catch (err) {
+        if (!controller.signal.aborted) setSystem1(null);
         console.error("Error fetching system 1 trajectory", err);
       }
     }
     fetchSys1();
+    return () => controller.abort();
   }, [selectedId1]);
 
   // Fetch trajectory data for System 2
   useEffect(() => {
+    const controller = new AbortController();
     async function fetchSys2() {
       try {
-        const res = await fetch(`${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${selectedId2}`);
+        const res = await fetch(`${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${selectedId2}`, {signal: controller.signal});
         if (res.ok) {
           const data = await res.json();
-          if (data && data.length > 0) setSystem2(data[0]);
+          if (!controller.signal.aborted) setSystem2(data?.[0] ?? null);
         }
       } catch (err) {
+        if (!controller.signal.aborted) setSystem2(null);
         console.error("Error fetching system 2 trajectory", err);
       }
     }
     fetchSys2();
+    return () => controller.abort();
   }, [selectedId2]);
-
-  useEffect(() => {
-    if (system1 && system2) {
-      setLoading(false);
-    }
-  }, [system1, system2]);
 
   const handleSwapStorms = () => {
     const temp = selectedId1;
@@ -195,10 +196,10 @@ export default function ComparePage() {
       data.push({
         step: displayHour,
         [system1.name]: p1 ? p1.intensity_knots : null,
-        [`${system1.name}_kmph`]: p1 ? Math.round(p1.intensity_knots * 1.852) : null,
+        [`${system1.name}_kmph`]: p1 ? (p1.intensity_knots == null ? null : Math.round(p1.intensity_knots * 1.852)) : null,
         [`${system1.name}_cat`]: p1 ? p1.category : null,
         [system2.name]: p2 ? p2.intensity_knots : null,
-        [`${system2.name}_kmph`]: p2 ? Math.round(p2.intensity_knots * 1.852) : null,
+        [`${system2.name}_kmph`]: p2 ? (p2.intensity_knots == null ? null : Math.round(p2.intensity_knots * 1.852)) : null,
         [`${system2.name}_cat`]: p2 ? p2.category : null,
       });
     }
@@ -286,7 +287,7 @@ export default function ComparePage() {
               <div>
                 <span className="text-[11px] text-muted-foreground block">Peak Sustained Wind</span>
                 <span className="font-mono font-bold text-cyan-300 text-sm">
-                  {system1.intensity_knots} KT <span className="text-[11px] text-muted-foreground font-normal">({Math.round(system1.intensity_knots * 1.852)} km/h)</span>
+                  {system1.intensity_knots ?? "Not available"} KT <span className="text-[11px] text-muted-foreground font-normal">({(system1.intensity_knots == null ? null : Math.round(system1.intensity_knots * 1.852))} km/h)</span>
                 </span>
               </div>
               <div>
@@ -339,7 +340,7 @@ export default function ComparePage() {
               <div>
                 <span className="text-[11px] text-muted-foreground block">Peak Sustained Wind</span>
                 <span className="font-mono font-bold text-amber-300 text-sm">
-                  {system2.intensity_knots} KT <span className="text-[11px] text-muted-foreground font-normal">({Math.round(system2.intensity_knots * 1.852)} km/h)</span>
+                  {system2.intensity_knots ?? "Not available"} KT <span className="text-[11px] text-muted-foreground font-normal">({(system2.intensity_knots == null ? null : Math.round(system2.intensity_knots * 1.852))} km/h)</span>
                 </span>
               </div>
               <div>
@@ -391,7 +392,7 @@ export default function ComparePage() {
                     fontSize: "12px",
                     backdropFilter: "blur(12px)",
                   }}
-                  formatter={(value: any, name: any) => [
+                  formatter={(value, name) => [
                     `${value} KT (${Math.round(Number(value) * 1.852)} km/h)`,
                     name
                   ]}
@@ -458,10 +459,10 @@ export default function ComparePage() {
                   <Wind className="w-3.5 h-3.5 text-blue-400" /> Peak Intensity (Knots / km/h)
                 </td>
                 <td className="py-3.5 px-4 font-mono font-bold text-cyan-300">
-                  {system1?.intensity_knots} KT ({Math.round((system1?.intensity_knots || 0) * 1.852)} km/h)
+                  {system1?.intensity_knots ?? "Not available"} KT ({system1?.intensity_knots == null ? "Not available" : Math.round(system1.intensity_knots * 1.852)} km/h)
                 </td>
                 <td className="py-3.5 px-4 font-mono font-bold text-amber-300">
-                  {system2?.intensity_knots} KT ({Math.round((system2?.intensity_knots || 0) * 1.852)} km/h)
+                  {system2?.intensity_knots ?? "Not available"} KT ({system2?.intensity_knots == null ? "Not available" : Math.round(system2.intensity_knots * 1.852)} km/h)
                 </td>
               </tr>
 

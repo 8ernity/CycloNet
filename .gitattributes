@@ -1,0 +1,2 @@
+# Dataset hashes must survive Windows and Linux checkouts unchanged.
+backend/data/manifests/* text eol=lf

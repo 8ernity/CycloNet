@@ -20,3 +20,6 @@ class FeedResult(BaseModel):
     error: Optional[str] = Field(default=None, description="Error message if feed failed or degraded")
     document_id: Optional[str] = Field(default=None, description="Bulletin or message reference number")
     source_url: Optional[str] = Field(default=None, description="Source endpoint URL queried")
+    coverage: List[str] = Field(default_factory=list)
+    complete_coverage: bool = False
+    calm_evidence: bool = False
