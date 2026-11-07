@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import { type ChartPoint } from "@/types/api";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { 
   Wind, Clock, MapPin, Compass, AlertTriangle, ArrowRight, 
   TrendingUp, Zap, BarChart3, Info, Activity, Gauge, 
@@ -25,7 +26,7 @@ interface TrackPoint {
   lon: number;
   time_offset_hours: number;
   category: string;
-  intensity_knots: number;
+  intensity_knots: number | null;
   is_forecast: boolean;
   is_landfall?: boolean;
   label?: string;
@@ -37,7 +38,7 @@ interface ActiveSystem {
   basin: string;
   lat: number;
   lon: number;
-  intensity_knots: number;
+  intensity_knots: number | null;
   category: string;
   is_simulation?: boolean;
   year?: string;
@@ -105,7 +106,8 @@ const FALLBACK_CYCLONES: CycloneCatalogItem[] = [
   { id: "BOB02-2009", name: "Aila", year: "2009", basin: "Bay of Bengal" },
 ];
 
-const getCategoryBadgeClass = (knots: number) => {
+const getCategoryBadgeClass = (knots: number | null) => {
+  if (knots == null) return "bg-slate-500/10 text-slate-400";
   if (knots < 34) return "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20";
   if (knots < 48) return "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20";
   if (knots < 64) return "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
@@ -121,16 +123,25 @@ export default function ForecastPage() {
   const [cyclonesList, setCyclonesList] = useState<CycloneCatalogItem[]>(FALLBACK_CYCLONES);
   const [system, setSystem] = useState<ActiveSystem | null>(null);
   const [loading, setLoading] = useState(true);
-  const [hoveredPoint, setHoveredPoint] = useState<any | null>(null);
+  const [hoveredPoint, setHoveredPoint] = useState<ChartPoint | null>(null);
 
   const sourceBadge = getSourceBadge();
 
+  const pendingRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => pendingRequest.current?.abort(), []);
   const fetchSystem = async (cycloneId: string) => {
+    pendingRequest.current?.abort();
+    const controller = new AbortController();
+    pendingRequest.current = controller;
     setLoading(true);
+    setSystem(null);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${encodeURIComponent(cycloneId)}`);
+      const res = await fetch(`${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${encodeURIComponent(cycloneId)}`, {signal: controller.signal});
+      if (!res.ok) throw new Error("Forecast unavailable");
       if (res.ok) {
         const data = await res.json();
+        if (controller.signal.aborted) return;
+        setSelectedId(cycloneId);
         if (data && data.length > 0) {
           setSystem(data[0]);
         } else {
@@ -138,18 +149,19 @@ export default function ForecastPage() {
         }
       }
     } catch (err) {
+      if (controller.signal.aborted) return;
       console.error("Failed to fetch system:", err);
       setSystem(null);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   };
 
   // Sync with global hook when selectedCycloneId changes from other tabs
   useEffect(() => {
     if (selectedCycloneId && selectedCycloneId !== selectedId) {
-      setSelectedId(selectedCycloneId);
-      fetchSystem(selectedCycloneId);
+      const task = window.setTimeout(() => void fetchSystem(selectedCycloneId), 0);
+      return () => window.clearTimeout(task);
     }
   }, [selectedCycloneId]);
 
@@ -173,7 +185,7 @@ export default function ForecastPage() {
           const list = await res.json();
           if (Array.isArray(list) && list.length > 0) {
             setCyclonesList(list);
-            const match = list.find((c: any) => c.id === initialId || c.name.toLowerCase() === initialId.toLowerCase());
+            const match = list.find((c: CycloneCatalogItem) => c.id === initialId || c.name.toLowerCase() === initialId.toLowerCase());
             if (match) {
               initialId = match.id;
             }
@@ -206,7 +218,7 @@ export default function ForecastPage() {
   // Synchronize AI assistant context with active forecast system
   useEffect(() => {
     if (typeof window !== "undefined" && system) {
-      (window as any).__cyclonet_current_context = {
+      window.__cyclonet_current_context = {
         page: "Track Forecast",
         activeSystem: {
           id: system.id,
@@ -236,7 +248,9 @@ export default function ForecastPage() {
       for (let j = i + 1; j < pts.length; j++) {
         const dt = pts[j].time_offset_hours - pts[i].time_offset_hours;
         if (dt > 0 && dt <= 24) {
-          const dIntensity = pts[j].intensity_knots - pts[i].intensity_knots;
+          const endWind = pts[j].intensity_knots, startWind = pts[i].intensity_knots;
+          if (endWind == null || startWind == null) continue;
+          const dIntensity = endWind - startWind;
           if (dIntensity > maxSurge) {
             maxSurge = dIntensity;
             windowLabel = `${pts[i].time_offset_hours >= 0 ? '+' : ''}${pts[i].time_offset_hours}h → ${pts[j].time_offset_hours >= 0 ? '+' : ''}${pts[j].time_offset_hours}h`;
@@ -269,8 +283,8 @@ export default function ForecastPage() {
         isForecast: pt.is_forecast,
         lat: pt.lat,
         lon: pt.lon,
-        lowerBound: Math.max(15, convKnots - (pt.is_forecast ? Math.min(18, 4 + pt.time_offset_hours * 0.22) : 0)),
-        upperBound: convKnots + (pt.is_forecast ? Math.min(22, 5 + pt.time_offset_hours * 0.28) : 0),
+        lowerBound: convKnots == null ? null : Math.max(15, convKnots - (pt.is_forecast ? Math.min(18, 4 + pt.time_offset_hours * 0.22) : 0)),
+        upperBound: convKnots == null ? null : convKnots + (pt.is_forecast ? Math.min(22, 5 + pt.time_offset_hours * 0.28) : 0),
       };
     });
   }, [system, getConvertedKnots, getConvertedKmh, getConvertedCategory]);
@@ -285,20 +299,20 @@ export default function ForecastPage() {
       const convKmh = getConvertedKmh(pt.intensity_knots);
       const convCat = getConvertedCategory(pt.intensity_knots, pt.category);
       const uncertaintyKm = pt.time_offset_hours === 0 ? 15 : Math.round(25 + Math.abs(pt.time_offset_hours) * 1.6);
-      const gustKnots = Math.round(convKnots * 1.15);
+      const gustKnots = convKnots == null ? null : Math.round(convKnots * 1.15);
       return {
         ...pt,
         intensity_knots: convKnots,
         category: convCat,
         kmh: convKmh,
         gustKnots,
-        gustKmh: Math.round(gustKnots * 1.852),
+        gustKmh: gustKnots == null ? null : Math.round(gustKnots * 1.852),
         uncertaintyKm,
         status: pt.is_landfall
           ? "Landfall Crossing"
           : pt.time_offset_hours === 0 
             ? "Active Fix" 
-            : convKnots >= 65 
+            : convKnots == null ? "Data unavailable" : convKnots >= 65
               ? "Core Intensity" 
               : pt.time_offset_hours >= 36 
                 ? "Post-Landfall Weakening" 
@@ -348,10 +362,10 @@ export default function ForecastPage() {
   const minKnots = 10;
 
   const getX = (idx: number) => padL + (idx / Math.max(1, chartData.length - 1)) * plotW;
-  const getY = (knots: number) => padT + plotH - ((knots - minKnots) / (maxKnots - minKnots)) * plotH;
+  const getY = (knots: number | null) => knots == null ? Number.NaN : padT + plotH - ((knots - minKnots) / (maxKnots - minKnots)) * plotH;
 
   // Shaded Uncertainty Area polygon for forecast points
-  const forecastIndices = chartData.map((d, i) => (d.isForecast || d.timeOffset === 0 ? i : -1)).filter(i => i >= 0);
+  const forecastIndices = chartData.map((d, i) => ((d.isForecast || d.timeOffset === 0) && d.upperBound != null && d.lowerBound != null ? i : -1)).filter(i => i >= 0);
   let uncertaintyPath = "";
   if (forecastIndices.length > 1) {
     const topCoords = forecastIndices.map(i => `${getX(i)},${getY(chartData[i].upperBound)}`);
@@ -555,7 +569,7 @@ export default function ForecastPage() {
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-[10.5px]">Dvorak Intensity:</span>
                 <span className="font-mono font-bold text-primary text-xs">
-                  {system.dvorak_t || `T${Math.min(6.5, Math.max(2.5, +(2.5 + (system.intensity_knots - 30) / 20).toFixed(1)))}`}
+                  {system.dvorak_t || "Not available"}
                   <span className="text-[10px] text-muted-foreground font-normal ml-1">({system.is_simulation || system.id?.includes("-") ? "Best-Track Reanalysis" : "Parametric CI"})</span>
                 </span>
               </div>
@@ -735,7 +749,7 @@ export default function ForecastPage() {
                 {activePt.isForecast && (
                   <div className="border-l border-border pl-3">
                     <span className="text-muted-foreground mr-1">Uncertainty Envelope:</span>
-                    <span className="text-foreground font-semibold">{Math.round(activePt.lowerBound)} &ndash; {Math.round(activePt.upperBound)} KT</span>
+                    <span className="text-foreground font-semibold">{activePt.lowerBound == null ? "Not available" : Math.round(activePt.lowerBound)} &ndash; {activePt.upperBound == null ? "Not available" : Math.round(activePt.upperBound)} KT</span>
                   </div>
                 )}
                 <div className="border-l border-border pl-3">
@@ -860,7 +874,7 @@ export default function ForecastPage() {
             )}
 
             {/* Past Line Segment */}
-            {currentIndex > 0 && (
+            {currentIndex > 0 && chartData.slice(0, currentIndex + 1).every(d => d.intensity != null) && (
               <polyline
                 fill="none"
                 stroke="url(#lineGradPast)"
@@ -872,7 +886,7 @@ export default function ForecastPage() {
             )}
 
             {/* Forecast Line Segment (Dashed) */}
-            {currentIndex >= 0 && currentIndex < chartData.length - 1 && (
+            {currentIndex >= 0 && currentIndex < chartData.length - 1 && chartData.slice(currentIndex).every(d => d.intensity != null) && (
               <polyline
                 fill="none"
                 stroke="#ef4444"
@@ -886,6 +900,7 @@ export default function ForecastPage() {
 
             {/* Points & Interactive Nodes with Generous Vertical Hit Targets */}
             {chartData.map((d, i) => {
+              if (d.intensity == null) return null;
               const cx = getX(i);
               const cy = getY(d.intensity);
               const isCurr = d.timeOffset === 0;
@@ -1028,7 +1043,7 @@ export default function ForecastPage() {
                     </td>
 
                     <td className="py-3.5 px-4 font-mono">
-                      <span className="font-bold text-foreground">{row.intensity_knots} kt</span>
+                      <span className="font-bold text-foreground">{row.intensity_knots ?? "Not available"} kt</span>
                       <span className="text-[10px] text-muted-foreground ml-1.5 font-normal">({row.kmh} km/h)</span>
                     </td>
 
@@ -1165,7 +1180,7 @@ export default function ForecastPage() {
                   </div>
                   <div className="text-right min-w-[70px]">
                     <p className="text-[10px] text-muted-foreground uppercase">Intensity</p>
-                    <p className="font-bold text-foreground font-mono">{pt.intensity_knots} <span className="text-[10px] font-normal text-muted-foreground">kt</span></p>
+                    <p className="font-bold text-foreground font-mono">{pt.intensity_knots ?? "Not available"} <span className="text-[10px] font-normal text-muted-foreground">kt</span></p>
                   </div>
                 </div>
               </div>
@@ -1194,7 +1209,7 @@ export default function ForecastPage() {
                 </div>
                 <div className="text-right min-w-[70px]">
                   <p className="text-[10px] text-muted-foreground uppercase">Intensity</p>
-                  <p className="font-bold text-red-500 font-mono text-base">{currentPoint.intensity_knots} <span className="text-[10px] font-normal text-muted-foreground">kt</span></p>
+                  <p className="font-bold text-red-500 font-mono text-base">{currentPoint.intensity_knots ?? "Not available"} <span className="text-[10px] font-normal text-muted-foreground">kt</span></p>
                 </div>
               </div>
             </div>
@@ -1221,7 +1236,7 @@ export default function ForecastPage() {
                   </div>
                   <div className="text-right min-w-[70px]">
                     <p className="text-[10px] text-muted-foreground/70">Intensity</p>
-                    <p className="font-medium text-foreground/80 font-mono text-xs">{pt.intensity_knots} <span className="text-[10px] font-normal text-muted-foreground/70">kt</span></p>
+                    <p className="font-medium text-foreground/80 font-mono text-xs">{pt.intensity_knots ?? "Not available"} <span className="text-[10px] font-normal text-muted-foreground/70">kt</span></p>
                   </div>
                 </div>
               </div>

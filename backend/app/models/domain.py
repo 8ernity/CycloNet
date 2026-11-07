@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Float, DateTime, BigInteger
 from datetime import datetime
 from app.core.database import Base
 
@@ -33,3 +33,5 @@ class ActiveCycloneState(Base):
     active_count = Column(Integer, default=0)
     systems_json = Column(String, default="[]")
     last_sync = Column(DateTime, default=datetime.utcnow)
+    fencing_generation = Column(BigInteger, nullable=False, default=0, server_default='0')
+    leader_token = Column(String, nullable=True)

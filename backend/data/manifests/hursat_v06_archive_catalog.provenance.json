@@ -1,0 +1,317 @@
+{
+  "retrieved_at": "2026-11-07T09:57:07.529938+00:00",
+  "catalog_sha256": "0f7ec3b5111287dbb25d0dd1d4f4d271a7d2cf5aa35f1547778b80aed72ddbb0",
+  "matched_storm_ids": 246,
+  "unmatched_storm_ids": [
+    "1978134N11091",
+    "1978217N16129",
+    "1978262N14135",
+    "1978298N13090",
+    "1978307N10082",
+    "1978323N08092",
+    "1980284N09092",
+    "1980290N10088",
+    "1980317N11075",
+    "1980338N09085",
+    "1980345N09092",
+    "1981298N07083",
+    "1981321N13092",
+    "1982168N23090",
+    "1982196N20069",
+    "1982199N18088",
+    "1982214N23090",
+    "1982224N20089",
+    "1982230N21088",
+    "1982237N26080",
+    "1982239N19089",
+    "1982252N18089",
+    "1982272N22092",
+    "1982274N13071",
+    "1982287N13091",
+    "1982290N09084",
+    "1982309N12066",
+    "1982332N07088",
+    "1982333N09067",
+    "1982337N08084",
+    "1983171N20071",
+    "1983175N18087",
+    "1983216N23088",
+    "1983252N25083",
+    "1983287N19091",
+    "1983356N08081",
+    "1984145N11056",
+    "1984158N18068",
+    "1984213N20089",
+    "1984228N20091",
+    "1985142N16089",
+    "1985213N20088",
+    "1985217N30075",
+    "1985218N21088",
+    "1985226N19088",
+    "1985262N18090",
+    "1985266N25077",
+    "1985274N14084",
+    "1985279N20072",
+    "1985287N13093",
+    "1985316N13081",
+    "1986221N22070",
+    "1986223N18088",
+    "1986231N21088",
+    "1986267N21088",
+    "1987030N06089",
+    "1987238N24090",
+    "1987255N23086",
+    "1987258N23082",
+    "1988161N21089",
+    "1988199N18086",
+    "1988215N22090",
+    "1988275N18085",
+    "1988320N10087",
+    "1989163N20088",
+    "1989171N11088",
+    "1989203N18086",
+    "1989228N17086",
+    "1989290N18090",
+    "1989315N11084",
+    "1989321N11085",
+    "1991208N20090",
+    "1994317N07070",
+    "1995126N11081",
+    "1995128N15082",
+    "1995269N21088",
+    "1996208N24084",
+    "1997177N21090",
+    "1997232N20088",
+    "1997240N20087",
+    "1998165N18088",
+    "1998299N11090",
+    "1999159N18091",
+    "2000236N17084",
+    "2000299N13093",
+    "2000331N09092",
+    "2001288N13084",
+    "2002295N14082",
+    "2002355N04077",
+    "2004163N15090",
+    "2005172N22069",
+    "2005210N21088",
+    "2005255N20088",
+    "2005257N20069",
+    "2005260N20091",
+    "2006214N20088",
+    "2006241N20088",
+    "2008168N22090",
+    "2008293N09060",
+    "2008317N11089",
+    "2009176N23069",
+    "2009313N11072",
+    "2009344N06085",
+    "2010280N17085",
+    "2010341N14082",
+    "2011033N06083",
+    "2011203N24085",
+    "2011265N21088",
+    "2012297N11067",
+    "2013149N21090",
+    "2013211N21088",
+    "2014202N22087",
+    "2014216N21089",
+    "2015171N18086",
+    "2015216N23081",
+    "2015259N20084",
+    "2015312N11084"
+  ],
+  "sources": [
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1978/",
+      "sha256": "d56c9ba66a3d2259b7953e5a4ba73e5c6adc57ba1c8b4d8fee0a2b14df5955fc",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1979/",
+      "sha256": "dc6ec78fadbcc2dedeb83d1e2c4009f51173177a7e8c2eb8decf84cc05df2be7",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1980/",
+      "sha256": "d920f71f45b334507b084ec153a0813a0624c67631ba5fa475f7e31139cdf54d",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1981/",
+      "sha256": "7c00c92e80fa29f147c52221c796f4e803872b4cef5128107d0e7f03d7357c87",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1982/",
+      "sha256": "e528ab23b1734c6c4db8689b48f06a756bd785919d7ac62413f9f0912bccd18f",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1983/",
+      "sha256": "86b852ed3be8cd02140c354a624187afa17433223c10fbbf9e2701c5d2eb8564",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1984/",
+      "sha256": "2aff66c9983c33a1220ec21972794cffa36b3f56d18fd70b72f30b929a9c8cec",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1985/",
+      "sha256": "74b068c96e26c0579568640923725b8f0ee3005ed42586b8664197f7cdb2303e",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1986/",
+      "sha256": "28b5a19a70870438788cd3070fbc17768a0d8d185a0d671bfffb21a248e8ee62",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1987/",
+      "sha256": "5751ed08dfc60df6bed30fb909f5e517833924b56ad8f70bf6bf7bf97248e46c",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1988/",
+      "sha256": "432689c154985436b3b4a42d4f3d28a63e0113e4c4f4bb5d60a81a849d931618",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1989/",
+      "sha256": "59aaed0d83096b14e34ae8417c94bbe1b4bff6370c4f37e8ba5f3a88b33532e4",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1990/",
+      "sha256": "d1356dda0ce69e46adc5c6e7110d3c2400f11023c3cd88ed694bbf66165145ab",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1991/",
+      "sha256": "bc7b6827cfa2e09abcb78be6fec3c1ffb75084df282c23e36c113d44da761686",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1992/",
+      "sha256": "6c89d484e46fb84a3a75251eb6afc3a31a253ddd8d44d9be229183347a03ab8f",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1993/",
+      "sha256": "149f059664ce0394173dda6af36b07b3f3d5fe63abc5edaefbdd7006afe70e19",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1994/",
+      "sha256": "6aafab000bac382d96e95f67e2a6eff80a26f45a4b6184237eca5c39fe3f1cdb",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1995/",
+      "sha256": "4aa8ef6c4ee36087dda1154c600d26c6b79c58f42d60461cfaa74e02a233e10a",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1996/",
+      "sha256": "f151368c32b4367e4286fb3bddb90c569c5c92328124d981524c923387c09b9d",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1997/",
+      "sha256": "789f9c69bf199c7f9f58c35fc24cb6a3a61d24949896846088716d11735ead7f",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1998/",
+      "sha256": "560be53cc0d5d79e674c69ae1d3b5b4360ee2ccdf4c0564c577c886a16492f9b",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/1999/",
+      "sha256": "2372bc94ebcfe897fc0fa057f4dbc21fec21041188c58f83c6bf3f3a902d431b",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/2000/",
+      "sha256": "fc91b90698c978b19e0cf2c467fccb2ba922b736d1bbc483f6901280198828e8",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/2001/",
+      "sha256": "1e100082f43a3c567d3e03f8858e13275ef4e94efd59294f56ed5a4b0efe364d",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/2002/",
+      "sha256": "51590975aa7f19f57bc83ce17dd503bcdb0274354a9f544b7f3742ee68730e69",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/2003/",
+      "sha256": "4e93e87be318641d8a976b3b14a8aefafda77694dc651cf0d8f665194ed4398c",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/2004/",
+      "sha256": "009f1236ed781f08189cfedc41130c5ec42c4b51fac054e97852b0b2f1b548e8",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/2005/",
+      "sha256": "3a74ad24124d3cd4ce7b877b7bc8192f685389683f6645d38743c0403da6391a",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/2006/",
+      "sha256": "2678670de921652734470dd411420ca88c1514030da129dfa8276dca877e5ba0",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/2007/",
+      "sha256": "d957d734adf44bf4338a8fb93f9e8f4bb1f47cc93150451495a08f3c09eeed3a",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/2008/",
+      "sha256": "d502dbfd2852d70c911c74d830acc632f83292c42c0f56bfdca634f8188fc64e",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/2009/",
+      "sha256": "de989a72c7d822a3a2f2ee7f319a774db86ef0427521026bb248c1a33f60e423",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/2010/",
+      "sha256": "a427020dc0a257082d81dfe187f01dfe16f188a1437881aa5d61638060ced98d",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/2011/",
+      "sha256": "196dc51dcd46eef73f6b8671190880c3991e43b5ef3e5fb23c6b5259decdd128",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/2012/",
+      "sha256": "018a8703b54ef991ac3f90fd2683eafee702ff5ee7a050ac5fa6f21988c4875b",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/2013/",
+      "sha256": "16abd28186b4638501fddc7adf21d5076ab12c59fea6692de7982a661922c8f7",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/2014/",
+      "sha256": "40757d6f650e269ddd0ef84214e59b80116b7b0ba86723bf8df58fa389c8382a",
+      "status": "FETCHED"
+    },
+    {
+      "url": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/2015/",
+      "sha256": "b835619699110107a2251c9226550e935c7320530beb5dff508b8aeb7efc81e0",
+      "status": "FETCHED"
+    }
+  ],
+  "note": "Exact SID archive links only; HURSAT v03r09/v04r01 identity and frame joins still require review"
+}

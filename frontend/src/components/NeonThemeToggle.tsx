@@ -1,4 +1,5 @@
 "use client";
+import { useMounted } from "@/hooks/useBrowserState";
 
 import React, { useEffect, useState, useId } from "react";
 import { useTheme } from "next-themes";
@@ -11,14 +12,12 @@ interface NeonThemeToggleProps {
 }
 
 export function NeonThemeToggle({ className = "", size = "sm" }: NeonThemeToggleProps) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useMounted();
   const { theme, setTheme } = useTheme();
   const rawId = useId();
   const id = rawId.replace(/:/g, "_");
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+
 
   // When dark, checkbox is checked (Neon Green Power ON)
   const isDark = mounted ? theme === "dark" : true;

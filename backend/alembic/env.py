@@ -3,7 +3,7 @@ import sys
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import pool, text
 
 from alembic import context
 
@@ -27,7 +27,9 @@ target_metadata = domain.Base.metadata
 db_url = os.getenv("DATABASE_URL", SQLALCHEMY_DATABASE_URL)
 if db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
-config.set_main_option("sqlalchemy.url", db_url)
+if db_url.startswith('postgresql://'):
+    db_url = db_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
+config.set_main_option("sqlalchemy.url", db_url.replace('%', '%%'))
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
@@ -51,12 +53,19 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # Serialize deploy jobs; the session lock survives transaction boundaries.
+        if connection.dialect.name == 'postgresql':
+            connection.execute(text('SELECT pg_advisory_lock(1729463101)'))
+            connection.commit()
         context.configure(
             connection=connection, target_metadata=target_metadata
         )
 
         with context.begin_transaction():
             context.run_migrations()
+        if connection.dialect.name == 'postgresql':
+            connection.execute(text('SELECT pg_advisory_unlock(1729463101)'))
+            connection.commit()
 
 if context.is_offline_mode():
     run_migrations_offline()

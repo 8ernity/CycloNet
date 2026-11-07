@@ -229,7 +229,7 @@ def enforce_rate_limit(
         allowed, remaining, retry_after = redis_res
     else:
         # In production with fail-closed policy enabled, reject if distributed Redis is down
-        if ENVIRONMENT == "production" and REDIS_FAIL_CLOSED:
+        if ENVIRONMENT == "production":
             logger.error("[RateLimit] Redis unavailable in production with REDIS_FAIL_CLOSED=true; failing closed.")
             raise HTTPException(
                 status_code=503,

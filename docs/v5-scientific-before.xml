@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="3" time="24.004" timestamp="2026-11-07T15:22:52.160108+05:30" hostname="DESKTOP-FHF8V0M"><testcase classname="tests.test_v5_scientific_data" name="test_changing_intensity_stays_in_one_split" time="1.890"><failure message="train_classifier.DataLeakageError: Event leakage detected: Storm event(s) {'storm-3', 'storm-1', 'storm-6', 'storm-7'} shared between TRAIN and VAL splits.">tests\test_v5_scientific_data.py:14: in test_changing_intensity_stays_in_one_split
+    splits = partition_dataset_strictly_disjoint(samples)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+train_classifier.py:198: in partition_dataset_strictly_disjoint
+    verify_dataset_manifest(train_samples, val_samples, test_samples)
+train_classifier.py:137: in verify_dataset_manifest
+    raise DataLeakageError(f"Event leakage detected: Storm event(s) {overlap} shared between TRAIN and VAL splits.")
+E   train_classifier.DataLeakageError: Event leakage detected: Storm event(s) {'storm-3', 'storm-1', 'storm-6', 'storm-7'} shared between TRAIN and VAL splits.</failure></testcase><testcase classname="tests.test_v5_scientific_data" name="test_manifest_preserves_authentic_values_and_excludes_unavailable_images" time="0.029"><failure message="ModuleNotFoundError: No module named 'app.services.scientific_manifest'">tests\test_v5_scientific_data.py:26: in test_manifest_preserves_authentic_values_and_excludes_unavailable_images
+    from app.services.scientific_manifest import build_manifest
+E   ModuleNotFoundError: No module named 'app.services.scientific_manifest'</failure></testcase><testcase classname="tests.test_v5_scientific_data" name="test_incomplete_csv_manifest_halts_before_model_construction" time="0.017"><failure message="ModuleNotFoundError: No module named 'app.services.scientific_manifest'">tests\test_v5_scientific_data.py:56: in test_incomplete_csv_manifest_halts_before_model_construction
+    from app.services.scientific_manifest import load_training_csv
+E   ModuleNotFoundError: No module named 'app.services.scientific_manifest'</failure></testcase></testsuite></testsuites>

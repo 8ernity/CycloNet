@@ -2,6 +2,12 @@ import os
 import jwt
 import datetime
 import pytest
+import tempfile
+from pathlib import Path
+
+# Tests must never mutate a developer's persisted storm state or history.
+_test_storage = tempfile.TemporaryDirectory(prefix='cyclonet-tests-')
+os.environ['DATABASE_URL'] = 'sqlite:///' + (Path(_test_storage.name) / 'tests.db').as_posix()
 
 # Ensure test environment variables are loaded prior to app imports
 os.environ["ENVIRONMENT"] = "test"
@@ -20,6 +26,21 @@ auth.JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
 def setup_test_environment():
     """Initializes database schema and seed records before running test suites."""
     init_db()
+    yield
+    from app.core.database import engine
+    engine.dispose()
+
+
+@pytest.fixture(autouse=True)
+def isolate_active_storms():
+    from app.core.database import SessionLocal
+    from app.models.domain import ActiveCycloneState
+    from app.services.live_ingestion import live_ingestion_service
+    with SessionLocal.begin() as db:
+        state = db.get(ActiveCycloneState, 'CURRENT_ACTIVE_SYSTEMS')
+        state.systems_json = '[]'
+        state.active_count = 0
+    live_ingestion_service._in_memory_systems = []
     yield
 
 def make_valid_test_token(sub: str = "user_test_123", role: str = "member", exp_minutes: int = 60) -> str:

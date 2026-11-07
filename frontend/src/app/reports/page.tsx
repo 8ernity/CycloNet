@@ -1,4 +1,5 @@
 "use client";
+import { type DispatchReceipt, type CatalogItem } from "@/types/api";
 import React, { useState, useEffect, useMemo } from "react";
 import { 
   FileText, Bell, AlertOctagon, AlertTriangle, Info, Download, Filter, 
@@ -9,7 +10,7 @@ import {
 } from "lucide-react";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
-import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
+import { API_BASE_URL, getApiBaseUrl, apiFetch } from "@/lib/api";
 import { generateCyclonePdfReport } from "@/lib/pdfReportGenerator";
 import { 
   POWER_SUBSTATIONS, 
@@ -20,12 +21,18 @@ import {
 } from "@/lib/infrastructureData";
 
 interface ActiveSystem {
+  source?: string;
+  observation_time_utc?: string | null;
+  retrieved_at?: string | null;
+  is_simulation?: boolean;
+  central_pressure_hpa?: number | null;
+  gusts_kmh?: number | null;
   id: string;
   name: string;
   basin: string;
   lat: number;
   lon: number;
-  intensity_knots: number;
+  intensity_knots: number | null;
   category: string;
 }
 
@@ -36,7 +43,7 @@ interface Bulletin {
   timestamp_utc: string;
   timestamp_ist: string;
   category: string;
-  intensity_knots: number;
+  intensity_knots: number | null;
   intensity_kmh: number;
   gusts_kmh: number;
   central_pressure_hpa: number;
@@ -83,7 +90,7 @@ export default function ReportsPage() {
 
   const sourceBadge = getSourceBadge();
   const [system, setSystem] = useState<ActiveSystem | null>(null);
-  const [cyclonesList, setCyclonesList] = useState(PRESET_STORMS);
+  const [cyclonesList, setCyclonesList] = useState<Array<Omit<typeof PRESET_STORMS[number], "knots"> & {knots: number | null}>>(PRESET_STORMS);
   const [bulletins, setBulletins] = useState<Bulletin[]>([]);
   const [affectedDistricts, setAffectedDistricts] = useState<AffectedDistrict[]>([]);
   const [portSignals, setPortSignals] = useState<PortSignal[]>([]);
@@ -100,7 +107,7 @@ export default function ReportsPage() {
   const [selectedChannels, setSelectedChannels] = useState<string[]>(["sms", "siren", "vhf", "sachet"]);
   const [dispatchStatus, setDispatchStatus] = useState<"idle" | "dispatching" | "completed">("idle");
   const [dispatchStep, setDispatchStep] = useState<number>(0);
-  const [dispatchReceipt, setDispatchReceipt] = useState<any>(null);
+  const [dispatchReceipt, setDispatchReceipt] = useState<DispatchReceipt | null>(null);
 
   // Parametric insurance simulator state
   const [insuranceSimulationTier, setInsuranceSimulationTier] = useState<number>(0);
@@ -119,12 +126,12 @@ export default function ReportsPage() {
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
-            setCyclonesList(data.map((c: any) => ({
+            setCyclonesList(data.map((c: CatalogItem) => ({
               id: c.id,
               name: c.name.startsWith("Cyclone ") || c.name.startsWith("Deep Depression") || c.name.startsWith("Depression") || c.name.startsWith("Super Cyclone") || c.name.includes("Cyclone") ? c.name : `Cyclone ${c.name}`,
               basin: c.basin || "Bay of Bengal",
               category: c.max_category || "Cyclonic Storm",
-              knots: c.knots || (c.max_category?.includes("Super") ? 140 : c.max_category?.includes("Extremely") ? 100 : c.max_category?.includes("Very Severe") ? 80 : c.max_category?.includes("Severe") ? 55 : 35),
+              knots: c.knots ?? null,
             })));
           }
         }
@@ -135,165 +142,59 @@ export default function ReportsPage() {
     fetchAllCyclones();
   }, []);
 
-  // Fetch report data from backend with client-side deterministic fallback
-  const fetchReportData = async () => {
+  const [reportError, setReportError] = useState<string | null>(null);
+  const [reportMode, setReportMode] = useState("EXPERIMENTAL_ANALYSIS");
+  const fetchReportData = async (demo = false, signal?: AbortSignal) => {
+    await Promise.resolve();
+    if (signal?.aborted) return;
     setLoading(true);
-    let resolved = false;
+    setReportError(null);
+    setSystem(null);
+    setBulletins([]);
+    setSelectedBulletin(null);
+    setCapXml("");
+    setPortSignals([]);
+    setAffectedDistricts([]);
     try {
-      let url = `${getApiBaseUrl()}/api/reports/bulletins`;
-      if (selectedCycloneId) {
-        url += `?simulate=true&cyclone_id=${encodeURIComponent(selectedCycloneId)}`;
-      }
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.system) {
-          setSystem(data.system);
-          setBulletins(data.bulletins || []);
-          setAffectedDistricts(data.affected_districts || []);
-          setPortSignals(data.port_signals || []);
-          setCapXml(data.cap_xml || "");
-          if (data.bulletins && data.bulletins.length > 0) {
-            setSelectedBulletin(data.bulletins[0]);
-          }
-          resolved = true;
-        }
-      }
-      if (!resolved) {
-        const sysRes = await fetch(`${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${encodeURIComponent(selectedCycloneId || "BOB05-2026")}`);
-        if (sysRes.ok) {
-          const sysData = await sysRes.json();
-          if (sysData && sysData.length > 0) {
-            const current = sysData[0];
-            setSystem(current);
-            generateClientFallbackData(current);
-            resolved = true;
-          }
-        }
-      }
-    } catch (err) {
-      console.warn("Backend report fetch error, will use local meteorological synthesizer:", err);
+      const params = new URLSearchParams();
+      if (demo) params.set("simulate", "true");
+      else if (selectedCycloneId) params.set("cyclone_id", selectedCycloneId);
+      const res = await fetch(`${getApiBaseUrl()}/api/reports/bulletins?${params}`, { signal });
+      if (!res.ok) throw new Error("Report unavailable");
+      const data = await res.json();
+      if (signal?.aborted) return;
+      if (!data.system || !Array.isArray(data.bulletins)) throw new Error("Report unavailable");
+      setSystem(data.system);
+      setReportMode(data.mode);
+      setBulletins(data.bulletins);
+      setSelectedBulletin(data.bulletins[0] ?? null);
+      setCapXml(data.cap_xml ?? "");
+      setPortSignals(data.port_signals ?? []);
+      setAffectedDistricts(data.affected_districts ?? []);
+    } catch {
+      if (signal?.aborted) return;
+      setReportError("Report unavailable. Source data could not be loaded.");
+    } finally {
+      if (!signal?.aborted) setLoading(false);
     }
-
-    if (!resolved) {
-      const fallbackStorm = cyclonesList.find(s => s.id === selectedCycloneId) || PRESET_STORMS[0];
-      const mockSys: ActiveSystem = {
-        id: fallbackStorm.id,
-        name: fallbackStorm.name,
-        basin: fallbackStorm.basin,
-        lat: fallbackStorm.basin.includes("Bengal") ? 17.8 : 19.2,
-        lon: fallbackStorm.basin.includes("Bengal") ? 84.6 : 68.4,
-        intensity_knots: fallbackStorm.knots,
-        category: fallbackStorm.category
-      };
-      setSystem(mockSys);
-      generateClientFallbackData(mockSys);
-    }
-    setLoading(false);
-  };
-
-  const generateClientFallbackData = (sys: ActiveSystem) => {
-    const isBoB = sys.basin ? sys.basin.toLowerCase().includes("bengal") : true;
-    const knots = sys.intensity_knots || 65;
-    const now = new Date();
-    
-    // Generate bulletins
-    const bList: Bulletin[] = [0, 1, 2].map((idx) => {
-      const bTime = new Date(now.getTime() - idx * 3 * 3600 * 1000);
-      const bNum = 14 - idx;
-      const bKnots = Math.max(30, knots - idx * 5);
-      const bKmh = Math.round(bKnots * 1.852);
-      const bGusts = Math.round(bKmh * 1.25);
-      const surge = Number((Math.max(0.8, (bKnots * 0.035) + 0.5)).toFixed(1));
-      const wave = Number((Math.max(2.0, (bKnots * 0.08) + 1.0)).toFixed(1));
-      
-      let level = "YELLOW";
-      let stage = "Pre-Cyclone Watch";
-      if (bKnots >= 120) { level = "RED"; stage = "Cyclone Warning (Landfall Imminent)"; }
-      else if (bKnots >= 64) { level = "RED"; stage = "Cyclone Warning"; }
-      else if (bKnots >= 48) { level = "ORANGE"; stage = "Cyclone Alert"; }
-
-      const fullText = `INDIA METEOROLOGICAL DEPARTMENT
-REGIONAL SPECIALISED METEOROLOGICAL CENTRE - TROPICAL CYCLONES, NEW DELHI
-TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
-
-1. BASIN: ${sys.basin.toUpperCase()}
-2. TIME OF ISSUE: ${bTime.toISOString().replace('T', ' ').substring(0, 16)} UTC
-3. SYSTEM IDENTIFICATION: ${sys.category.toUpperCase()} '${sys.name.toUpperCase()}'
-4. CURRENT POSITION & INTENSITY:
-   - Latitude / Longitude: ${sys.lat.toFixed(1)}°N / ${sys.lon.toFixed(1)}°E
-   - Max Sustained Surface Wind: ${bKnots} Knots (${bKmh} km/h)
-   - Estimated Peak Gusts: ${bGusts} km/h
-   - Estimated Central Pressure: ${1010 - Math.round(bKnots * 0.65)} hPa
-   - Movement: North-Northwestwards at 14 km/h
-
-5. MULTI-HAZARD WARNINGS:
-   - STORM SURGE: Peak surge of ${surge}m above astronomical tide likely to inundate low-lying coastal sectors.
-   - SEA CONDITION: High to Phenomenal (${wave}m waves). Total suspension of fishing operations.
-   - WIND HAZARD: Gale wind speed reaching ${bKmh}-${bGusts} km/h along and off coastal zones.
-`;
-
-      return {
-        id: `BULLETIN-RSMC-${bNum}`,
-        number: bNum,
-        title: `RSMC Cyclone Advisory Bulletin #${bNum}`,
-        timestamp_utc: bTime.toISOString().replace('T', ' ').substring(0, 16) + " UTC",
-        timestamp_ist: new Date(bTime.getTime() + 5.5 * 3600 * 1000).toLocaleString('en-IN', { hour12: true }),
-        category: sys.category,
-        intensity_knots: bKnots,
-        intensity_kmh: bKmh,
-        gusts_kmh: bGusts,
-        central_pressure_hpa: 1010 - Math.round(bKnots * 0.65),
-        storm_surge_meters: surge,
-        wave_height_meters: wave,
-        alert_level: level,
-        stage: stage,
-        full_text: fullText,
-        is_latest: idx === 0
-      };
-    });
-
-    setBulletins(bList);
-    setSelectedBulletin(bList[0]);
-
-    // Affected Districts
-    if (isBoB) {
-      setAffectedDistricts([
-        { district: "Srikakulam, AP", risk: "Extremely High", state: "Andhra Pradesh", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "Hazard Advisory Zone" },
-        { district: "Visakhapatnam, AP", risk: "Extremely High", state: "Andhra Pradesh", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "Hazard Advisory Zone" },
-        { district: "Ganjam, Odisha", risk: "High", state: "Odisha", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "High Priority Advisory" },
-        { district: "Puri, Odisha", risk: "High", state: "Odisha", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "High Priority Advisory" },
-        { district: "South 24 Parganas, WB", risk: "Moderate", state: "West Bengal", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "Selective Advisory" }
-      ]);
-    } else {
-      setAffectedDistricts([
-        { district: "Kutch & Dwarka, GJ", risk: "Extremely High", state: "Gujarat", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "Hazard Advisory Zone" },
-        { district: "Porbandar, GJ", risk: "Extremely High", state: "Gujarat", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "Hazard Advisory Zone" },
-        { district: "Gir Somnath, GJ", risk: "High", state: "Gujarat", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "High Priority Advisory" },
-        { district: "Mumbai Suburban, MH", risk: "Moderate", state: "Maharashtra", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "Selective Advisory" }
-      ]);
-    }
-
-    // Port Signals
-    setPortSignals([
-      { signal: knots >= 90 ? "Great Danger Signal No. X (Ten)" : "Danger Signal No. VII (Seven)", meaning: "Severe cyclone expected to cross coast over or near the port with destructive gale winds." },
-      { signal: "Distant Cautionary Signal No. I (One)", meaning: "Deep sea depression undergoing intensification." }
-    ]);
   };
 
   useEffect(() => {
-    fetchReportData();
+    const controller = new AbortController();
+    const task = window.setTimeout(() => void fetchReportData(false, controller.signal), 0);
+    return () => { window.clearTimeout(task); controller.abort(); };
   }, [selectedCycloneId]);
 
   // Alert Badge Details
   const alertInfo = useMemo(() => {
-    const rawKnots = system?.intensity_knots || 65;
+    const rawKnots = system?.intensity_knots ?? null;
     const knots = getConvertedKnots(rawKnots);
-    if (knots >= 120) return { level: "RED", title: "Red Warning: Total Action & Evacuation", desc: "Super Cyclonic Storm with catastrophic wind potential. Extensive storm surge inundation and structural collapse expected in landfall corridor.", color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/40", icon: <AlertOctagon className="w-8 h-8 text-red-500 animate-pulse" /> };
-    if (knots >= 90) return { level: "ORANGE", title: "Orange Alert: High Preparedness & Mobilization", desc: "Extremely Severe Cyclonic Storm. High threat of uprooted trees, total power outage, coastal inundation, and severe traffic disruption.", color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/40", icon: <AlertTriangle className="w-8 h-8 text-orange-500 animate-bounce" /> };
-    if (knots >= 48) return { level: "ORANGE", title: "Orange Alert: Rapid Intensification Watch", desc: "Severe Cyclonic Storm. Gale force winds and heavy rainfall expected along coastal belt.", color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/40", icon: <AlertTriangle className="w-8 h-8 text-orange-500" /> };
-    if (knots >= 34) return { level: "YELLOW", title: "Yellow Alert: Enhanced Marine Vigilance", desc: "Cyclonic Storm / Deep Depression. Sea conditions rough to very rough. Coastal squalls developing.", color: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/40", icon: <AlertTriangle className="w-8 h-8 text-yellow-500" /> };
-    return { level: "GREEN", title: "Green: Basin Routine Monitoring", desc: "Depression / Low Pressure area. No immediate destructive threat to coastal settlements.", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/40", icon: <Info className="w-8 h-8 text-emerald-500" /> };
+    if (knots == null) return { level: "DATA_UNAVAILABLE", title: "Wind measurement not available", desc: "Hazard cannot be evaluated. Consult official agencies.", color: "text-slate-400", bg: "bg-slate-500/10", border: "border-slate-500/40", icon: <Info className="w-8 h-8" /> };
+    if (knots >= 120) return { level: "RED", title: "Experimental high-wind scenario", desc: "Wind threshold category only. Landfall timing, surge, and evacuation requirements are not established by this report.", color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/40", icon: <AlertOctagon className="w-8 h-8 text-red-500 animate-pulse" /> };
+    if (knots >= 90) return { level: "ORANGE", title: "Experimental wind assessment", desc: "Wind threshold category only. Consult official agencies for impact forecasts.", color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/40", icon: <AlertTriangle className="w-8 h-8 text-orange-500 animate-bounce" /> };
+    if (knots >= 48) return { level: "ORANGE", title: "Experimental wind assessment", desc: "Wind threshold category only. Rainfall and coastal impacts are not established.", color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/40", icon: <AlertTriangle className="w-8 h-8 text-orange-500" /> };
+    if (knots >= 34) return { level: "YELLOW", title: "Experimental wind assessment", desc: "Cyclonic Storm / Deep Depression. Sea conditions rough to very rough. Coastal squalls developing.", color: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/40", icon: <AlertTriangle className="w-8 h-8 text-yellow-500" /> };
+    return { level: "GREEN", title: "Experimental low-wind assessment", desc: "Low measured wind does not establish basin-wide calm or absence of other hazards.", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/40", icon: <Info className="w-8 h-8 text-emerald-500" /> };
   }, [system, getConvertedKnots]);
 
   // Filtered Bulletins
@@ -310,38 +211,16 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
 
   const handleDownloadPdf = () => {
     try {
-      let activeSystem = system;
-      if (!activeSystem && cyclonesList && cyclonesList.length > 0) {
-        const found = cyclonesList.find((c) => c.id === selectedCycloneId) || cyclonesList[0];
-        activeSystem = {
-          id: found.id,
-          name: found.name,
-          basin: found.basin,
-          lat: found.basin.includes("Bengal") ? 17.8 : 19.2,
-          lon: found.basin.includes("Bengal") ? 84.6 : 68.4,
-          intensity_knots: found.knots,
-          category: found.category,
-        };
-      }
-      if (!activeSystem) {
-        activeSystem = {
-          id: "BOB05-2026",
-          name: "Deep Depression (BOB-05)",
-          basin: "Bay of Bengal",
-          lat: 17.8,
-          lon: 84.6,
-          intensity_knots: 45,
-          category: "Deep Depression",
-        };
-      }
-      const rawKnots = activeSystem.intensity_knots || 65;
+      const activeSystem = system;
+      if (!activeSystem) return;
+      const rawKnots = activeSystem.intensity_knots;
       const convertedKnots = getConvertedKnots(rawKnots);
       const convertedCategory = getConvertedCategory(rawKnots, activeSystem.category || "Cyclonic Storm");
 
       generateCyclonePdfReport({
         system: {
           ...activeSystem,
-          intensity_knots: convertedKnots,
+          intensity_knots: activeSystem.intensity_knots,
           category: convertedCategory,
         },
         alertInfo: alertInfo || {
@@ -351,50 +230,26 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
         },
         sourceInfo: {
           type: sourceBadge.type,
-          label: sourceBadge.label,
+          label: activeSystem.source ?? "Not available",
           shortLabel: sourceBadge.shortLabel,
           avgWindow: sourceBadge.avgWindow,
           scaleName: sourceBadge.scaleName,
         },
         bulletins: bulletins && bulletins.length > 0 ? bulletins : [],
-        affectedDistricts: affectedDistricts && affectedDistricts.length > 0 ? affectedDistricts : [
-          { district: "Puri, Odisha", risk: "High", state: "Odisha", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "High Priority Advisory" },
-          { district: "Visakhapatnam, AP", risk: "Extremely High", state: "Andhra Pradesh", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "Hazard Advisory Zone" },
-          { district: "Srikakulam, AP", risk: "Extremely High", state: "Andhra Pradesh", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "Hazard Advisory Zone" }
-        ],
-        portSignals: portSignals && portSignals.length > 0 ? portSignals : [
-          { signal: "Danger Signal No. VII", meaning: "Severe cyclone expected to cross coast." }
-        ],
+        affectedDistricts,
+        portSignals,
+
       });
       showToast(`Generated & downloaded Cyclone PDF advisory (${sourceBadge.shortLabel})!`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("PDF generation failed:", err);
-      showToast(`PDF generation error: ${err?.message || "Please check console"}`);
+      showToast(`PDF generation error: ${(err instanceof Error ? (err instanceof Error ? err.message : "Request failed") : "Request failed") || "Please check console"}`);
     }
   };
 
   const handleDownloadXml = () => {
-    const convertedCategory = getConvertedCategory(system?.intensity_knots || 65, system?.category);
-    const xmlContent = capXml || `<?xml version="1.0" encoding="UTF-8"?>
-<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
-  <identifier>CYCLONET-CAP-EXERCISE-${Date.now()}</identifier>
-  <sender>cyclonet-simulation-engine@exercise.cyclonet.internal</sender>
-  <sent>${new Date().toISOString()}</sent>
-  <status>Exercise</status>
-  <msgType>Alert</msgType>
-  <scope>Public</scope>
-  <code>CYCLONET-EXERCISE-SIMULATION</code>
-  <info>
-    <category>Met</category>
-    <event>${convertedCategory} ${system?.name || "Active"} (Exercise Simulation)</event>
-    <urgency>Expected</urgency>
-    <severity>Severe</severity>
-    <certainty>Possible</certainty>
-    <headline>[EXERCISE SIMULATION] ${alertInfo.title}</headline>
-    <description>[EXERCISE / SIMULATION ONLY - NOT AN OFFICIAL GOVERNMENT WARNING] ${alertInfo.desc}</description>
-    <instruction>SIMULATION EXERCISE: Adhere strictly to official advisories from the India Meteorological Department (IMD) and State Disaster Management Authorities.</instruction>
-  </info>
-</alert>`;
+    if (!capXml) { showToast("CAP exercise unavailable"); return; }
+    const xmlContent = capXml;
     const blob = new Blob([xmlContent], { type: "application/xml" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -408,7 +263,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
   };
 
   const handleDownloadJson = () => {
-    const rawKnots = system?.intensity_knots || 65;
+    const rawKnots = system?.intensity_knots ?? null;
     const reportData = {
       timestamp: new Date().toISOString(),
       dataSource: sourceBadge,
@@ -444,7 +299,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
 
   const handleCopyBulletin = (text: string) => {
     navigator.clipboard.writeText(text);
-    showToast("Official Bulletin Copied to Clipboard!");
+    showToast("Experimental Analysis Copied to Clipboard!");
   };
 
   // Simulate Multi-Channel Broadcast Dispatch
@@ -458,7 +313,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
     setTimeout(() => setDispatchStep(4), 2200);
 
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/alerts/broadcast-test`, {
+      const data = await apiFetch<DispatchReceipt>("/api/alerts/broadcast-test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -467,36 +322,17 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
           channels: selectedChannels
         })
       });
-      if (res.ok) {
-        const data = await res.json();
+      {
         setTimeout(() => {
           setDispatchReceipt(data);
           setDispatchStatus("completed");
-          showToast("Emergency Broadcast Dispatched Successfully!");
+          showToast("Exercise generated. No real broadcast was sent.");
         }, 2800);
-      } else {
-        throw new Error("Dispatch failed");
       }
     } catch {
-      setTimeout(() => {
-        setDispatchReceipt({
-          dispatch_id: `CAP-NDMA-${Math.floor(100000 + Math.random() * 900000)}`,
-          system_name: system?.name || "Active Cyclone",
-          alert_type: alertType,
-          timestamp: new Date().toUTCString(),
-          target_districts: affectedDistricts.map(d => d.district),
-          channels_used: selectedChannels,
-          channel_metrics: {
-            sms: { channel_name: "Cell Broadcast & SMS Gateway", status: "SIMULATED_DRILL", test_recipients: "Simulated Demonstration Buffer", delivery_rate: "N/A (Simulation Mode)", avg_latency: "Local Benchmark" },
-            siren: { channel_name: "Coastal Acoustic Sirens", status: "SIMULATED_DRILL", test_nodes: "Simulated Acoustic Controllers", delivery_rate: "N/A (Simulation Mode)", avg_latency: "Local Benchmark" },
-            vhf: { channel_name: "Coast Guard Marine Navtex / VHF Ch 16", status: "SIMULATED_DRILL", test_nodes: "Simulated Marine Channel Protocol", delivery_rate: "N/A (Simulation Mode)", avg_latency: "Instant" },
-            sachet: { channel_name: "NDMA Sachet Disaster App Feed", status: "SIMULATED_DRILL", test_nodes: "Mock Geo-Push Pipeline", delivery_rate: "N/A (Simulation Mode)", avg_latency: "Local Benchmark" }
-          },
-          message_payload: `[EXERCISE / DRILL] EMERGENCY WARNING: ${system?.category || "Severe Cyclone"} ${system?.name || "Active System"} simulation active. Sustained winds ${Math.round((system?.intensity_knots || 65) * 1.852)} km/h. Demonstration protocol only.`
-        });
-        setDispatchStatus("completed");
-        showToast("Emergency Alert Broadcast Simulated Successfully!");
-      }, 2800);
+      setDispatchStatus("idle");
+      setDispatchReceipt(null);
+      showToast("Exercise request failed. No broadcast was sent.");
     }
   };
 
@@ -533,8 +369,10 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[500px] text-muted-foreground gap-4">
         <Bell className="w-12 h-12 opacity-40 text-primary" />
-        <p className="text-base font-semibold text-foreground">No Active Meteorological Warning Active</p>
-        <p className="text-sm text-muted-foreground max-w-md text-center">North Indian Ocean basin is currently calm with no active cyclonic depressions. Select a storm scenario below to view official bulletins.</p>
+        <p className="text-base font-semibold text-foreground">Report unavailable</p>
+        <p className="text-sm text-muted-foreground max-w-md text-center">{reportError ?? "No report source is available."}</p>
+        <button onClick={() => fetchReportData()} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground">Retry</button>
+        <button onClick={() => fetchReportData(true)}>Open synthetic demonstration report</button>
         <div className="flex flex-wrap gap-2 mt-2 max-w-2xl justify-center">
           {cyclonesList.slice(0, 8).map((s) => (
             <button
@@ -550,17 +388,18 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
     );
   }
 
-  const rawKnots = system.intensity_knots || 65;
+  const rawKnots = system.intensity_knots;
   const knots = getConvertedKnots(rawKnots);
   const kmh = getConvertedKmh(rawKnots);
-  const gusts = getConvertedGusts(rawKnots);
+  const gusts = system.gusts_kmh ?? null;
   const displayCategory = getConvertedCategory(rawKnots, system.category);
-  const surgeM = Number((Math.max(0.8, (knots * 0.035) + 0.5)).toFixed(1));
-  const waveM = Number((Math.max(2.0, (knots * 0.08) + 1.0)).toFixed(1));
-  const pressureHpa = 1010 - Math.round(knots * 0.65);
+  const surgeM = null;
+  const waveM = null;
+  const pressureHpa = system.central_pressure_hpa ?? "Not available";
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-12 w-full">
+      <p role="status" className="text-sm text-amber-400">{reportMode}: CycloNet experimental analysis — not an official warning. {system.is_simulation ? "Synthetic / historical replay." : "Source telemetry."} Source: {system.source ?? "Not available"}. Issue time: {system.observation_time_utc ?? "Not available"}. Retrieved: {system.retrieved_at ?? "Not available"}.</p>
       {/* ── Top Header & Operational Action Bar ────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-6 border-border/80 relative overflow-hidden">
         <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
@@ -575,7 +414,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
               {sourceBadge.shortLabel}
             </span>
             <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider ${alertInfo.bg} ${alertInfo.color} border ${alertInfo.border}`}>
-              {alertInfo.level} WARNING ACTIVE
+              {alertInfo.level} — EXPERIMENTAL ACTIVE
             </span>
             <span className="text-xs text-muted-foreground font-mono">
               Fix: {system.lat.toFixed(1)}°N, {system.lon.toFixed(1)}°E • {system.basin}
@@ -585,7 +424,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
             Alerts & Meteorological Reports
           </h1>
           <p className="text-sm text-muted-foreground">
-            RSMC weather bulletins, OASIS CAP-CP warning protocols (Exercise), infrastructure exposure, and parametric insurance scenarios.
+            CycloNet experimental analyses, OASIS CAP-CP warning protocols (Exercise), infrastructure exposure, and parametric insurance scenarios.
           </p>
         </div>
 
@@ -654,7 +493,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`text-xl sm:text-2xl font-black tracking-wider ${alertInfo.color}`}>
-                  {alertInfo.level} WARNING
+                  {alertInfo.level} — EXPERIMENTAL
                 </span>
                 <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-background text-foreground uppercase border border-border">
                   {displayCategory}
@@ -665,7 +504,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
               </div>
               <h2 className="text-lg sm:text-xl font-bold text-foreground">{alertInfo.title}</h2>
               <p className="text-sm text-muted-foreground leading-relaxed max-w-4xl">
-                {alertInfo.desc} The system is sustaining winds of <strong className="text-foreground">{knots} knots ({kmh} km/h)</strong> with gusts up to <strong className="text-foreground">{gusts} km/h</strong> and central pressure of <strong className="text-foreground">{pressureHpa} hPa</strong>.
+                {alertInfo.desc} The system is sustaining winds of <strong className="text-foreground">{knots ?? "Not available"} knots ({kmh ?? "Not available"} km/h)</strong> with gusts up to <strong className="text-foreground">{gusts ?? "Not available"} km/h</strong> and central pressure of <strong className="text-foreground">{pressureHpa} hPa</strong>.
               </p>
             </div>
           </div>
@@ -673,11 +512,11 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
           <div className="flex md:flex-col items-center md:items-end justify-between w-full md:w-auto shrink-0 gap-2 border-t md:border-t-0 border-border/40 pt-4 md:pt-0">
             <div className="text-left md:text-right">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Max Sustained Wind ({sourceBadge.shortLabel})</p>
-              <p className="text-2xl sm:text-3xl font-mono font-black text-primary">{kmh} <span className="text-sm font-normal text-muted-foreground">km/h</span></p>
+              <p className="text-2xl sm:text-3xl font-mono font-black text-primary">{kmh ?? "Not available"} <span className="text-sm font-normal text-muted-foreground">km/h</span></p>
             </div>
             <div className="text-right">
               <span className="text-xs font-bold text-orange-400 bg-orange-500/10 border border-orange-500/20 px-2 py-1 rounded">
-                Gusts {gusts} km/h
+                Gusts {gusts ?? "Not available"} km/h
               </span>
             </div>
           </div>
@@ -706,7 +545,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
                 : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
             }`}
           >
-            <FileText className="w-4 h-4" /> Official Weather Bulletins ({bulletins.length})
+            <FileText className="w-4 h-4" /> Experimental Analyses ({bulletins.length})
           </button>
 
           <button
@@ -742,7 +581,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
               IMD 4-Stage Tropical Cyclone Early Warning Protocol
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className={`p-4 rounded-xl border ${knots >= 34 ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-400" : "bg-secondary/30 border-border text-muted-foreground"}`}>
+              <div className={`p-4 rounded-xl border ${knots != null && knots >= 34 ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-400" : "bg-secondary/30 border-border text-muted-foreground"}`}>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs font-mono font-bold">STAGE 1 (72h Prior)</span>
                   <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-300">YELLOW</span>
@@ -751,7 +590,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
                 <p className="text-xs text-muted-foreground mt-1">Deep depression detection in oceanic basin. Marine warnings issued to off-shore vessels.</p>
               </div>
 
-              <div className={`p-4 rounded-xl border ${knots >= 48 ? "bg-orange-500/10 border-orange-500/30 text-orange-400" : "bg-secondary/30 border-border text-muted-foreground"}`}>
+              <div className={`p-4 rounded-xl border ${knots != null && knots >= 48 ? "bg-orange-500/10 border-orange-500/30 text-orange-400" : "bg-secondary/30 border-border text-muted-foreground"}`}>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs font-mono font-bold">STAGE 2 (48h Prior)</span>
                   <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-300">ORANGE</span>
@@ -760,7 +599,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
                 <p className="text-xs text-muted-foreground mt-1">Gale wind warning and coastal district mobilization. Fishing operations suspended.</p>
               </div>
 
-              <div className={`p-4 rounded-xl border ${knots >= 64 ? "bg-red-500/10 border-red-500/40 text-red-400 ring-1 ring-red-500/30" : "bg-secondary/30 border-border text-muted-foreground"}`}>
+              <div className={`p-4 rounded-xl border ${knots != null && knots >= 64 ? "bg-red-500/10 border-red-500/40 text-red-400 ring-1 ring-red-500/30" : "bg-secondary/30 border-border text-muted-foreground"}`}>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs font-mono font-bold">STAGE 3 (24h Prior)</span>
                   <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-300">RED</span>
@@ -769,7 +608,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
                 <p className="text-xs text-muted-foreground mt-1">Landfall sector identified. Consult local disaster management authorities for evacuation directives.</p>
               </div>
 
-              <div className={`p-4 rounded-xl border ${knots >= 64 ? "bg-red-500/5 border-red-500/20 text-foreground" : "bg-secondary/30 border-border text-muted-foreground"}`}>
+              <div className={`p-4 rounded-xl border ${knots != null && knots >= 64 ? "bg-red-500/5 border-red-500/20 text-foreground" : "bg-secondary/30 border-border text-muted-foreground"}`}>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs font-mono font-bold">STAGE 4 (12h Prior)</span>
                   <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300">OUTLOOK</span>
@@ -792,8 +631,8 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Sustained Wind & Gusts</p>
-                <p className="text-2xl font-mono font-black text-foreground">{kmh} <span className="text-xs font-normal text-muted-foreground">km/h</span></p>
-                <p className="text-xs text-orange-400 font-semibold mt-0.5">Peak Gusts: {gusts} km/h</p>
+                <p className="text-2xl font-mono font-black text-foreground">{kmh ?? "Not available"} <span className="text-xs font-normal text-muted-foreground">km/h</span></p>
+                <p className="text-xs text-orange-400 font-semibold mt-0.5">Peak Gusts: {gusts ?? "Not available"} km/h</p>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/50 pt-2">
                 Uprooting of large trees, extensive damage to kutcha houses, and disruption of power lines.
@@ -809,12 +648,12 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
                 <span className="text-xs font-mono font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded">Inundation</span>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-medium">Expected Storm Surge</p>
-                <p className="text-2xl font-mono font-black text-foreground">{surgeM} <span className="text-xs font-normal text-muted-foreground">meters</span></p>
-                <p className="text-xs text-cyan-400 font-semibold mt-0.5">Wave Height: {waveM}m (Phenomenal)</p>
+                <p className="text-xs text-muted-foreground font-medium">Observed Storm Surge</p>
+                <p className="text-2xl font-mono font-black text-foreground">{surgeM ?? "Not available"} <span className="text-xs font-normal text-muted-foreground">meters</span></p>
+                <p className="text-xs text-cyan-400 font-semibold mt-0.5">Wave Height: {waveM ?? "Not available"}m</p>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/50 pt-2">
-                Inundation of low-lying coastal areas up to 3-5 km inland during high tide window.
+                Flood extent cannot be inferred from wind alone. No observed inundation data is supplied.
               </p>
             </div>
 
@@ -828,11 +667,11 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">24h Rainfall Forecast</p>
-                <p className="text-2xl font-mono font-black text-foreground">200+ <span className="text-xs font-normal text-muted-foreground">mm</span></p>
-                <p className="text-xs text-indigo-400 font-semibold mt-0.5">Extremely Heavy (Red Alert)</p>
+                <p className="text-2xl font-mono font-black text-foreground">Not available <span className="text-xs font-normal text-muted-foreground">mm</span></p>
+                <p className="text-xs text-indigo-400 font-semibold mt-0.5">Rainfall observation not available</p>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/50 pt-2">
-                Flash floods in river catchments, waterlogging of major roads, and localized landslips.
+                No verified rainfall or flood forecast is supplied.
               </p>
             </div>
 
@@ -842,15 +681,15 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
                 <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
                   <Anchor className="w-5 h-5" />
                 </div>
-                <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">Signal {knots >= 90 ? "X" : "VII"}</span>
+                <span className="text-xs font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">Not available</span>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">Nautical Port Warning</p>
-                <p className="text-base font-bold text-foreground truncate">{portSignals[0]?.signal || "Danger Signal VII"}</p>
-                <p className="text-xs text-amber-400 font-semibold mt-0.5">Total Maritime Ban</p>
+                <p className="text-base font-bold text-foreground truncate">{portSignals[0]?.signal || "Not available"}</p>
+                <p className="text-xs text-amber-400 font-semibold mt-0.5">Consult port authorities</p>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/50 pt-2">
-                Ports to suspend cargo operations. Fishermen advised strictly not to venture into deep sea.
+                No verified port directive is available. Consult official port authorities.
               </p>
             </div>
           </div>
@@ -864,11 +703,11 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
                   High-Risk Coastal Districts & Evacuation Readiness
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Calculated based on active storm trajectory, coastal bathymetry, and surge exposure.
+                  No independently verified district exposure data is supplied.
                 </p>
               </div>
               <span className="text-xs font-medium text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20 w-fit">
-                {affectedDistricts.length} Districts on High Alert
+                {affectedDistricts.length} Verified district records
               </span>
             </div>
 
@@ -984,7 +823,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground line-clamp-1">{b.category} • {b.intensity_knots} kts</p>
+                  <p className="text-xs text-muted-foreground line-clamp-1">{b.category} • {b.intensity_knots ?? "Not available"} kts</p>
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-2 pt-2 border-t border-border/40 font-mono">
                     <span>{b.timestamp_ist}</span>
                     <span className={`font-bold ${b.alert_level === "RED" ? "text-red-400" : "text-orange-400"}`}>
@@ -1011,7 +850,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
                     </div>
                     <h2 className="text-xl font-bold text-foreground mt-1">{selectedBulletin.title}</h2>
                     <p className="text-xs text-muted-foreground font-mono mt-0.5">
-                      Issued: {selectedBulletin.timestamp_utc} ({selectedBulletin.timestamp_ist})
+                      Issued: {selectedBulletin.timestamp_utc ?? "Not available"} ({selectedBulletin.timestamp_ist ?? "Not available"})
                     </p>
                   </div>
 
@@ -1041,7 +880,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
                   </div>
                   <div className="p-3 rounded-lg bg-secondary/40 border border-border">
                     <p className="text-[10px] uppercase font-semibold text-muted-foreground">Peak Gusts</p>
-                    <p className="text-lg font-mono font-bold text-orange-400">{getConvertedGusts(selectedBulletin.intensity_knots)} km/h</p>
+                    <p className="text-lg font-mono font-bold text-orange-400">{selectedBulletin.gusts_kmh ?? "Not available"} km/h</p>
                     <p className="text-xs text-muted-foreground">Gale force</p>
                   </div>
                   <div className="p-3 rounded-lg bg-secondary/40 border border-border">
@@ -1051,12 +890,12 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
                   </div>
                   <div className="p-3 rounded-lg bg-secondary/40 border border-border">
                     <p className="text-[10px] uppercase font-semibold text-muted-foreground">Central Pressure</p>
-                    <p className="text-lg font-mono font-bold text-foreground">{selectedBulletin.central_pressure_hpa} hPa</p>
+                    <p className="text-lg font-mono font-bold text-foreground">{selectedBulletin.central_pressure_hpa ?? "Not available"} hPa</p>
                     <p className="text-xs text-muted-foreground">Estimated</p>
                   </div>
                 </div>
 
-                {/* Official Bulletin Text View */}
+                {/* Experimental Analysis Text View */}
                 <div className="p-5 rounded-xl bg-zinc-950/80 border border-border font-mono text-xs text-zinc-200 leading-relaxed whitespace-pre-wrap select-text shadow-inner max-h-[450px] overflow-y-auto">
                   {selectedBulletin.full_text}
                 </div>

@@ -8,7 +8,7 @@ export interface TelemetryPayload {
   radar_angle: number;
   pulse: number;
   active_systems_count: number;
-  latest_system: any;
+  latest_system: Record<string, unknown> | null;
   sources_status: Record<string, string>;
   is_syncing: boolean;
   connected_clients: number;
@@ -16,7 +16,7 @@ export interface TelemetryPayload {
 
 export interface EmergencyAlertPush {
   type: string;
-  alert: any;
+  alert: Record<string, unknown>;
   timestamp: string;
 }
 
@@ -32,8 +32,8 @@ export function useCycloneWebSocket() {
   });
   const [isSyncing, setIsSyncing] = useState(false);
   const [connectedClients, setConnectedClients] = useState(1);
-  const [latestAlert, setLatestAlert] = useState<any | null>(null);
-  const [lastPayload, setLastPayload] = useState<any | null>(null);
+  const [latestAlert, setLatestAlert] = useState<Record<string, unknown> | null>(null);
+  const [lastPayload, setLastPayload] = useState<TelemetryPayload | null>(null);
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -68,7 +68,7 @@ export function useCycloneWebSocket() {
     return "ws://localhost:8000/ws/cyclone-stream";
   }, []);
 
-  const connect = useCallback(() => {
+  const connect = useCallback(function connect() {
     if (isUnmountedRef.current) return;
     try {
       const wsUrl = getWebSocketUrl();

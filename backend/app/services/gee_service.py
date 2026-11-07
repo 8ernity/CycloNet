@@ -25,54 +25,23 @@ class SatelliteFloodDetectionService:
         self._initialize_gee()
 
     def _initialize_gee(self):
-        try:
-            import ee
-            sa_key = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-            if sa_key and os.path.exists(sa_key):
-                ee.Initialize(project=self.gee_project_id)
-                self.is_live_gee = True
-                self.is_initialized = True
-            else:
-                self.is_live_gee = False
-                self.is_initialized = False
-        except Exception:
-            self.is_live_gee = False
-            self.is_initialized = False
+        # Observation capability is explicitly disabled until a validated SAR
+        # processing implementation and independent reference data are supplied.
+        self.is_live_gee = False
+        self.is_initialized = False
 
-    def get_satellite_observed_flood(
-        self,
-        center_lat: float,
-        center_lon: float,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        Retrieves measured Sentinel-1 SAR flood extent pixels.
-        When credentials, session, or valid cloud-free passes are missing,
-        returns explicit SATELLITE_DATA_UNAVAILABLE status with empty geometry collection.
-        NEVER fabricates synthetic buffer polygons (FIX-007).
-        """
-        if not self.is_live_gee:
-            return {
-                "type": "FeatureCollection",
-                "status": "SATELLITE_DATA_UNAVAILABLE",
-                "is_satellite_measured": False,
-                "reason": "No authenticated Earth Engine session or no cloud-free Sentinel pass within observation window",
-                "sensor": "COPERNICUS/S1_GRD",
-                "center": [center_lat, center_lon],
-                "features": []
-            }
-
-        # If live GEE is authenticated, query Sentinel-1 GRD collection (placeholder for active EE deployment)
-        return {
-            "type": "FeatureCollection",
-            "status": "SATELLITE_DATA_UNAVAILABLE",
-            "is_satellite_measured": False,
-            "reason": "No Sentinel-1 SAR pass detected over target AOI within temporal window",
-            "sensor": "COPERNICUS/S1_GRD",
-            "center": [center_lat, center_lon],
-            "features": []
-        }
+    def get_satellite_observed_flood(self, center_lat: float, center_lon: float,
+                                     start_date=None, end_date=None) -> Dict[str, Any]:
+        if not (math.isfinite(center_lat) and math.isfinite(center_lon)
+                and -90 <= center_lat <= 90 and -180 <= center_lon <= 180):
+            raise ValueError("Invalid geographic coordinates")
+        if start_date is not None and end_date is not None:
+            if datetime.fromisoformat(start_date) >= datetime.fromisoformat(end_date):
+                raise ValueError("Observation start must precede end")
+        return {"type": "FeatureCollection", "status": "SATELLITE_DATA_UNAVAILABLE",
+                "capability_status": "DISABLED", "is_satellite_measured": False,
+                "reason": "Satellite flood detection is disabled pending a validated SAR pipeline and independent reference data",
+                "sensor": "COPERNICUS/S1_GRD", "center": [center_lat, center_lon], "features": []}
 
 class ExperimentalFloodSimulationService:
     """

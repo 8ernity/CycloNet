@@ -1,0 +1,44 @@
+{
+  "dataset_version": "cyclonet_ni_scientific_v1",
+  "generated_at": "2026-11-07T09:57:07.444453+00:00",
+  "source_url": "https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/v04r01/access/csv/ibtracs.NI.list.v04r01.csv",
+  "source_sha256": "137d896f68f8dd12d365ec646d77b6e32128770847ac8ef37e1d0f662ac34915",
+  "source_bytes": 27907168,
+  "manifest_sha256": "4aa2a0c2523025ba2969b759a777ce03d08ab00f563723e6ff7d3fb08d37f634",
+  "hursat_version": "v06",
+  "hursat_archive_root": "https://www.ncei.noaa.gov/data/hurricane-satellite-hursat-b1/archive/v06/",
+  "label_policy": "NEWDELHI 3-minute knots; CS [34,48), SCS [48,64), VSCS [64,90), ESCS [90,120)",
+  "interpolation_policy": "Only O/V NewDelhi flags eligible; no interpolated labels used for training",
+  "split_policy": "SHA256(cyclonet_ni_scientific_v1:storm-split-v1: + SID), 70/15/15 thresholds",
+  "observations": 12275,
+  "storms": 363,
+  "split_storms": {
+    "validation": 39,
+    "train": 260,
+    "test": 64
+  },
+  "split_observations": {
+    "validation": 1343,
+    "train": 9052,
+    "test": 1880
+  },
+  "label_statuses": {
+    "MISSING_AGENCY_INTENSITY": 3641,
+    "NON_TROPICAL_OR_UNKNOWN_NATURE": 3551,
+    "BELOW_SUPPORTED_INTENSITY": 3194,
+    "SUPPORTED_INTENSITY": 1618,
+    "INTERPOLATED_AGENCY_INTENSITY": 263,
+    "SUPER_CYCLONIC_OUTSIDE_CLASS_MAP": 8
+  },
+  "verified_archive_link_observations": 9494,
+  "source_exclusions": {
+    "outside_NI_1978_2015_MAIN": 50635
+  },
+  "training_eligible_observations": 0,
+  "training_ready": false,
+  "blockers": [
+    "HURSAT frame retrieval, v03r09 to v04r01 storm identity reconciliation, timestamp join and pixel preprocessing/QC required",
+    "Independent non-cyclone imagery is absent; storm records below 34 kt are not negative examples",
+    "Independent scientific evaluation, calibration and operational validation remain required"
+  ]
+}

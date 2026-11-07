@@ -26,7 +26,7 @@ interface TrackPoint {
   lon: number;
   time_offset_hours: number;
   category: string;
-  intensity_knots: number;
+  intensity_knots: number | null;
   is_forecast: boolean;
   is_landfall?: boolean;
   is_observed?: boolean;
@@ -439,7 +439,7 @@ export default function MapWidget({ points, systemName }: MapWidgetProps) {
           }}
         >
           <Tooltip permanent direction="top" offset={[0, -10]} className="custom-tooltip">
-            <span className="text-red-400 font-bold">{currentPoint.intensity_knots} KT ({currentPoint.is_observed ? "Observed Fix" : "Best-Track Fix"})</span>
+            <span className="text-red-400 font-bold">{currentPoint.intensity_knots ?? "Not available"} KT ({currentPoint.is_observed ? "Observed Fix" : "Best-Track Fix"})</span>
           </Tooltip>
         </CircleMarker>
 

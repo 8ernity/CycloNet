@@ -22,8 +22,7 @@ def cleanup_lock():
 
 def test_leader_generation_increments_on_redis_acquisition():
     mock_redis = MagicMock()
-    mock_redis.set.return_value = True
-    mock_redis.incr.return_value = 5
+    mock_redis.eval.return_value = 5
 
     with patch.object(process_lock, "_redis_client", mock_redis):
         with patch.object(process_lock, "ENVIRONMENT", "development"):
@@ -31,6 +30,7 @@ def test_leader_generation_increments_on_redis_acquisition():
             assert acquired is True
             assert is_leader() is True
             assert get_leader_generation() == 5
+            assert mock_redis.eval.call_args.args[0] == process_lock.ACQUIRE_LOCK_LUA
 
 @pytest.mark.asyncio
 async def test_continuous_election_step_promotes_standby_worker():

@@ -45,40 +45,22 @@ export function getApiBaseUrl(): string {
   return API_BASE_URL;
 }
 
-export function getStoredAuthToken(): string | null {
+let memoryToken: string | null = null;
+let tokenProvider: (() => Promise<string | null>) | null = null;
+export function setAuthTokenProvider(provider: (() => Promise<string | null>) | null) { tokenProvider = provider; }
+export function getStoredAuthToken(): string | null { return memoryToken; }
+export function setStoredAuthToken(token: string, _persistent = false): void {
+  memoryToken = token;
   if (typeof window !== "undefined") {
-    try {
-      // FIX 04: Prefer short-lived session storage credentials before long-lived localStorage
-      return sessionStorage.getItem("cyclonet_auth_token") || localStorage.getItem("cyclonet_auth_token") || null;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-export function setStoredAuthToken(token: string, persistent: boolean = false): void {
-  if (typeof window !== "undefined") {
-    try {
-      if (persistent) {
-        localStorage.setItem("cyclonet_auth_token", token);
-      } else {
-        sessionStorage.setItem("cyclonet_auth_token", token);
-      }
-    } catch {
-      // Ignore in restricted environments
-    }
+    localStorage.removeItem("cyclonet_auth_token");
+    sessionStorage.removeItem("cyclonet_auth_token");
   }
 }
-
 export function clearStoredAuthToken(): void {
+  memoryToken = null;
   if (typeof window !== "undefined") {
-    try {
-      sessionStorage.removeItem("cyclonet_auth_token");
-      localStorage.removeItem("cyclonet_auth_token");
-    } catch {
-      // Ignore
-    }
+    localStorage.removeItem("cyclonet_auth_token");
+    sessionStorage.removeItem("cyclonet_auth_token");
   }
 }
 
@@ -86,6 +68,7 @@ export function isTrustedOrigin(url: string): boolean {
   try {
     const parsed = new URL(url, typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
     const currentOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+    if (isProd && parsed.protocol !== "https:") return false;
     if (parsed.origin === currentOrigin) return true;
 
     // Compare against configured first-party backend base URL
@@ -93,7 +76,7 @@ export function isTrustedOrigin(url: string): boolean {
     if (parsed.origin === backendOrigin) return true;
 
     // Allow localhost / loopback for local development
-    if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
+    if (!isProd && (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1")) {
       return true;
     }
     return false;
@@ -106,7 +89,7 @@ export function isTrustedOrigin(url: string): boolean {
  * Robust fetch wrapper with timeout, exponential backoff retries with jitter,
  * authentication header attachment, and Retry-After handling (UI-01, SEC-05, SEC-06, FIX-04).
  */
-export async function apiFetch<T = any>(
+export async function apiFetch<T = unknown>(
   endpoint: string,
   options: RequestInit & { token?: string; timeoutMs?: number; maxRetries?: number } = {}
 ): Promise<T> {
@@ -123,7 +106,7 @@ export async function apiFetch<T = any>(
   const isIdempotent = ["GET", "HEAD", "OPTIONS"].includes(method);
 
   const headers = new Headers(fetchOptions.headers || {});
-  const authToken = token || getStoredAuthToken();
+  const authToken = isTrustedOrigin(url) ? (token || await tokenProvider?.() || getStoredAuthToken()) : null;
 
   // FIX 04: Centralized origin check on Authorization headers
   if (headers.has("Authorization")) {
@@ -139,6 +122,10 @@ export async function apiFetch<T = any>(
     }
   }
 
+  if (!isTrustedOrigin(url)) {
+    headers.delete("X-Admin-Key");
+    fetchOptions.credentials = "omit";
+  }
   let attempt = 0;
   let lastError: unknown = null;
 
@@ -150,7 +137,8 @@ export async function apiFetch<T = any>(
       const response = await fetch(url, {
         ...fetchOptions,
         headers,
-        signal: fetchOptions.signal || controller.signal,
+        signal: fetchOptions.signal ? AbortSignal.any([fetchOptions.signal, controller.signal]) : controller.signal,
+        redirect: "error",
       });
       clearTimeout(timeoutId);
 
@@ -188,7 +176,7 @@ export async function apiFetch<T = any>(
       }
 
       return (await response.json()) as T;
-    } catch (err: any) {
+    } catch (err: unknown) {
       clearTimeout(timeoutId);
       if (err instanceof ApiClientError) {
         throw err;

@@ -76,17 +76,17 @@ export function ChatbotWidget() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [screenContext, setScreenContext] = useState<any>(null);
+  const [screenContext, setScreenContext] = useState<Record<string, unknown> | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<CycloneSpeechRecognition | null>(null);
 
   const toggleVoiceInput = () => {
     if (typeof window === "undefined") return;
 
     const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       alert("Voice input is not supported in this browser. Please use Chrome or Edge.");
@@ -109,14 +109,14 @@ export function ChatbotWidget() {
         setIsListening(true);
       };
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event) => {
         const transcript = Array.from(event.results)
-          .map((result: any) => result[0].transcript)
+          .map((result) => result[0].transcript)
           .join("");
         setInput(transcript);
       };
 
-      recognition.onerror = (event: any) => {
+      recognition.onerror = (event) => {
         console.warn("Speech recognition error:", event.error);
         setIsListening(false);
       };
@@ -137,7 +137,7 @@ export function ChatbotWidget() {
   useEffect(() => {
     const updateContext = () => {
       if (typeof window !== "undefined") {
-        setScreenContext((window as any).__cyclonet_current_context || null);
+        setScreenContext(window.__cyclonet_current_context || null);
       }
     };
     updateContext();
@@ -161,6 +161,7 @@ export function ChatbotWidget() {
 
   // Initialize position & size on client mount
   useEffect(() => {
+    const frame = requestAnimationFrame(() => {
     setHasMounted(true);
     if (typeof window !== "undefined") {
       let initialWidth = Math.min(520, window.innerWidth - 32);
@@ -197,6 +198,8 @@ export function ChatbotWidget() {
         y: Math.max(SAFE_MARGIN, window.innerHeight - initialHeight - 60)
       });
     }
+    });
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   useEffect(() => {
@@ -351,7 +354,7 @@ export function ChatbotWidget() {
     if (!text || loading) return;
 
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       role: "user",
       content: text,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -366,9 +369,9 @@ export function ChatbotWidget() {
         .slice(-6)
         .map(m => ({ role: m.role, content: m.content }));
       
-      let uiContext: any = null;
+      let uiContext: Record<string, unknown> | null = null;
       if (typeof window !== "undefined") {
-        const stored = (window as any).__cyclonet_current_context;
+        const stored = window.__cyclonet_current_context;
         uiContext = {
           pathname: window.location.pathname,
           search: window.location.search,
@@ -392,7 +395,7 @@ export function ChatbotWidget() {
 
       const data = await res.json();
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: crypto.randomUUID(),
         role: "assistant",
         content: data.response || "No response received.",
         category: data.category,
@@ -400,11 +403,11 @@ export function ChatbotWidget() {
         timestamp: data.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, assistantMessage]);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setMessages(prev => [
         ...prev,
         {
-          id: (Date.now() + 1).toString(),
+          id: crypto.randomUUID(),
           role: "assistant",
           content: "⚠️ **Connection Notice:** Unable to reach the meteorological intelligence backend. Please ensure the backend server is active at `http://localhost:8000`.",
           category: "error",
