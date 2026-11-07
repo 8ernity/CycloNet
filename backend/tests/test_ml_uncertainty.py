@@ -24,7 +24,7 @@ def test_ml_uninitialized_returns_checkpoint_not_loaded_and_experimental_status(
     assert res['status'] == 'CHECKPOINT_NOT_LOADED'
     assert res['confidence_status'] == 'INSUFFICIENT_CONFIDENCE'
     assert res['is_reliable'] is False
-    assert res['operational_status'] == 'EXPERIMENTAL_DECISION_SUPPORT_ONLY'
+    assert res['operational_status'] == 'EXPERIMENTAL'
     assert res['is_cyclone'] is False
 
 def test_ml_high_entropy_triggers_insufficient_confidence_and_abstains():
@@ -46,7 +46,7 @@ def test_ml_high_entropy_triggers_insufficient_confidence_and_abstains():
     assert res['confidence_status'] == 'INSUFFICIENT_CONFIDENCE'
     assert res['is_abstained'] is True
     assert res['is_reliable'] is False
-    assert res['operational_status'] == 'EXPERIMENTAL_DECISION_SUPPORT_ONLY'
+    assert res['operational_status'] == 'EXPERIMENTAL'
     assert res['normalized_entropy'] > 0.65
     assert res['msp'] < 0.60
     assert "human meteorological inspection" in res['recommendation'].lower()
@@ -90,8 +90,10 @@ def test_ml_confident_prediction_reports_calibrated_metrics_and_experimental_sta
     assert res['status'] == 'SUCCESS'
     assert res['confidence_status'] == 'HIGH_CONFIDENCE'
     assert res['is_abstained'] is False
-    assert res['is_reliable'] is True
-    assert res['operational_status'] == 'EXPERIMENTAL_DECISION_SUPPORT_ONLY'
+    assert res['is_reliable'] is False
+    assert res['scientifically_validated'] is False
+    assert res['model_type'] == 'DEMO'
+    assert res['operational_status'] == 'EXPERIMENTAL'
     assert res['msp'] > 0.90
     assert res['margin'] > 0.80
     assert res['normalized_entropy'] < 0.40

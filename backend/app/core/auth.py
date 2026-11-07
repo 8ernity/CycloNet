@@ -22,6 +22,19 @@ CLERK_AUDIENCE = os.getenv("CLERK_AUDIENCE", "")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
 ENVIRONMENT = os.getenv("ENVIRONMENT", "production").lower()
 
+CLERK_AUTHORIZED_PARTIES = {x.strip() for x in os.getenv("CLERK_AUTHORIZED_PARTIES", "").split(",") if x.strip()}
+
+def validate_production_auth():
+    if os.getenv("ENVIRONMENT", ENVIRONMENT).lower() != "production":
+        return
+    if not CLERK_ISSUER.startswith("https://") or not (CLERK_PEM_PUBLIC_KEY or CLERK_JWKS_URL):
+        raise RuntimeError("Production requires Clerk issuer and PEM or JWKS configuration")
+    if not CLERK_AUDIENCE and not CLERK_AUTHORIZED_PARTIES:
+        raise RuntimeError("Production requires Clerk audience or authorized parties")
+
+def clerk_claims_allowed(claims):
+    return bool(claims.get("sub")) and (not CLERK_AUTHORIZED_PARTIES or claims.get("azp") in CLERK_AUTHORIZED_PARTIES)
+
 security_bearer = HTTPBearer(auto_error=False)
 
 # Cached JWKS client for Clerk public key rotation - SEC-01
@@ -170,6 +183,11 @@ def decode_token_payload(token: str) -> Optional[Dict[str, Any]]:
 
     # 1. Clerk RS256 Verification Path
     if alg == "RS256":
+        try:
+            validate_production_auth()
+        except RuntimeError:
+            return None
+        options["verify_aud"] = bool(CLERK_AUDIENCE)
         # 1a. Verify with Clerk PEM Public Key
         if CLERK_PEM_PUBLIC_KEY and CLERK_PEM_PUBLIC_KEY.strip():
             try:
@@ -184,6 +202,8 @@ def decode_token_payload(token: str) -> Optional[Dict[str, Any]]:
                     audience=CLERK_AUDIENCE or None,
                     options=options
                 )
+                if not clerk_claims_allowed(decoded):
+                    return None
                 decoded["_token_type"] = "clerk"
                 return decoded
             except jwt.ExpiredSignatureError:
@@ -206,6 +226,8 @@ def decode_token_payload(token: str) -> Optional[Dict[str, Any]]:
                     audience=CLERK_AUDIENCE or None,
                     options=options
                 )
+                if not clerk_claims_allowed(decoded):
+                    return None
                 decoded["_token_type"] = "clerk"
                 return decoded
             except jwt.ExpiredSignatureError:
@@ -221,6 +243,8 @@ def decode_token_payload(token: str) -> Optional[Dict[str, Any]]:
 
     # 2. Internal HS256 Verification Path
     if alg == "HS256":
+        if ENVIRONMENT == "production" and os.getenv("ALLOW_INTERNAL_TOKENS", "false").lower() != "true":
+            return None
         hmac_secret = (JWT_SECRET_KEY or os.getenv("JWT_SECRET_KEY", "")).strip()
 
         # Fail closed if no secret configured
@@ -237,7 +261,10 @@ def decode_token_payload(token: str) -> Optional[Dict[str, Any]]:
                 token,
                 hmac_secret,
                 algorithms=["HS256"],
-                options={"verify_signature": True, "require": ["exp"], "verify_exp": True}
+                issuer="cyclonet-internal" if ENVIRONMENT == "production" else None,
+                audience="cyclonet-api" if ENVIRONMENT == "production" else None,
+                options={"verify_signature": True, "require": ["exp", "sub"], "verify_exp": True,
+                         "verify_aud": ENVIRONMENT == "production"}
             )
             decoded["_token_type"] = "internal"
             return decoded

@@ -84,33 +84,25 @@ export function useDataSource() {
 
   // ── Conversion Utilities ──────────────────────────────────────────────────
 
-  const getConvertedKnots = useCallback((baseKnots: number, rawJtwcKnots?: number): number => {
+  const getConvertedKnots = useCallback((baseKnots: number | null | undefined, rawJtwcKnots?: number): number | null => {
     // If genuine JTWC ATCF/TCFA bulletined wind telemetry is present, use it directly (Fix #41)
-    if (rawJtwcKnots && rawJtwcKnots > 0) {
-      return rawJtwcKnots;
-    }
-    if (!baseKnots || baseKnots <= 0) return 0;
-    if (dataSource === "JTWC") {
-      // When primary JTWC ATCF feed is absent, apply WMO-No. 558 / Harper et al. (2010) 
-      // statutory conversion (1-min sustained peak wind standard = 1.14x IMD 3-min mean)
-      return Math.round(baseKnots * 1.14);
-    }
+    if (rawJtwcKnots != null && Number.isFinite(rawJtwcKnots)) return rawJtwcKnots;
+    if (baseKnots == null || !Number.isFinite(baseKnots)) return null;
+    // Display preferences cannot manufacture another agency's measurement.
     return baseKnots;
   }, [dataSource]);
 
-  const getConvertedKmh = useCallback((baseKnots: number): number => {
+  const getConvertedKmh = useCallback((baseKnots: number | null | undefined): number | null => {
     const kts = getConvertedKnots(baseKnots);
-    return Math.round(kts * 1.852);
+    return kts == null ? null : Math.round(kts * 1.852);
   }, [getConvertedKnots]);
 
-  const getConvertedGusts = useCallback((baseKnots: number): number => {
-    const kmh = getConvertedKmh(baseKnots);
-    return Math.round(kmh * 1.25);
-  }, [getConvertedKmh]);
+  const getConvertedGusts = useCallback((_baseKnots: number | null | undefined): number | null => null, []);
 
-  const getConvertedCategory = useCallback((baseKnots: number, fallback?: string): string => {
+  const getConvertedCategory = useCallback((baseKnots: number | null | undefined, fallback?: string): string => {
     const kts = getConvertedKnots(baseKnots);
 
+    if (kts == null) return "Not available";
     if (dataSource === "JTWC") {
       if (kts < 34) return "Tropical Depression";
       if (kts < 64) return "Tropical Storm";
@@ -136,12 +128,12 @@ export function useDataSource() {
     if (dataSource === "JTWC") {
       return {
         type: "JTWC",
-        label: "JTWC Standard (1-Min Avg)",
+        label: "JTWC category display (not a source observation)",
         shortLabel: "JTWC (1-min)",
-        avgWindow: "1-Minute Sustained (+14%)",
+        avgWindow: "Source averaging period unchanged",
         badgeClass: "bg-blue-500/15 text-blue-400 border-blue-500/30",
         scaleName: "Saffir-Simpson (Cat 1–5)",
-        desc: "US Joint Typhoon Warning Center standard using 1-minute sustained wind measurements."
+        desc: "Category display only; measured wind is preserved without an assumed averaging-period conversion."
       };
     }
     if (dataSource === "CUSTOM") {

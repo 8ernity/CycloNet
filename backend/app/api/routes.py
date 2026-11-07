@@ -33,11 +33,11 @@ MAX_IMAGE_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB threshold
 router = APIRouter()
 
 class TrackPoint(BaseModel):
-    lat: float
-    lon: float
+    lat: float = Field(ge=-90, le=90, allow_inf_nan=False)
+    lon: float = Field(ge=-180, le=180, allow_inf_nan=False)
     time_offset_hours: int
     category: str
-    intensity_knots: int
+    intensity_knots: Optional[int] = Field(None, ge=0, le=350)
     is_forecast: bool = False
     is_landfall: bool = False
     is_observed: Optional[bool] = None
@@ -48,9 +48,20 @@ class SystemResponse(BaseModel):
     id: str
     name: str
     basin: str
-    lat: float
-    lon: float
-    intensity_knots: int
+    lat: float = Field(ge=-90, le=90, allow_inf_nan=False)
+    lon: float = Field(ge=-180, le=180, allow_inf_nan=False)
+    intensity_knots: Optional[int] = Field(None, ge=0, le=350)
+    central_pressure_hpa: Optional[float] = Field(None, ge=800, le=1100, allow_inf_nan=False)
+    movement_speed_kmph: Optional[float] = Field(None, ge=0, le=200, allow_inf_nan=False)
+    movement_direction: Optional[str] = None
+    observation_time_utc: Optional[datetime.datetime] = None
+    retrieved_at: Optional[datetime.datetime] = None
+    source_id: Optional[str] = None
+    source_url: Optional[str] = None
+    data_state: Optional[str] = None
+    reconciliation_status: Optional[str] = None
+    is_stale: bool = False
+    is_simulation: bool = False
     category: str
     dvorak_t: Optional[str] = None
     dvorak_derivation_method: Optional[str] = None
@@ -60,7 +71,7 @@ class SystemResponse(BaseModel):
     telemetry_badge: Optional[str] = None
     telemetry_type: Optional[str] = None
     source: Optional[str] = None
-    track_forecast: List[TrackPoint] = []
+    track_forecast: List[TrackPoint] = Field(default_factory=list)
     landfall_info: Optional[Dict[str, Any]] = None
     is_landfall_completed: Optional[bool] = None
 
@@ -71,6 +82,7 @@ class IngestStatusResponse(BaseModel):
     active_systems_count: int
     sources_status: Dict[str, str]
     last_error: Optional[str] = None
+    basin_status: str = 'STATUS_UNCERTAIN'
 
 class ChatMessageRequest(BaseModel):
     message: str
@@ -87,7 +99,8 @@ class ChatMessageResponse(BaseModel):
 async def get_ingest_status():
     """Returns the current real-time status of the automated meteorological ingestion worker."""
     return {
-        "status": "online",
+        "status": "healthy" if getattr(live_ingestion_service, 'basin_status', '') == 'ACTIVE_VERIFIED' else "degraded",
+        "basin_status": getattr(live_ingestion_service, 'basin_status', 'STATUS_UNCERTAIN'),
         "last_sync": live_ingestion_service.last_sync.isoformat() + "Z" if live_ingestion_service.last_sync else None,
         "is_syncing": live_ingestion_service.is_syncing,
         "active_systems_count": len(live_ingestion_service.live_systems),
@@ -345,66 +358,34 @@ class BroadcastRequest(BaseModel):
 
 @router.get("/reports/bulletins")
 async def get_cyclone_bulletins(cyclone_id: Optional[str] = None, simulate: bool = False, db: Session = Depends(get_db)):
-    """Returns official RSMC/IMD standard weather bulletins and threat matrices for active or archived cyclones."""
-    system_data = None
-    if not simulate and not cyclone_id:
-        if live_ingestion_service.live_systems:
-            system_data = live_ingestion_service.live_systems[0]
-    
-    if not system_data:
-        target = None
-        if cyclone_id:
-            target = db.query(CycloneArchive).filter(
-                (CycloneArchive.id == cyclone_id) | (func.lower(CycloneArchive.name) == cyclone_id.lower())
-            ).first()
-            if not target:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Cyclone '{cyclone_id}' was not found in bulletins archives."
-                )
+    """Experimental report from explicitly selected telemetry; no implicit demo fallback."""
+    system = next((s for s in live_ingestion_service.live_systems
+                   if not cyclone_id or s.get("id") == cyclone_id), None)
+    mode = "EXPERIMENTAL_ANALYSIS"
+    if simulate:
+        from app.fixtures.demo_report import DEMO_SYSTEM
+        system = dict(DEMO_SYSTEM)
+        mode = "DEMO_REPORT"
+    elif system is None and cyclone_id:
+        target = db.query(CycloneArchive).filter(
+            (CycloneArchive.id == cyclone_id) | (func.lower(CycloneArchive.name) == cyclone_id.lower())).first()
         if not target:
-            target = db.query(CycloneArchive).filter_by(id="BOB05-2026").first()
-            if not target:
-                target = db.query(CycloneArchive).filter_by(id="ARB01-2023").first()
-        
-        c_id = target.id if target else "ARB01-2023"
-        name = target.name if target else "Biparjoy"
-        basin = target.basin if target else "Arabian Sea"
-        cat = target.max_category if target else "Extremely Severe Cyclonic Storm"
-        
-        system_traj = get_cyclone_trajectory(c_id, name, basin, cat)
-        system_data = system_traj
-
-    # Convert to dict if pydantic model
-    if hasattr(system_data, "dict"):
-        sys_dict = system_data.dict()
-    elif isinstance(system_data, dict):
-        sys_dict = system_data
-    else:
-        sys_dict = {
-            "name": getattr(system_data, "name", "Cyclone"),
-            "basin": getattr(system_data, "basin", "North Indian Ocean"),
-            "intensity_knots": getattr(system_data, "intensity_knots", 65),
-            "category": getattr(system_data, "category", "Severe Cyclonic Storm"),
-            "lat": getattr(system_data, "lat", 17.5),
-            "lon": getattr(system_data, "lon", 84.5),
-        }
-
-    alert_info = report_service.get_alert_level(sys_dict.get("intensity_knots", 65))
-    is_bob = "bengal" in sys_dict.get("basin", "").lower() or sys_dict.get("lon", 80) > 77.0
-    port_signals = report_service.get_port_signals(sys_dict.get("intensity_knots", 65), is_bob)
-    affected_districts = report_service.get_affected_districts(sys_dict.get("basin", ""), sys_dict.get("lat", 17.5), sys_dict.get("lon", 84.5))
-    bulletins = report_service.generate_official_bulletins(sys_dict)
-    cap_xml = report_service.generate_cap_xml(sys_dict)
-
+            raise HTTPException(404, "Cyclone not found")
+        system = get_cyclone_trajectory(target.id, target.name, target.basin, target.max_category)
+        system["is_simulation"] = True
+        system["source"] = "CycloNet historical replay (experimental reconstruction)"
+        mode = "HISTORICAL_REPLAY"
+    if system is None:
+        raise HTTPException(503, "Report unavailable: no verified active source data")
+    system = SystemResponse.model_validate(system).model_dump(mode="json")
     return {
-        "status": "success",
-        "system": sys_dict,
-        "alert_level": alert_info,
-        "port_signals": port_signals,
-        "affected_districts": affected_districts,
-        "bulletins": bulletins,
-        "cap_xml": cap_xml
+        "status": "success", "mode": mode, "system": system,
+        "provenance": {"source": system.get("source"), "source_issue_time": system.get("observation_time_utc"),
+                       "retrieved_at": system.get("retrieved_at"), "is_simulation": system.get("is_simulation", False)},
+        "alert_level": report_service.get_alert_level(system.get("intensity_knots")),
+        "port_signals": [], "affected_districts": [], "official_bulletins": [],
+        "bulletins": report_service.generate_experimental_analysis(system),
+        "cap_xml": report_service.generate_cap_xml(system)
     }
 
 class AlertDispatchRequest(BaseModel):

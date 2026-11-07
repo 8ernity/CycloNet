@@ -5,7 +5,9 @@ from app.services.ml_service import ml_service
 
 def test_ml_service_initialization():
     """Verify ML classifier model architecture and label mappings."""
-    assert ml_service.feature_extractor is not None
+    ml_service.load_model()
+    assert not ml_service.checkpoint_loaded
+    assert not ml_service.scientifically_validated
     assert len(ml_service.classes) == 5
     assert "CS" in ml_service.classes
     assert "ESCS" in ml_service.classes

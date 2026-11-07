@@ -35,7 +35,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "CycloNet — AI Cyclone Impact & Infrastructure Vulnerability Forecaster",
-  description: "AI-powered predictive risk and vulnerability modeling platform utilizing Google Earth Engine satellite feeds, parametric storm surge simulation, and Gemini 3.7 Flash multimodal reasoning.",
+  description: "Experimental cyclone telemetry viewer, historical replay, and explicitly labeled impact simulations. Not an official warning service.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

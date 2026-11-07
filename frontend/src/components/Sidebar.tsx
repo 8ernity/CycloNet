@@ -33,32 +33,6 @@ export function Sidebar() {
   const { signOut } = useClerk();
   const { t } = useLanguage();
 
-  const [localUser, setLocalUser] = React.useState({
-    name: "Officer",
-    roleTitle: "INVESTIGATOR",
-    initials: "OF",
-    imageUrl: "",
-  });
-
-  React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem("cyclonet_user");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.name) {
-          setLocalUser({
-            name: parsed.name,
-            roleTitle: parsed.roleTitle || "INVESTIGATOR",
-            initials: parsed.initials || parsed.name.slice(0, 2).toUpperCase(),
-            imageUrl: "",
-          });
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
   const isAuthenticated = Boolean(isLoaded && clerkUser);
   const displayName = isAuthenticated
     ? (clerkUser?.fullName || clerkUser?.primaryEmailAddress?.emailAddress?.split("@")[0] || "Officer")

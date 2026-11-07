@@ -4,13 +4,15 @@ services:
     name: cyclonet-backend
     runtime: python
     rootDir: backend
-    plan: free
+    plan: standard
     region: oregon
-    buildCommand: "pip install --upgrade pip && pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt && alembic upgrade head"
+    buildCommand: "pip install --require-hashes --extra-index-url https://download.pytorch.org/whl/cpu -r requirements-linux.lock"
+    preDeployCommand: "alembic upgrade head"
+    healthCheckPath: /health/ready
     startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.9
+        value: 3.11.15
       - key: ENVIRONMENT
         value: production
       - key: DATABASE_URL
@@ -23,7 +25,15 @@ services:
           name: cyclonet-redis
           property: connectionString
       - key: REDIS_FAIL_CLOSED
-        value: "false"
+        value: "true"
+      - key: CLERK_ISSUER
+        sync: false
+      - key: CLERK_JWKS_URL
+        sync: false
+      - key: CLERK_AUTHORIZED_PARTIES
+        value: "https://cyclonet-frontend.onrender.com"
+      - key: REQUIRE_VALIDATED_ML
+        value: "false" # Experimental API only; no validated model is bundled.
       - key: GEMINI_API_KEY
         sync: false # Set securely in Render dashboard
       - key: GEMINI_MODEL
@@ -36,13 +46,13 @@ services:
     name: cyclonet-frontend
     runtime: node
     rootDir: frontend
-    plan: free
+    plan: starter
     region: oregon
-    buildCommand: "npm install --no-audit --no-fund --fetch-retries=5 --fetch-retry-factor=2 --fetch-retry-mintimeout=10000 && npm run build"
+    buildCommand: "npm ci && npm run build"
     startCommand: "npm run start"
     envVars:
       - key: NODE_VERSION
-        value: 20.11.0
+        value: 22.22.0
       - key: NEXT_PUBLIC_API_URL
         fromService:
           name: cyclonet-backend
@@ -64,9 +74,9 @@ services:
   # ── CycloNet Redis Cache & Distributed Lock Store ───────────────────────────
   - type: redis
     name: cyclonet-redis
-    plan: free
+    plan: starter
     region: oregon
-    maxmemoryPolicy: volatile-lru
+    maxmemoryPolicy: noeviction
     ipAllowList: []
 
 databases:
@@ -74,5 +84,5 @@ databases:
   - name: cyclonet-db
     databaseName: cyclonet
     user: cyclonet
-    plan: free
+    plan: basic-256mb
     region: oregon

@@ -1,0 +1,22 @@
+title = "CycloNet secret scanning"
+[extend]
+useDefault = true
+
+# These exact, deliberately invalid authentication fixtures have no signing key
+# and cannot authenticate. Both the file path and the entire literal must match;
+# no test directory, real credential, or commit is excluded from scanning.
+[[allowlists]]
+description = "Exact unsigned alg=none rejection fixture"
+targetRules = ["jwt", "generic-api-key"]
+condition = "AND"
+paths = ['''(^|/)backend/tests/test_(auth_production_hardening|comprehensive_remediation)\.py$''']
+regexTarget = "line"
+regexes = ['''^\s*forged_token = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0\.eyJzdWIiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImlzX2FkbWluIjp0cnVlfQ\."\s*$''']
+
+[[allowlists]]
+description = "Exact malformed header/forged signature rejection fixture"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''(^|/)backend/tests/test_backend_architecture\.py$''']
+regexTarget = "line"
+regexes = ['''^\s*forged_token = "header\.eyJzdWIiOiJ1c2VyXzEyMzQ1Iiwicm9sZSI6ImFkbWluIiwiZW1haWwiOiJvcEBjeWNsb25ldC5pbyJ9\.forged_sig"\s*$''']

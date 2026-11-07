@@ -24,35 +24,35 @@ _background_tasks = []
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize database tables and historical seeds safely
-    try:
-        domain.Base.metadata.create_all(bind=engine)
-        try:
-            from app.services.data_ingestion import seed_historical_data
-            db = SessionLocal()
-            seed_historical_data(db)
-            db.close()
-        except ImportError:
-            pass
-    except Exception as e:
-        print(f"[Lifespan] Database initialization warning: {e}")
+    from app.core.database import validate_schema
+    from app.core.auth import validate_production_auth
+    validate_production_auth()
+    validate_schema()
+    if os.getenv('REQUIRE_VALIDATED_ML', 'false').lower() == 'true':
+        await asyncio.to_thread(ml_service.load_model)
+    ingestion_task = None
 
-    # In multi-worker deployments, ensure continuous leader election and automatic failover (DB-03, DB-04, FIX-02, FIX-010)
+    async def on_demoted():
+        nonlocal ingestion_task
+        if ingestion_task is not None:
+            ingestion_task.cancel()
+            await asyncio.gather(ingestion_task, return_exceptions=True)
+            ingestion_task = None
+
     async def on_promoted_to_leader():
-        print(f"[Worker] Standby worker promoted to leader (epoch {get_leader_generation()})! Spawning ingestion loop...")
-        ingest_task = asyncio.create_task(live_ingestion_service.start_periodic_worker(interval_seconds=900))
-        _background_tasks.append(ingest_task)
+        nonlocal ingestion_task
+        if ingestion_task is None or ingestion_task.done():
+            ingestion_task = asyncio.create_task(live_ingestion_service.start_periodic_worker(interval_seconds=900))
+            _background_tasks.append(ingestion_task)
 
     if acquire_worker_leader_lock():
-        ingest_task = asyncio.create_task(live_ingestion_service.start_periodic_worker(interval_seconds=900))
-        _background_tasks.append(ingest_task)
-    else:
-        print("[Worker] Multi-worker deployment detected: Standby mode active. Continuous election task initialized.")
+        await on_promoted_to_leader()
 
     election_task = asyncio.create_task(
         run_continuous_leader_election(
             interval_seconds=15,
-            on_become_leader_coro=on_promoted_to_leader
+            on_become_leader_coro=on_promoted_to_leader,
+            on_lose_leader_coro=on_demoted
         )
     )
     _background_tasks.append(election_task)
@@ -70,6 +70,7 @@ async def lifespan(app: FastAPI):
             task.cancel()
         if _background_tasks:
             await asyncio.gather(*_background_tasks, return_exceptions=True)
+        _background_tasks.clear()
         release_worker_leader_lock()
         print("[Lifespan] Worker shutdown and lock release complete.")
 
@@ -146,9 +147,8 @@ def health_ready(response: Response):
     """Readiness probe: checks database connectivity, Redis, and core services."""
     db_ok = False
     try:
-        db = SessionLocal()
-        db.execute(text("SELECT 1"))
-        db.close()
+        with SessionLocal() as db:
+            db.execute(text("SELECT 1"))
         db_ok = True
     except Exception:
         db_ok = False
@@ -168,21 +168,46 @@ def health_ready(response: Response):
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {"status": "unready", "database": "unreachable", "redis": redis_ok}
 
-    # FIX-009 & FIX-011: In production if REDIS_FAIL_CLOSED=true and Redis is unreachable, flag unready
-    env = os.getenv("ENVIRONMENT", "production").lower()
-    if env == "production" and redis_ok is False and os.getenv("REDIS_FAIL_CLOSED", "false").lower() in ("true", "1"):
+    from app.core.auth import validate_production_auth
+    auth_ok = True
+    try:
+        validate_production_auth()
+    except RuntimeError:
+        auth_ok = False
+    production = os.getenv("ENVIRONMENT", "development").lower() == "production"
+    require_validated_ml = os.getenv("REQUIRE_VALIDATED_ML", "false").lower() == "true"
+    ml_ok = bool(ml_service.checkpoint_loaded and ml_service.scientifically_validated)
+    schema_ok = True
+    if production:
+        try:
+            from app.core.database import validate_schema
+            validate_schema()
+        except Exception:
+            schema_ok = False
+    ready = db_ok and schema_ok and auth_ok and (not production or redis_ok is True) and (not require_validated_ml or ml_ok)
+    if not ready:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-        return {"status": "unready", "database": "connected", "redis": "unreachable"}
-
     return {
-        "status": "ready",
-        "database": "connected",
-        "redis": "connected" if redis_ok is True else ("not_configured" if redis_ok is None else "unreachable"),
-        "model_loaded": getattr(ml_service, "has_model", False),
-        "is_worker_leader": is_leader(),
-        "leader_generation": get_leader_generation(),
-        "ingestion_sources": live_ingestion_service.sources_status
+        "status": "ready" if ready else "unready", "database": "connected",
+        "schema_current": schema_ok, "authentication_configured": auth_ok,
+        "redis": "connected" if redis_ok is True else "unavailable",
+        "model_loaded": ml_service.checkpoint_loaded,
+        "ml": {"required": require_validated_ml, "ready": ml_ok,
+               "scientifically_validated": ml_service.scientifically_validated},
+        "is_worker_leader": is_leader(), "leader_generation": get_leader_generation(),
+        "ingestion_sources": live_ingestion_service.sources_status,
+        "feed_data_status": getattr(live_ingestion_service, "basin_status", "STATUS_UNCERTAIN"),
+        "operational_status": "EXPERIMENTAL"
     }
+
+@app.get("/health/ml")
+def health_ml(response: Response):
+    ready = ml_service.checkpoint_loaded and ml_service.scientifically_validated
+    if not ready:
+        response.status_code = 503
+    return {"ready": ready, "checkpoint_loaded": ml_service.checkpoint_loaded,
+            "scientifically_validated": ml_service.scientifically_validated}
+
 
 @app.get("/health")
 def health(response: Response):
@@ -200,7 +225,7 @@ def health(response: Response):
     return {
         "status": status_str,
         "database": "connected" if db_ok else "unreachable",
-        "model_loaded": getattr(ml_service, "has_model", False),
+        "model_loaded": ml_service.checkpoint_loaded,
         "is_worker_leader": is_leader(),
         "ingestion_sources": live_ingestion_service.sources_status
     }

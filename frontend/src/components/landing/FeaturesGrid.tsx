@@ -1,4 +1,5 @@
 "use client";
+import { useMediaQuery } from "@/hooks/useBrowserState";
 
 import React, { useRef, useState, useEffect } from "react";
 import { GlassPanel } from "./GlassPanel";
@@ -58,11 +59,9 @@ const features = [
 
 function SpotlightCard({ children }: { children: React.ReactNode }) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [isDesktop, setIsDesktop] = useState(false);
+  const isDesktop = useMediaQuery("(min-width: 1024px) and (hover: hover)");
 
-  useEffect(() => {
-    setIsDesktop(window.innerWidth >= 1024 && window.matchMedia("(hover: hover)").matches);
-  }, []);
+
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDesktop || !cardRef.current) return;

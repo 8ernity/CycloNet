@@ -1,11 +1,12 @@
 "use client";
+import { type Classification, type VisionAnalysis } from "@/types/api";
 import React, { useState, useRef, useEffect } from "react";
 import { Upload, ImageIcon, Scan, CheckCircle2, ShieldAlert, Loader2, Activity, Sparkles, Cpu, Compass, Wind, RefreshCw, X } from "lucide-react";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
 import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
 
-const DEMO_PRESETS: Record<number, any> = {
+const DEMO_PRESETS: Record<number, { prediction: Classification; gemini: VisionAnalysis }> = {
   1: {
     prediction: {
       is_cyclone: true,
@@ -15,7 +16,7 @@ const DEMO_PRESETS: Record<number, any> = {
       dvorak_t: "T3.0",
       wind_speed_knots: 45,
       checkpoint_status: "HISTORICAL_REFERENCE_PRESET",
-      is_trained_weights: true,
+      is_trained_weights: false, scientifically_validated: false, is_reliable: false, model_type: "DEMO", operational_status: "EXPERIMENTAL",
       is_offline_preset: true,
       model_architecture: "ResNet-50 + Custom Classifier Head (PyTorch)",
       overlay_url: null,
@@ -43,7 +44,7 @@ const DEMO_PRESETS: Record<number, any> = {
       dvorak_t: "T3.5",
       wind_speed_knots: 60,
       checkpoint_status: "HISTORICAL_REFERENCE_PRESET",
-      is_trained_weights: true,
+      is_trained_weights: false, scientifically_validated: false, is_reliable: false, model_type: "DEMO", operational_status: "EXPERIMENTAL",
       is_offline_preset: true,
       model_architecture: "ResNet-50 + Custom Classifier Head (PyTorch)",
       overlay_url: null,
@@ -71,7 +72,7 @@ const DEMO_PRESETS: Record<number, any> = {
       dvorak_t: "T4.5",
       wind_speed_knots: 80,
       checkpoint_status: "HISTORICAL_REFERENCE_PRESET",
-      is_trained_weights: true,
+      is_trained_weights: false, scientifically_validated: false, is_reliable: false, model_type: "DEMO", operational_status: "EXPERIMENTAL",
       is_offline_preset: true,
       model_architecture: "ResNet-50 + Custom Classifier Head (PyTorch)",
       overlay_url: null,
@@ -99,7 +100,7 @@ const DEMO_PRESETS: Record<number, any> = {
       dvorak_t: "T5.5",
       wind_speed_knots: 105,
       checkpoint_status: "HISTORICAL_REFERENCE_PRESET",
-      is_trained_weights: true,
+      is_trained_weights: false, scientifically_validated: false, is_reliable: false, model_type: "DEMO", operational_status: "EXPERIMENTAL",
       is_offline_preset: true,
       model_architecture: "ResNet-50 + Custom Classifier Head (PyTorch)",
       overlay_url: null,
@@ -128,29 +129,11 @@ export default function ClassificationPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [geminiLoading, setGeminiLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [geminiResult, setGeminiResult] = useState<any>(null);
+  const [result, setResult] = useState<Classification | null>(null);
+  const [geminiResult, setGeminiResult] = useState<VisionAnalysis | null>(null);
   const [selectedFrame, setSelectedFrame] = useState<number | null>(null);
   const [loggedStatus, setLoggedStatus] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const handleGlobalPaste = async (e: ClipboardEvent) => {
-      if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
-        const pastedFile = e.clipboardData.files[0];
-        if (pastedFile.type.startsWith("image/")) {
-          setFile(pastedFile);
-          setPreviewUrl(URL.createObjectURL(pastedFile));
-          setResult(null);
-          setGeminiResult(null);
-          setSelectedFrame(null);
-          await analyzeImage(pastedFile);
-        }
-      }
-    };
-    window.addEventListener("paste", handleGlobalPaste);
-    return () => window.removeEventListener("paste", handleGlobalPaste);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -164,7 +147,7 @@ export default function ClassificationPage() {
     }
   };
 
-  const analyzeImage = async (imageFile: File, demoIndex?: number) => {
+  async function analyzeImage(imageFile: File, demoIndex?: number) {
     setAnalyzing(true);
     setGeminiLoading(true);
     setLoggedStatus(null);
@@ -269,6 +252,24 @@ export default function ClassificationPage() {
       setGeminiLoading(false);
     }
   };
+
+  useEffect(() => {
+    const handleGlobalPaste = async (e: ClipboardEvent) => {
+      if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
+        const pastedFile = e.clipboardData.files[0];
+        if (pastedFile.type.startsWith("image/")) {
+          setFile(pastedFile);
+          setPreviewUrl(URL.createObjectURL(pastedFile));
+          setResult(null);
+          setGeminiResult(null);
+          setSelectedFrame(null);
+          await analyzeImage(pastedFile);
+        }
+      }
+    };
+    window.addEventListener("paste", handleGlobalPaste);
+    return () => window.removeEventListener("paste", handleGlobalPaste);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDemoFrameSelect = async (i: number) => {
     setSelectedFrame(i);

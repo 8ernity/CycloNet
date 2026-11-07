@@ -1,4 +1,5 @@
 "use client";
+import { useMediaQuery } from "@/hooks/useBrowserState";
 
 import React, { useRef, useState, useEffect } from 'react';
 import { GlassPanel } from './GlassPanel';
@@ -30,7 +31,7 @@ const testimonials = [
 
 function TiltCard({ children }: { children: React.ReactNode }) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [isDesktop, setIsDesktop] = useState(false);
+  const isDesktop = useMediaQuery("(min-width: 1024px) and (hover: hover)");
   const { shouldReduceMotion } = useMotionTokens();
 
   const x = useMotionValue(0);
@@ -39,9 +40,7 @@ function TiltCard({ children }: { children: React.ReactNode }) {
   const rotateX = useSpring(useTransform(y, [-0.5, 0.5], [4, -4]), { stiffness: 300, damping: 30 });
   const rotateY = useSpring(useTransform(x, [-0.5, 0.5], [-4, 4]), { stiffness: 300, damping: 30 });
 
-  useEffect(() => {
-    setIsDesktop(window.innerWidth >= 1024 && window.matchMedia("(hover: hover)").matches);
-  }, []);
+
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!isDesktop || shouldReduceMotion || !cardRef.current) return;
