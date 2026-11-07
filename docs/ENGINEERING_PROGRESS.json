@@ -133,16 +133,16 @@
         "render.yaml and render.staging.yaml pass official Render JSON Schema 2020-12 validation",
         "Staging branch and proposed Oregon resource names configured; automatic deployment disabled",
         "GitHub staging published and fetched; remote tree exactly matches tested local tree",
-        "Hosted run 42387321058: backend 137 passed; Python audits and secret scan passed; frontend npm audit/lint/typecheck/unit passed"
+        "Hosted run 42387321058: backend 137 passed; Python audits and secret scan passed; frontend npm audit/lint/typecheck/unit passed",
+        "Hosted run 42387677571 attempt 2 on 84750d1c6a3208d633600127058f24096ccd4c61: all three jobs pass, including Clerk configuration, production frontend build and browser checks"
       ],
       "remaining": [
-        "Hosted frontend build/browser checks blocked: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY repository secrets absent",
-        "Render plugin is installed, but list_workspaces/get_selected_workspace/list_services return MCP -32001 Unknown tool after user reconnection; no resources inspected or changed",
+        "Render and GitHub authenticated reads return MCP -32001 Unknown tool; public GitHub REST confirms passing CI; no Render resources inspected or changed",
         "Earth Engine authentication/project registration, live Clerk roles, deployment, managed backup, failover and monitoring remain unverified"
       ]
     }
   ],
-  "local_verification": "PASS; scientific capabilities remain disabled/unvalidated and hosted release gates require authenticated access",
+  "local_verification": "PASS; hosted CI also passes; deployment dependencies remain unverified; scientific capabilities remain disabled/unvalidated",
   "commits_created": [
     "006b35a69488f7af2e02ef940dee8da86336a4bd",
     "e8f7c3d084cbaf138a14043585fa8336266f5187"
@@ -214,14 +214,21 @@
       "command": "GitHub Actions run 42387321058 on cd1bbc62174d46d932eb27078f337cf8b4486c46",
       "result": "Backend: 137 passed; Python dependency audits passed; secrets passed; frontend audit/lint/typecheck/unit passed; Clerk configuration gate failed (both secrets empty), build and browser tests skipped",
       "url": "https://github.com/8ernity/CycloNet/actions/runs/42387321058"
+    },
+    {
+      "command": "GitHub Actions run 42387677571 attempt 2 on 84750d1c6a3208d633600127058f24096ccd4c61",
+      "result": "All jobs pass: backend, frontend, secrets. Clerk configuration, production build and browser checks passed.",
+      "url": "https://github.com/8ernity/CycloNet/actions/runs/42387677571"
     }
   ],
   "branch": "staging",
-  "publication_status": "Published verified tree to GitHub staging; draft PR #2 opened; hosted backend and secret scanning pass; frontend blocked by missing Clerk repository secrets",
+  "publication_status": "Implementation published to staging and draft PR #2; hosted CI passes. Latest evidence documentation updated locally; publishing that documentation awaits restored GitHub access.",
   "final_commit_reference": "refs/heads/staging (documentation commit follows the implementation commit; resolve with git rev-parse staging)",
   "scientific_data_evidence": "SCIENTIFIC_DATA_AND_STAGING.md",
   "published_commit": "cd1bbc62174d46d932eb27078f337cf8b4486c46",
   "published_tree": "941731d3b54fe99daf5954f2cf5abc912cfe24a3",
   "pull_request": "https://github.com/8ernity/CycloNet/pull/2",
-  "local_history_backup": "codex/v5-local-history preserves original implementation commits; local staging aligned to byte-identical GitHub publication"
+  "local_history_backup": "codex/v5-local-history preserves original implementation commits; local staging aligned to byte-identical GitHub publication",
+  "latest_verified_ci_commit": "84750d1c6a3208d633600127058f24096ccd4c61",
+  "latest_verified_ci_run": 42387677571
 }

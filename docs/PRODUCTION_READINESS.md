@@ -45,10 +45,12 @@ in [Scientific data and staging verification](SCIENTIFIC_DATA_AND_STAGING.md).
 The Linux CPU lock includes hashes. The CPU suffix is absent from PyPI vulnerability
 records, so base PyTorch/torchvision versions were audited separately. Backend application
 compatibility passed on Windows and in a clean Linux Python 3.11 container with the hashed CPU lock.
-The frontend production build passed locally. Hosted CI now passes all 137 backend tests,
-Python audits, secret scanning, and frontend audit/lint/typecheck/unit checks. Hosted
-frontend build/browser verification is blocked by missing Clerk repository secrets;
-see `v5-hosted-ci-results.json`.
+The frontend production build passed locally. Hosted CI run 42387677571, attempt 2,
+passed on staging commit `84750d1c6a3208d633600127058f24096ccd4c61`: backend tests,
+Python audits, secret scanning, frontend audit/lint/typecheck/unit checks, Clerk
+configuration, production build, and browser checks. The missing CI secrets blocker
+is resolved. See `v5-hosted-ci-results.json`. These checks do not establish live
+Render availability or a successful deployed Clerk login.
 The unit test suite reports a Starlette/httpx deprecation and an intentional short-HMAC
 warning from a rejection test. Next.js warns that the middleware filename is deprecated.
 
@@ -98,6 +100,6 @@ provider plan availability, capacity, backup policy, failover and monitoring req
   basin-wide calm from an empty feed. Completeness must be verified against actual agency documents
   before enabling automatic retirement based on new source formats.
 - No live Render deployment, production Clerk login, production Redis failover, or managed recovery
-  test was performed. Configure the CI Clerk secrets and verify hosted CI and staging before release.
+  test was performed. Hosted CI passes; verify staging and its configured dependencies before release.
 
 See `V5_REMEDIATION_REPORT.md` for changed files, regression coverage and final disposition.

@@ -67,7 +67,7 @@ Disposable task downloads were removed and system disk space recovered.
    training-eligible rows. Synthetic tests do not establish cyclone classification accuracy.
 2. Implement and independently evaluate an authenticated satellite flood pipeline before enabling
    that capability. It currently returns unavailable, with no fabricated observation polygons.
-3. Configure the missing Clerk CI secrets, complete frontend hosted checks, and deploy to staging. Verify actual
+3. Deploy the CI-verified staging commit. Verify actual
    Clerk roles/tokens, Render settings, feed availability, monitoring and production recovery/failover.
    This session did not change a hosted service or validate a production service-level objective.
 
@@ -102,16 +102,21 @@ credentials, caches and build output are excluded.
 
 Commands: `webcmd web fetch` for the supplied NOAA archive, plus primary-source web
 open/click/find calls for NOAA, Earth Engine, Render and Gitleaks documentation.
-Source links and data provenance are in `SCIENTIFIC_DATA_AND_STAGING.md`. No browser
-fallback was used. Initial web-tool access to the HURSAT root failed; webcmd and the
-linked NOAA archive succeeded. Authenticated GitHub/Render/Earth Engine access remains blocked.
+Source links and data provenance are in `SCIENTIFIC_DATA_AND_STAGING.md`. Initial
+web-tool access to the HURSAT root failed; webcmd and the linked NOAA archive succeeded.
+GitHub access previously published the staging changes. Its authenticated connector
+now fails along with Render's connector. Public GitHub REST access verified CI.
+A Windows browser fallback could not reliably determine the browser URL and stopped;
+it did not establish Render access. Earth Engine access remains unverified.
 
 ## Hosted verification follow-up
 
-[GitHub Actions run 42387321058](https://github.com/8ernity/CycloNet/actions/runs/42387321058)
-passed all 137 backend tests, both Python dependency audits and secret scanning. Frontend
-audit, lint, typecheck and unit checks passed. Production build and browser checks were
-skipped after the Clerk configuration gate found both required repository secrets empty.
-`v5-hosted-ci-results.json` records the job IDs, commit, tree and backend artifact digest.
-Render is installed but its read-only tools still return `MCP -32001 Unknown tool`; no
-workspace or service state could be verified. This supersedes earlier access statements.
+[GitHub Actions run 42387677571](https://github.com/8ernity/CycloNet/actions/runs/42387677571),
+attempt 2 on commit `84750d1c6a3208d633600127058f24096ccd4c61`, completed successfully.
+Backend tests, dependency audits, secret scanning, frontend audit/lint/typecheck/unit
+checks, Clerk configuration, production build and browser checks all passed. The
+earlier missing Clerk secrets blocker is resolved. `v5-hosted-ci-results.json` retains
+the earlier run as historical evidence and records the latest run's job and step results.
+Render and GitHub read-only connector calls currently return `MCP -32001 Unknown tool`.
+No Render workspace or service state could be verified. This supersedes earlier access
+statements; deployment readiness remains blocked.
