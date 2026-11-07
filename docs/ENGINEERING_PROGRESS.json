@@ -222,7 +222,7 @@
     }
   ],
   "branch": "staging",
-  "publication_status": "Implementation published to staging and draft PR #2; hosted CI passes. Latest evidence documentation updated locally; publishing that documentation awaits restored GitHub access.",
+  "publication_status": "Implementation and successful hosted CI evidence published to staging and draft PR #2. Authenticated Git push works; GitHub connector reads remain unavailable. Render deployment access remains blocked.",
   "final_commit_reference": "refs/heads/staging (documentation commit follows the implementation commit; resolve with git rev-parse staging)",
   "scientific_data_evidence": "SCIENTIFIC_DATA_AND_STAGING.md",
   "published_commit": "cd1bbc62174d46d932eb27078f337cf8b4486c46",

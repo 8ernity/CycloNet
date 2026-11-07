@@ -1,4 +1,4 @@
-# Scientific data and staging verification — 7 November 2026
+# Scientific data and staging verification â€” 7 November 2026
 
 The proposed service names are configuration targets, not verified existing resources.
 No hosted service was created, deployed, or charged by this remediation.
@@ -7,7 +7,7 @@ No hosted service was created, deployed, or charged by this remediation.
 
 `backend/data/manifests/cyclonet_ni_scientific_v1.csv` contains **12,275 observations
 from 363 distinct NOAA IBTrACS storm IDs**, restricted to North Indian Ocean main
-tracks in 1978–2015. The downloaded v04r01 source is 27,907,168 bytes, SHA-256
+tracks in 1978â€“2015. The downloaded v04r01 source is 27,907,168 bytes, SHA-256
 `137d896f68f8dd12d365ec646d77b6e32128770847ac8ef37e1d0f662ac34915`.
 The provenance sidecar records the source URL, source hash, manifest hash, exclusions,
 label policy, and exact counts. Raw downloads are intentionally excluded from git.
@@ -34,7 +34,7 @@ The current class map supports CS [34,48), SCS [48,64), VSCS [64,90), ESCS [90,1
 Below-34-kt storm records are **not** independent non-cyclone negatives; super cyclones
 at or above 120 kt are outside this class map. Neither is silently relabeled.
 
-All **38 HURSAT yearly indexes** for 1978–2015 were fetched. The checked-in catalog
+All **38 HURSAT yearly indexes** for 1978â€“2015 were fetched. The checked-in catalog
 contains authentic archive links for **246 exact matching storm IDs**, covering 9,494
 manifest observations. The other 117 IDs remain unmatched; names or coordinates were
 not used to invent matches. HURSAT v06 was generated using IBTrACS v03r09, so historical
@@ -73,11 +73,11 @@ Sources: [NOAA IBTrACS](https://www.ncei.noaa.gov/products/international-best-tr
 
 `render.staging.yaml` targets branch `staging`, region Oregon, and:
 
-- `cyclonet-backend-staging` — production security policy, Alembic pre-deploy migration,
+- `cyclonet-backend-staging` â€” production security policy, Alembic pre-deploy migration,
   hash-locked dependencies, `/health/ready`, proposed Earth Engine project ID.
-- `cyclonet-frontend-staging` — Node/Next.js build and matching backend origin.
-- `cyclonet-db-staging` — managed PostgreSQL candidate configuration.
-- `cyclonet-redis-staging` — managed Redis candidate with no-eviction policy.
+- `cyclonet-frontend-staging` â€” Node/Next.js build and matching backend origin.
+- `cyclonet-db-staging` â€” managed PostgreSQL candidate configuration.
+- `cyclonet-redis-staging` â€” managed Redis candidate with no-eviction policy.
 
 Automatic deployment is off. These are paid candidate plans, not an applied Blueprint
 or an HA certification. `docs/v5-render-schema-results.json` records validation against
@@ -100,7 +100,8 @@ production build and browser checks. The earlier missing Clerk secrets blocker i
 resolved; this does not verify a deployed user's login or operator roles.
 Render and GitHub are installed, but their authenticated read calls currently return
 `MCP -32001 Unknown tool`. Public GitHub REST access independently confirmed the
-successful run. No Render resource state or deployment has been verified. See
+successful run. Authenticated Git push also works and published the evidence update.
+No Render resource state or deployment has been verified. See
 `v5-hosted-ci-results.json` for hosted evidence.
 
 ## Earth Engine
@@ -116,7 +117,7 @@ collection; experimental simulation remains separate.
 ## Follow-up manifest validation
 
 The loader now requires a literal JSON boolean `true` for readiness, NEWDELHI
-three-minute winds, and supported storm classes 1–4. This NOAA-only CSV cannot supply
+three-minute winds, and supported storm classes 1â€“4. This NOAA-only CSV cannot supply
 class-0 examples; reviewed independent negative imagery must come from a separately
 constructed combined dataset. Five admission defects were reproduced and corrected;
 all 18 related tests and all 137 Windows backend tests pass.

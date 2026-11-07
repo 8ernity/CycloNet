@@ -337,7 +337,8 @@
     "github_connector": "MCP -32001 Unknown tool; public REST reads work",
     "render_connector": "MCP -32001 Unknown tool",
     "render_resources_changed": false,
-    "browser_fallback": "Stopped because the browser URL could not be identified reliably"
+    "browser_fallback": "Stopped because the browser URL could not be identified reliably",
+    "github_git_transport": "Authenticated Git push to staging verified; documentation published in 60db141c2af5601a90766fbae270db1935b913fe"
   },
   "limits": [
     "Passing CI does not verify deployed Clerk login or operator roles",

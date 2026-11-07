@@ -118,5 +118,6 @@ checks, Clerk configuration, production build and browser checks all passed. The
 earlier missing Clerk secrets blocker is resolved. `v5-hosted-ci-results.json` retains
 the earlier run as historical evidence and records the latest run's job and step results.
 Render and GitHub read-only connector calls currently return `MCP -32001 Unknown tool`.
+Authenticated Git push works and published this evidence update.
 No Render workspace or service state could be verified. This supersedes earlier access
 statements; deployment readiness remains blocked.
