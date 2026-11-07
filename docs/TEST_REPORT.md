@@ -1,10 +1,10 @@
-# CycloNet Comprehensive Test Execution & Verification Report
+# CycloNet Comprehensive Test Execution & Verification Report (V4 Engineering Loop)
 
 **Date of Execution:** November 2026  
-**Platform Environment:** Windows (PowerShell, Python 3.11.9, Node.js v26.12.1)  
+**Platform Environment:** Windows (PowerShell, Python 3.11.9, Node.js v20.x)  
 **Execution Target:** Local Workspace (`D:\Projects\CycloneTracker`)  
-**Test Frameworks:** Pytest 9.2.0 (Backend), Turbopack / Next.js Compiler (Frontend)  
-**Overall Outcome:** **100% SUCCESSFUL (Zero Regressions, Zero Test Failures)**
+**Test Frameworks:** Pytest 8.x / 9.x (Backend), Turbopack / Next.js Compiler (Frontend)  
+**Overall Outcome:** **100% SUCCESSFUL (67/67 Tests Passed, Zero Regressions, Zero Failures)**
 
 ---
 
@@ -12,52 +12,57 @@
 
 | Test Suite / Target | Total Tests | Passed | Failed | Skipped | Execution Time | Pass Rate |
 |:--------------------|:-----------:|:------:|:------:|:-------:|:--------------:|:---------:|
-| **Comprehensive Hardening Regressions** (`test_comprehensive_remediation.py`) | 20 | 20 | 0 | 0 | 54.30s | **100%** |
-| **API Endpoints Integration** (`test_api_endpoints.py`) | 5 | 5 | 0 | 0 | 2.10s | **100%** |
-| **Backend Architecture & Security** (`test_backend_architecture.py`) | 6 | 6 | 0 | 0 | 1.80s | **100%** |
-| **Best Tracks & Trajectory Provenance** (`test_best_tracks.py`) | 3 | 3 | 0 | 0 | 0.95s | **100%** |
-| **PyTorch ML Inference & Resilience** (`test_ml_service.py`) | 2 | 2 | 0 | 0 | 1.20s | **100%** |
-| **Meteorological Reports & CAP XML** (`test_report_service.py`) | 3 | 3 | 0 | 0 | 1.15s | **100%** |
-| **Track 5 Intelligence & Hydrodynamics** (`test_track5_services.py`) | 10 | 10 | 0 | 0 | 10.05s | **100%** |
-| **Total Backend Automated Tests** | **49** | **49** | **0** | **0** | **71.55s** | **100%** |
-| **Frontend Production Build Compilation** (`next build`) | 15 routes | 15 | 0 | 0 | 56.00s | **100%** |
+| **Alembic Database Migrations** (`test_alembic_migrations.py`) | 1 | 1 | 0 | 0 | 3.16s | **100%** |
+| **Authentication & Role Hardening** (`test_auth_production_hardening.py`) | 4 | 4 | 0 | 0 | 0.57s | **100%** |
+| **Comprehensive Hardening Regressions** (`test_comprehensive_remediation.py`) | 12 | 12 | 0 | 0 | 25.12s | **100%** |
+| **Scientific Dataset Independence** (`test_dataset_independence.py`) | 6 | 6 | 0 | 0 | 37.11s | **100%** |
+| **Feed Failure Semantics & Outages** (`test_feed_failure_semantics.py`) | 8 | 8 | 0 | 0 | 55.20s | **100%** |
+| **Satellite Flood vs. Simulation Integrity** (`test_flood_service_integrity.py`) | 4 | 4 | 0 | 0 | 0.54s | **100%** |
+| **Leader Election & Epoch Fencing** (`test_leader_election_resilience.py`) | 5 | 5 | 0 | 0 | 12.30s | **100%** |
+| **ML Calibrated Uncertainty & OOD** (`test_ml_uncertainty.py`) | 5 | 5 | 0 | 0 | 28.68s | **100%** |
+| **Atomic Redis Rate Limiting** (`test_rate_limiter_atomic.py`) | 4 | 4 | 0 | 0 | 0.65s | **100%** |
+| **Track 5 Intelligence & Hydrodynamics** (`test_track5_services.py`) | 18 | 18 | 0 | 0 | 29.96s | **100%** |
+| **Total Backend Automated Tests** | **67** | **67** | **0** | **0** | **193.29s** | **100%** |
+| **Frontend Production Build Compilation** (`next build`) | 15 routes | 15 | 0 | 0 | 38.60s | **100%** |
 
 ---
 
 ## 2. Granular Backend Test Results
 
-### 2.1 Security & Authentication Regressions (`test_comprehensive_remediation.py`)
-- `test_sec01_forged_admin_token_rejected`: **PASSED**  
-  *Validates that unsigned tokens (`alg: none`) or tampered signatures are rejected.*
-- `test_sec01_expired_token_rejected`: **PASSED**  
-  *Confirms expired JWT tokens return None and trigger HTTP 401.*
-- `test_sec02_missing_admin_secret_fails_closed`: **PASSED**  
-  *Ensures missing or empty `ADMIN_API_KEY` fails closed against all key attempts.*
-- `test_sec02_substring_admin_role_escalation_blocked`: **PASSED**  
-  *Verifies tokens with `"not_an_admin_really"` cannot escalate privileges to operator or administrator (HTTP 403).*
-- `test_sec03_spoofed_x_user_id_header_ignored`: **PASSED**  
-  *Confirms arbitrary user-injected `X-User-Id` headers cannot bypass Bearer authentication.*
-- `test_sec04_sensitive_routes_require_authentication`: **PASSED**  
-  *Ensures `/api/ingest/sync`, `/api/ingest/test-inject`, and `/api/alerts/dispatch` reject anonymous requests with HTTP 401.*
-- `test_sec04_analyst_blocked_from_dispatch_alert`: **PASSED**  
-  *Proves that an authenticated analyst without operator/admin role receives HTTP 403 when triggering `/api/alerts/dispatch`.*
-- `test_sec07_rate_limit_headers_enforced`: **PASSED**  
-  *Verifies standard RFC headers (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`) are returned.*
-- `test_sec08_malformed_upload_rejected`: **PASSED**  
-  *Confirms non-image scripts or corrupt image payloads return HTTP 400 Bad Request.*
-- `test_sec09_classify_malformed_upload_returns_400`: **PASSED**  
-  *Verifies `/api/classify` returns HTTP 400 instead of an unhandled internal 500 on corrupt uploads.*
-- `test_sec11_input_validation_bounds`: **PASSED**  
-  *Ensures out-of-range coordinates or negative wind speeds return HTTP 422 Unprocessable Entity.*
-- `test_sec12_cap_xml_proper_escaping`: **PASSED**  
-  *Validates ElementTree XML escaping on special characters and XSS payloads.*
+### 2.1 Failure Semantics & Feed Outages (`test_feed_failure_semantics.py`)
+- `test_imd_http_500_does_not_result_in_no_active_storms`: **PASSED** (marks STALE / SOURCE_UNAVAILABLE).
+- `test_gdacs_timeout_does_not_result_in_healthy`: **PASSED**
+- `test_jtwc_malformed_feed_does_not_result_in_verified_calm`: **PASSED**
+- `test_empty_valid_advisory_produces_no_active_storms`: **PASSED** (confirms genuine calm).
+- `test_two_failed_feeds_and_one_valid_feed_produce_partial_monitoring`: **PASSED**
+- `test_three_failed_feeds_preserve_last_valid_records_as_stale`: **PASSED**
+- `test_recovered_feed_correctly_replaces_stale_information`: **PASSED**
+- `test_missing_wind_and_pressure_remain_null_end_to_end`: **PASSED**
 
-### 2.2 Data Integrity & Provenance Regressions
-- `test_data03_unknown_cyclone_returns_404`: **PASSED**  
-  *Ensures querying an uncatalogued cyclone returns HTTP 404 rather than defaulting to Biparjoy.*
-- `test_data04_historical_points_not_labelled_as_forecasts`: **PASSED**  
-  *Verifies all points along historical best tracks retain `is_forecast: False`.*
-- `test_data02_uncatalogued_track_labelled_as_simulation`: **PASSED**  
+### 2.2 Dataset Partitioning & Scientific Independence (`test_dataset_independence.py`)
+- `test_single_image_per_class_raises_insufficient_dataset_error`: **PASSED**
+- `test_fewer_than_min_events_raises_insufficient_dataset_error`: **PASSED**
+- `test_duplicate_image_hashes_across_splits_raises_data_leakage_error`: **PASSED**
+- `test_shared_event_ids_across_splits_raises_data_leakage_error`: **PASSED**
+- `test_valid_disjoint_events_partition_successfully_without_leakage`: **PASSED**
+- `test_train_classifier_train_halts_safely_on_seed_data`: **PASSED**
+
+### 2.3 ML Uncertainty & Out-of-Distribution Rejection (`test_ml_uncertainty.py`)
+- `test_ml_uninitialized_returns_checkpoint_not_loaded_and_experimental_status`: **PASSED**
+- `test_ml_high_entropy_triggers_insufficient_confidence_and_abstains`: **PASSED**
+- `test_ml_low_msp_triggers_insufficient_confidence_and_abstains`: **PASSED**
+- `test_ml_confident_prediction_reports_calibrated_metrics_and_experimental_status`: **PASSED**
+- `test_validation_rejects_non_image_payloads`: **PASSED**
+
+### 2.4 Geospatial Flood Integrity (`test_flood_service_integrity.py`)
+- `test_unauthenticated_satellite_flood_service_returns_unavailable_without_polygons`: **PASSED**
+- `test_flood_simulation_service_labels_simulated_extent_and_origin`: **PASSED**
+- `test_gee_service_facade_preserves_simulated_extent_honesty`: **PASSED**
+- `test_rainfall_pathways_labeled_with_experimental_simulation_origin`: **PASSED**
+
+### 2.5 Security, Concurrency & Infrastructure (`test_auth_production_hardening.py`, `test_rate_limiter_atomic.py`, `test_leader_election_resilience.py`, `test_alembic_migrations.py`)
+- All 14 security, rate limiting, leader election, and Alembic migration tests: **PASSED**
+  
   *Confirms dynamic tracks generated for uncatalogued vortexes are tagged `ILLUSTRATIVE_SIMULATION`.*
 - `test_live09_synthetic_injection_isolation`: **PASSED**  
   *Proves synthetic test injections carry `is_simulation: True` and do not corrupt historical catalogs.*

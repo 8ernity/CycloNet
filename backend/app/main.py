@@ -12,6 +12,8 @@ from app.core.process_lock import (
     acquire_worker_leader_lock,
     release_worker_leader_lock,
     run_worker_heartbeat_task,
+    run_continuous_leader_election,
+    get_leader_generation,
     is_leader
 )
 from app.services.live_ingestion import live_ingestion_service
@@ -35,17 +37,25 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[Lifespan] Database initialization warning: {e}")
 
-    # In multi-worker deployments, ensure only one worker acts as the background ingestion leader (DB-03, DB-04, FIX-02)
-    if acquire_worker_leader_lock():
-        # Spawn dedicated heartbeat renewal task (renews lease every 15s to keep 60s lease alive)
-        heartbeat_task = asyncio.create_task(run_worker_heartbeat_task(interval_seconds=15))
-        _background_tasks.append(heartbeat_task)
+    # In multi-worker deployments, ensure continuous leader election and automatic failover (DB-03, DB-04, FIX-02, FIX-010)
+    async def on_promoted_to_leader():
+        print(f"[Worker] Standby worker promoted to leader (epoch {get_leader_generation()})! Spawning ingestion loop...")
+        ingest_task = asyncio.create_task(live_ingestion_service.start_periodic_worker(interval_seconds=900))
+        _background_tasks.append(ingest_task)
 
-        # Spawn ingestion loop
+    if acquire_worker_leader_lock():
         ingest_task = asyncio.create_task(live_ingestion_service.start_periodic_worker(interval_seconds=900))
         _background_tasks.append(ingest_task)
     else:
-        print("[Worker] Multi-worker deployment detected: Ingestion background task delegated to leader process.")
+        print("[Worker] Multi-worker deployment detected: Standby mode active. Continuous election task initialized.")
+
+    election_task = asyncio.create_task(
+        run_continuous_leader_election(
+            interval_seconds=15,
+            on_become_leader_coro=on_promoted_to_leader
+        )
+    )
+    _background_tasks.append(election_task)
 
     # Spawn WebSocket live telemetry broadcaster worker
     ws_task = asyncio.create_task(ws_manager.start_telemetry_broadcaster())
@@ -70,19 +80,29 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Standardize CORS between ALLOWED_ORIGINS and CORS_ORIGINS (DEV-06, SEC-10)
+# Standardize CORS between ALLOWED_ORIGINS and CORS_ORIGINS (DEV-06, SEC-10, FIX-008)
 raw_origins = os.getenv("ALLOWED_ORIGINS") or os.getenv("CORS_ORIGINS", "")
 env = os.getenv("ENVIRONMENT", "production").lower()
+
 if raw_origins and raw_origins.strip() != "*":
-    allowed_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+    candidate_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
 elif raw_origins.strip() == "*" and env != "production":
-    allowed_origins = ["*"]
+    candidate_origins = ["*"]
 else:
+    candidate_origins = ["https://cyclonet-frontend.onrender.com"]
+    if env != "production":
+        candidate_origins.extend(["http://localhost:3000", "http://127.0.0.1:3000"])
+
+# Enforce strict production origin filtering: no wildcards, no localhost in production (FIX-008)
+if env == "production":
     allowed_origins = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://cyclonet-frontend.onrender.com"
+        o for o in candidate_origins
+        if o != "*" and not o.startswith("http://localhost") and not o.startswith("http://127.0.0.1")
     ]
+    if not allowed_origins:
+        allowed_origins = ["https://cyclonet-frontend.onrender.com"]
+else:
+    allowed_origins = candidate_origins
 
 # Restrict CORS to configured frontend origins
 app.add_middleware(
@@ -148,12 +168,19 @@ def health_ready(response: Response):
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {"status": "unready", "database": "unreachable", "redis": redis_ok}
 
+    # FIX-009 & FIX-011: In production if REDIS_FAIL_CLOSED=true and Redis is unreachable, flag unready
+    env = os.getenv("ENVIRONMENT", "production").lower()
+    if env == "production" and redis_ok is False and os.getenv("REDIS_FAIL_CLOSED", "false").lower() in ("true", "1"):
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {"status": "unready", "database": "connected", "redis": "unreachable"}
+
     return {
         "status": "ready",
         "database": "connected",
         "redis": "connected" if redis_ok is True else ("not_configured" if redis_ok is None else "unreachable"),
         "model_loaded": getattr(ml_service, "has_model", False),
         "is_worker_leader": is_leader(),
+        "leader_generation": get_leader_generation(),
         "ingestion_sources": live_ingestion_service.sources_status
     }
 

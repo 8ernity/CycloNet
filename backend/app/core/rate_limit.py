@@ -248,19 +248,12 @@ def enforce_rate_limit(
         raise HTTPException(
             status_code=429,
             detail=f"Rate limit exceeded for {endpoint_type}: limit is {min_limit} requests/minute. Try again in {retry_after}s.",
-            headers={"Retry-After": str(retry_after)}
-        )
-
-    if response:
-        response.headers["X-RateLimit-Limit"] = str(min_limit)
-        response.headers["X-RateLimit-Remaining"] = str(remaining)
-        response.headers["X-RateLimit-Reset"] = str(int(now + 60))
-
-    if not allowed:
-        raise HTTPException(
-            status_code=429,
-            detail=f"Rate limit exceeded for {endpoint_type}: limit is {min_limit} requests/minute. Try again in {retry_after}s.",
-            headers={"Retry-After": str(retry_after)}
+            headers={
+                "Retry-After": str(retry_after),
+                "X-RateLimit-Limit": str(min_limit),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(int(now + retry_after))
+            }
         )
 
     if response:

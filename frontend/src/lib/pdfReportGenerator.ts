@@ -164,13 +164,13 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   // Header Title
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("CYCLONET DECISION SUPPORT & RESEARCH PLATFORM", margin, 10);
+  doc.setFontSize(10.5);
+  doc.text("CYCLONET EXPERIMENTAL ANALYSIS — NOT AN OFFICIAL EMERGENCY WARNING", margin, 10);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(252, 211, 77); // Amber-300
-  doc.text("EXERCISE / SIMULATION ADVISORY • NOT FOR OPERATIONAL EMERGENCY USE", margin, 15.5);
+  doc.text("EXERCISE / SIMULATION ADVISORY • DECISION SUPPORT & RESEARCH ONLY", margin, 15.5);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
@@ -206,50 +206,35 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   const scaleRef = sourceInfo?.scaleName || "WMO RSMC Scale";
   const coordFixStr = (systemLat !== null && systemLon !== null)
     ? `${systemLat.toFixed(2)}°N, ${systemLon.toFixed(2)}°E`
-    : "[Coordinate Fix Not Reported]";
+    : "Not available";
   doc.text(`Basin: ${systemBasin}  |  Center Fix: ${coordFixStr}  |  Ref Code: ${systemId}  |  Scale: ${scaleRef}`, margin + 4, y + 11);
   doc.text(`Status Directive: ${alertInfo.title || "Severe Cyclone Alert"}`, margin + 4, y + 16);
 
   y += 24;
 
-  // ── 3. Synoptic Meteorological Parameters Grid ─────────────────────────────
+  // ── 3. Synoptic Meteorological Parameters Grid (FIX-004) ───────────────────
   doc.setTextColor(15, 23, 42);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
-  doc.text("1. CURRENT SYNOPTIC OBSERVATIONS & PHYSICAL TELEMETRY", margin, y);
+  doc.text("1. OBSERVED SYNOPTIC TELEMETRY (AUTHORITATIVE SOURCE)", margin, y);
   y += 3.5;
 
   const windHeaderLabel = sourceInfo?.shortLabel ? `Max Sustained Wind (${sourceInfo.shortLabel}):` : "Max Sustained Wind (3-min):";
-  const windValStr = knots !== null ? `${knots} Knots (${kmh} km/h)` : "[Intensity Data Pending / Under Investigation]";
-  const gustValStr = gusts !== null ? `${gusts} km/h (Estimated Gale)` : "[Pending Anemometer Fix]";
-  const pressureValStr = pressure !== null ? `${pressure} hPa (Estimated)` : "[Barometric Data Pending]";
-  const surgeValStr = surge !== null ? `${surge} meters (above tide)` : "[Surge Model Awaiting Intensity Fix]";
-  const waveValStr = wave !== null ? `${wave} meters (Phenomenal)` : "[Wave Altimeter Fix Pending]";
+  const windValStr = knots !== null ? `${knots} Knots (${kmh} km/h)` : "Not available";
+  const pressureValStr = pressure !== null ? `${pressure} hPa` : "Not available";
 
   const paramData = [
     [
       { content: windHeaderLabel, styles: { fontStyle: "bold" as const } },
       windValStr,
-      { content: "Peak Estimated Gusts:", styles: { fontStyle: "bold" as const } },
-      gustValStr
+      { content: "Observed Central Pressure:", styles: { fontStyle: "bold" as const } },
+      pressureValStr
     ],
     [
-      { content: "Estimated Central Pressure:", styles: { fontStyle: "bold" as const } },
-      pressureValStr,
-      { content: "Expected Storm Surge:", styles: { fontStyle: "bold" as const } },
-      surgeValStr
-    ],
-    [
-      { content: "Peak Significant Wave Height:", styles: { fontStyle: "bold" as const } },
-      waveValStr,
-      { content: "Movement Vector:", styles: { fontStyle: "bold" as const } },
-      (systemLat !== null && systemLon !== null) ? "North-Northwestwards at 14 km/h" : "[Trajectory Fix Pending]"
-    ],
-    [
-      { content: "24-Hour Rainfall Outlook:", styles: { fontStyle: "bold" as const } },
-      knots !== null && knots >= 64 ? "Heavy to Extremely Heavy (>200 mm)" : "Isolated Squally Rainfall",
-      { content: "Nautical Port Warning:", styles: { fontStyle: "bold" as const } },
-      portSignals[0]?.signal || (knots !== null && knots >= 64 ? "Danger Signal VII" : "Warning Signal III")
+      { content: "Center Fix Coordinates:", styles: { fontStyle: "bold" as const } },
+      coordFixStr,
+      { content: "Observational Provenance:", styles: { fontStyle: "bold" as const } },
+      sourceInfo?.label || "Authoritative Meteorological Center Bulletin"
     ]
   ];
 
@@ -263,7 +248,50 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
       cellPadding: 1.8,
       textColor: [30, 41, 59],
       lineColor: [226, 232, 240],
-      lineWidth: 0.2,
+      lineWidth: 0.1,
+    },
+    margin: { left: margin, right: margin },
+  });
+
+  y = getTableFinalY(doc, y) + 4;
+
+  // ── 3B. Parametric Model Estimates & Uncertainty (FIX-004) ─────────────────
+  doc.setTextColor(15, 23, 42);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.text("2. PARAMETRIC MODEL ESTIMATES & UNCERTAINTY (DECISION SUPPORT ONLY)", margin, y);
+  y += 3.5;
+
+  const gustValStr = gusts !== null ? `${gusts} km/h (1.25x Gust Factor)` : "Not available";
+  const surgeValStr = surge !== null ? `${surge} m (Modified Jelesnianski 1D)` : "Not available";
+  const waveValStr = wave !== null ? `${wave} m (Parametric Altimeter Model)` : "Not available";
+
+  const modelEstimatesData = [
+    [
+      { content: "Estimated Peak Gusts:", styles: { fontStyle: "bold" as const } },
+      gustValStr,
+      { content: "Estimated Coastal Surge:", styles: { fontStyle: "bold" as const } },
+      surgeValStr
+    ],
+    [
+      { content: "Significant Wave Height:", styles: { fontStyle: "bold" as const } },
+      waveValStr,
+      { content: "Hydrodynamic Solver Status:", styles: { fontStyle: "bold" as const } },
+      "Parametric approximation; uncoupled with astronomical tide or 2D SWE"
+    ]
+  ];
+
+  runAutoTable(doc, {
+    startY: y,
+    head: [],
+    body: modelEstimatesData,
+    theme: "grid",
+    styles: {
+      fontSize: 7.5,
+      cellPadding: 1.8,
+      textColor: [30, 41, 59],
+      lineColor: [226, 232, 240],
+      lineWidth: 0.1,
     },
     columnStyles: {
       0: { cellWidth: 46, fillColor: [241, 245, 249] },
@@ -324,25 +352,25 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
 
   y = getTableFinalY(doc, y);
 
-  // ── 5. High-Risk Coastal Districts Table ───────────────────────────────────
+  // ── 5. Coastal District Vulnerability (Open Data Inventory) (FIX-004) ──────
   doc.setTextColor(15, 23, 42);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
-  doc.text("3. HIGH-RISK COASTAL DISTRICTS & EVACUATION READINESS", margin, y);
+  doc.text("3. COASTAL DISTRICT VULNERABILITY (OPEN DATA INVENTORY)", margin, y);
   y += 3.5;
 
   const districtRows = affectedDistricts.map(d => [
     d.district || "Coastal District",
     d.state || systemBasin,
     d.risk || "High",
-    d.shelters || "Active",
-    d.evacuation || "Mandatory"
+    d.shelters || "Open Data Inventory (Consult DDMA)",
+    d.evacuation || "Advisory Hazard Zone (Consult DDMA Directives)"
   ]);
 
   runAutoTable(doc, {
     startY: y,
-    head: [["District / Jurisdiction", "State", "Hazard Rating", "Shelter Capacity", "Evacuation Directive"]],
-    body: districtRows.length > 0 ? districtRows : [["Maritime Sector / No Landfall Districts Reported", systemBasin, "Offshore Advisory", "N/A (Maritime)", "Vessels Advised to Avoid Open Waters"]],
+    head: [["District / Jurisdiction", "State", "Hazard Rating", "Shelter Facilities", "Advisory Status"]],
+    body: districtRows.length > 0 ? districtRows : [["Maritime Sector / No Landfall Districts Reported", systemBasin, "Offshore Advisory", "Not available", "Consult Official Maritime Broadcasts"]],
     theme: "striped",
     headStyles: {
       fillColor: [30, 41, 59],
@@ -375,11 +403,11 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
     y = 16;
   }
 
-  // ── 6. Operational Disaster Directives & Marine Advisories ─────────────────
+  // ── 6. Operational Directives & Safety Disclaimers (FIX-004) ───────────────
   doc.setTextColor(15, 23, 42);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
-  doc.text("4. STANDARD OPERATING PROCEDURES & SAFETY DIRECTIVES", margin, y);
+  doc.text("4. SIMULATED DECISION-SUPPORT DIRECTIVES (EXERCISE PROTOCOL)", margin, y);
   y += 4;
 
   doc.setFillColor(254, 242, 242); // Red-50
@@ -389,14 +417,14 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.setTextColor(153, 27, 27); // Red-800
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.text("MANDATORY DISASTER MANAGEMENT ORDERS:", margin + 3.5, y + 4.5);
+  doc.text("EXERCISE DECISION-SUPPORT GUIDELINES (NOT STATUTORY ORDERS):", margin + 3.5, y + 4.5);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(51, 65, 85);
-  doc.text("• Fishermen & Maritime: Total suspension of deep sea fishing. All offshore crafts must return to harbor immediately.", margin + 3.5, y + 9);
-  doc.text("• Port Operations: Ports along the landfall track must hoist designated Danger Signals and secure cranes and vessels.", margin + 3.5, y + 13);
-  doc.text("• Coastal Evacuation: SDRF/NDRF teams must complete mandatory evacuation of low-lying settlements within 5 km of coast.", margin + 3.5, y + 17);
+  doc.text("• Marine Advisory: Marine vessels advised to consult local port authorities for binding signal hoists.", margin + 3.5, y + 9);
+  doc.text("• Public Safety: All legal evacuation orders and shelter assignments are issued solely by local DDMAs / NDMA.", margin + 3.5, y + 13);
+  doc.text("• Experimental Notice: This document is an automated research artifact and does not constitute statutory authority.", margin + 3.5, y + 17);
 
   // ── 7. Clean, Non-Colliding Footer Across All Pages ─────────────────────────
   const totalPages = (typeof doc.getNumberOfPages === "function") 

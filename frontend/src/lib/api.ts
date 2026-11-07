@@ -12,7 +12,9 @@ export class ApiClientError extends Error {
   }
 }
 
-const rawUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const isProd = process.env.NODE_ENV === "production";
+const defaultUrl = isProd ? "https://cyclonet-backend.onrender.com" : "http://localhost:8000";
+const rawUrl = process.env.NEXT_PUBLIC_API_URL || defaultUrl;
 let cleaned = rawUrl.replace(/\/+$/, "").replace(/\/api$/, "");
 if (cleaned && !cleaned.startsWith("http://") && !cleaned.startsWith("https://")) {
   cleaned = `https://${cleaned}`;

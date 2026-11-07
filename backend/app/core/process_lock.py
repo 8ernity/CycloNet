@@ -50,10 +50,15 @@ end
 """
 
 _is_leader: bool = False
+_leader_generation: int = 0
 
 def is_leader() -> bool:
     """Returns True if the current process holds active leader status."""
     return _is_leader
+
+def get_leader_generation() -> int:
+    """Returns the monotonically increasing fencing token for the current leadership epoch (FIX-010)."""
+    return _leader_generation
 
 def is_pid_running(pid: int) -> bool:
     """Checks if a process ID is currently running on the operating system."""
@@ -92,12 +97,17 @@ def acquire_worker_leader_lock() -> bool:
 
     current_pid = os.getpid()
 
-    # 1. Distributed Redis Lock (FIX 02)
+    # 1. Distributed Redis Lock (FIX 02, FIX-010)
     if _redis_client:
         try:
             acquired = _redis_client.set(LOCK_KEY, WORKER_TOKEN, nx=True, ex=LOCK_TTL_SECONDS)
             if acquired:
-                logger.info("[WorkerLock] Process %s acquired Redis distributed leader lock with token %s.", current_pid, WORKER_TOKEN)
+                global _leader_generation
+                try:
+                    _leader_generation = int(_redis_client.incr(f"{LOCK_KEY}:generation"))
+                except Exception:
+                    _leader_generation += 1
+                logger.info("[WorkerLock] Process %s acquired Redis distributed leader lock with token %s (epoch %d).", current_pid, WORKER_TOKEN, _leader_generation)
                 _is_leader = True
                 return True
             else:
@@ -190,6 +200,52 @@ async def run_worker_heartbeat_task(interval_seconds: int = HEARTBEAT_INTERVAL_S
             logger.warning("[WorkerLock] Heartbeat lease renewal failed. Relinquishing leader status.")
             _is_leader = False
             break
+
+async def step_leader_election(on_become_leader_coro=None, on_lose_leader_coro=None) -> bool:
+    """
+    FIX-010: Executes a single atomic leader election or heartbeat renewal cycle.
+    Returns True if this worker is the leader following this step.
+    """
+    global _is_leader
+    if not _is_leader:
+        if acquire_worker_leader_lock():
+            _is_leader = True
+            logger.info("[WorkerLock] Standby promoted to active leader! Fencing token: %d", _leader_generation)
+            if on_become_leader_coro:
+                res = on_become_leader_coro()
+                if asyncio.iscoroutine(res):
+                    await res
+            return True
+        return False
+    else:
+        success = update_worker_heartbeat()
+        if not success:
+            logger.warning("[WorkerLock] Heartbeat lease renewal failed. Relinquishing leader status.")
+            _is_leader = False
+            if on_lose_leader_coro:
+                res = on_lose_leader_coro()
+                if asyncio.iscoroutine(res):
+                    await res
+            return False
+        return True
+
+async def run_continuous_leader_election(
+    interval_seconds: int = HEARTBEAT_INTERVAL_SECONDS,
+    on_become_leader_coro = None,
+    on_lose_leader_coro = None
+):
+    """
+    FIX-010: Continuous leader election task for standby workers and active leaders.
+    - If standby: periodically attempts to acquire leader lock (automatic failover).
+    - If leader: periodically renews heartbeat lease.
+    """
+    logger.info("[WorkerLock] Continuous leader election manager active (cadence: %ss).", interval_seconds)
+    while True:
+        try:
+            await step_leader_election(on_become_leader_coro, on_lose_leader_coro)
+        except Exception as e:
+            logger.warning("[WorkerLock] Error in continuous election loop: %s", e)
+        await asyncio.sleep(interval_seconds)
 
 def release_worker_leader_lock():
     """

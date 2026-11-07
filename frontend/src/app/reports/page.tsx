@@ -259,18 +259,18 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
     // Affected Districts
     if (isBoB) {
       setAffectedDistricts([
-        { district: "Srikakulam, AP", risk: "Extremely High", state: "Andhra Pradesh", shelters: "380 Active", evacuation: "Mandatory" },
-        { district: "Visakhapatnam, AP", risk: "Extremely High", state: "Andhra Pradesh", shelters: "420 Active", evacuation: "Mandatory" },
-        { district: "Ganjam, Odisha", risk: "High", state: "Odisha", shelters: "340 Active", evacuation: "High Priority" },
-        { district: "Puri, Odisha", risk: "High", state: "Odisha", shelters: "485 Active", evacuation: "High Priority" },
-        { district: "South 24 Parganas, WB", risk: "Moderate", state: "West Bengal", shelters: "410 Active", evacuation: "Selective" }
+        { district: "Srikakulam, AP", risk: "Extremely High", state: "Andhra Pradesh", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "Hazard Advisory Zone" },
+        { district: "Visakhapatnam, AP", risk: "Extremely High", state: "Andhra Pradesh", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "Hazard Advisory Zone" },
+        { district: "Ganjam, Odisha", risk: "High", state: "Odisha", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "High Priority Advisory" },
+        { district: "Puri, Odisha", risk: "High", state: "Odisha", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "High Priority Advisory" },
+        { district: "South 24 Parganas, WB", risk: "Moderate", state: "West Bengal", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "Selective Advisory" }
       ]);
     } else {
       setAffectedDistricts([
-        { district: "Kutch & Dwarka, GJ", risk: "Extremely High", state: "Gujarat", shelters: "410 Active", evacuation: "Mandatory" },
-        { district: "Porbandar, GJ", risk: "Extremely High", state: "Gujarat", shelters: "320 Active", evacuation: "Mandatory" },
-        { district: "Gir Somnath, GJ", risk: "High", state: "Gujarat", shelters: "350 Active", evacuation: "High Priority" },
-        { district: "Mumbai Suburban, MH", risk: "Moderate", state: "Maharashtra", shelters: "290 Active", evacuation: "Selective" }
+        { district: "Kutch & Dwarka, GJ", risk: "Extremely High", state: "Gujarat", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "Hazard Advisory Zone" },
+        { district: "Porbandar, GJ", risk: "Extremely High", state: "Gujarat", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "Hazard Advisory Zone" },
+        { district: "Gir Somnath, GJ", risk: "High", state: "Gujarat", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "High Priority Advisory" },
+        { district: "Mumbai Suburban, MH", risk: "Moderate", state: "Maharashtra", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "Selective Advisory" }
       ]);
     }
 
@@ -358,9 +358,9 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
         },
         bulletins: bulletins && bulletins.length > 0 ? bulletins : [],
         affectedDistricts: affectedDistricts && affectedDistricts.length > 0 ? affectedDistricts : [
-          { district: "Puri, Odisha", risk: "High", state: "Odisha", shelters: "485 Active", evacuation: "High Priority" },
-          { district: "Visakhapatnam, AP", risk: "Extremely High", state: "Andhra Pradesh", shelters: "420 Active", evacuation: "Mandatory" },
-          { district: "Srikakulam, AP", risk: "Extremely High", state: "Andhra Pradesh", shelters: "380 Active", evacuation: "Mandatory" }
+          { district: "Puri, Odisha", risk: "High", state: "Odisha", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "High Priority Advisory" },
+          { district: "Visakhapatnam, AP", risk: "Extremely High", state: "Andhra Pradesh", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "Hazard Advisory Zone" },
+          { district: "Srikakulam, AP", risk: "Extremely High", state: "Andhra Pradesh", shelters: "Open Data Inventory (Consult DDMA)", evacuation: "Hazard Advisory Zone" }
         ],
         portSignals: portSignals && portSignals.length > 0 ? portSignals : [
           { signal: "Danger Signal No. VII", meaning: "Severe cyclone expected to cross coast." }
@@ -766,7 +766,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
                   <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-red-500/20 text-red-300">RED</span>
                 </div>
                 <p className="font-bold text-sm text-foreground">Cyclone Warning</p>
-                <p className="text-xs text-muted-foreground mt-1">Landfall sector identified. Mandatory coastal evacuations and port closure signals.</p>
+                <p className="text-xs text-muted-foreground mt-1">Landfall sector identified. Consult local disaster management authorities for evacuation directives.</p>
               </div>
 
               <div className={`p-4 rounded-xl border ${knots >= 64 ? "bg-red-500/5 border-red-500/20 text-foreground" : "bg-secondary/30 border-border text-muted-foreground"}`}>
@@ -903,7 +903,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
                       <td className="py-3.5 text-foreground">{d.shelters}</td>
                       <td className="py-3.5 text-right pr-2">
                         <span className={`px-2.5 py-1 rounded text-[11px] font-bold ${
-                          d.evacuation === "Mandatory" ? "bg-red-500 text-white font-sans uppercase shadow-sm" :
+                          d.evacuation.includes("Hazard") ? "bg-red-500/20 text-red-400 border border-red-500/30 font-sans" :
                           "bg-secondary text-foreground font-sans"
                         }`}>
                           {d.evacuation}
@@ -1149,7 +1149,7 @@ TROPICAL CYCLONE ADVISORY BULLETIN NO. ${bNum}
                     disabled={dispatchStatus === "dispatching"}
                     className="w-full px-3 py-2 bg-secondary/80 border border-border rounded-lg text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   >
-                    <option value="EVACUATION_WARNING">RED ALERT: Mandatory Coastal Evacuation Directive</option>
+                    <option value="EVACUATION_WARNING">RED ALERT: Coastal Hazard Advisory Simulation (Exercise Only)</option>
                     <option value="STORM_SURGE_EMERGENCY">ORANGE ALERT: Storm Surge & Inundation Warning</option>
                     <option value="FISHERMEN_RECALL">YELLOW ALERT: Marine Return & Total Sea Suspension</option>
                     <option value="ALL_CLEAR">ALL CLEAR: Threat Passed / Return Safe</option>

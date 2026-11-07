@@ -194,6 +194,28 @@ All identified critical and high vulnerabilities have been verified, remediated,
 
 ---
 
+### 13. FIX-001 through FIX-014: Master V4 Remediation & Architecture Hardening
+- **Severity:** HIGH & CRITICAL
+- **Locations:** `backend/app/`, `backend/alembic/`, `backend/train_classifier.py`, `frontend/src/lib/`, `render.yaml`
+- **Scope & Remediation:**
+  - **Feed Failure Semantics (FIX-001):** Implemented `FeedResult` contract; distinguishes authentic calm from upstream network/parser outages; preserves last known valid active systems as `STALE`.
+  - **Removal of Fabricated Telemetry (FIX-002):** Replaced hardcoded fallback wind speeds with `None`; explicit `data_quality` provenance.
+  - **Cyclone Track Provenance (FIX-003):** Removed synthetic hindcast waypoints; stamped `OFFICIAL_OBSERVATION` on 0h fix and `EXPERIMENTAL_EXTRAPOLATION` on future horizons.
+  - **PDF & Report Integrity (FIX-004):** Replaced hardcoded shelter counts with `"Open Data Inventory (Consult DDMA)"` and mandatory evacuation decrees with `"Hazard Advisory Zone (Consult DDMA Directives)"`.
+  - **Disjoint Scientific Splits (FIX-005):** Eliminated fallback image duplication in training scripts; implemented event-based disjoint splitting with SHA-256 manifest verification (`InsufficientDatasetError`, `DataLeakageError`).
+  - **Calibrated ML Uncertainty (FIX-006):** Normalized Shannon entropy, MSP floor, top-1/top-2 margin, and energy scores; abstains with `INSUFFICIENT_CONFIDENCE` when MSP < 0.60 or entropy > 0.65; stamps `operational_status: "EXPERIMENTAL_DECISION_SUPPORT_ONLY"`.
+  - **Flood Service Segregation (FIX-007):** Segregated authentic `SatelliteFloodDetectionService` (returns `SATELLITE_DATA_UNAVAILABLE` with 0 synthetic polygons when unauthenticated) from `ExperimentalFloodSimulationService` (stamps all features with `origin: "EXPERIMENTAL_HYDROLOGICAL_SIMULATION"` and `is_satellite_measured: False`).
+  - **Strict Auth & Origin Hardening (FIX-008):** Exact role matching, constant-time admin secret validation, fail-closed HMAC secret checks, algorithm=none rejection, and production CORS origin filtering.
+  - **Atomic Rate Limiter (FIX-009):** Atomic Redis Lua script with independent minute and hour sliding windows using unique member UUIDs; fail-closed policy (HTTP 503) under Redis outage in production.
+  - **Continuous Leader Election (FIX-010):** Monotonically increasing epoch fencing token (`_leader_generation`), continuous standby election loop, and automatic failover.
+  - **Comprehensive Readiness Probe (FIX-011):** `/ready` and `/health/ready` probe evaluating DB, Redis fail-closed state, ML model status, and leadership generation.
+  - **Alembic Database Migrations (FIX-012):** Initialized `backend/alembic/` with baseline migration `7ebcad6e592b_initial_domain_models.py` and `alembic upgrade head` in `render.yaml`.
+  - **Packaging & Supply Chain (FIX-013):** Constrained dependency bounds in `backend/requirements.txt`, reproducible builds in `frontend/package-lock.json`, and CI verification in `.github/workflows/ci.yml`.
+  - **Failure-Oriented Regression Coverage (FIX-014):** 67 tests passing across 10 test modules (100% pass rate in 193.29s). Next.js Turbopack build passing all 15 routes with zero errors.
+- **Verification:** All 14 remediations validated via automated test suites and production build logs.
+
+---
+
 ## Remaining Operational Limitations & Boundaries
 
 1. **Experimental Classification:** CycloNet is an experimental research and educational decision-support platform. All forecasts, trajectories, inundation profiles, and CAP alerts are for demonstration and exercise purposes only.

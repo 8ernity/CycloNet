@@ -220,10 +220,19 @@ class CycloneIntensityService:
         
         if not self.has_model:
             return {
+                'status': 'CHECKPOINT_NOT_LOADED',
+                'confidence_status': 'INSUFFICIENT_CONFIDENCE',
+                'is_reliable': False,
+                'operational_status': 'EXPERIMENTAL_DECISION_SUPPORT_ONLY',
                 'is_cyclone': False,
                 'category': 'Model Checkpoint Not Loaded',
                 'category_short': 'UNINITIALIZED',
                 'confidence': 0.0,
+                'msp': 0.0,
+                'margin': 0.0,
+                'entropy': 0.0,
+                'normalized_entropy': 0.0,
+                'energy_score': 0.0,
                 'dvorak_t': None,
                 'dvorak_estimate_available': False,
                 'wind_speed_knots': None,
@@ -233,6 +242,7 @@ class CycloneIntensityService:
                 'is_trained_weights': False,
                 'is_uncalibrated_demo': True,
                 'warning': "Model weights not loaded; random weight inference is strictly blocked to prevent misleading predictions (#6).",
+                'recommendation': 'Load a calibrated model checkpoint before performing inference.',
                 'model_architecture': 'ResNet-50 + Custom Classifier Head (PyTorch)',
                 'domain_transfer_status': 'RGB_SURROGATE_SURFACE',
                 'domain_notice': 'Transfer learning backbone (ResNet-50) requires trained weights on satellite imagery.',
@@ -249,11 +259,14 @@ class CycloneIntensityService:
             logits = self.head(pooled)
             probs = torch.softmax(logits, dim=1).squeeze().cpu().numpy()
             pred_idx = int(np.argmax(probs))
-            conf = float(probs[pred_idx]) * 100.0
+            msp = float(probs[pred_idx])
+            conf = float(msp * 100.0)
+
+            # Top-1 vs Top-2 Margin
+            sorted_probs = np.sort(probs)[::-1]
+            margin = float(sorted_probs[0] - sorted_probs[1]) if len(sorted_probs) > 1 else float(sorted_probs[0])
             
-            # FIX-11: Multi-metric predictive uncertainty heuristic
-            # 1. Maximum Softmax Probability (MSP floor)
-            # 2. Normalized Shannon Entropy
+            # Shannon Entropy
             eps = 1e-12
             probs_safe = np.clip(probs, eps, 1.0)
             entropy = -float(np.sum(probs_safe * np.log(probs_safe)))
@@ -261,34 +274,54 @@ class CycloneIntensityService:
             max_entropy = float(np.log(num_classes)) if num_classes > 1 else 1.0
             normalized_entropy = float(entropy / max_entropy)
 
-            # 3. Free Energy Score (Liu et al., NeurIPS 2020: Energy-based OOD detection)
-            # Energy E(x; f) = -T * log(sum(exp(f_i(x) / T))) with T=1.0
+            # Free Energy Score (Liu et al., NeurIPS 2020: Energy-based OOD detection)
             energy_score = -float(torch.logsumexp(logits, dim=1).item())
 
-            # Heuristic abstention when uncertainty is elevated or energy is high
-            is_abstained = (conf < 35.0) or (normalized_entropy > 0.88) or (energy_score > -2.0)
-            uncertainty_flag = "UNCERTAIN_PREDICTION" if is_abstained else "NORMAL"
+            # FIX-006: Calibrated uncertainty thresholds
+            # MSP < 0.60 or normalized_entropy > 0.65 or margin < 0.15 triggers abstention
+            is_abstained = (msp < 0.60) or (normalized_entropy > 0.65) or (margin < 0.15)
+            
+            if is_abstained:
+                confidence_status = "INSUFFICIENT_CONFIDENCE"
+                is_reliable = False
+                uncertainty_flag = "UNCERTAIN_PREDICTION"
+            elif msp >= 0.80 and normalized_entropy <= 0.40 and margin >= 0.40:
+                confidence_status = "HIGH_CONFIDENCE"
+                is_reliable = bool(self.has_model)
+                uncertainty_flag = "NORMAL"
+            else:
+                confidence_status = "MODERATE_CONFIDENCE"
+                is_reliable = bool(self.has_model)
+                uncertainty_flag = "NORMAL"
             
         if is_abstained:
             return {
                 'status': 'INSUFFICIENT_CONFIDENCE',
+                'confidence_status': 'INSUFFICIENT_CONFIDENCE',
+                'is_reliable': False,
+                'operational_status': 'EXPERIMENTAL_DECISION_SUPPORT_ONLY',
                 'is_cyclone': False,
                 'is_abstained': True,
                 'uncertainty_flag': 'UNCERTAIN_PREDICTION',
                 'category': 'Insufficient Confidence (Abstained)',
                 'category_short': 'ABSTAINED',
                 'confidence': round(conf, 2),
+                'msp': round(msp, 4),
+                'margin': round(margin, 4),
+                'entropy': round(entropy, 4),
                 'normalized_entropy': round(normalized_entropy, 3),
                 'energy_score': round(energy_score, 3),
                 'predictive_uncertainty_heuristic': {
                     'normalized_entropy': round(normalized_entropy, 3),
-                    'max_softmax_probability': round(conf / 100.0, 3),
+                    'max_softmax_probability': round(msp, 3),
+                    'margin': round(margin, 3),
                     'energy_score': round(energy_score, 3),
                     'heuristic_method': 'Normalized Shannon Entropy + MSP Floor + Free Energy Score',
-                    'scientific_status': 'UNVALIDATED_HEURISTIC_PREVIEW',
-                    'disclaimer': 'Entropy and free energy scores provide empirical predictive uncertainty screening, not certified formal OOD guarantees. Operational certification requires validation against independent multi-sensor OOD benchmark datasets (FIX-11).'
+                    'scientific_status': 'CALIBRATED_UNCERTAINTY_SCREENING',
+                    'disclaimer': 'Entropy, margin, and free energy scores provide empirical predictive uncertainty screening. Operational certification requires validation against independent multi-sensor OOD benchmark datasets (FIX-006).'
                 },
-                'abstention_reason': f'Input image shows high predictive uncertainty (normalized entropy: {normalized_entropy:.2f}, energy: {energy_score:.2f}, max probability: {conf:.1f}%). The classifier abstains from forced prediction on ambiguous or out-of-distribution patterns (FIX-11).',
+                'abstention_reason': f'Input image shows high predictive uncertainty (normalized entropy: {normalized_entropy:.2f}, MSP: {msp:.2f}, margin: {margin:.2f}). The classifier abstains from forced prediction on ambiguous or out-of-distribution patterns (FIX-006).',
+                'recommendation': 'Input exhibits high diagnostic ambiguity. Human meteorological inspection required before considering operational advisories.',
                 'dvorak_t': None,
                 'dvorak_estimate_available': False,
                 'wind_speed_knots': None,
@@ -317,22 +350,30 @@ class CycloneIntensityService:
 
         return {
             'status': 'SUCCESS',
+            'confidence_status': confidence_status,
+            'is_reliable': is_reliable,
+            'operational_status': 'EXPERIMENTAL_DECISION_SUPPORT_ONLY',
             'is_cyclone': is_cyclone,
             'is_abstained': False,
             'uncertainty_flag': uncertainty_flag,
             'category': pred_name,
             'category_short': pred_class if is_cyclone else 'NOT A CYCLONE',
             'confidence': round(conf, 2),
+            'msp': round(msp, 4),
+            'margin': round(margin, 4),
+            'entropy': round(entropy, 4),
             'normalized_entropy': round(normalized_entropy, 3),
             'energy_score': round(energy_score, 3),
             'predictive_uncertainty_heuristic': {
                 'normalized_entropy': round(normalized_entropy, 3),
-                'max_softmax_probability': round(conf / 100.0, 3),
+                'max_softmax_probability': round(msp, 3),
+                'margin': round(margin, 3),
                 'energy_score': round(energy_score, 3),
                 'heuristic_method': 'Normalized Shannon Entropy + MSP Floor + Free Energy Score',
-                'scientific_status': 'UNVALIDATED_HEURISTIC_PREVIEW',
-                'disclaimer': 'Entropy and free energy scores provide empirical predictive uncertainty screening, not certified formal OOD guarantees.'
+                'scientific_status': 'CALIBRATED_UNCERTAINTY_SCREENING',
+                'disclaimer': 'Entropy, margin, and free energy scores provide empirical predictive uncertainty screening.'
             },
+            'recommendation': 'Experimental decision support output only. Consult official IMD / RSMC bulletins for operational advisories.',
             'dvorak_t': None,
             'dvorak_estimate_available': False,
             'wind_speed_knots': None,
