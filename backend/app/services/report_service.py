@@ -8,98 +8,33 @@ from typing import Dict, List, Any, Optional
 
 class MeteorologicalReportService:
     """
-    Service for generating official RSMC/IMD standard meteorological bulletins,
+    Service for CycloNet experimental analyses and exercise documents,
     OASIS CAP-CP (Common Alerting Protocol) XML warnings, and AI-driven disaster response advisories.
     """
 
     def __init__(self):
         pass
 
-    def get_alert_level(self, intensity_knots: int) -> Dict[str, Any]:
-        """Calculates the 4-stage meteorological alert code based on IMD/WMO standards."""
-        if intensity_knots >= 120:
-            return {
-                "level": "RED",
-                "stage": "Cyclone Warning (Landfall Imminent)",
-                "title": "Red Warning: Total Evacuation & Immediate Action Required",
-                "desc": "Super Cyclonic Storm with catastrophic wind potential. Extensive storm surge inundation and severe structural destruction expected.",
-                "color": "#ef4444",
-                "bg_class": "bg-red-500/10",
-                "border_class": "border-red-500/40",
-                "text_class": "text-red-500",
-                "action": "Total evacuation of vulnerable coastal belt. Total suspension of all transport, port operations, and rail services."
-            }
-        elif intensity_knots >= 90:
-            return {
-                "level": "ORANGE",
-                "stage": "Cyclone Warning",
-                "title": "Orange Alert: High Preparedness & Mobilization",
-                "desc": "Extremely Severe Cyclonic Storm. Very high threat of uprooted trees, power outages, coastal flooding, and severe disruption.",
-                "color": "#f97316",
-                "bg_class": "bg-orange-500/10",
-                "border_class": "border-orange-500/40",
-                "text_class": "text-orange-500",
-                "action": "Mobilize NDRF/SDRF emergency teams. Evacuate low-lying and kutcha housing areas. Keep relief shelters active."
-            }
-        elif intensity_knots >= 48:
-            return {
-                "level": "ORANGE",
-                "stage": "Cyclone Alert",
-                "title": "Orange Alert: Rapid Intensification Watch",
-                "desc": "Very Severe / Severe Cyclonic Storm. Gale winds and heavy to very heavy rainfall expected along the coast.",
-                "color": "#f97316",
-                "bg_class": "bg-orange-500/10",
-                "border_class": "border-orange-500/40",
-                "text_class": "text-orange-500",
-                "action": "Fishermen total suspension. Regulate rail and road traffic in coastal corridors. Activate district emergency operation centers."
-            }
-        elif intensity_knots >= 34:
-            return {
-                "level": "YELLOW",
-                "stage": "Pre-Cyclone Watch",
-                "title": "Yellow Alert: Enhanced Vigilance & Marine Advisory",
-                "desc": "Cyclonic Storm / Deep Depression. Sea conditions rough to very rough. Coastal squally winds developing.",
-                "color": "#eab308",
-                "bg_class": "bg-yellow-500/10",
-                "border_class": "border-yellow-500/40",
-                "text_class": "text-yellow-500",
-                "action": "Advise all offshore vessels and fishermen to return to coast. Inspect storm shelters and communication lifelines."
-            }
-        else:
-            return {
-                "level": "GREEN",
-                "stage": "Atmospheric Outlook",
-                "title": "Green: Basin Routine Monitoring",
-                "desc": "Depression / Low Pressure area. No immediate destructive threat to coastal settlements.",
-                "color": "#22c55e",
-                "bg_class": "bg-green-500/10",
-                "border_class": "border-green-500/40",
-                "text_class": "text-green-500",
-                "action": "Routine coastal weather surveillance. Monitor satellite feeds for cyclogenesis."
-            }
+    def get_alert_level(self, intensity_knots: Optional[int]) -> Dict[str, Any]:
+        """Displays experimental wind bands; never issues an official alert."""
+        if intensity_knots is None:
+            return {"level": "DATA_UNAVAILABLE", "stage": "Data unavailable", "title": "Wind measurement not available",
+                    "desc": "Hazard cannot be evaluated without measurements.", "action": "Consult official agencies.",
+                    "color": "#94a3b8", "bg_class": "bg-slate-500/10", "border_class": "border-slate-500/40", "text_class": "text-slate-500"}
+        level, color, css = (('RED', '#ef4444', 'red') if intensity_knots >= 120 else
+                             ('ORANGE', '#f97316', 'orange') if intensity_knots >= 48 else
+                             ('YELLOW', '#eab308', 'yellow') if intensity_knots >= 34 else
+                             ('GREEN', '#22c55e', 'green'))
+        return {"level": level, "stage": "Experimental wind band",
+                "title": f"Experimental wind band: {intensity_knots} kt",
+                "desc": "Wind alone does not establish landfall, surge, rainfall, or an official warning.",
+                "action": "Consult current official local advisories for protective actions.",
+                "color": color, "bg_class": f"bg-{css}-500/10",
+                "border_class": f"border-{css}-500/40", "text_class": f"text-{css}-500"}
 
-    def get_port_signals(self, intensity_knots: int, is_bay_of_bengal: bool) -> List[Dict[str, str]]:
-        """Calculates official port cautionary and danger signals."""
-        if intensity_knots >= 120:
-            sig = "Great Danger Signal No. X (Ten)" if is_bay_of_bengal else "Great Danger Signal No. IX"
-            meaning = "Severe storm of extreme intensity expected to cross coast over or near the port. Severe gale and inundation imminent."
-        elif intensity_knots >= 90:
-            sig = "Great Danger Signal No. VIII (Eight)"
-            meaning = "Extremely severe storm expected to cross coast keeping port to its left/right. High danger to ships and harbor installations."
-        elif intensity_knots >= 48:
-            sig = "Danger Signal No. VII (Seven)"
-            meaning = "Warning of severe cyclonic storm. Port will experience severe weather with gale force winds."
-        elif intensity_knots >= 34:
-            sig = "Local Warning Signal No. IV (Four)"
-            meaning = "Port threatened by cyclonic storm, but not directly in eye path. Sea conditions rough."
-        else:
-            sig = "Local Cautionary Signal No. III (Three)"
-            meaning = "Squally weather in deep sea; port may experience gusts. Fishermen warned."
-        
-        return [
-            {"signal": sig, "meaning": meaning},
-            {"signal": "Distant Cautionary Signal No. I (One)", "meaning": "Vessel warning: System in deep sea undergoing development."}
-        ]
+    def get_port_signals(self, intensity_knots: Optional[int], is_bay_of_bengal: bool) -> List[Dict[str, str]]:
+        """Port signals require an actual port authority bulletin, not a wind threshold."""
+        return []
 
     def get_affected_districts(self, basin: str, lat: float, lon: float) -> List[Dict[str, str]]:
         """Identifies vulnerable coastal districts based on active coordinates and basin (DATA-08, ALERT-04)."""
@@ -137,137 +72,63 @@ class MeteorologicalReportService:
                 {"district": "Raigad & Ratnagiri, MH", "risk": "Moderate", "state": "Maharashtra", "shelters": "Data unverified (consult DDMA)", "advisory": "Moderate Hazard Zone"}
             ]
 
-    def generate_official_bulletins(self, system: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Generates real-time, chronologically accurate IMD standard bulletins."""
-        name = system.get("name", "Active Cyclone")
-        basin = system.get("basin", "North Indian Ocean")
-        knots = system.get("intensity_knots", 65)
-        kmh = int(knots * 1.852)
-        gusts_kmh = int(kmh * 1.25)
-        category = system.get("category", "Severe Cyclonic Storm")
-        lat = system.get("lat", 17.5)
-        lon = system.get("lon", 84.5)
-        alert = self.get_alert_level(knots)
-        
-        now = datetime.utcnow()
-        bulletins = []
-
-        # Generate 3 chronological bulletins (Current, -3h, -6h)
-        for idx in range(3):
-            b_time = now - timedelta(hours=idx * 3)
-            b_num = 14 - idx
-            b_knots = max(30, knots - (idx * 5))
-            b_kmh = int(b_knots * 1.852)
-            b_gusts = int(b_kmh * 1.25)
-            
-            surge_m = round(max(0.8, (b_knots * 0.035) + 0.5), 1)
-            wave_m = round(max(2.0, (b_knots * 0.08) + 1.0), 1)
-            
-            bulletin_text = f"""CYCLONET METEOROLOGICAL INTELLIGENCE ADVISORY (IMD/RSMC STANDARD FORMAT — SIMULATION)
-REGIONAL SPECIALISED METEOROLOGICAL SYNTHESIS (FOR HACKATHON DEMONSTRATION)
-CYCLONE ADVISORY BULLETIN NO. {b_num}
-
-1. BASIN: {basin.upper()}
-2. TIME OF ISSUE: {b_time.strftime('%Y-%m-%d %H:%M')} UTC ({((b_time + timedelta(hours=5, minutes=30))).strftime('%d-%b-%Y %H:%M IST')})
-3. SYSTEM IDENTIFICATION: {category.upper()} '{name.upper()}' (SIMULATION BASELINE)
-4. CURRENT POSITION & INTENSITY:
-   - Latitude / Longitude: {lat:.1f}°N / {lon:.1f}°E
-   - Max Sustained Surface Wind: {b_knots} Knots ({b_kmh} km/h)
-   - Estimated Peak Gusts: {b_gusts} km/h
-   - Estimated Central Pressure: {1010 - int(b_knots * 0.65)} hPa
-   - Movement: North-Northwestwards at 14 km/h
-
-5. INTENSITY & TRACK FORECAST:
-   - +12 HRS: {lat + 0.6:.1f}°N / {lon - 0.4:.1f}°E | {b_knots + 5} kts | Peak Landfall Window
-   - +24 HRS: {lat + 1.3:.1f}°N / {lon - 0.7:.1f}°E | {max(30, b_knots - 20)} kts | Weakening over land
-   - +36 HRS: {lat + 2.0:.1f}°N / {lon - 0.8:.1f}°E | Deep Depression | Dissipation
-
-6. MULTI-HAZARD WARNINGS:
-   - STORM SURGE: Peak surge of {surge_m}m above astronomical tide likely to inundate low-lying coastal sectors.
-   - SEA CONDITION: High to Phenomenal ({wave_m}m waves). Total suspension of fishing operations.
-   - WIND HAZARD: Gale wind speed reaching {b_kmh}-{b_gusts} km/h along and off coastal zones.
-
-7. ADVISORY & ACTION DIRECTIVES:
-   - {alert['action']}
-   - Ports to hoist appropriate danger signals.
-   - Disaster response forces (NDRF/SDRF) on highest alert for immediate clearing and rescue.
-"""
-            bulletins.append({
-                "id": f"BULLETIN-RSMC-{b_num:02d}",
-                "number": b_num,
-                "title": f"IMD-Format Cyclone Advisory #{b_num} (Simulation)",
-                "timestamp_utc": b_time.strftime("%Y-%m-%d %H:%M UTC"),
-                "timestamp_ist": (b_time + timedelta(hours=5, minutes=30)).strftime("%d-%b-%Y %I:%M %p IST"),
-                "category": category,
-                "intensity_knots": b_knots,
-                "intensity_kmh": b_kmh,
-                "gusts_kmh": b_gusts,
-                "central_pressure_hpa": 1010 - int(b_knots * 0.65),
-                "storm_surge_meters": surge_m,
-                "wave_height_meters": wave_m,
-                "alert_level": alert["level"],
-                "stage": alert["stage"],
-                "full_text": bulletin_text.strip(),
-                "is_latest": (idx == 0)
-            })
-
-        return bulletins
+    def generate_experimental_analysis(self, system: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Describe supplied telemetry only. Never impersonate an agency bulletin."""
+        knots = system.get("intensity_knots")
+        wind = f"{knots} kt" if knots is not None else "Not available"
+        return [{
+            "id": f"analysis-{system.get('id', 'unknown')}", "number": None,
+            "title": "CycloNet experimental analysis", "category": system.get("category", "Unknown"),
+            "timestamp_utc": system.get("observation_time_utc"), "timestamp_ist": None,
+            "intensity_knots": knots, "intensity_kmh": round(knots * 1.852) if knots is not None else None,
+            "gusts_kmh": system.get("gusts_kmh"), "central_pressure_hpa": system.get("central_pressure_hpa"),
+            "storm_surge_meters": None, "wave_height_meters": None,
+            "alert_level": self.get_alert_level(knots)["level"], "stage": "Experimental analysis",
+            "full_text": f"CYCLONET EXPERIMENTAL ANALYSIS — NOT AN OFFICIAL WARNING\n"
+                         f"System: {system.get('name', 'Unknown')}\nWind: {wind}\n"
+                         f"Basin: {system.get('basin', 'Not available')}\n"
+                         f"Source: {system.get('source', 'Not available')}\n"
+                         f"Source issue time: {system.get('observation_time_utc') or 'Not available'}\n"
+                         f"Retrieved: {system.get('retrieved_at') or 'Not available'}\n"
+                         f"Simulation: {bool(system.get('is_simulation'))}\n"
+                         "Consult official agencies for warnings. No port or evacuation orders are issued here.",
+            "is_latest": True, "is_official": False, "is_simulation": bool(system.get("is_simulation"))
+        }]
 
     def generate_cap_xml(self, system: Dict[str, Any]) -> str:
-        """
-        SEC-12 & AI-06: Generates valid OASIS CAP-CP v1.2 XML using xml.etree.ElementTree.
-        Properly escapes all XML elements and clearly marks simulation advisories as Exercise/Test.
-        """
-        alert_id = f"IN-IMD-CAP-EXERCISE-{uuid.uuid4().hex[:8].upper()}"
-        sent_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
-        name = str(system.get("name", "Cyclone"))
-        knots = int(system.get("intensity_knots", 65))
-        category = str(system.get("category", "Severe Cyclonic Storm"))
-        basin = str(system.get("basin", "Bay of Bengal"))
-        lat = float(system.get("lat", 17.5))
-        lon = float(system.get("lon", 84.5))
-        alert = self.get_alert_level(knots)
-
-        severity = "Extreme" if knots >= 90 else ("Severe" if knots >= 48 else "Moderate")
-        urgency = "Immediate" if knots >= 64 else "Expected"
-
+        """Single CAP 1.2 exercise serializer. Missing wind implies unknown severity."""
+        knots = system.get("intensity_knots")
         root = ET.Element("alert", xmlns="urn:oasis:names:tc:emergency:cap:1.2")
-        ET.SubElement(root, "identifier").text = alert_id
-        ET.SubElement(root, "sender").text = "cyclonet-simulation-engine@ndma-compatible.in"
-        ET.SubElement(root, "sent").text = sent_time
-        ET.SubElement(root, "status").text = "Exercise"
-        ET.SubElement(root, "msgType").text = "Alert"
-        ET.SubElement(root, "scope").text = "Public"
-        ET.SubElement(root, "code").text = "NDMA-CAP-CP-v1.2-EXERCISE"
-
+        for key, value in {
+            "identifier": f"CYCLONET-EXERCISE-{uuid.uuid4().hex}",
+            "sender": "cyclonet-simulation-engine@cyclonet.invalid", "sent": datetime.utcnow().isoformat() + "+00:00",
+            "status": "Exercise", "msgType": "Alert", "scope": "Public"
+        }.items():
+            ET.SubElement(root, key).text = value
         info = ET.SubElement(root, "info")
-        ET.SubElement(info, "category").text = "Met"
-        ET.SubElement(info, "event").text = f"{category} {name} (Exercise Simulation)"
-        ET.SubElement(info, "urgency").text = urgency
-        ET.SubElement(info, "severity").text = severity
-        ET.SubElement(info, "certainty").text = "Possible"  # AI-06: Not "Observed" for simulations
-        
-        event_code = ET.SubElement(info, "eventCode")
-        ET.SubElement(event_code, "valueName").text = "IMD-Phenomenon"
-        ET.SubElement(event_code, "value").text = f"TC-{category.replace(' ', '_')}"
-
-        expires_time = (datetime.utcnow() + timedelta(hours=12)).strftime('%Y-%m-%dT%H:%M:%S+00:00')
-        ET.SubElement(info, "expires").text = expires_time
-        ET.SubElement(info, "senderName").text = "CycloNet Anticipatory Early Warning Engine (Exercise Mode)"
-        ET.SubElement(info, "headline").text = f"{alert['level']} WARNING: {category} {name} active in {basin} (Exercise Advisory)"
-        ET.SubElement(info, "description").text = f"[EXERCISE SIMULATION] {category} {name} located at {lat:.2f}N, {lon:.2f}E with sustained winds of {knots} kts ({int(knots*1.852)} km/h). {alert['desc']}"
-        ET.SubElement(info, "instruction").text = alert['action']
-
-        area = ET.SubElement(info, "area")
-        ET.SubElement(area, "areaDesc").text = f"Coastal districts of {basin}"
-        ET.SubElement(area, "circle").text = f"{lat:.2f},{lon:.2f},150.0"
-
+        for key, value in {
+            "category": "Met", "event": f"CycloNet exercise: {system.get('name', 'Unknown')}",
+            "urgency": "Unknown", "severity": "Unknown" if knots is None else
+                ("Extreme" if knots >= 90 else "Severe" if knots >= 48 else "Moderate" if knots >= 34 else "Minor"),
+            "certainty": "Possible", "senderName": "CycloNet experimental exercise",
+            "headline": "EXERCISE ONLY — not an official warning",
+            "description": self.generate_experimental_analysis(system)[0]["full_text"],
+            "instruction": "Consult official agencies. This exercise provides no operational directives."
+        }.items():
+            ET.SubElement(info, key).text = value
+        if system.get("lat") is not None and system.get("lon") is not None:
+            lat, lon = float(system["lat"]), float(system["lon"])
+            if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                raise ValueError("Invalid exercise coordinates")
+            area = ET.SubElement(info, "area")
+            ET.SubElement(area, "areaDesc").text = str(system.get("basin", "Exercise area"))
+            ET.SubElement(area, "circle").text = f"{lat:.2f},{lon:.2f} 150.0"
         return ET.tostring(root, encoding="utf-8", xml_declaration=True).decode("utf-8")
 
     def simulate_emergency_broadcast(self, system: Dict[str, Any], alert_type: str, channels: List[str]) -> Dict[str, Any]:
         """Simulates a multi-channel emergency alert dispatch with delivery metrics."""
         name = system.get("name", "Cyclone")
-        knots = system.get("intensity_knots", 65)
+        knots = system.get("intensity_knots")
         districts = self.get_affected_districts(system.get("basin", ""), system.get("lat", 17.5), system.get("lon", 84.5))
         
         target_names = [d["district"] for d in districts]
@@ -324,7 +185,7 @@ CYCLONE ADVISORY BULLETIN NO. {b_num}
             "channels_used": channels,
             "channel_metrics": channel_metrics,
             "overall_status": "SIMULATED_DISPATCH_COMPLETE",
-            "message_payload": f"[TEST SIMULATION] EMERGENCY WARNING: {system.get('category', 'Cyclone')} {name} warning active. Sustained winds {int(knots*1.852)} km/h. Coastal communities follow local authority evacuation instructions immediately."
+            "message_payload": f"[TEST SIMULATION] EMERGENCY WARNING: {system.get('category', 'Cyclone')} {name} warning active. Sustained winds {(round(knots*1.852) if knots is not None else 'Not available')} km/h. Coastal communities follow local authority evacuation instructions immediately."
         }
 
     def dispatch_multi_channel_advisory(
@@ -350,38 +211,9 @@ CYCLONE ADVISORY BULLETIN NO. {b_num}
         severity = "Extreme" if risk_level.upper() in ["CRITICAL", "EXTREME"] or wind >= 90 else "Severe"
         urgency = "Immediate" if risk_level.upper() in ["CRITICAL", "EXTREME"] or surge >= 2.5 else "Expected"
 
-        # 1. OASIS CAP-CP v1.2 XML serialized with ElementTree (SEC-12 & AI-06)
-        cap_root = ET.Element("alert", xmlns="urn:oasis:names:tc:emergency:cap:1.2")
-        ET.SubElement(cap_root, "identifier").text = dispatch_uuid
-        ET.SubElement(cap_root, "sender").text = "cyclonet-simulation-engine@ndma-compatible.in"
-        ET.SubElement(cap_root, "sent").text = now.strftime("%Y-%m-%dT%H:%M:%S+00:00")
-        ET.SubElement(cap_root, "status").text = "Exercise"
-        ET.SubElement(cap_root, "msgType").text = "Alert"
-        ET.SubElement(cap_root, "scope").text = "Public"
-        ET.SubElement(cap_root, "code").text = "NDMA-CAP-CP-v1.2-EXERCISE"
-
-        info = ET.SubElement(cap_root, "info")
-        ET.SubElement(info, "category").text = "Met"
-        ET.SubElement(info, "event").text = "Tropical Cyclone Flash Evacuation Advisory (Exercise Simulation)"
-        ET.SubElement(info, "urgency").text = urgency
-        ET.SubElement(info, "severity").text = severity
-        ET.SubElement(info, "certainty").text = "Possible"  # AI-06: Not "Observed" for simulations
-        
-        event_code = ET.SubElement(info, "eventCode")
-        ET.SubElement(event_code, "valueName").text = "IMD-Phenomenon"
-        ET.SubElement(event_code, "value").text = "TC-SURGE-WIND"
-
-        expires_time = (now + timedelta(hours=12)).strftime('%Y-%m-%dT%H:%M:%S+00:00')
-        ET.SubElement(info, "expires").text = expires_time
-        ET.SubElement(info, "senderName").text = "CycloNet Anticipatory Early Warning Simulator (Exercise Mode)"
-        ET.SubElement(info, "headline").text = f"{risk_level.upper()} ADVISORY (EXERCISE): {cyclone_name} Simulation for {region}"
-        ET.SubElement(info, "description").text = f"[EXERCISE SIMULATION ONLY] Experimental Risk Forecaster calculates potential surge of {surge:.1f}m and gale winds of {wind:.0f} kt ({wind_kmh} km/h). Follow official IMD/NDMA orders."
-        ET.SubElement(info, "instruction").text = "SIMULATION EXERCISE: Coastal communities should monitor official directives from District Disaster Management Authorities and IMD bulletins. Verify local shelter routes through official emergency services."
-
-        area = ET.SubElement(info, "area")
-        ET.SubElement(area, "areaDesc").text = f"{region} Coastal Corridor and Low-Lying Catchment"
-
-        cap_xml = ET.tostring(cap_root, encoding="utf-8", xml_declaration=True).decode("utf-8")
+        cap_xml = self.generate_cap_xml({"name": cyclone_name, "basin": region,
+                                         "intensity_knots": wind, "is_simulation": True,
+                                         "source": "User-selected exercise parameters"})
         real_hash = hashlib.sha256(cap_xml.encode("utf-8")).hexdigest()
 
         # 2. SMS Cell Broadcast Payloads (Multilingual)
@@ -471,4 +303,3 @@ CYCLONE ADVISORY BULLETIN NO. {b_num}
         }
 
 report_service = MeteorologicalReportService()
-

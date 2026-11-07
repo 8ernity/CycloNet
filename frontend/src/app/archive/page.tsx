@@ -115,7 +115,7 @@ export default function ArchivePage() {
   // Synchronize archive context with CycloNet AI assistant
   useEffect(() => {
     if (typeof window !== "undefined") {
-      (window as any).__cyclonet_current_context = {
+      window.__cyclonet_current_context = {
         page: "Historical Archive",
         activeTab,
         totalCyclones: cyclones.length,

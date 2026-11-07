@@ -1,4 +1,5 @@
 "use client";
+import { useMounted, useMediaQuery } from "@/hooks/useBrowserState";
 
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
@@ -13,19 +14,11 @@ export function MeshGradientBackground({
   className?: string,
   videoSrc?: string
 }) {
-  const [isDesktop, setIsDesktop] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
+  const isMounted = useMounted();
 
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
-
-  useEffect(() => {
-    setIsMounted(true);
-    setIsDesktop(window.innerWidth >= 1024);
-    const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
-    window.addEventListener('resize', handleResize, { passive: true });
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   useEffect(() => {
     if (!isDesktop) return;

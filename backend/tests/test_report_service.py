@@ -18,8 +18,8 @@ def test_alert_level_classification():
 def test_port_danger_signals():
     """Verify port danger signals for coastal ports in Bay of Bengal and Arabian Sea."""
     signals_bob = report_service.get_port_signals(120, is_bay_of_bengal=True)
-    assert len(signals_bob) > 0
-    assert any("Signal" in s["signal"] for s in signals_bob)
+    # Wind alone cannot establish a port authority's signal.
+    assert signals_bob == []
 
 def test_official_bulletin_and_cap_xml_generation():
     """Verify that RSMC-standard weather bulletins and CAP-XML documents are well-formed."""
@@ -37,9 +37,11 @@ def test_official_bulletin_and_cap_xml_generation():
         }
     }
     
-    bulletins = report_service.generate_official_bulletins(sys_mock)
-    assert len(bulletins) >= 3
-    assert any("ADVISORY" in b["title"].upper() or "BULLETIN" in b["title"].upper() for b in bulletins)
+    bulletins = report_service.generate_experimental_analysis(sys_mock)
+    assert len(bulletins) == 1
+    assert bulletins[0]['is_official'] is False
+    assert bulletins[0]['timestamp_utc'] is None
+    assert bulletins[0]['central_pressure_hpa'] is None
     
     cap_xml = report_service.generate_cap_xml(sys_mock)
     assert "<alert" in cap_xml

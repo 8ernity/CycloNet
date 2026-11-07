@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { getApiBaseUrl } from "@/lib/api";
 
 export interface TelemetryPayload {
   type: string;
@@ -8,7 +9,7 @@ export interface TelemetryPayload {
   radar_angle: number;
   pulse: number;
   active_systems_count: number;
-  latest_system: any;
+  latest_system: Record<string, unknown> | null;
   sources_status: Record<string, string>;
   is_syncing: boolean;
   connected_clients: number;
@@ -16,7 +17,7 @@ export interface TelemetryPayload {
 
 export interface EmergencyAlertPush {
   type: string;
-  alert: any;
+  alert: Record<string, unknown>;
   timestamp: string;
 }
 
@@ -32,8 +33,8 @@ export function useCycloneWebSocket() {
   });
   const [isSyncing, setIsSyncing] = useState(false);
   const [connectedClients, setConnectedClients] = useState(1);
-  const [latestAlert, setLatestAlert] = useState<any | null>(null);
-  const [lastPayload, setLastPayload] = useState<any | null>(null);
+  const [latestAlert, setLatestAlert] = useState<Record<string, unknown> | null>(null);
+  const [lastPayload, setLastPayload] = useState<TelemetryPayload | null>(null);
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -43,43 +44,39 @@ export function useCycloneWebSocket() {
     if (process.env.NEXT_PUBLIC_WS_URL) {
       return process.env.NEXT_PUBLIC_WS_URL;
     }
-    if (typeof window !== "undefined") {
-      try {
-        const source = localStorage.getItem("cyclonet_data_source");
-        if (source === "CUSTOM") {
-          const customUrl = localStorage.getItem("cyclonet_custom_api_url");
-          if (customUrl && customUrl.trim()) {
-            const clean = customUrl.trim().replace(/\/+$/, "").replace(/\/api$/, "");
-            const wsProto = clean.startsWith("https://") ? "wss://" : "ws://";
-            const hostPath = clean.replace(/^https?:\/\//, "");
-            return `${wsProto}${hostPath}/ws/cyclone-stream`;
-          }
-        }
-      } catch {
-        // Fallback on restricted storage access
-      }
-
-      const isHttps = window.location.protocol === "https:";
-      const host = window.location.host;
-      if (!host.includes("localhost") && !host.includes("127.0.0.1")) {
-        return `${isHttps ? "wss:" : "ws:"}//cyclonet-backend.onrender.com/ws/cyclone-stream`;
-      }
-    }
-    return "ws://localhost:8000/ws/cyclone-stream";
+    const url = new URL(getApiBaseUrl());
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+    url.pathname = `${url.pathname.replace(/\/+$/, "")}/ws/cyclone-stream`;
+    url.search = "";
+    url.hash = "";
+    return url.toString();
   }, []);
 
-  const connect = useCallback(() => {
+  const connect = useCallback(function connect() {
     if (isUnmountedRef.current) return;
+    if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+    reconnectTimeoutRef.current = null;
+    const previous = socketRef.current;
+    socketRef.current = null;
+    if (previous) {
+      previous.onclose = previous.onmessage = previous.onerror = previous.onopen = null;
+      previous.close();
+    }
+    setIsConnected(false);
+    setLastPayload(null);
+    setLatestAlert(null);
+    setSourcesStatus({});
     try {
       const wsUrl = getWebSocketUrl();
       const ws = new WebSocket(wsUrl);
       socketRef.current = ws;
 
       ws.onopen = () => {
-        if (!isUnmountedRef.current) setIsConnected(true);
+        if (!isUnmountedRef.current && socketRef.current === ws) setIsConnected(true);
       };
 
       ws.onmessage = (event) => {
+        if (isUnmountedRef.current || socketRef.current !== ws) return;
         try {
           const data = JSON.parse(event.data);
           setLastPayload(data);
@@ -99,14 +96,16 @@ export function useCycloneWebSocket() {
       };
 
       ws.onclose = () => {
+        if (isUnmountedRef.current || socketRef.current !== ws) return;
+        socketRef.current = null;
         setIsConnected(false);
-        if (isUnmountedRef.current) return;
         reconnectTimeoutRef.current = setTimeout(() => {
           if (!isUnmountedRef.current) connect();
         }, 3000);
       };
 
       ws.onerror = () => {
+        if (isUnmountedRef.current || socketRef.current !== ws) return;
         setIsConnected(false);
         try {
           ws.close();
@@ -127,16 +126,7 @@ export function useCycloneWebSocket() {
     isUnmountedRef.current = false;
     connect();
 
-    const handleSourceChange = () => {
-      if (socketRef.current) {
-        try {
-          socketRef.current.close();
-        } catch {
-          // ignore
-        }
-      }
-      connect();
-    };
+    const handleSourceChange = () => connect();
 
     if (typeof window !== "undefined") {
       window.addEventListener("cyclonet:data-source-changed", handleSourceChange);

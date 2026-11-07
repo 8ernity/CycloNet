@@ -33,6 +33,16 @@ if REDIS_URL:
         _redis_client = None
 
 # FIX 02: Atomic Redis Lua Scripts for Compare-and-Set / Compare-and-Delete
+ACQUIRE_LOCK_LUA = """
+if redis.call('exists', KEYS[1]) == 1 then return 0 end
+local current = tonumber(redis.call('get', KEYS[2]) or '0')
+local floor = tonumber(ARGV[3])
+if current < floor then redis.call('set', KEYS[2], floor) end
+local generation = redis.call('incr', KEYS[2])
+redis.call('set', KEYS[1], ARGV[1], 'EX', ARGV[2])
+return generation
+"""
+
 RENEW_LOCK_LUA = """
 if redis.call('get', KEYS[1]) == ARGV[1] then
     return redis.call('expire', KEYS[1], tonumber(ARGV[2]))
@@ -100,13 +110,15 @@ def acquire_worker_leader_lock() -> bool:
     # 1. Distributed Redis Lock (FIX 02, FIX-010)
     if _redis_client:
         try:
-            acquired = _redis_client.set(LOCK_KEY, WORKER_TOKEN, nx=True, ex=LOCK_TTL_SECONDS)
+            from app.core.shared_state import generation_floor, claim_generation
+            floor = generation_floor() if ENVIRONMENT == "production" else 0
+            acquired = int(_redis_client.eval(ACQUIRE_LOCK_LUA, 2, LOCK_KEY, f"{LOCK_KEY}:generation",
+                                             WORKER_TOKEN, LOCK_TTL_SECONDS, floor))
             if acquired:
                 global _leader_generation
-                try:
-                    _leader_generation = int(_redis_client.incr(f"{LOCK_KEY}:generation"))
-                except Exception:
-                    _leader_generation += 1
+                _leader_generation = acquired
+                if ENVIRONMENT == "production":
+                    claim_generation(acquired, WORKER_TOKEN)
                 logger.info("[WorkerLock] Process %s acquired Redis distributed leader lock with token %s (epoch %d).", current_pid, WORKER_TOKEN, _leader_generation)
                 _is_leader = True
                 return True
@@ -117,6 +129,10 @@ def acquire_worker_leader_lock() -> bool:
                 return False
         except Exception as e:
             logger.warning("[WorkerLock] Redis lock attempt failed (%s).", e)
+            try:
+                _redis_client.eval(RELEASE_LOCK_LUA, 1, LOCK_KEY, WORKER_TOKEN)
+            except Exception:
+                pass  # The TTL remains the fallback when Redis itself is unreachable.
             if ENVIRONMENT == "production":
                 logger.error("[WorkerLock] In production, filesystem lock is forbidden as multi-instance coordination. Ingestion worker disabled.")
                 _is_leader = False
@@ -151,8 +167,8 @@ def acquire_worker_leader_lock() -> bool:
         return True
     except Exception as e:
         logger.warning("[WorkerLock] Could not evaluate local file leader lock (%s).", e)
-        _is_leader = True
-        return True
+        _is_leader = False
+        return False
 
 def update_worker_heartbeat() -> bool:
     """
@@ -175,6 +191,7 @@ def update_worker_heartbeat() -> bool:
                 return False
         except Exception as e:
             logger.warning("[WorkerLock] Error renewing Redis lock: %s", e)
+            _is_leader = False
             return False
 
     try:

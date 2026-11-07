@@ -38,7 +38,7 @@ function ChangeView({ center, zoom }: { center: [number, number]; zoom: number }
 }
 
 // Fix default Leaflet icon paths
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as L.Icon.Default & { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -50,7 +50,7 @@ interface TrackPoint {
   lon: number;
   time_offset_hours: number;
   category: string;
-  intensity_knots: number;
+  intensity_knots: number | null;
   is_forecast: boolean;
   is_landfall?: boolean;
   is_observed?: boolean;
@@ -63,10 +63,10 @@ interface ActiveSystem {
   category: string;
   lat: number;
   lon: number;
-  intensity_knots: number;
+  intensity_knots: number | null;
   basin?: string;
   track_forecast?: TrackPoint[];
-  landfall_info?: any;
+  landfall_info?: import("@/types/api").LandfallInfo;
   telemetry_type?: string;
   is_simulation?: boolean;
 }
@@ -108,7 +108,8 @@ const MAP_STYLES = {
 type MapStyleKey = keyof typeof MAP_STYLES;
 type InfraFilter = 'all' | 'power' | 'roads' | 'shelters' | 'parametric';
 
-const getIntensityColor = (knots: number) => {
+const getIntensityColor = (knots: number | null) => {
+  if (knots == null) return "#94a3b8";
   if (knots < 34) return "#a855f7"; // Purple (Depression)
   if (knots < 48) return "#3b82f6"; // Blue (Cyclonic Storm)
   if (knots < 64) return "#10b981"; // Green (Severe)
@@ -117,7 +118,8 @@ const getIntensityColor = (knots: number) => {
   return "#7f1d1d"; // Dark Red (Super Cyclone)
 };
 
-const getCategoryAbbr = (cat: string, knots: number): string => {
+const getCategoryAbbr = (cat: string, knots: number | null): string => {
+  if (knots == null) return "Not available";
   const c = (cat || "").toLowerCase();
   if (c.includes("super")) return "SuCS";
   if (c.includes("extremely")) return "ESCS";
@@ -230,7 +232,7 @@ export default function MapComponent({ activeSystem }: MapProps) {
           time_offset_hours: 0, 
           is_forecast: false,
           is_landfall: false,
-          label: `${activeSystem!.intensity_knots}KT,${getCategoryAbbr(activeSystem!.category, activeSystem!.intensity_knots)}`
+          label: `${activeSystem!.intensity_knots ?? "Not available"}KT,${getCategoryAbbr(activeSystem!.category, activeSystem!.intensity_knots)}`
         };
 
     return {
@@ -247,7 +249,7 @@ export default function MapComponent({ activeSystem }: MapProps) {
   }, [currentPoint, forecastPoints]);
 
   const getPointLabel = (pt: TrackPoint) => {
-    let raw = pt.label || "";
+    const raw = pt.label || "";
     const isLandfallPt = pt.is_landfall || (raw && raw.toLowerCase().includes("landfall"));
     if (raw) {
       // Compact badge string e.g. "25/06,35KT,DD (Landfall: Near Kalingapatnam)" -> "25/06 • 35KT • DD (Landfall)"
@@ -267,7 +269,7 @@ export default function MapComponent({ activeSystem }: MapProps) {
     const hr = ptDate.getUTCHours();
     const abbr = getCategoryAbbr(pt.category, pt.intensity_knots);
     const suffix = isLandfallPt ? " • Landfall" : "";
-    return `${String(day).padStart(2, '0')}/${String(hr).padStart(2, '0')} • ${pt.intensity_knots}KT • ${abbr}${suffix}`;
+    return `${String(day).padStart(2, '0')}/${String(hr).padStart(2, '0')} • ${pt.intensity_knots ?? "Not available"}KT • ${abbr}${suffix}`;
   };
 
   return (
@@ -282,7 +284,7 @@ export default function MapComponent({ activeSystem }: MapProps) {
               INSAT-3DR Satellite Live Surveillance
             </h4>
             <p className="text-[10.5px] text-muted-foreground">
-              {activeSystem ? `Tracking: ${activeSystem.name}` : "North Indian Ocean Basin • Real-Time Nominal"}
+              {activeSystem ? `Tracking: ${activeSystem.name}` : "North Indian Ocean Basin • Current status unverified"}
             </p>
           </div>
         </div>
@@ -781,7 +783,7 @@ export default function MapComponent({ activeSystem }: MapProps) {
                     <Popup>
                       <div className="p-1 space-y-1 text-xs">
                         <p className="font-bold text-foreground">{pt.category}</p>
-                        <p className="text-muted-foreground">Wind: <strong className="text-foreground">{pt.intensity_knots} KT ({Math.round(pt.intensity_knots * 1.852)} km/h)</strong></p>
+                        <p className="text-muted-foreground">Wind: <strong className="text-foreground">{pt.intensity_knots ?? "Not available"} KT ({(pt.intensity_knots == null ? null : Math.round(pt.intensity_knots * 1.852))} km/h)</strong></p>
                         <p className="text-muted-foreground">Fix: {pt.lat.toFixed(1)}°N, {pt.lon.toFixed(1)}°E</p>
                         {isLandfallPt && (
                           <p className="font-bold text-red-500 bg-red-500/10 p-1 rounded border border-red-500/20">

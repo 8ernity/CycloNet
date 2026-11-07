@@ -18,13 +18,13 @@ function UnifiedAuthPage() {
     }
   }, [isLoaded, userId]);
 
-  const [isSignUp, setIsSignUp] = useState(initialMode);
+  const isSignUp = initialMode;
   const [resetKey, setResetKey] = useState(0);
 
   const togglePanel = (toSignUp: boolean) => {
     // Increment key to force Clerk to re-mount with a fresh state
     setResetKey(prev => prev + 1);
-    setIsSignUp(toSignUp);
+    router.replace(toSignUp ? "/login?mode=signup" : "/login");
 
     // Clear Clerk's hash state so it doesn't resume a stale flow
     requestAnimationFrame(() => {
@@ -35,10 +35,6 @@ function UnifiedAuthPage() {
       );
     });
   };
-
-  useEffect(() => {
-    setIsSignUp(searchParams?.get('mode') === 'signup');
-  }, [searchParams]);
 
   return (
     <div className="auth-page-bg flex min-h-screen flex-col px-2 py-8 md:p-4 text-white">

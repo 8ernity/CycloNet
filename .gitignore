@@ -82,3 +82,12 @@ backend/tests/**/__pycache__/
 backend/tests/**/*.pyc
 *.lock
 worker_leader.lock
+.verification/
+artifacts/
+.pytest_cache/
+!backend/requirements.lock
+!backend/requirements-linux.lock
+frontend/test-results/
+frontend/playwright-report/
+backend/data/raw/
+backend/data/images/

@@ -7,6 +7,7 @@ import torch.nn as nn
 from torchvision import transforms
 from torchvision.models import resnet50, ResNet50_Weights
 from PIL import Image
+from app.models.checkpoint import CheckpointMetadata, weights_checksum
 
 class CycloneClassifierHead(nn.Module):
     def __init__(self, in_features=2048, num_classes=5):
@@ -67,6 +68,10 @@ class CycloneIntensityService:
         ]
         self.head = None
         self._has_model = False
+        self.checkpoint_loaded = False
+        self.scientifically_validated = False
+        self.demo_model = True
+        self.metadata = None
         self.model_initialized = False
 
         self.transform = transforms.Compose([
@@ -102,52 +107,38 @@ class CycloneIntensityService:
             return
         self.model_initialized = True
 
-        # 1. Initialize backbone without blocking startup or import
-        backbone_pretrained = False
         try:
-            weights = ResNet50_Weights.DEFAULT
-            self.backbone = resnet50(weights=weights).eval()
-            backbone_pretrained = True
-        except Exception as e:
-            # Fix #58 & ML-03: Graceful fallback when weights cannot be downloaded at startup
-            print(f"[Notice] Could not download ImageNet weights at startup ({e}). Falling back to unweighted ResNet-50 backbone.")
-            self.backbone = resnet50(weights=None).eval()
-            backbone_pretrained = False
-
-        for param in self.backbone.parameters():
-            param.requires_grad = False
-        
-        self.feature_extractor = nn.Sequential(*list(self.backbone.children())[:-1]).to(self.device)
-
-        # ML-03 & SEC-09: Require pretrained backbone AND safe weights_only=True deserialization
-        if os.path.exists(self.checkpoint_path) and backbone_pretrained:
-            try:
-                checkpoint = torch.load(self.checkpoint_path, map_location=self.device, weights_only=True)
-                self.classes = checkpoint.get('classes', ['NOT_A_CYCLONE', 'CS', 'SCS', 'VSCS', 'ESCS'])
-                self.class_names = checkpoint.get('class_names', [
-                    'Not a Cyclone (Non-Cyclonic System)',
-                    'Cyclonic Storm (CS)',
-                    'Severe Cyclonic Storm (SCS)',
-                    'Very Severe Cyclonic Storm (VSCS)',
-                    'Extremely Severe Cyclonic Storm (ESCS)'
-                ])
-                in_feat = checkpoint.get('in_features', 2048)
-                n_classes = checkpoint.get('num_classes', len(self.classes))
-                self.head = CycloneClassifierHead(in_features=in_feat, num_classes=n_classes).to(self.device)
-                if 'state_dict' in checkpoint:
-                    self.head.load_state_dict(checkpoint['state_dict'])
-                self.head.eval()
-                self._has_model = True
-                print(f"Loaded trained PyTorch weights from: {self.checkpoint_path}")
-                return
-            except Exception as e:
-                print(f"Error loading PyTorch checkpoint from {self.checkpoint_path}: {e}")
-
-        # Fallback initialization so inference never throws AttributeError
-        self.head = CycloneClassifierHead(in_features=2048, num_classes=5).to(self.device)
-        self.head.eval()
-        self._has_model = False
-        print(f"Notice: Initialized fallback classifier head (checkpoint path: {self.checkpoint_path})")
+            checkpoint = torch.load(self.checkpoint_path, map_location=self.device, weights_only=True)
+            meta = CheckpointMetadata.model_validate(checkpoint["metadata"])
+            if meta.class_mapping != self.classes or checkpoint.get("num_classes") != len(self.classes):
+                raise ValueError("Checkpoint class mapping does not match inference head")
+            if checkpoint.get("uncalibrated_demo", False) and not meta.demo_model:
+                raise ValueError("Contradictory demo metadata")
+            if checkpoint.get("model_status", meta.model_status) != meta.model_status:
+                raise ValueError("Contradictory model status")
+            states = {"backbone": checkpoint["backbone_state_dict"], "head": checkpoint["state_dict"]}
+            if weights_checksum(states) != meta.checkpoint_checksum:
+                raise ValueError("Checkpoint checksum mismatch")
+            # All backbone weights are part of the artifact; no network download or random fallback.
+            self.backbone = resnet50(weights=None).to(self.device)
+            self.backbone.load_state_dict(states["backbone"], strict=True)
+            self.backbone.eval()
+            for param in self.backbone.parameters():
+                param.requires_grad = False
+            self.feature_extractor = nn.Sequential(*list(self.backbone.children())[:-1])
+            self.head = CycloneClassifierHead(num_classes=len(self.classes)).to(self.device)
+            self.head.load_state_dict(states["head"], strict=True)
+            self.head.eval()
+            self.metadata = meta
+            self.demo_model = meta.demo_model
+            # Validation must also be approved by the deployment's artifact allowlist.
+            trusted = set(os.getenv("VALIDATED_MODEL_CHECKSUMS", "").split(","))
+            self.scientifically_validated = meta.scientifically_validated and meta.checkpoint_checksum in trusted
+            self.checkpoint_loaded = self._has_model = True
+        except Exception as exc:
+            self.checkpoint_loaded = self._has_model = False
+            self.scientifically_validated = False
+            self.load_error = str(exc)
 
     def _extract_features(self, t: torch.Tensor) -> torch.Tensor:
         """Forward pass through ResNet-50 up to layer4."""
@@ -223,7 +214,10 @@ class CycloneIntensityService:
                 'status': 'CHECKPOINT_NOT_LOADED',
                 'confidence_status': 'INSUFFICIENT_CONFIDENCE',
                 'is_reliable': False,
-                'operational_status': 'EXPERIMENTAL_DECISION_SUPPORT_ONLY',
+                'operational_status': 'EXPERIMENTAL',
+                'model_type': 'DEMO' if self.demo_model else 'RESEARCH',
+                'scientifically_validated': self.scientifically_validated,
+                'checkpoint_loaded': self.checkpoint_loaded,
                 'is_cyclone': False,
                 'category': 'Model Checkpoint Not Loaded',
                 'category_short': 'UNINITIALIZED',
@@ -287,11 +281,11 @@ class CycloneIntensityService:
                 uncertainty_flag = "UNCERTAIN_PREDICTION"
             elif msp >= 0.80 and normalized_entropy <= 0.40 and margin >= 0.40:
                 confidence_status = "HIGH_CONFIDENCE"
-                is_reliable = bool(self.has_model)
+                is_reliable = bool(self.scientifically_validated and not self.demo_model)
                 uncertainty_flag = "NORMAL"
             else:
                 confidence_status = "MODERATE_CONFIDENCE"
-                is_reliable = bool(self.has_model)
+                is_reliable = bool(self.scientifically_validated and not self.demo_model)
                 uncertainty_flag = "NORMAL"
             
         if is_abstained:
@@ -299,7 +293,10 @@ class CycloneIntensityService:
                 'status': 'INSUFFICIENT_CONFIDENCE',
                 'confidence_status': 'INSUFFICIENT_CONFIDENCE',
                 'is_reliable': False,
-                'operational_status': 'EXPERIMENTAL_DECISION_SUPPORT_ONLY',
+                'operational_status': 'EXPERIMENTAL',
+                'model_type': 'DEMO' if self.demo_model else 'RESEARCH',
+                'scientifically_validated': self.scientifically_validated,
+                'checkpoint_loaded': self.checkpoint_loaded,
                 'is_cyclone': False,
                 'is_abstained': True,
                 'uncertainty_flag': 'UNCERTAIN_PREDICTION',
@@ -317,7 +314,7 @@ class CycloneIntensityService:
                     'margin': round(margin, 3),
                     'energy_score': round(energy_score, 3),
                     'heuristic_method': 'Normalized Shannon Entropy + MSP Floor + Free Energy Score',
-                    'scientific_status': 'CALIBRATED_UNCERTAINTY_SCREENING',
+                    'scientific_status': 'UNCALIBRATED_HEURISTIC_SCREENING',
                     'disclaimer': 'Entropy, margin, and free energy scores provide empirical predictive uncertainty screening. Operational certification requires validation against independent multi-sensor OOD benchmark datasets (FIX-006).'
                 },
                 'abstention_reason': f'Input image shows high predictive uncertainty (normalized entropy: {normalized_entropy:.2f}, MSP: {msp:.2f}, margin: {margin:.2f}). The classifier abstains from forced prediction on ambiguous or out-of-distribution patterns (FIX-006).',
@@ -327,9 +324,9 @@ class CycloneIntensityService:
                 'wind_speed_knots': None,
                 'wind_speed_estimate_available': False,
                 'intensity_notice': 'Operational quantitative wind speeds and Dvorak T-numbers require calibrated objective thermal infrared (TIR) analysis. Category classification alone does not substitute for numerical wind retrieval (ML-06).',
-                'checkpoint_status': 'TRAINED_CHECKPOINT_LOADED' if self.has_model else 'DEMO_PRETRAINED_BACKBONE',
-                'is_trained_weights': self.has_model,
-                'is_uncalibrated_demo': not self.has_model,
+                'checkpoint_status': 'DEMO_CHECKPOINT_LOADED' if self.demo_model else 'RESEARCH_CHECKPOINT_LOADED',
+                'is_trained_weights': bool(self.metadata and self.metadata.training_complete),
+                'is_uncalibrated_demo': self.demo_model,
                 'warning': 'Predictive uncertainty exceeded confidence threshold; prediction abstained to prevent false hazard alerts.',
                 'model_architecture': 'ResNet-50 + Custom Classifier Head (PyTorch)',
                 'domain_transfer_status': 'RGB_SURROGATE_SURFACE',
@@ -352,7 +349,10 @@ class CycloneIntensityService:
             'status': 'SUCCESS',
             'confidence_status': confidence_status,
             'is_reliable': is_reliable,
-            'operational_status': 'EXPERIMENTAL_DECISION_SUPPORT_ONLY',
+            'operational_status': 'EXPERIMENTAL',
+                'model_type': 'DEMO' if self.demo_model else 'RESEARCH',
+                'scientifically_validated': self.scientifically_validated,
+                'checkpoint_loaded': self.checkpoint_loaded,
             'is_cyclone': is_cyclone,
             'is_abstained': False,
             'uncertainty_flag': uncertainty_flag,
@@ -370,7 +370,7 @@ class CycloneIntensityService:
                 'margin': round(margin, 3),
                 'energy_score': round(energy_score, 3),
                 'heuristic_method': 'Normalized Shannon Entropy + MSP Floor + Free Energy Score',
-                'scientific_status': 'CALIBRATED_UNCERTAINTY_SCREENING',
+                'scientific_status': 'UNCALIBRATED_HEURISTIC_SCREENING',
                 'disclaimer': 'Entropy, margin, and free energy scores provide empirical predictive uncertainty screening.'
             },
             'recommendation': 'Experimental decision support output only. Consult official IMD / RSMC bulletins for operational advisories.',
@@ -379,10 +379,10 @@ class CycloneIntensityService:
             'wind_speed_knots': None,
             'wind_speed_estimate_available': False,
             'intensity_notice': 'Operational quantitative wind speeds and Dvorak T-numbers require calibrated objective thermal infrared (TIR) analysis. Category classification alone does not substitute for numerical wind retrieval (ML-06).',
-            'checkpoint_status': 'TRAINED_CHECKPOINT_LOADED' if self.has_model else 'DEMO_PRETRAINED_BACKBONE',
-            'is_trained_weights': self.has_model,
-            'is_uncalibrated_demo': not self.has_model,
-            'warning': None if self.has_model else "Model weights are uncalibrated random initializations; output is for architectural demonstration purposes only.",
+            'checkpoint_status': 'DEMO_CHECKPOINT_LOADED' if self.demo_model else 'RESEARCH_CHECKPOINT_LOADED',
+            'is_trained_weights': bool(self.metadata and self.metadata.training_complete),
+            'is_uncalibrated_demo': self.demo_model,
+            'warning': None if self.scientifically_validated else "Experimental model: not independently validated for operational decisions.",
             'model_architecture': 'ResNet-50 + Custom Classifier Head (PyTorch)',
             'domain_transfer_status': 'RGB_SURROGATE_SURFACE',
             'domain_notice': 'Transfer learning backbone (ResNet-50) is pretrained on ImageNet optical natural images. Operational cyclone categorization requires fine-tuning on calibrated INSAT-3DR / Meteosat-9 infrared brightness temperature grids (TIR1/TIR2/WV).',

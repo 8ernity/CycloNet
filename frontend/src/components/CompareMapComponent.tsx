@@ -16,7 +16,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
 // Fix default Leaflet icon paths
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as L.Icon.Default & { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -36,7 +36,7 @@ interface TrackPoint {
   lon: number;
   time_offset_hours: number;
   category: string;
-  intensity_knots: number;
+  intensity_knots: number | null;
   is_forecast: boolean;
   is_landfall?: boolean;
   label?: string;
@@ -47,9 +47,9 @@ interface CycloneComparisonSystem {
   name: string;
   basin: string;
   category: string;
-  intensity_knots: number;
+  intensity_knots: number | null;
   track_forecast?: TrackPoint[];
-  landfall_info?: any;
+  landfall_info?: import("@/types/api").LandfallInfo;
 }
 
 interface CompareMapProps {
@@ -103,7 +103,7 @@ export default function CompareMapComponent({ system1, system2 }: CompareMapProp
     let maxK = -1;
     let idx = -1;
     pts1.forEach((p, i) => {
-      if (p.intensity_knots > maxK) {
+      if (p.intensity_knots != null && p.intensity_knots > maxK) {
         maxK = p.intensity_knots;
         idx = i;
       }
@@ -116,7 +116,7 @@ export default function CompareMapComponent({ system1, system2 }: CompareMapProp
     let maxK = -1;
     let idx = -1;
     pts2.forEach((p, i) => {
-      if (p.intensity_knots > maxK) {
+      if (p.intensity_knots != null && p.intensity_knots > maxK) {
         maxK = p.intensity_knots;
         idx = i;
       }
@@ -298,20 +298,20 @@ export default function CompareMapComponent({ system1, system2 }: CompareMapProp
                       }`}>
                         {isLandfall && <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />}
                         {isPeak && <span>⭐ PEAK:</span>}
-                        <span>{system1.name}: {pt.intensity_knots}KT {isLandfall ? "(Landfall)" : ""}</span>
+                        <span>{system1.name}: {pt.intensity_knots ?? "Not available"}KT {isLandfall ? "(Landfall)" : ""}</span>
                       </div>
                     </Tooltip>
                   ) : (
                     <Tooltip direction="top" offset={[0, -6]}>
                       <span className="font-mono text-[10px] font-bold">
-                        {system1.name}: {pt.intensity_knots} KT • {pt.category}
+                        {system1.name}: {pt.intensity_knots ?? "Not available"} KT • {pt.category}
                       </span>
                     </Tooltip>
                   )}
                   <Popup>
                     <div className="p-1.5 space-y-1 text-xs">
                       <p className="font-bold text-cyan-400">{system1.name} — {pt.category}</p>
-                      <p className="text-muted-foreground">Wind: <strong className="text-white">{pt.intensity_knots} KT ({Math.round(pt.intensity_knots * 1.852)} km/h)</strong></p>
+                      <p className="text-muted-foreground">Wind: <strong className="text-white">{pt.intensity_knots ?? "Not available"} KT ({(pt.intensity_knots == null ? null : Math.round(pt.intensity_knots * 1.852))} km/h)</strong></p>
                       <p className="text-muted-foreground">Fix: {pt.lat.toFixed(1)}°N, {pt.lon.toFixed(1)}°E</p>
                       {isLandfall && (
                         <p className="font-bold text-red-400 bg-red-950/50 p-1 rounded border border-red-500/30">
@@ -373,20 +373,20 @@ export default function CompareMapComponent({ system1, system2 }: CompareMapProp
                       }`}>
                         {isLandfall && <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />}
                         {isPeak && <span>⭐ PEAK:</span>}
-                        <span>{system2.name}: {pt.intensity_knots}KT {isLandfall ? "(Landfall)" : ""}</span>
+                        <span>{system2.name}: {pt.intensity_knots ?? "Not available"}KT {isLandfall ? "(Landfall)" : ""}</span>
                       </div>
                     </Tooltip>
                   ) : (
                     <Tooltip direction="top" offset={[0, -6]}>
                       <span className="font-mono text-[10px] font-bold">
-                        {system2.name}: {pt.intensity_knots} KT • {pt.category}
+                        {system2.name}: {pt.intensity_knots ?? "Not available"} KT • {pt.category}
                       </span>
                     </Tooltip>
                   )}
                   <Popup>
                     <div className="p-1.5 space-y-1 text-xs">
                       <p className="font-bold text-amber-400">{system2.name} — {pt.category}</p>
-                      <p className="text-muted-foreground">Wind: <strong className="text-white">{pt.intensity_knots} KT ({Math.round(pt.intensity_knots * 1.852)} km/h)</strong></p>
+                      <p className="text-muted-foreground">Wind: <strong className="text-white">{pt.intensity_knots ?? "Not available"} KT ({(pt.intensity_knots == null ? null : Math.round(pt.intensity_knots * 1.852))} km/h)</strong></p>
                       <p className="text-muted-foreground">Fix: {pt.lat.toFixed(1)}°N, {pt.lon.toFixed(1)}°E</p>
                       {isLandfall && (
                         <p className="font-bold text-red-400 bg-red-950/50 p-1 rounded border border-red-500/30">

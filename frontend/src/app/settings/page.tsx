@@ -1,4 +1,5 @@
 "use client";
+import { useMounted, useStoredValue } from "@/hooks/useBrowserState";
 import React, { useState, useEffect } from "react";
 import { Settings, Moon, Sun, Bell, Database, Check, RefreshCw, Radio, Globe, Shield, ArrowRight } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -7,25 +8,20 @@ import { useDataSource, DataSourceType } from "@/hooks/useDataSource";
 
 export default function SettingsPage() {
   const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  const [notifications, setNotifications] = useState(true);
-  const [smsAlerts, setSmsAlerts] = useState(false);
-  const [customUrlInput, setCustomUrlInput] = useState("");
+  const mounted = useMounted();
+  const [notificationsStored, storeNotifications] = useStoredValue("cyclonet_daily_notifications", "true");
+  const notifications = notificationsStored === "true";
+  const setNotifications = (value: boolean) => storeNotifications(String(value));
+  const [smsStored, storeSms] = useStoredValue("cyclonet_sms_alerts", "false");
+  const smsAlerts = smsStored === "true";
+  const setSmsAlerts = (value: boolean) => storeSms(String(value));
+  const [customUrlDraft, setCustomUrlInput] = useState<string | null>(null);
   const [testingCustomUrl, setTestingCustomUrl] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
   const { dataSource, customApiUrl, setDataSource, setCustomApiUrl, getSourceBadge } = useDataSource();
 
-  useEffect(() => {
-    setMounted(true);
-    setCustomUrlInput(customApiUrl);
-    if (typeof window !== "undefined") {
-      const savedNotifs = localStorage.getItem("cyclonet_daily_notifications");
-      if (savedNotifs !== null) setNotifications(savedNotifs === "true");
-      const savedSms = localStorage.getItem("cyclonet_sms_alerts");
-      if (savedSms !== null) setSmsAlerts(savedSms === "true");
-    }
-  }, [customApiUrl]);
+  const customUrlInput = customUrlDraft ?? customApiUrl;
 
   const showToast = (msg: string) => {
     setToast(msg);

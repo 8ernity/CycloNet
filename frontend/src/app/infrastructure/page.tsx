@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import { type SurgeCalculation, type SurgeSector, type RainfallPathway, type Briefing, type DispatchResult, type CatalogItem } from "@/types/api";
+import React, { useState, useEffect, useSyncExternalStore } from "react";
 import { 
   Building2, Zap, Navigation, Coins, Landmark, ShieldCheck, 
   Waves, RefreshCw, CheckCircle2, Download, Filter, MapPin, 
@@ -10,7 +11,7 @@ import {
 } from "lucide-react";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
-import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
+import { API_BASE_URL, getApiBaseUrl, apiFetch } from "@/lib/api";
 import { 
   POWER_SUBSTATIONS, 
   EVACUATION_ROUTES, 
@@ -31,7 +32,7 @@ interface ActiveSystem {
   basin: string;
   lat: number;
   lon: number;
-  intensity_knots: number;
+  intensity_knots: number | null;
   category: string;
 }
 
@@ -44,6 +45,8 @@ const PRESET_STORMS = [
   { id: "ARB01-2021", name: "Cyclone Tauktae", basin: "Arabian Sea", category: "Extremely Severe Cyclonic Storm", knots: 100 },
 ];
 
+function subscribeLocation(notify: () => void) { window.addEventListener("popstate", notify); return () => window.removeEventListener("popstate", notify); }
+function readTab() { const tab = new URLSearchParams(window.location.search).get("tab"); return tab === "surge" ? "surge_rain" : tab ?? "grid"; }
 export default function InfrastructurePage() {
   const { selectedCycloneId, selectCyclone } = useActiveCyclone();
   const { getConvertedKnots, getConvertedKmh, getConvertedGusts, getConvertedCategory, getSourceBadge } = useDataSource();
@@ -52,7 +55,9 @@ export default function InfrastructurePage() {
   const [system, setSystem] = useState<ActiveSystem | null>(null);
   const [loading, setLoading] = useState(true);
   const [cyclonesList, setCyclonesList] = useState(PRESET_STORMS);
-  const [activeTab, setActiveTab] = useState<"grid" | "routes" | "shelters" | "surge_rain" | "dispatch" | "insurance">("grid");
+  const queryTab = useSyncExternalStore(subscribeLocation, readTab, () => "grid");
+  const [tabOverride, setActiveTab] = useState<string | null>(null);
+  const activeTab = tabOverride ?? queryTab;
   const [infraFilter, setInfraFilter] = useState<"all" | "critical" | "high">("all");
   const [searchFilter, setSearchFilter] = useState<string>("" );
   const [regionFilter, setRegionFilter] = useState<string>("ALL");
@@ -65,15 +70,15 @@ export default function InfrastructurePage() {
   const [simForwardSpeed, setSimForwardSpeed] = useState<number>(18);
   const [simAngleDeg, setSimAngleDeg] = useState<number>(75);
   const [simRainMm, setSimRainMm] = useState<number>(240);
-  const [surgeCalcData, setSurgeCalcData] = useState<any>(null);
-  const [surgeSectors, setSurgeSectors] = useState<any[]>([]);
-  const [rainfallPathways, setRainfallPathways] = useState<any[]>([]);
-  const [geeLayers, setGeeLayers] = useState<any[]>([]);
+  const [surgeCalcData, setSurgeCalcData] = useState<SurgeCalculation | null>(null);
+  const [surgeSectors, setSurgeSectors] = useState<SurgeSector[]>([]);
+  const [rainfallPathways, setRainfallPathways] = useState<RainfallPathway[]>([]);
+  const [geeLayers, setGeeLayers] = useState<Record<string, unknown>[]>([]);
 
   // Gemini 3.7 Flash Pre-Landfall Briefing State
   const [briefingModalOpen, setBriefingModalOpen] = useState(false);
   const [briefingLoading, setBriefingLoading] = useState(false);
-  const [briefingData, setBriefingData] = useState<any>(null);
+  const [briefingData, setBriefingData] = useState<Briefing | null>(null);
   const [briefingLanguage, setBriefingLanguage] = useState<string>("en");
 
   // Automated Multi-Channel Warning Dispatcher State
@@ -82,7 +87,7 @@ export default function InfrastructurePage() {
   const [dispatchChannels, setDispatchChannels] = useState<string[]>(["CAP", "SMS", "SACHET", "SIREN", "VHF"]);
   const [dispatchLoading, setDispatchLoading] = useState<boolean>(false);
   const [dispatchStep, setDispatchStep] = useState<number>(0);
-  const [dispatchResult, setDispatchResult] = useState<any>(null);
+  const [dispatchResult, setDispatchResult] = useState<DispatchResult | null>(null);
   const [dispatchViewerTab, setDispatchViewerTab] = useState<"cap" | "sms" | "sachet" | "siren" | "vhf" | "directives">("cap");
 
   // Parametric insurance simulation state
@@ -102,7 +107,7 @@ export default function InfrastructurePage() {
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
-            setCyclonesList(data.map((c: any) => ({
+            setCyclonesList(data.map((c: CatalogItem) => ({
               id: c.id,
               name: c.name.startsWith("Cyclone ") || c.name.startsWith("Deep Depression") || c.name.startsWith("Depression") || c.name.startsWith("Super Cyclone") || c.name.includes("Cyclone") ? c.name : `Cyclone ${c.name}`,
               basin: c.basin || "Bay of Bengal",
@@ -119,44 +124,23 @@ export default function InfrastructurePage() {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tabParam = params.get("tab");
-      if (tabParam === "insurance") setActiveTab("insurance");
-      else if (tabParam === "shelters") setActiveTab("shelters");
-      else if (tabParam === "routes") setActiveTab("routes");
-      else if (tabParam === "dispatch") setActiveTab("dispatch");
-      else if (tabParam === "surge" || tabParam === "surge_rain") setActiveTab("surge_rain");
-      else if (tabParam === "grid") setActiveTab("grid");
-    }
-  }, []);
-
-  useEffect(() => {
     const fetchSystem = async () => {
       setLoading(true);
       try {
         const url = `${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${encodeURIComponent(selectedCycloneId || "BOB05-2026")}`;
         const res = await fetch(url);
+        if (!res.ok) throw new Error("Source unavailable");
         if (res.ok) {
           const data = await res.json();
           if (data && data.length > 0) {
             setSystem(data[0]);
-            setSimWindKts(data[0].intensity_knots || 85);
-            setSimPressureHpa(1010 - Math.round((data[0].intensity_knots || 85) * 0.65));
+            setSimWindKts(data[0].intensity_knots ?? simWindKts);
+            if (data[0].central_pressure_hpa != null) setSimPressureHpa(data[0].central_pressure_hpa);
           }
         }
       } catch {
-        const fallback = cyclonesList.find(s => s.id === selectedCycloneId) || PRESET_STORMS[0];
-        setSystem({
-          id: fallback.id,
-          name: fallback.name,
-          basin: fallback.basin,
-          lat: 18.2,
-          lon: 84.8,
-          intensity_knots: fallback.knots,
-          category: fallback.category
-        });
-        setSimWindKts(fallback.knots || 85);
+        setSystem(null);
+        setToast("Source unavailable. Controls remain an illustrative simulation; no live assessment is available.");
       } finally {
         setLoading(false);
       }
@@ -164,12 +148,12 @@ export default function InfrastructurePage() {
     fetchSystem();
   }, [selectedCycloneId]);
 
-  const rawKnots = simWindKts || system?.intensity_knots || 85;
+  const rawKnots = simWindKts;
   const knots = getConvertedKnots(rawKnots);
   const kmh = getConvertedKmh(rawKnots);
   const gusts = getConvertedGusts(rawKnots);
   const displayCategory = getConvertedCategory(rawKnots, system?.category);
-  const surgeM = Number((Math.max(0.8, (knots * 0.035) + 0.5)).toFixed(1));
+  const surgeM = knots == null ? null : Number((Math.max(0.8, (knots * 0.035) + 0.5)).toFixed(1));
 
   // Compute live Hydrodynamic Surge & GEE pathways
   useEffect(() => {
@@ -225,100 +209,24 @@ export default function InfrastructurePage() {
         channels: dispatchChannels,
         cyclone_name: system?.name || "Active Cyclone"
       };
-      const res = await fetch(`${getApiBaseUrl()}/api/alerts/dispatch`, {
+      const data = await apiFetch<DispatchResult>("/api/alerts/dispatch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-      if (res.ok) {
-        const data = await res.json();
+      {
         setTimeout(() => {
           setDispatchResult(data);
           setDispatchLoading(false);
           setDispatchStep(5);
-          showToast(`Advisory Dispatched! CAP-CP XML & 5 broadcast channels active.`);
+          showToast(`Exercise generated. No real broadcast was sent.`);
         }, 2600);
-      } else {
-        throw new Error("Dispatch request returned error");
       }
     } catch {
-      // Local fallback simulation generator (Drill / Exercise mode per OASIS CAP standard)
-      setTimeout(() => {
-        const fakeDispatch = {
-          status: "SIMULATED_EXERCISE_DISPATCH",
-          dispatch_id: `SIM-DRILL-CAP-${Math.floor(10000000 + Math.random() * 90000000)}`,
-          timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19) + " UTC",
-          region: dispatchRegion,
-          risk_level: dispatchRiskLevel,
-          storm_surge_m: surgeCalcData?.peak_surge_height_m || surgeM,
-          wind_speed_kts: simWindKts,
-          wind_speed_kmh: Math.round(simWindKts * 1.852),
-          channels_requested: dispatchChannels,
-          channels_delivered: {
-            CAP: { status: "SIMULATED", format: "OASIS CAP-CP v1.2 XML (Exercise)", dispatched_to: "Local Exercise Buffer" },
-            SMS: { status: "SIMULATED", format: "Cell Broadcast 3-Lang SMS Template", dispatched_to: "Drill Simulator" },
-            SACHET: { status: "SIMULATED", format: "NDMA SACHET Geo-Push Template", payload_status: "Simulated Test Payload (Drill Mode - No Live Subscribers)" },
-            SIREN: { status: "SIMULATED", format: "Acoustic Warning Array Template", schema_status: "Simulated Acoustic Protocol Trigger" },
-            VHF: { status: "SIMULATED", format: "Marine NAVTEX / VHF Ch 16 Broadcast", coverage: "Drill Channel" }
-          },
-          cap_xml: `<?xml version="1.0" encoding="UTF-8"?>
-<alert xmlns="urn:oasis:names:tc:emergency:cap:1.2">
-  <identifier>SIM-DRILL-CAP-${Math.floor(10000000 + Math.random() * 90000000)}</identifier>
-  <sender>simulation-engine@cyclonet.local</sender>
-  <sent>${new Date().toISOString()}</sent>
-  <status>Exercise</status>
-  <msgType>Alert</msgType>
-  <scope>Restricted</scope>
-  <code>NDMA-CAP-CP-v1.2-EXERCISE</code>
-  <info>
-    <category>Met</category>
-    <event>Simulated Tropical Cyclone Evacuation Drill</event>
-    <urgency>Expected</urgency>
-    <severity>Extreme</severity>
-    <certainty>Observed</certainty>
-    <headline>[EXERCISE / DRILL] ${dispatchRiskLevel} ALERT: ${system?.name || "Cyclone"} Threat Approaching ${dispatchRegion}</headline>
-    <description>[DRILL - NOT A REAL EMERGENCY] Peak surge ${surgeCalcData?.peak_surge_height_m || surgeM}m, winds ${simWindKts} kts (${Math.round(simWindKts*1.852)} km/h). Evacuation simulation protocol.</description>
-    <instruction>[EXERCISE DIRECTIVE] Move to designated shelters during drill exercise. Test power backup generators.</instruction>
-  </info>
-</alert>`,
-          sms_payload: {
-            english: `[EXERCISE ONLY] CYCLONET DRILL ALERT: ${dispatchRiskLevel} cyclone risk in ${dispatchRegion}. Peak surge ${surgeCalcData?.peak_surge_height_m || surgeM}m, wind ${Math.round(simWindKts*1.852)} km/h. Evacuation drill active.`,
-            hindi: `[केवल अभ्यास] चक्रवात ड्रिल चेतावनी: ${dispatchRegion} में ${dispatchRiskLevel} चक्रवात अभ्यास। आपातकालीन नंबर 1070।`,
-            regional: `[শুধুমাত্র মহড়া] জরুরি সাইক্লোন মহড়া সতর্কতা: ${dispatchRegion} উপকূলে ${dispatchRiskLevel} সাইক্লোন মহড়া।`
-          },
-          sachet_payload: {
-            alert_id: "SIM-DRILL-CAP-DEMO",
-            provider: "NDMA SACHET Drill Simulator",
-            incident_type: "CYCLONE_STORM_SURGE_EXERCISE",
-            target_zone: dispatchRegion,
-            risk_score: 94,
-            action_directive: "DRILL_EVACUATION",
-            safe_shelters_active: 18
-          },
-          siren_payload: {
-            siren_array_status: "TEST_ACTIVATION",
-            target_towers: 320,
-            sound_pressure_level: "130 dB @ 30m (Drill Tone)",
-            pulse_pattern: "Test pattern: 3-minute rising warble followed by 1-minute silent gap"
-          },
-          vhf_payload: `[DRILL - DRILL - DRILL] ALL STATIONS, ALL STATIONS. THIS IS COAST GUARD DRILL SIMULATION. ${dispatchRiskLevel} CYCLONE EXERCISE IN FORCE FOR ${dispatchRegion.toUpperCase()}. TEST PURPOSES ONLY. OUT.`,
-          municipal_briefing: [
-            `[EXERCISE ONLY] Simulated evacuation drill of ${dispatchRegion} coastal belt (< 3.0m elevation AMSL).`,
-            `Pre-stage NDRF/SDRF water-rescue teams with motorized boats at identified drainage choke points.`,
-            `Simulate temporary shutdown of exposed 220kV/33kV coastal substations to test islanding microgrids.`,
-            `Verify emergency DG diesel generator power backups and satellite comms at all Multipurpose Shelters.`
-          ],
-          audit_trail: {
-            initiator: "CycloNet Anticipatory Early Warning Drill Engine (Offline Fallback)",
-            dispatch_latency_ms: 142,
-            cryptographic_hash: "SHA256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-          }
-        };
-        setDispatchResult(fakeDispatch);
-        setDispatchLoading(false);
-        setDispatchStep(5);
-        showToast("Backend offline: Generated Exercise Drill template (OASIS Exercise mode).");
-      }, 2600);
+      setDispatchResult(null);
+      setDispatchLoading(false);
+      setDispatchStep(0);
+      showToast("Exercise request failed. No broadcast was sent.");
     }
   };
 
@@ -334,15 +242,12 @@ export default function InfrastructurePage() {
         surge_m: surgeCalcData?.peak_surge_height_m || surgeM,
         basin: system?.basin || "Bay of Bengal"
       };
-      const res = await fetch(`${getApiBaseUrl()}/api/ai/pre-landfall-briefing`, {
+      const data = await apiFetch<{briefing: Briefing}>("/api/ai/pre-landfall-briefing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ storm_data: stormPayload, language: lang })
       });
-      if (res.ok) {
-        const data = await res.json();
-        setBriefingData(data.briefing);
-      }
+      setBriefingData(data.briefing);
     } catch (err) {
       console.error("Failed to generate briefing", err);
     } finally {
@@ -358,7 +263,7 @@ export default function InfrastructurePage() {
   // Filtered Substations with IVF Scores
   const analyzedSubstations = POWER_SUBSTATIONS.map(sub => ({
     ...sub,
-    ivf: calculateSubstationVulnerability(sub, simWindKts, surgeCalcData?.peak_surge_height_m || surgeM, simRainMm)
+    ivf: calculateSubstationVulnerability(sub, simWindKts, surgeCalcData?.peak_surge_height_m ?? surgeM ?? undefined, simRainMm)
   }));
 
   const filteredSubstations = analyzedSubstations.filter(sub => {
@@ -373,7 +278,7 @@ export default function InfrastructurePage() {
   // Filtered Routes with Vulnerability
   const analyzedRoutes = EVACUATION_ROUTES.map(r => ({
     ...r,
-    vuln: calculateRouteVulnerability(r, simWindKts, surgeCalcData?.peak_surge_height_m || surgeM, simRainMm)
+    vuln: calculateRouteVulnerability(r, simWindKts, surgeCalcData?.peak_surge_height_m ?? surgeM ?? undefined, simRainMm)
   }));
 
   // Filtered Shelters with Suitability
@@ -1168,7 +1073,7 @@ export default function InfrastructurePage() {
                       Critical Choke Points (ETA & Inundation Depth):
                     </p>
                     <div className="space-y-1.5 font-mono">
-                      {path.critical_choke_points?.map((chk: any, cIdx: number) => (
+                      {path.critical_choke_points?.map((chk, cIdx) => (
                         <div key={cIdx} className="p-2 rounded bg-red-500/10 border border-red-500/20 flex items-center justify-between">
                           <div>
                             <span className="font-bold text-foreground block">{chk.name}</span>
@@ -1389,7 +1294,7 @@ export default function InfrastructurePage() {
                   ].map((t) => (
                     <button
                       key={t.id}
-                      onClick={() => setDispatchViewerTab(t.id as any)}
+                      onClick={() => setDispatchViewerTab(t.id as typeof dispatchViewerTab)}
                       className={`px-2.5 py-1 rounded text-xs font-semibold cursor-pointer transition-all ${
                         dispatchViewerTab === t.id ? "bg-primary text-primary-foreground font-bold shadow-xs" : "text-muted-foreground hover:text-foreground"
                       }`}
@@ -1420,7 +1325,7 @@ export default function InfrastructurePage() {
 
               {dispatchViewerTab === "sms" && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {Object.entries(dispatchResult.sms_payload || {}).map(([lang, txt]: any) => (
+                  {Object.entries(dispatchResult.sms_payload || {}).map(([lang, txt]) => (
                     <div key={lang} className="p-4 rounded-xl bg-secondary/30 border border-border space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-xs font-bold uppercase tracking-wider text-primary">{lang} Broadcast</span>

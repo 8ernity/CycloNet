@@ -16,49 +16,18 @@ MAX_WEBSOCKET_CONNECTIONS = int(os.getenv("MAX_WS_CONNECTIONS", "100"))
 MAX_WS_MESSAGE_BYTES = 4096  # 4 KB limit for client-to-server WebSocket messages
 CLIENT_SEND_TIMEOUT_SECONDS = 1.5
 
-ALLOWED_ORIGINS_ENV = os.getenv("ALLOWED_ORIGINS", "")
-ALLOWED_ORIGIN_PATTERNS = [
-    o.strip().lower() for o in ALLOWED_ORIGINS_ENV.split(",") if o.strip()
-] if ALLOWED_ORIGINS_ENV else [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "https://cyclonet-frontend.onrender.com"
-]
+from app.core.origins import configured_origins, normalize_origin
 
-from urllib.parse import urlparse
 
 def is_origin_allowed(origin: Optional[str]) -> bool:
-    """
-    SEC-08: Strictly validates WebSocket origin header against explicit allowed origins.
-    Never uses substring checks like 'localhost in origin'.
-    """
-    if not origin:
-        return True  # Non-browser clients, health monitors, or same-origin direct calls
-
-    try:
-        parsed = urlparse(origin)
-        scheme = parsed.scheme.lower()
-        if scheme not in ("http", "https", "ws", "wss"):
-            return False
-        hostname = (parsed.hostname or "").lower()
-        port = parsed.port
-        origin_clean = f"{scheme}://{hostname}{f':{port}' if port else ''}"
-
-        for allowed in ALLOWED_ORIGIN_PATTERNS:
-            allowed_clean = allowed.rstrip("/").lower()
-            if allowed_clean == "*":
-                if os.getenv("ENVIRONMENT") == "production":
-                    continue
-                return True
-            if origin_clean == allowed_clean:
-                return True
-            # Safely match localhost on local development ports
-            if allowed_clean in ("http://localhost:3000", "http://127.0.0.1:3000"):
-                if hostname in ("localhost", "127.0.0.1") and port in (3000, 3001, 8000):
-                    return True
+    # This is a public telemetry stream; non-browser clients may omit Origin.
+    if origin is None:
+        return True
+    normalized = normalize_origin(origin)
+    if normalized is None:
         return False
-    except Exception:
-        return False
+    allowed = configured_origins()
+    return normalized in allowed or "*" in allowed
 
 class SecureWebSocketManager:
     """

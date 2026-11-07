@@ -34,7 +34,9 @@ if REDIS_URL:
         logger.info("[RateLimit] Successfully connected to Redis at %s", REDIS_URL.split("@")[-1])
     except Exception as e:
         logger.warning("[RateLimit] Could not initialize Redis client (%s); fallback policy active.", e)
-        _redis_client = None
+        # Keep a constructed client's connection pool: subsequent requests retry
+        # after a transient startup outage. Production still fails closed until
+        # an atomic Redis check succeeds. Invalid configuration leaves it None.
 
 # FIX 01: Single atomic Redis Lua script evaluating both minute and hour sliding windows
 # KEYS[1] = minute key, KEYS[2] = hour key
@@ -229,7 +231,7 @@ def enforce_rate_limit(
         allowed, remaining, retry_after = redis_res
     else:
         # In production with fail-closed policy enabled, reject if distributed Redis is down
-        if ENVIRONMENT == "production" and REDIS_FAIL_CLOSED:
+        if ENVIRONMENT == "production":
             logger.error("[RateLimit] Redis unavailable in production with REDIS_FAIL_CLOSED=true; failing closed.")
             raise HTTPException(
                 status_code=503,

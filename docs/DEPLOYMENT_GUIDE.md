@@ -74,8 +74,8 @@ The platform is provisioned declaratively via the root [render.yaml](../render.y
 |---|---|---|---|
 | `NEXT_PUBLIC_API_URL` | Yes | `https://cyclonet-backend.onrender.com` | Root URL for first-party backend REST requests |
 | `NEXT_PUBLIC_WS_URL` | Yes | `wss://cyclonet-backend.onrender.com/ws/live` | WebSocket URL for live radar stream |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Yes | `pk_live_...` | Clerk Client Authentication Key |
-| `CLERK_SECRET_KEY` | Yes | `sk_live_...` | Clerk Backend Secret Key |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Yes | `<your-clerk-publishable-key>` | Clerk Client Authentication Key |
+| `CLERK_SECRET_KEY` | Yes | `<your-clerk-backend-api-secret>` | Clerk Backend Secret Key |
 | `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | No | `/login` | Auth redirect route |
 
 ---

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal
 from app.models.domain import CycloneArchive, ActiveCycloneState
 from app.models.feed_result import FeedResult, FeedStatus
+from app.services.feed_policy import assess_feed, reconcile, parse_time, fresh, BASINS
 from app.services.ml_service import ml_service
 
 def get_default_active_bob_system() -> Dict[str, Any]:
@@ -33,7 +34,8 @@ def get_default_active_bob_system() -> Dict[str, Any]:
         "id": "BOB05-2026",
         "name": "Deep Depression (BOB-05)",
         "basin": "Bay of Bengal",
-        "source": "IMD RSMC New Delhi (Baseline Model Dataset)",
+        "source": "CycloNet synthetic demonstration fixture",
+        "is_simulation": True,
         "data_state": "DEMONSTRATION_PRESET",
         "is_live_telemetry": False,
         "is_measured_observation": False,
@@ -63,7 +65,7 @@ def get_default_active_bob_system() -> Dict[str, Any]:
             {"lat": 16.2, "lon": 87.1, "time_offset_hours": -48, "category": "Depression", "intensity_knots": 25, "is_forecast": False, "is_observed": False, "origin_type": "SIMULATION_WAYPOINT", "label": make_live_label(-48, 25, "Depression", "Genesis in Central BoB")},
             {"lat": 17.0, "lon": 86.2, "time_offset_hours": -24, "category": "Deep Depression", "intensity_knots": 30, "is_forecast": False, "is_observed": False, "origin_type": "SIMULATION_WAYPOINT", "label": make_live_label(-24, 30, "Deep Depression", "Intensification in West-Central BoB")},
             {"lat": 17.8, "lon": 85.2, "time_offset_hours": -12, "category": "Deep Depression", "intensity_knots": 35, "is_forecast": False, "is_observed": False, "origin_type": "SIMULATION_WAYPOINT", "label": make_live_label(-12, 35, "Deep Depression", "Approach to Coast")},
-            {"lat": 18.1, "lon": 83.7, "time_offset_hours": 0, "category": "Deep Depression", "intensity_knots": 35, "is_forecast": False, "is_observed": True, "origin_type": "SIMULATION_CENTER_FIX", "label": make_live_label(0, 35, "Deep Depression", "Simulation Center - Coastal Crossing near Kalingapatnam")},
+            {"lat": 18.1, "lon": 83.7, "time_offset_hours": 0, "category": "Deep Depression", "intensity_knots": 35, "is_forecast": False, "is_observed": False, "origin_type": "SIMULATION_CENTER_FIX", "label": make_live_label(0, 35, "Deep Depression", "Simulation Center - Coastal Crossing near Kalingapatnam")},
             {"lat": 19.2, "lon": 82.8, "time_offset_hours": 12, "category": "Depression", "intensity_knots": 25, "is_forecast": True, "is_observed": False, "origin_type": "SIMULATION_WAYPOINT", "label": make_live_label(12, 25, "Depression", "Inland over South Odisha / North AP")},
             {"lat": 20.5, "lon": 81.5, "time_offset_hours": 24, "category": "Well Marked Low", "intensity_knots": 18, "is_forecast": True, "is_observed": False, "origin_type": "SIMULATION_WAYPOINT", "label": make_live_label(24, 18, "Well Marked Low", "Dissipation over Chhattisgarh")}
         ]
@@ -78,14 +80,14 @@ class LiveIngestionService:
     """
 
     def __init__(self):
-        self.last_sync: Optional[datetime.datetime] = datetime.datetime.utcnow()
+        self.last_sync: Optional[datetime.datetime] = None
         self.is_syncing: bool = False
         self.last_error: Optional[str] = None
         self.sources_status: Dict[str, str] = {
-            "IMD_RSMC": "NO_ACTIVE_STORMS",
-            "JTWC_NOAA": "NO_ACTIVE_STORMS",
-            "GDACS_UN": "NO_ACTIVE_STORMS",
-            "ISRO_MOSDAC": "NO_ACTIVE_STORMS"
+            "IMD_RSMC": "UNAVAILABLE",
+            "JTWC_NOAA": "UNAVAILABLE",
+            "GDACS_UN": "UNAVAILABLE",
+            "ISRO_MOSDAC": "UNAVAILABLE"
         }
         self.last_successful_sync: Dict[str, Optional[datetime.datetime]] = {
             "IMD_RSMC": None,
@@ -109,10 +111,13 @@ class LiveIngestionService:
                 rec = db.query(ActiveCycloneState).filter(ActiveCycloneState.id == "CURRENT_ACTIVE_SYSTEMS").first()
                 if rec and rec.systems_json:
                     return json.loads(rec.systems_json)
+                if os.getenv('ENVIRONMENT', '').lower() == 'production':
+                    raise RuntimeError('Shared active state is missing; migration required')
             finally:
                 db.close()
         except Exception:
-            pass
+            if os.getenv("ENVIRONMENT", "development").lower() == "production":
+                raise
         return getattr(self, "_in_memory_systems", [])
 
     @live_systems.setter
@@ -120,6 +125,13 @@ class LiveIngestionService:
         """
         Persists active cyclone state into DB/shared storage for multi-process cross-worker synchronization.
         """
+        if os.getenv("ENVIRONMENT", "development").lower() == "production":
+            from app.core import process_lock
+            from app.core.shared_state import commit_systems
+            generation = getattr(self, "_sync_generation", process_lock.get_leader_generation())
+            commit_systems(systems, generation, process_lock.WORKER_TOKEN, process_lock.update_worker_heartbeat)
+            self._in_memory_systems = systems
+            return
         self._in_memory_systems = systems
         try:
             db = SessionLocal()
@@ -151,6 +163,10 @@ class LiveIngestionService:
         if self.is_syncing:
             return {"status": "already_syncing", "message": "Synchronization is already in progress"}
 
+        from app.core import process_lock
+        if os.getenv("ENVIRONMENT", "development").lower() == "production" and not process_lock.update_worker_heartbeat():
+            raise RuntimeError("Only the active lease owner may ingest")
+        self._sync_generation = process_lock.get_leader_generation()
         self.is_syncing = True
         self.last_error = None
         discovered_systems: List[Dict[str, Any]] = []
@@ -186,48 +202,22 @@ class LiveIngestionService:
                 elif r.error:
                     self.last_error = f"{r.source}: {r.error}"
 
-            # Aggregate systems from healthy feeds
-            for r in results:
-                if r.status == FeedStatus.HEALTHY:
-                    for isys in r.systems:
-                        if not is_duplicate(isys, discovered_systems):
-                            discovered_systems.append(isys)
-
-            healthy_count = sum(1 for r in results if r.status in [FeedStatus.HEALTHY, FeedStatus.NO_ACTIVE_STORMS])
-            failed_count = sum(1 for r in results if r.status in [FeedStatus.FAILED, FeedStatus.UNAVAILABLE])
-
-            if discovered_systems:
-                for system in discovered_systems:
-                    self._calibrate_system_telemetry(system)
-                    self._persist_to_database(system)
-                self.live_systems = discovered_systems
-                status_label = "success" if failed_count == 0 else "partial_monitoring"
-            else:
-                if healthy_count == len(results):
-                    # All feeds are healthy and confirmed calm basin
-                    self.live_systems = []
-                    status_label = "success"
-                elif healthy_count > 0:
-                    # Some feeds healthy with 0 storms, others failed: partial monitoring
-                    self.live_systems = []
-                    status_label = "partial_monitoring"
-                else:
-                    # ALL feeds failed: CRITICAL OUTAGE!
-                    # Preserve last known valid records as STALE, DO NOT declare calm (FIX-001)
-                    status_label = "outage"
-                    current = list(self.live_systems)
-                    if current:
-                        for s in current:
-                            s["data_state"] = "STALE"
-                            s["is_stale"] = True
-                            s["telemetry_badge"] = "STALE TELEMETRY (OUTAGE)"
-                        self.live_systems = current
-                    print("[Live Ingestion Alert] CRITICAL: All cyclone monitoring feeds are currently UNAVAILABLE!")
+            systems, retired = reconcile(self.live_systems, results)
+            for system in systems:
+                self._calibrate_system_telemetry(system)
+            self.live_systems = systems
+            healthy_count = sum(r.status in (FeedStatus.HEALTHY, FeedStatus.NO_ACTIVE_STORMS) for r in results)
+            status_label = "success" if healthy_count == len(results) else "partial_monitoring" if healthy_count else "outage"
+            self.basin_status = "ACTIVE_VERIFIED" if any(s.get("reconciliation_status") == "ACTIVE_VERIFIED" for s in systems) else "STATUS_UNCERTAIN"
+            if not systems and all(r.status == FeedStatus.NO_ACTIVE_STORMS and r.calm_evidence and r.complete_coverage for r in results):
+                self.basin_status = "NO_ACTIVE_STORMS_VERIFIED"
+            self.retired_systems = retired
 
             self.last_sync = datetime.datetime.utcnow()
 
             return {
                 "status": status_label,
+                "basin_status": self.basin_status,
                 "synced_at": self.last_sync.isoformat() + "Z",
                 "active_systems_count": len(self.live_systems),
                 "systems": self.live_systems,
@@ -352,7 +342,8 @@ class LiveIngestionService:
                     if doc_match:
                         doc_id = doc_match.group(1).strip()
 
-                    obs_time_dt = None
+                    date_match = re.search(r"\b(20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|\+00:00))", text_content)
+                    obs_time_dt = parse_time(date_match.group(1)) if date_match else None
 
                     if has_active_bulletin:
                         for kw in keywords:
@@ -408,14 +399,14 @@ class LiveIngestionService:
                                         "wind_intensity": "OBSERVED" if knots_val is not None else "UNAVAILABLE",
                                         "center_fix": "OBSERVED"
                                     },
-                                    "observation_time_utc": None
+                                    "observation_time_utc": obs_time_dt.isoformat() if obs_time_dt else None
                                 })
                                 break
 
                         if systems:
                             self.sources_status["IMD_RSMC"] = "HEALTHY"
                             self.last_successful_sync["IMD_RSMC"] = datetime.datetime.utcnow()
-                            return FeedResult(
+                            return assess_feed(
                                 source="IMD_RSMC",
                                 status=FeedStatus.HEALTHY,
                                 systems=systems,
@@ -426,7 +417,7 @@ class LiveIngestionService:
                         else:
                             self.sources_status["IMD_RSMC"] = "NO_ACTIVE_STORMS"
                             self.last_successful_sync["IMD_RSMC"] = datetime.datetime.utcnow()
-                            return FeedResult(
+                            return assess_feed(
                                 source="IMD_RSMC",
                                 status=FeedStatus.NO_ACTIVE_STORMS,
                                 systems=[],
@@ -437,7 +428,7 @@ class LiveIngestionService:
                     else:
                         self.sources_status["IMD_RSMC"] = "NO_ACTIVE_STORMS"
                         self.last_successful_sync["IMD_RSMC"] = datetime.datetime.utcnow()
-                        return FeedResult(
+                        return assess_feed(
                             source="IMD_RSMC",
                             status=FeedStatus.NO_ACTIVE_STORMS,
                             systems=[],
@@ -446,7 +437,7 @@ class LiveIngestionService:
                         )
                 else:
                     self.sources_status["IMD_RSMC"] = f"FAILED (HTTP {resp.status_code})"
-                    return FeedResult(
+                    return assess_feed(
                         source="IMD_RSMC",
                         status=FeedStatus.FAILED,
                         systems=[],
@@ -456,7 +447,7 @@ class LiveIngestionService:
         except Exception as e:
             self.sources_status["IMD_RSMC"] = f"FAILED ({type(e).__name__})"
             self.last_error = f"IMD fetch error: {e}"
-            return FeedResult(
+            return assess_feed(
                 source="IMD_RSMC",
                 status=FeedStatus.FAILED,
                 systems=[],
@@ -480,13 +471,16 @@ class LiveIngestionService:
                         root = ET.fromstring(resp.content)
                     except Exception as parse_err:
                         self.sources_status["GDACS_UN"] = f"FAILED (XML Parse Error: {type(parse_err).__name__})"
-                        return FeedResult(
+                        return assess_feed(
                             source="GDACS_UN",
                             status=FeedStatus.FAILED,
                             systems=[],
                             error=f"XML parse error: {parse_err}",
                             source_url=url
                         )
+                    channel = root.find("channel")
+                    if root.tag != "rss" or channel is None or "gdacs" not in (channel.findtext("title") or "").lower():
+                        return assess_feed(source="GDACS_UN", status=FeedStatus.FAILED, error="Unrecognized GDACS document", source_url=url)
                     ns_geo = "{http://www.georss.org/georss}"
                     
                     for item in root.findall(".//item"):
@@ -554,7 +548,7 @@ class LiveIngestionService:
                     if systems:
                         self.sources_status["GDACS_UN"] = "HEALTHY"
                         self.last_successful_sync["GDACS_UN"] = datetime.datetime.utcnow()
-                        return FeedResult(
+                        return assess_feed(
                             source="GDACS_UN",
                             status=FeedStatus.HEALTHY,
                             systems=systems,
@@ -563,7 +557,7 @@ class LiveIngestionService:
                     else:
                         self.sources_status["GDACS_UN"] = "NO_ACTIVE_STORMS"
                         self.last_successful_sync["GDACS_UN"] = datetime.datetime.utcnow()
-                        return FeedResult(
+                        return assess_feed(
                             source="GDACS_UN",
                             status=FeedStatus.NO_ACTIVE_STORMS,
                             systems=[],
@@ -571,7 +565,7 @@ class LiveIngestionService:
                         )
                 else:
                     self.sources_status["GDACS_UN"] = f"FAILED (HTTP {resp.status_code})"
-                    return FeedResult(
+                    return assess_feed(
                         source="GDACS_UN",
                         status=FeedStatus.FAILED,
                         systems=[],
@@ -580,7 +574,7 @@ class LiveIngestionService:
                     )
         except Exception as e:
             self.sources_status["GDACS_UN"] = f"FAILED ({type(e).__name__})"
-            return FeedResult(
+            return assess_feed(
                 source="GDACS_UN",
                 status=FeedStatus.FAILED,
                 systems=[],
@@ -604,8 +598,9 @@ class LiveIngestionService:
                     text_content = resp.text
                     is_valid_xml = False
                     try:
-                        ET.fromstring(resp.content)
-                        is_valid_xml = True
+                        xml_root = ET.fromstring(resp.content)
+                        channel = xml_root.find("channel")
+                        is_valid_xml = xml_root.tag == "rss" and channel is not None and "jtwc" in (channel.findtext("title") or "").lower()
                     except Exception:
                         pass
 
@@ -613,7 +608,7 @@ class LiveIngestionService:
 
                     if not is_valid_xml and not is_valid_plain_bulletin:
                         self.sources_status["JTWC_NOAA"] = "FAILED (Malformed Payload)"
-                        return FeedResult(
+                        return assess_feed(
                             source="JTWC_NOAA",
                             status=FeedStatus.FAILED,
                             systems=[],
@@ -621,6 +616,9 @@ class LiveIngestionService:
                             source_url=url
                         )
 
+                    issue = None
+                    if is_valid_xml:
+                        issue = parse_time(channel.findtext("lastBuildDate") or channel.findtext("pubDate"))
                     io_matches = list(re.finditer(r"(Tropical Cyclone\s+(\d+[AB]))\s*(.*?)(?=(?:Tropical Cyclone\s+\d+[AB])|$)", text_content, re.IGNORECASE | re.DOTALL))
                     for match in io_matches:
                         full_title = match.group(1)
@@ -673,13 +671,14 @@ class LiveIngestionService:
                                 "wind_intensity": "OBSERVED" if knots_val is not None else "UNAVAILABLE",
                                 "center_fix": "OBSERVED"
                             },
-                            "observation_time_utc": None
+                            "observation_time_utc": None,  # RSS build time is not a physical storm observation
+                            "source_issue_time_utc": issue.isoformat() if issue else None
                         })
 
                     if systems:
                         self.sources_status["JTWC_NOAA"] = "HEALTHY"
                         self.last_successful_sync["JTWC_NOAA"] = datetime.datetime.utcnow()
-                        return FeedResult(
+                        return assess_feed(
                             source="JTWC_NOAA",
                             status=FeedStatus.HEALTHY,
                             systems=systems,
@@ -688,7 +687,7 @@ class LiveIngestionService:
                     else:
                         self.sources_status["JTWC_NOAA"] = "NO_ACTIVE_STORMS"
                         self.last_successful_sync["JTWC_NOAA"] = datetime.datetime.utcnow()
-                        return FeedResult(
+                        return assess_feed(
                             source="JTWC_NOAA",
                             status=FeedStatus.NO_ACTIVE_STORMS,
                             systems=[],
@@ -696,7 +695,7 @@ class LiveIngestionService:
                         )
                 else:
                     self.sources_status["JTWC_NOAA"] = f"FAILED (HTTP {resp.status_code})"
-                    return FeedResult(
+                    return assess_feed(
                         source="JTWC_NOAA",
                         status=FeedStatus.FAILED,
                         systems=[],
@@ -705,7 +704,7 @@ class LiveIngestionService:
                     )
         except Exception as e:
             self.sources_status["JTWC_NOAA"] = f"FAILED ({type(e).__name__})"
-            return FeedResult(
+            return assess_feed(
                 source="JTWC_NOAA",
                 status=FeedStatus.FAILED,
                 systems=[],
@@ -728,18 +727,6 @@ class LiveIngestionService:
         if "depression" in t:
             return "Depression"
         return "Cyclonic Storm"
-
-    def _category_to_knots(self, category: str) -> int:
-        cat_map = {
-            "Depression": 25,
-            "Deep Depression": 35,
-            "Cyclonic Storm": 45,
-            "Severe Cyclonic Storm": 55,
-            "Very Severe Cyclonic Storm": 75,
-            "Extremely Severe Cyclonic Storm": 100,
-            "Super Cyclonic Storm": 135
-        }
-        return cat_map.get(category, 35)
 
     def _calibrate_system_telemetry(self, system: Dict[str, Any]):
         """
@@ -775,155 +762,32 @@ class LiveIngestionService:
         system["dvorak_t"] = dvorak_t
         system["dvorak_derivation_method"] = dvorak_derivation_method
         system["dvorak_is_empirical_estimate"] = dvorak_is_empirical
-        system["track_generation_method"] = "Official Live Fix (0h) + Experimental Kinematic Extrapolation (Decision Support Layer Only)"
+        has_forecast = any(point.get("is_forecast") for point in system.get("track_forecast", []))
+        if has_forecast:
+            system.setdefault("track_generation_method", "Supplied track; generation method unverified")
+        else:
+            system["track_generation_method"] = "Simulation center fix only; forecast unavailable" if system.get("is_simulation") else "Source center fix only; forecast unavailable"
+        provenance = "SIMULATION" if system.get("is_simulation") else "OBSERVED_FEED"
         system["telemetry_attribution"] = {
-            "center_fix": "OBSERVED_FEED",
-            "intensity_knots": "OBSERVED_FEED" if knots is not None else "UNAVAILABLE",
+            "center_fix": provenance,
+            "intensity_knots": provenance if knots is not None else "UNAVAILABLE",
             "dvorak_t": "PARAMETRIC_ESTIMATE" if knots is not None else "UNAVAILABLE",
-            "trajectory_forecast": "EXPERIMENTAL_KINEMATIC_EXTRAPOLATION",
+            "trajectory_forecast": "UNAVAILABLE" if not has_forecast else system["track_generation_method"],
             "track_accuracy_claim": "UNVERIFIED_EXPERIMENTAL_LAYER",
             "satellite_image_dvorak": "AVAILABLE_IN_CLASSIFICATION_TAB"
         }
 
         if not system.get("track_forecast"):
-            import math
-            lat = float(system["lat"])
-            lon = float(system["lon"])
-            cat = system["category"]
-            knots_init = float(knots) if knots is not None else 35.0
-            
-            now_utc = datetime.datetime.now(datetime.timezone.utc)
-            synoptic_hour = (now_utc.hour // 6) * 6
-            base_time = now_utc.replace(hour=synoptic_hour, minute=0, second=0, microsecond=0)
-            
-            def make_live_lbl(offset_h: int, knots_val: int, cat_name: str, desc_txt: str) -> str:
-                pt_time = base_time + datetime.timedelta(hours=offset_h)
-                cat_l = cat_name.lower()
-                abbr = "DD" if "deep" in cat_l else ("D" if "dep" in cat_l else ("WML" if "low" in cat_l else "CS"))
-                return f"{pt_time.day:02d}/{pt_time.hour:02d},{knots_val}KT,{abbr} ({desc_txt})"
-
-            def classify_knots(kt: float) -> str:
-                if kt >= 120: return "Super Cyclonic Storm (SuCS)"
-                if kt >= 90: return "Extremely Severe Cyclonic Storm (ESCS)"
-                if kt >= 64: return "Very Severe Cyclonic Storm (VSCS)"
-                if kt >= 48: return "Severe Cyclonic Storm (SCS)"
-                if kt >= 34: return "Cyclonic Storm (CS)"
-                if kt >= 28: return "Deep Depression (DD)"
-                if kt >= 17: return "Depression (D)"
-                return "Well Marked Low (WML)"
-
-            is_bay_of_bengal = lon > 78.0
-            u_env_kmh = -12.5 if is_bay_of_bengal else -10.0
-            v_env_kmh = 14.0 if is_bay_of_bengal else 11.5
-            
-            # FIX-003: Strictly official 0h fix, NO synthetic past waypoints
-            track = [
-                {
-                    "lat": round(lat, 2),
-                    "lon": round(lon, 2),
-                    "time_offset_hours": 0,
-                    "category": cat,
-                    "intensity_knots": int(knots) if knots is not None else None,
-                    "is_forecast": False,
-                    "is_observed": True,
-                    "method": "OFFICIAL_OBSERVATION",
-                    "origin_type": "OBSERVED_CENTER_FIX",
-                    "label": make_live_lbl(0, int(knots) if knots is not None else 0, cat, "Observed Live Center"),
-                    "issue_time_utc": system.get("observation_time_utc") or datetime.datetime.utcnow().isoformat() + "Z",
-                    "source": system.get("source", "Official Observation")
-                }
-            ]
-
-            curr_lat = lat
-            curr_lon = lon
-            forecast_horizons = [12, 24, 48]
-            prev_h = 0
-
-            for target_h in forecast_horizons:
-                dt_h = target_h - prev_h
-                prev_h = target_h
-                
-                lat_rad = math.radians(curr_lat)
-                cos_lat = max(0.2, math.cos(lat_rad))
-                
-                v_beta_kmh = 9.2 * cos_lat
-                u_beta_kmh = -5.8 * cos_lat
-                
-                u_tot_kmh = u_env_kmh + u_beta_kmh
-                v_tot_kmh = v_env_kmh + v_beta_kmh
-                
-                d_lat = (v_tot_kmh * dt_h) / 111.0
-                d_lon = (u_tot_kmh * dt_h) / (111.0 * cos_lat)
-                
-                curr_lat += d_lat
-                curr_lon += d_lon
-                
-                decay_alpha = 0.022 if target_h <= 24 else 0.038
-                v_baseline = 20.0
-                if knots is not None:
-                    pred_knots = v_baseline + (knots_init - v_baseline) * math.exp(-decay_alpha * target_h)
-                    pred_knots = max(18.0, round(pred_knots, 1))
-                    pred_cat = classify_knots(pred_knots)
-                    pred_knots_int = int(pred_knots)
-                else:
-                    pred_knots_int = None
-                    pred_cat = cat
-                
-                track.append({
-                    "lat": round(curr_lat, 2),
-                    "lon": round(curr_lon, 2),
-                    "time_offset_hours": target_h,
-                    "category": pred_cat,
-                    "intensity_knots": pred_knots_int,
-                    "is_forecast": True,
-                    "is_observed": False,
-                    "method": "EXPERIMENTAL_EXTRAPOLATION",
-                    "origin_type": "EXPERIMENTAL_EXTRAPOLATION",
-                    "label": make_live_lbl(target_h, pred_knots_int or 0, pred_cat, f"+{target_h}h Experimental Kinematic Extrapolation"),
-                    "issue_time_utc": datetime.datetime.utcnow().isoformat() + "Z",
-                    "source": "CycloNet Experimental Extrapolation (Decision Support Layer Only)"
-                })
-
-            system["track_forecast"] = track
-
-    def _persist_to_database(self, system: Dict[str, Any]):
-        """
-        Saves discovered active cyclone to database catalog if not already tracked.
-        Excludes synthetic demo injections (LIVE-09) and sets dynamic observation dates (LIVE-10).
-        """
-        if system.get("is_simulation") or system.get("source_type") == "DEMO" or "SIM-" in system.get("id", ""):
-            return
-
-        try:
-            db: Session = SessionLocal()
-            sys_id = system["id"]
-            clean_name = system.get("name", "").strip()
-            current_year = datetime.datetime.utcnow().year
-
-            # Check for existing record by exact ID or matching name in current year
-            existing = db.query(CycloneArchive).filter(
-                (CycloneArchive.id == sys_id) |
-                ((CycloneArchive.name.ilike(f"%{clean_name}%")) & (CycloneArchive.year == current_year))
-            ).first()
-            
-            obs_date = datetime.datetime.utcnow().strftime("%d %b %Y")
-            if not existing and clean_name:
-                db.add(CycloneArchive(
-                    id=sys_id,
-                    name=clean_name,
-                    year=current_year,
-                    basin=system["basin"],
-                    max_category=system["category"],
-                    dates=f"{obs_date} (Active Telemetry)"
-                ))
-                db.commit()
-            elif existing:
-                existing.dates = f"{obs_date} (Active Telemetry)"
-                existing.name = clean_name
-                db.commit()
-            db.close()
-        except Exception as e:
-            print(f"[Live Ingestion DB Warning] Could not persist to cyclone_archive: {e}")
+            system["track_generation_method"] = "Simulation center fix only; forecast unavailable" if system.get("is_simulation") else "Source center fix only; forecast unavailable"
+            system["track_forecast"] = [{
+                "lat": system["lat"], "lon": system["lon"], "time_offset_hours": 0,
+                "category": system["category"], "intensity_knots": knots, "is_forecast": False,
+                "is_observed": not system.get("is_simulation", False),
+                "method": "SIMULATION" if system.get("is_simulation") else "OFFICIAL_OBSERVATION",
+                "origin_type": "SIMULATION_CENTER_FIX" if system.get("is_simulation") else "OBSERVED_CENTER_FIX",
+                "label": f"Wind: {str(knots) + ' KT' if knots is not None else 'Not available'}; source time: {system.get('observation_time_utc') or 'Not available'}",
+                "issue_time_utc": system.get("observation_time_utc"), "source": system.get("source")
+            }]
 
     def inject_test_system(self, name: str = "Shakti", basin: str = "Bay of Bengal", category: str = "Very Severe Cyclonic Storm", knots: int = 75) -> Dict[str, Any]:
         """

@@ -75,14 +75,6 @@ def seed_historical_data(db: Session):
         {"id": "BOB06-1999", "name": "Odisha Super Cyclone", "year": 1999, "basin": "Bay of Bengal", "max_category": "Super Cyclonic Storm", "dates": "25 Oct - 04 Nov 1999"},
     ]
     
-    # Ensure 'dates' column exists if SQLite table was created previously without it
-    try:
-        from sqlalchemy import text
-        db.execute(text("ALTER TABLE cyclone_archive ADD COLUMN dates VARCHAR"))
-        db.commit()
-    except Exception:
-        db.rollback()
-
     for item in historical_systems:
         existing = db.query(CycloneArchive).filter_by(id=item["id"]).first()
         if not existing:
