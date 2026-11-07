@@ -66,6 +66,7 @@ docs/v5-baseline-matrix-before.xml
 docs/v5-browser-results.xml
 docs/v5-changed-files.txt
 docs/v5-eslint-summary.json
+docs/v5-hosted-ci-results.json
 docs/v5-integration-results.xml
 docs/v5-linux-install.txt
 docs/v5-linux-results.xml

@@ -1,9 +1,10 @@
 # V5 remediation report
 
 Baseline: `e097c977e5ad2334670420c4d62ebd9de3efac14`. Date: 7 November 2026.
-Implementation commit: `006b35a69488f7af2e02ef940dee8da86336a4bd`, local branch `staging`.
-A documentation/evidence commit follows; resolve the final SHA with `git rev-parse staging`.
-No push, hosted CI execution, or deployment was performed.
+Published implementation: `cd1bbc62174d46d932eb27078f337cf8b4486c46` on `staging`.
+[Draft PR #2](https://github.com/8ernity/CycloNet/pull/2) contains the tested tree.
+Original local commit history is preserved on `codex/v5-local-history`.
+No Render deployment was performed.
 
 ## Outcome
 
@@ -35,7 +36,7 @@ No scientific accuracy, operational disaster-warning authority, or high-availabi
 
 | Gate | Final result |
 |---|---|
-| Backend with exact upgraded lock, Windows | **131 passed**, no failures or skips |
+| Backend with exact upgraded lock, Windows | **137 passed**, no failures or skips |
 | Clean Linux hashed CPU install and backend suite | **131 passed**, no failures or skips |
 | PostgreSQL/Redis integration | Included in full suite; all pass |
 | Browser regression suite | **3 passed** |
@@ -66,7 +67,7 @@ Disposable task downloads were removed and system disk space recovered.
    training-eligible rows. Synthetic tests do not establish cyclone classification accuracy.
 2. Implement and independently evaluate an authenticated satellite flood pipeline before enabling
    that capability. It currently returns unavailable, with no fabricated observation polygons.
-3. Run the configured hosted CI workflow and deploy to a configured staging environment. Verify actual
+3. Configure the missing Clerk CI secrets, complete frontend hosted checks, and deploy to staging. Verify actual
    Clerk roles/tokens, Render settings, feed availability, monitoring and production recovery/failover.
    This session did not change a hosted service or validate a production service-level objective.
 
@@ -81,7 +82,8 @@ Portable regressions for FIX-007/008/009/010/011 fail on the audit baseline and 
 corrected implementation (`v5-regression-matrix.json`). The wrong-issuer test already passed
 baseline and remains green; it is not counted as a newly reproduced defect. The global storm
 split defect was independently reproduced before correction (`v5-scientific-before.xml`).
-The final Windows and clean Linux backend suites each pass 131 tests with no skips.
+The earlier Windows and clean Linux backend suites each passed 131 tests with no skips.
+After the CSV admission fixes, Windows and hosted Linux each pass 137 tests.
 After the final line-ending correction, all four scientific-data regressions passed again.
 
 See [Scientific data and staging verification](SCIENTIFIC_DATA_AND_STAGING.md) for source
@@ -103,3 +105,13 @@ open/click/find calls for NOAA, Earth Engine, Render and Gitleaks documentation.
 Source links and data provenance are in `SCIENTIFIC_DATA_AND_STAGING.md`. No browser
 fallback was used. Initial web-tool access to the HURSAT root failed; webcmd and the
 linked NOAA archive succeeded. Authenticated GitHub/Render/Earth Engine access remains blocked.
+
+## Hosted verification follow-up
+
+[GitHub Actions run 42387321058](https://github.com/8ernity/CycloNet/actions/runs/42387321058)
+passed all 137 backend tests, both Python dependency audits and secret scanning. Frontend
+audit, lint, typecheck and unit checks passed. Production build and browser checks were
+skipped after the Clerk configuration gate found both required repository secrets empty.
+`v5-hosted-ci-results.json` records the job IDs, commit, tree and backend artifact digest.
+Render is installed but its read-only tools still return `MCP -32001 Unknown tool`; no
+workspace or service state could be verified. This supersedes earlier access statements.

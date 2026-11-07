@@ -1,0 +1,41 @@
+{
+  "commit": "cd1bbc62174d46d932eb27078f337cf8b4486c46",
+  "tree": "941731d3b54fe99daf5954f2cf5abc912cfe24a3",
+  "pull_request": "https://github.com/8ernity/CycloNet/pull/2",
+  "run_id": 42387321058,
+  "url": "https://github.com/8ernity/CycloNet/actions/runs/42387321058",
+  "backend": {
+    "job_id": 128447356509,
+    "status": "success",
+    "tests_passed": 137,
+    "pytest_seconds": 6.09,
+    "dependency_audits": "No known vulnerabilities found",
+    "artifact_id": 13579973577,
+    "artifact_digest": "sha256:469b84d90df7eaaa6b75966f191522ce5d10244d154575f90607d89d6e9e1bc4"
+  },
+  "secrets": {
+    "job_id": 128447356512,
+    "status": "success"
+  },
+  "frontend": {
+    "job_id": 128447356285,
+    "status": "failure",
+    "passed": [
+      "npm ci",
+      "npm audit",
+      "lint",
+      "typecheck",
+      "unit tests"
+    ],
+    "failed": "Clerk test configuration: both repository secrets absent",
+    "skipped": [
+      "production build",
+      "browser checks"
+    ]
+  },
+  "render": {
+    "plugin_installed": true,
+    "read_only_error": "MCP -32001 Unknown tool",
+    "resources_changed": false
+  }
+}

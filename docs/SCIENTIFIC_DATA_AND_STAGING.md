@@ -92,10 +92,13 @@ credentials only if that optional feature is enabled. Do not put secrets in YAML
 
 The GitHub workflow supports push, pull request, and manual dispatch. It explicitly
 checks for the two Clerk test-instance repository secrets before frontend build/browser
-checks. Hosted CI is blocked: no GitHub connector is currently available and the local
-Git credential helper returned no usable authenticated credential. Public git reads work.
-Render has no connected tool or configured credentials in this session, so service
-existence, deployment, managed backup, failover, monitoring and live Clerk tokens are unverified.
+checks. Hosted CI has now run on the published `staging` branch and draft PR #2.
+All 137 backend tests, Python audits, secret scanning and frontend audit/lint/typecheck/
+unit checks pass. The authenticated frontend gate is blocked by the two missing Clerk
+repository secrets; the connector does not expose secret management.
+Render is installed and the user completed reconnection, but workspace/service reads
+still return `MCP -32001 Unknown tool`. No Render resource state or deployment has been
+verified. See `v5-hosted-ci-results.json` for hosted evidence.
 
 ## Earth Engine
 

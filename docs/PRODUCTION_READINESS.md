@@ -45,7 +45,10 @@ in [Scientific data and staging verification](SCIENTIFIC_DATA_AND_STAGING.md).
 The Linux CPU lock includes hashes. The CPU suffix is absent from PyPI vulnerability
 records, so base PyTorch/torchvision versions were audited separately. Backend application
 compatibility passed on Windows and in a clean Linux Python 3.11 container with the hashed CPU lock.
-The frontend production build passed on Windows; the configured hosted CI workflow has not been triggered.
+The frontend production build passed locally. Hosted CI now passes all 137 backend tests,
+Python audits, secret scanning, and frontend audit/lint/typecheck/unit checks. Hosted
+frontend build/browser verification is blocked by missing Clerk repository secrets;
+see `v5-hosted-ci-results.json`.
 The unit test suite reports a Starlette/httpx deprecation and an intentional short-HMAC
 warning from a rejection test. Next.js warns that the middleware filename is deprecated.
 
