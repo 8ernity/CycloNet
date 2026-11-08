@@ -7,10 +7,10 @@ import { cn } from "@/lib/utils";
 import { MicroLabel } from "./MicroLabel";
 
 const steps = [
-  { icon: Satellite, title: "1. Ingest GEE SAR & Feeds", desc: "Sentinel-1 SAR, 30m DEM & NOAA GFS" },
-  { icon: Sparkles, title: "2. Gemini 3.7 Dual-Inference", desc: "ResNet-50 + Multimodal Dvorak Vision" },
-  { icon: Waves, title: "3. Parametric Surge & Catchment", desc: "Compound Hydrodynamic Inundation" },
-  { icon: BellRing, title: "4. Multi-Channel Dispatches", desc: "CAP-CP v1.2, Sirens & SACHET Alerts" },
+  { icon: Satellite, title: "1. Check source records", desc: "Agency identity, timestamp and coverage" },
+  { icon: Sparkles, title: "2. Preserve missing data", desc: "Unavailable measurements stay unavailable" },
+  { icon: Waves, title: "3. Explore explicit scenarios", desc: "Assumptions are separate from observations" },
+  { icon: BellRing, title: "4. Generate exercise drafts", desc: "Local templates; no transmission" },
 ];
 
 export function InteractiveWorkflow() {
@@ -34,12 +34,12 @@ export function InteractiveWorkflow() {
       <div className="container max-w-[1100px] mx-auto px-4">
         
         <div className="text-center mb-16 md:mb-24">
-          <MicroLabel className="mb-4 inline-block">The Operational Anticipatory Loop</MicroLabel>
+          <MicroLabel className="mb-4 inline-block">Research workflow</MicroLabel>
           <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-text-primary">
-            From raw satellite backscatter to <span className="text-sky-500 dark:text-sky-400">zero-casualty warning</span>.
+            From source records to <span className="text-sky-500 dark:text-sky-400">transparent scenarios</span>.
           </h2>
           <p className="text-xs sm:text-sm text-text-muted mt-3 max-w-xl mx-auto">
-            A continuous four-stage pipeline driving rapid pre-landfall evacuation planning, power grid hardening, and automated parametric insurance relief.
+            A research workflow for inspecting data and assumptions. It does not direct evacuation, utility operation, or financial payouts.
           </p>
         </div>
 

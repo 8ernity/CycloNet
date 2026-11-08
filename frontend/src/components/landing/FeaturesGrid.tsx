@@ -3,9 +3,9 @@ import { useMediaQuery } from "@/hooks/useBrowserState";
 
 import React, { useRef, useState, useEffect } from "react";
 import { GlassPanel } from "./GlassPanel";
-import { 
-  Satellite, Sparkles, Waves, CloudRain, 
-  Zap, BellRing, ArrowRight 
+import {
+  Satellite, Sparkles, Waves, CloudRain,
+  Zap, BellRing, ArrowRight
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useMotionTokens } from "@/lib/motion-tokens";
@@ -13,45 +13,45 @@ import { MicroLabel } from "./MicroLabel";
 import Link from "next/link";
 
 const features = [
-  { 
-    icon: Satellite, 
-    title: "GEE SAR Flood Inundation", 
-    description: "GEE-compatible Sentinel-1 SAR dual-polarization (VV/VH) radar backscatter and Sentinel-2 MNDWI flood extent simulation through thick cloud cover.",
+  {
+    icon: Satellite,
+    title: "Satellite flood observations (disabled)",
+    description: "Observed flood mapping is unavailable pending authenticated data access, a validated processing pipeline, and independent reference observations.",
     tint: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25",
     link: "/infrastructure"
   },
-  { 
-    icon: Sparkles, 
-    title: "Gemini 3.7 Flash Multimodal Vision", 
-    description: "Dual-inference satellite inspection quantifying Dvorak T-numbers, eye diameters, and cloud-top temperatures (< -80°C) with 7-language executive briefings.",
+  {
+    icon: Sparkles,
+    title: "Experimental image classification",
+    description: "The classifier exposes its checkpoint and validation status. General AI image analysis cannot provide verified winds or emergency instructions.",
     tint: "text-sky-400 bg-sky-500/10 border-sky-500/25",
     link: "/classification"
   },
-  { 
-    icon: Waves, 
-    title: "Parametric Surge Forecaster", 
+  {
+    icon: Waves,
+    title: "Parametric Surge Forecaster",
     description: "Coupled Jelesnianski hydrodynamic simulation factoring in inverted barometer effect, forward motion, and astronomical spring tide superposition.",
     tint: "text-blue-400 bg-blue-500/10 border-blue-500/25",
     link: "/infrastructure"
   },
-  { 
-    icon: CloudRain, 
-    title: "Catchment Runoff & Delta Pathways", 
-    description: "DEM-informed catchment runoff simulation modeling terrain slope, estuarine backwater bottlenecks, and flash flood choke points across river deltas.",
+  {
+    icon: CloudRain,
+    title: "Catchment Runoff & Delta Pathways",
+    description: "Illustrative runoff calculations use assumed terrain and rainfall. No surveyed elevation model or observed flood extent is connected.",
     tint: "text-cyan-400 bg-cyan-500/10 border-cyan-500/25",
     link: "/infrastructure"
   },
-  { 
-    icon: Zap, 
-    title: "Critical Grid & Asset Exposure", 
-    description: "Vulnerability overlays for 400kV/220kV power substations, national evacuation highway corridors, medical shelters, and parametric liquidity triggers.",
+  {
+    icon: Zap,
+    title: "Critical Grid & Asset Exposure",
+    description: "Explicit scenario overlays use unverified example assets. Current capacity, occupancy, road and generator conditions remain unavailable.",
     tint: "text-amber-400 bg-amber-500/10 border-amber-500/25",
     link: "/reports"
   },
-  { 
-    icon: BellRing, 
-    title: "Multi-Channel Alert Dispatches", 
-    description: "Automates disaster advisory distribution across OASIS CAP-CP v1.2 XML emergency feeds, SMS broadcasts, coastal sirens, VHF radio, and SACHET.",
+  {
+    icon: BellRing,
+    title: "Local exercise drafts",
+    description: "Creates provider-neutral training templates. No public message is delivered and no siren or radio hardware is connected.",
     tint: "text-rose-400 bg-rose-500/10 border-rose-500/25",
     link: "/reports"
   },
@@ -68,7 +68,7 @@ function SpotlightCard({ children }: { children: React.ReactNode }) {
     const rect = cardRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
+
     requestAnimationFrame(() => {
       if (cardRef.current) {
         cardRef.current.style.setProperty("--x", `${x}px`);
@@ -78,22 +78,22 @@ function SpotlightCard({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div 
-      ref={cardRef} 
-      className="h-full relative group" 
+    <div
+      ref={cardRef}
+      className="h-full relative group"
       onMouseMove={handleMouseMove}
     >
       <GlassPanel hoverEffect className="p-7 h-full flex flex-col relative overflow-hidden bg-surface-glass border-surface-border">
         {/* Spotlight Effect overlay */}
         {isDesktop && (
-          <div 
+          <div
             className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
             style={{
               background: "radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(56,189,248,0.14), transparent 60%)"
             }}
           />
         )}
-        
+
         {/* Content */}
         <div className="relative z-10 flex flex-col h-full justify-between">
           {children}
@@ -119,9 +119,9 @@ export function FeaturesGrid() {
 
   const item = {
     hidden: { opacity: 0, y: 20 },
-    show: { 
-      opacity: 1, 
-      y: 0, 
+    show: {
+      opacity: 1,
+      y: 0,
       transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as [number, number, number, number] }
     }
   };
@@ -129,7 +129,7 @@ export function FeaturesGrid() {
   return (
     <section id="features" className="py-24 bg-bg-base text-text-primary relative overflow-hidden border-t border-surface-border transition-colors duration-300">
       <div className="container max-w-[1300px] mx-auto px-4 sm:px-6">
-        
+
         <div className="text-center max-w-3xl mx-auto mb-16">
           <MicroLabel className="mb-4 inline-block">Predictive Vulnerability Architecture</MicroLabel>
           <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-text-primary mb-4">
@@ -143,7 +143,7 @@ export function FeaturesGrid() {
           </p>
         </div>
 
-        <motion.div 
+        <motion.div
           variants={container}
           initial="hidden"
           whileInView="show"

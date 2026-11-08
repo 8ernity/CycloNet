@@ -1,0 +1,40 @@
+<testsuites id="" name="" tests="1" failures="1" skipped="0" errors="0" time="29.292547">
+<testsuite name="v6.spec.ts" timestamp="2026-11-08T17:26:05.526Z" hostname="" tests="1" failures="1" skipped="0" time="16.553" errors="0">
+<testcase name="offline sample image cannot create intensity measurements or operational instructions" classname="v6.spec.ts" time="16.553">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\v6-offline-sample-image-ca-4dc9c-or-operational-instructions\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).not.toContainText(expected) failed" type="expect.not.toContainText">
+<![CDATA[  v6.spec.ts:12:1 › offline sample image cannot create intensity measurements or operational instructions 
+
+    Error: expect(locator).not.toContainText(expected) failed
+
+    Locator: locator('body')
+    Expected pattern: not /Calibrated Ref|Enforce total coastal evacuation|Recommended Operational Action|89.3%/
+    Received string: "Connecting to local backend service...CycloNetLive MonitoringClassificationHistorical ArchiveStorm ComparisonTrack ForecastAlerts & ReportsInfrastructure & ReliefSettingsGVGuest VisitorPUBLIC DEMOClassificationAsk CycloNet AIPowerOFAutomated Intensity ClassificationUpload an INSAT-3DR IR frame or select a recent image from MOSDAC to run the AI classification model.IMD Standard (3-Min Avg)Sample Frame #4 Loaded Clear FrameSelect from recent frames (Demo)CSFrame #1SCSFrame #2VSCSFrame #3ESCSFrame #4AI Intensity & Multimodal AnalysisInference CompleteResNet-50 Dvorak Model89.3% ConfExtremely Severe Cyclonic Storm (ESCS)📋 Offline Demo Preset (Calibrated Ref) Gemini 3.7 FlashT5.5Extremely Severe Cyclonic Storm (ESCS)Transfer Learning Domain Notice:Backbone uses ImageNet optical pretraining with custom Dvorak classifier head. Operational deployment requires calibration against calibrated INSAT-3DR / Meteosat-9 infrared brightness temperature channels (TIR-1/TIR-2/WV).Grad-CAM activation unavailable (Requires live PyTorch ResNet inference)Gemini 3.7 Flash Multimodal Satellite DiagnosticsEye Structure:Pin-hole compact eye with intense radial temperature gradientConvective Signature:Violent axisymmetric eyewall with cloud tops colder than -80°CRecommended Operational Action:Enforce total coastal evacuation and shelter lock-in protocolsIssue maximum catastrophic surge warnings (3.5m - 5.0m inundation)Pre-position emergency armed forces logistics and mobile hospitalsExport AnalysisConfirm & Log to Archive"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "not toContainText" locator('body') with timeout 5000ms
+      - waiting for locator('body')
+        13 × locator resolved to <body class="min-h-full bg-background text-foreground main-mesh">…</body>
+           - unexpected value "Connecting to local backend service...CycloNetLive MonitoringClassificationHistorical ArchiveStorm ComparisonTrack ForecastAlerts & ReportsInfrastructure & ReliefSettingsGVGuest VisitorPUBLIC DEMOClassificationAsk CycloNet AIPowerOFAutomated Intensity ClassificationUpload an INSAT-3DR IR frame or select a recent image from MOSDAC to run the AI classification model.IMD Standard (3-Min Avg)Sample Frame #4 Loaded Clear FrameSelect from recent frames (Demo)CSFrame #1SCSFrame #2VSCSFrame #3ESCSFrame #4AI Intensity & Multimodal AnalysisInference CompleteResNet-50 Dvorak Model89.3% ConfExtremely Severe Cyclonic Storm (ESCS)📋 Offline Demo Preset (Calibrated Ref) Gemini 3.7 FlashT5.5Extremely Severe Cyclonic Storm (ESCS)Transfer Learning Domain Notice:Backbone uses ImageNet optical pretraining with custom Dvorak classifier head. Operational deployment requires calibration against calibrated INSAT-3DR / Meteosat-9 infrared brightness temperature channels (TIR-1/TIR-2/WV).Grad-CAM activation unavailable (Requires live PyTorch ResNet inference)Gemini 3.7 Flash Multimodal Satellite DiagnosticsEye Structure:Pin-hole compact eye with intense radial temperature gradientConvective Signature:Violent axisymmetric eyewall with cloud tops colder than -80°CRecommended Operational Action:Enforce total coastal evacuation and shelter lock-in protocolsIssue maximum catastrophic surge warnings (3.5m - 5.0m inundation)Pre-position emergency armed forces logistics and mobile hospitalsExport AnalysisConfirm & Log to Archive"
+
+
+      15 |   await page.getByAltText('Demo Frame 4',{exact:true}).locator('..').click();
+      16 |   await expect(page.getByRole('button',{name:'Export Analysis'})).toBeEnabled();
+    > 17 |   await expect(page.locator('body')).not.toContainText(/Calibrated Ref|Enforce total coastal evacuation|Recommended Operational Action|89.3%/);
+         |                                          ^
+      18 |   const downloadPromise=page.waitForEvent('download');
+      19 |   await page.getByRole('button',{name:'Export Analysis'}).click();
+      20 |   const download=await downloadPromise;
+        at D:\Projects\CycloneTracker\frontend\tests\browser\v6.spec.ts:17:42
+
+    Error Context: ..\..\test-results\v6-offline-sample-image-ca-4dc9c-or-operational-instructions\error-context.md
+]]>
+</failure>
+</testcase>
+</testsuite>
+</testsuites>

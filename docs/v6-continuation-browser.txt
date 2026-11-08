@@ -1,0 +1,22 @@
+
+[WebServer] (node:17776) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 12 tests using 1 worker
+
+(node:18908) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/12] tests\browser\reports.spec.ts:3:1 › outage dashboard and assistant context never imply healthy feeds or calm
+[2/12] tests\browser\reports.spec.ts:14:1 › current-year stale observations are neither drills nor verified live data
+[3/12] tests\browser\reports.spec.ts:24:1 › report outage shows retry and never creates an agency bulletin
+[4/12] tests\browser\reports.spec.ts:33:1 › unavailable wind remains unavailable on the live dashboard
+[5/12] tests\browser\reports.spec.ts:41:1 › empty telemetry cannot become an all-clear or invented accuracy claim
+[6/12] tests\browser\v6.spec.ts:3:1 › opened assistant accurately describes available educational and source-status functions
+[7/12] tests\browser\v6.spec.ts:12:1 › offline sample image cannot create intensity measurements or operational instructions
+[8/12] tests\browser\v6.spec.ts:33:1 › infrastructure starts with unavailable field data and explicit scenario opt-in
+[9/12] tests\browser\v6.spec.ts:48:1 › failed forecast request offers retry without choosing an active demo
+[10/12] tests\browser\v6.spec.ts:58:1 › hyphenated source ID uses explicit provenance and unvalidated accuracy
+[11/12] tests\browser\v6.spec.ts:70:1 › archive outage has a retry and does not report an empty successful result
+[12/12] tests\browser\v6.spec.ts:78:1 › landing page does not advertise unimplemented inference or delivery
+  12 passed (1.0m)

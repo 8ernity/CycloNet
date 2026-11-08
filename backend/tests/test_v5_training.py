@@ -24,6 +24,11 @@ def test_synthetic_training_optimizes_exports_and_infers(tmp_path, monkeypatch):
     torch.set_num_threads(2)
     output = train(manifest, tmp_path/'output', epochs=1, batch_size=5, pretrained='NONE', demo=True)
     assert output['parameters_changed']
+    assert len(output['test']['per_class']) == 5
+    assert 'macro_f1' in output['test']
+    assert 'expected_calibration_error' in output['test']['calibration']
+    assert 'coverage' in output['test']['abstention']
+    assert output['ood_evaluation']['status'] == 'NOT_EVALUATED'
     assert Path(output['checkpoint']).exists()
     service = CycloneIntensityService()
     service.checkpoint_path = output['checkpoint']

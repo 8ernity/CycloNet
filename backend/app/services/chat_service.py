@@ -1,16 +1,23 @@
-import base64
 import os
 import re
 import json
 import httpx
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Literal, Optional, Tuple
+from pydantic import BaseModel, ConfigDict, ValidationError
+from app.services.observation_context import basin_snapshot, source_status_text
+
+
+class EducationalTopic(BaseModel):
+    model_config = ConfigDict(extra='forbid', strict=True)
+    topic: Literal['cyclogenesis', 'dvorak', 'intensity_scales', 'coastal_hazards', 'source_status']
+
 
 class MeteorologicalChatService:
     """
     Intelligent meteorological reasoning engine specialized in tropical cyclones,
     Dvorak intensity analysis, IMD/JTWC scales, disaster preparedness, and general atmospheric science.
-    Powered by Google Gemini (gemini-3.7-flash) with local SQLite archive knowledge and deterministic fallback.
+    Optional configured language-model provider with historical archive context and deterministic source-status responses.
     """
 
     def __init__(self):
@@ -47,6 +54,9 @@ class MeteorologicalChatService:
         Process a user question and return a structured expert answer with full UI screen context.
         """
         clean_msg = message.strip()
+        if any(word in clean_msg.lower() for word in ('current', 'active', 'this storm', 'this cyclone', 'evacuat', 'safe', 'all clear', 'calm', 'status', 'warning', 'emergency', 'what to do', 'prepare', 'precaution', 'protect')):
+            return {"response":source_status_text(basin_snapshot()), "category":"source_status",
+                    "sources":[], "timestamp":datetime.utcnow().isoformat() + "Z"}
         timestamp = datetime.utcnow().strftime("%H:%M UTC")
 
         # 1. Check for specific historical storm queries in local database (from query or UI context)
@@ -58,8 +68,8 @@ class MeteorologicalChatService:
             if gemini_reply:
                 return {
                     "response": gemini_reply,
-                    "category": "gemini_ai",
-                    "sources": ["Google Gemini 3.7 Flash", "Live Interface Telemetry", "IMD & WMO Meteorological Standards", "CycloNet Database"],
+                    "category": "educational_topic",
+                    "sources": ["CycloNet fixed educational text; automated topic selection"],
                     "timestamp": timestamp
                 }
 
@@ -93,27 +103,13 @@ class MeteorologicalChatService:
                     record = db.query(CycloneArchive).filter(CycloneArchive.name.ilike(f"%{word}%")).first()
                     if record:
                         return (
-                            f"Verified CycloNet Database Record for Cyclone {record.name} ({record.year}):\n"
+                            f"Historical catalog entry (not current conditions) for Cyclone {record.name} ({record.year}):\n"
                             f"- Storm Code: {record.id}\n"
                             f"- Basin: {record.basin}\n"
                             f"- Peak Intensity Category: {record.max_category}\n"
                             f"- Historical data available in CycloNet SQLite database (/archive route)."
                         )
             
-            # If no storm found in text, but UI context has an active storm (e.g. Amphan)
-            if ui_context and ui_context.get("activeSystem"):
-                active_name = ui_context["activeSystem"].get("name", "")
-                clean_name = active_name.replace("(Simulation)", "").strip()
-                if clean_name:
-                    record = db.query(CycloneArchive).filter(CycloneArchive.name.ilike(f"%{clean_name}%")).first()
-                    if record:
-                        return (
-                            f"Verified CycloNet Database Record for Cyclone {record.name} ({record.year}) currently displayed on screen:\n"
-                            f"- Storm Code: {record.id}\n"
-                            f"- Basin: {record.basin}\n"
-                            f"- Peak Intensity Category: {record.max_category}\n"
-                            f"- Historical data available in CycloNet SQLite database (/archive route)."
-                        )
         except Exception:
             return None
         return None
@@ -134,67 +130,17 @@ class MeteorologicalChatService:
         return cleaned.strip()
 
     def _call_gemini(self, query: str, history: Optional[List[Dict[str, str]]] = None, db_context: Optional[str] = None, ui_context: Optional[Dict] = None) -> Optional[str]:
-        """Calls Google Gemini API with meteorological persona and live interface context."""
+        """Select a bounded topic; never display provider-generated prose."""
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent?key={self.gemini_api_key}"
             
             system_prompt = (
-                "You are CycloNet AI, an intelligent, authoritative meteorological and climate scientist assistant. "
-                "You provide comprehensive, accurate, and scientifically sound answers to user inquiries about tropical cyclones, "
-                "meteorology, atmospheric physics, weather events, coastal impacts, disaster mitigation, and external general questions.\n\n"
-                "CRITICAL OUTPUT INSTRUCTIONS:\n"
-                "1. Answer the user directly, conversationally, and authoritatively.\n"
-                "2. NEVER output any internal thoughts, planning steps, self-reviews, evaluation checklists, or meta-commentary (such as 'Review against Persona' or 'Checklist: Check').\n"
-                "3. Use structured Markdown with clear headings (###), bullet points, and bold text.\n"
-                "4. Feel free to answer external questions on meteorology, physics, geography, climate change, and disaster safety."
+                "Classify the question into one educational topic. Return ONLY a JSON object with "
+                "one field: topic. Allowed values: cyclogenesis, dvorak, intensity_scales, "
+                "coastal_hazards, source_status. Select source_status for any current conditions, "
+                "personal safety, operational decisions, ambiguous requests, or requests outside "
+                "the educational topics. Do not answer the question or add other fields."
             )
-
-            # Inject active UI screen telemetry
-            active_sys = ui_context.get("activeSystem") if ui_context else None
-            is_simulation = ui_context.get("isSimulation", False) if ui_context else False
-            page_name = ui_context.get("page", "Live Monitoring") if ui_context else "Live Monitoring"
-
-            if active_sys:
-                storm_name = active_sys.get("name", "Active Cyclone")
-                clean_name = storm_name.replace("(Simulation)", "").strip()
-                cat = active_sys.get("category", "Tropical Cyclone")
-                lat = active_sys.get("lat", 0.0)
-                lon = active_sys.get("lon", 0.0)
-                intensity_kt = active_sys.get("intensity_knots", 0)
-                wind_kmh = active_sys.get("wind_kmh") or int(intensity_kt * 1.852)
-                basin = active_sys.get("basin") or ("Bay of Bengal" if lon > 80 else "Arabian Sea")
-                track_pts = active_sys.get("track_points_count", 0)
-
-                system_prompt += (
-                    f"\n\n===================================================\n"
-                    f"LIVE USER INTERFACE CONTEXT (WHAT IS ACTIVELY SHOWN ON SCREEN):\n"
-                    f"The user is actively looking at the CycloNet '{page_name}' interface.\n"
-                    f"Telemetry actively displayed in the cards and on the satellite map right now:\n"
-                    f"- Active Vortex Displayed: {storm_name}\n"
-                    f"- Simulation Mode: {'ACTIVE (Simulating historical best-track & forecast cone)' if is_simulation else 'Real-Time Active Tracking'}\n"
-                    f"- Classification Category: {cat}\n"
-                    f"- Current Center Location Fix: {lat:.1f}°N, {lon:.1f}°E ({basin})\n"
-                    f"- Maximum Sustained Surface Winds: {wind_kmh} km/h ({intensity_kt} knots)\n"
-                    f"- Map Trajectory: {track_pts} waypoints plotted on INSAT-3DR live satellite surveillance.\n\n"
-                    f"MANDATORY INSTRUCTIONS FOR INTERFACE AWARENESS:\n"
-                    f"1. DEICTIC AND IMPLICIT REFERENCES: When the user asks 'Tell me about this cyclone', 'What storm is this?', 'Where is it going?', 'How strong is it?', 'Analyze what is on screen', or refers to 'this cyclone' / 'this storm' without repeating a name, they are explicitly referring to {storm_name}!\n"
-                    f"2. NEVER say that no storm was named or that the basin is empty. The storm on their screen IS {storm_name}.\n"
-                    f"3. Provide a thorough meteorological breakdown of {clean_name}: state that you see it active on their live interface simulation, explain its category ({cat}), sustained winds ({wind_kmh} km/h), current geographic fix ({lat:.1f}°N, {lon:.1f}°E in the {basin}), its trajectory towards landfall, storm surge hazard, and historical significance.\n"
-                    f"===================================================\n"
-                )
-            else:
-                system_prompt += (
-                    f"\n\n===================================================\n"
-                    f"LIVE USER INTERFACE CONTEXT:\n"
-                    f"The user is viewing the CycloNet '{page_name}' interface.\n"
-                    f"- Current Screen State: True Live State / Basin Quiet.\n"
-                    f"- Active Cyclones: 0 (No active cyclonic storms currently active in the North Indian Ocean basin).\n"
-                    f"- If the user asks about active cyclones or current basin conditions, accurately inform them that the basin is quiet with no active systems. Invite them to test the tracker by loading a simulation (e.g. Cyclone Amphan or Biparjoy) from the archive or simulation button.\n"
-                    f"===================================================\n"
-                )
-
-            if db_context:
-                system_prompt += f"\n\nLocal Platform Database Knowledge:\n{db_context}"
 
             contents = []
             if history:
@@ -217,437 +163,110 @@ class MeteorologicalChatService:
                 "contents": contents,
                 "generationConfig": {
                     "temperature": 0.4,
-                    "maxOutputTokens": 2048
+                    "maxOutputTokens": 64,
+                    "responseMimeType": "application/json"
                 }
             }
 
-            with httpx.Client(timeout=20.0) as client:
-                response = client.post(
-                    url,
-                    json=payload,
-                    headers={"Content-Type": "application/json"}
-                )
-                if response.is_success:
-                    result = response.json()
+            with httpx.Client(timeout=httpx.Timeout(20.0, connect=5.0)) as client:
+                with client.stream("POST", url, json=payload, headers={"Content-Type":"application/json"}) as response:
+                    response.raise_for_status()
+                    body = bytearray()
+                    for chunk in response.iter_bytes():
+                        body.extend(chunk)
+                        if len(body) > 65536:
+                            raise ValueError("AI response exceeded limit")
+                    result = json.loads(body)
                     candidates = result.get("candidates", [])
                     if candidates:
                         raw_text = candidates[0]["content"]["parts"][0]["text"]
-                        return self._clean_response(raw_text)
-                else:
-                    print(f"[Gemini API HTTP {response.status_code}]: {response.text[:120]}")
+                        if not isinstance(raw_text, str) or len(raw_text) > 256:
+                            raise ValueError("AI output exceeded limit")
+                        try:
+                            selected = EducationalTopic.model_validate_json(raw_text)
+                        except ValidationError:
+                            return source_status_text(basin_snapshot())
+                        topics = {'cyclogenesis':'cyclogenesis', 'dvorak':'dvorak',
+                                  'intensity_scales':'classification', 'coastal_hazards':'coastal'}
+                        if selected.topic == 'source_status':
+                            return source_status_text(basin_snapshot())
+                        return self._expert_reasoning(topics[selected.topic])[0]
         except Exception as e:
-            print(f"[Gemini API Exception] {type(e).__name__}: {e}")
+            print(f"[Gemini API Exception] {type(e).__name__}")
             pass
         return None
 
     def _expert_reasoning(self, query: str, ui_context: Optional[Dict] = None) -> Tuple[str, str, List[str]]:
-        """High-precision meteorological expert reasoning system for offline resilience."""
+        """Fixed educational text; no generated prose or echoed user instructions."""
         q = query.lower()
-
-        # Check if user is asking about active storm displayed on UI interface
-        active_sys = ui_context.get("activeSystem") if ui_context else None
-        if active_sys and any(w in q for w in ["this", "storm", "cyclone", "simulation", "map", "active", "amphan", "biparjoy", "fani", "tauktae", "tell me", "what is", "status"]):
-            storm_name = active_sys.get("name", "Active Cyclone")
-            clean_name = storm_name.replace("(Simulation)", "").strip()
-            cat = active_sys.get("category", "Tropical Cyclone")
-            lat = active_sys.get("lat", 0.0)
-            lon = active_sys.get("lon", 0.0)
-            intensity_kt = active_sys.get("intensity_knots", 0)
-            wind_kmh = active_sys.get("wind_kmh") or int(intensity_kt * 1.852)
-            basin = active_sys.get("basin") or ("Bay of Bengal" if lon > 80 else "Arabian Sea")
-            track_pts = active_sys.get("track_points_count", 0)
-
-            return (
-                f"### 🌀 Active Cyclone Telemetry Analysis: {storm_name}\n\n"
-                f"Analyzing live surveillance telemetry actively displayed on your CycloNet interface:\n\n"
-                f"- **Meteorological Classification**: **{cat}**\n"
-                f"- **Current Center Fix**: **{lat:.1f}°N, {lon:.1f}°E** ({basin})\n"
-                f"- **Maximum Sustained Surface Winds**: **{wind_kmh} km/h** ({intensity_kt} knots)\n"
-                f"- **GIS Trajectory Replay**: **{track_pts} active waypoints** with numerical forecast cone\n"
-                f"- **Operational Mode**: Satellite Replay & Numerical Guidance\n\n"
-                f"#### Synoptic Structure & Environmental Diagnostics:\n"
-                f"- **Vortex Integrity**: Satellite surveillance indicates a mature cyclonic circulation with deep convective core banding wrapping into the central dense overcast.\n"
-                f"- **Steering Flow**: Governed by the western periphery of the subtropical anticyclone, driving parabolic trajectory curvature across the {basin}.\n"
-                f"- **Coastal Threat Matrix**: Coastal regions along the projected landfall path must prepare for hazardous storm surge, destructive eyewall gusts, and heavy squally precipitation.",
-                "active_simulation_telemetry",
-                ["INSAT-3DR Live Satellite Surveillance", "IMD IBTrACS Best-Track", "CycloNet GIS Engine"]
-            )
-
-        # Coastal impact query
-        if any(w in q for w in ["coastal", "coast", "shore", "beach", "landfall", "inundation"]):
-            return (
-                "### 🌊 How Tropical Cyclones Impact Coastal Areas\n\n"
-                "When a tropical cyclone approaches or crosses a coastline, coastal areas face severe, multi-hazard impacts due to direct exposure to the storm's convective core:\n\n"
-                "#### 1. Storm Surge & Marine Inundation\n"
-                "- **Primary Hazard**: Violent onshore winds (wind stress) push massive volumes of oceanic water against the coastline, combined with low central barometric pressure lifting the sea surface.\n"
-                "- **Bathymetry Effect**: Shallow continental shelves (like the Bay of Bengal or Gulf of Kutch) amplify surge heights to **$3 - 6+\\text{ meters}$**, submerging low-lying communities.\n\n"
-                "#### 2. Destructive Eyewall Winds\n"
-                "- Maximum sustained winds ($> 90 - 140\\text{ kt}$) and sudden localized microbursts tear roofs off structures, collapse communication towers, and uproot coastal trees.\n\n"
-                "#### 3. Compound Flooding\n"
-                "- Torrential rains ($200 - 500\\text{ mm}$ in 24 hours) cause rivers to swell rapidly. When riverine discharge meets storm surge heading inland, drainage is completely blocked, leading to widespread flooding.\n\n"
-                "#### 4. Coastal Erosion & Saltwater Intrusion\n"
-                "- Heavy breaking wave action permanently alters coastal dunes and beaches.\n"
-                "- Inundation of seawater into agricultural land and aquifers contaminates municipal drinking water and poisons topsoil with high salinity.",
-                "coastal_hazards",
-                ["WMO Coastal Inundation Forecasting Initiative", "NDMA Cyclone Guidelines"]
-            )
-
-        # Dvorak Technique
-        if any(w in q for w in ["dvorak", "t-number", "t number", "t-scale", "pattern t"]):
-            return (
-                "### 📐 The Dvorak Technique in Satellite Meteorology\n\n"
-                "The **Dvorak Technique** (developed by Vernon Dvorak in 1974) is the international standard for estimating tropical cyclone intensity from **visible and enhanced infrared (EIR)** satellite imagery.\n\n"
-                "#### How It Works:\n"
-                "1. **Cloud Pattern Categorization**: Identifies characteristic cloud structures:\n"
-                "   - **Curved Band Pattern** ($T1.5 - T3.5$): Spiral convective bands wrapping around the center.\n"
-                "   - **Shear Pattern** ($T1.5 - T3.0$): Deep convection displaced from low-level circulation.\n"
-                "   - **Central Dense Overcast (CDO)** ($T3.0 - T5.0$): Dense, cold cloud mass directly over the center.\n"
-                "   - **Eye Pattern** ($T4.5 - T8.0$): Clear, warm eye surrounded by cold, symmetric eyewall convection.\n"
-                "2. **T-Number Scale ($T1.0$ to $T8.0$)**:\n"
-                "   - **T1.0 - T2.0**: Tropical Disturbance / Depression ($25 - 30\\text{ kt}$)\n"
-                "   - **T2.5 - T3.0**: Cyclonic Storm ($35 - 45\\text{ kt}$)\n"
-                "   - **T3.5 - T4.0**: Severe Cyclonic Storm ($55 - 65\\text{ kt}$)\n"
-                "   - **T4.5 - T5.0**: Very Severe Cyclonic Storm ($75 - 90\\text{ kt}$)\n"
-                "   - **T5.5 - T6.0**: Extremely Severe Cyclonic Storm ($100 - 115\\text{ kt}$)\n"
-                "   - **T6.5 - T8.0**: Super Cyclonic Storm / Cat 5 ($125 - 170+\\text{ kt}$)\n\n"
-                "#### In CycloNet:\n"
-                "Our deep learning classifier (ResNet-50) categorizes cloud features into discrete intensity classes. Operational quantitative wind speeds and official Dvorak T-numbers require calibrated objective thermal infrared (TIR) analysis; visual classification alone does not substitute for numerical wind retrieval (ML-07).",
-                "dvorak_technique",
-                ["Vernon Dvorak (NOAA / NESDIS)", "WMO Tropical Cyclone Operational Plan"]
-            )
-
-        # Formation / Cyclogenesis
-        if any(w in q for w in ["how do cyclones form", "cyclogenesis", "formation", "causes", "what causes a cyclone", "how is a cyclone formed"]):
-            return (
-                "### 🌊 Tropical Cyclogenesis: How Cyclones Form\n\n"
-                "A tropical cyclone is a low-pressure, rotating atmospheric storm system that acts as a thermal heat engine powered by the release of latent heat from condensing water vapor.\n\n"
-                "#### 6 Mandatory Environmental Ingredients (Gray's Criteria):\n"
-                "1. **Warm Ocean Waters**: Sea Surface Temperature (SST) must be **$\\ge 26.5^\\circ\\text{C}$ ($79.7^\\circ\\text{F}$)** to a depth of at least 50 meters.\n"
-                "2. **Atmospheric Instability**: Unstable air allows rapid convection, forcing warm, humid surface air to lift into towering cumulonimbus clouds.\n"
-                "3. **High Mid-Tropospheric Moisture**: Relative humidity at $500 - 700\\text{ hPa}$ must exceed $50-60\\%$ to prevent dry air entrainment.\n"
-                "4. **Coriolis Force**: Minimum distance of **$5^\\circ$ latitude** ($\approx 550\\text{ km}$) from the Equator to impart rotational spin.\n"
-                "5. **Low Vertical Wind Shear**: Wind difference between surface and upper troposphere ($200\\text{ hPa}$) must be **$< 10 - 15\\text{ kt}$**.\n"
-                "6. **Pre-Existing Disturbance**: An initial atmospheric trigger (such as an easterly wave or monsoon trough) to initiate converging airflow.",
-                "meteorological_physics",
-                ["William M. Gray (Colorado State University)", "IMD Cyclone Manual"]
-            )
-
-        # IMD Classification vs Saffir-Simpson
-        if any(w in q for w in ["imd", "scale", "saffir", "category", "categories", "classification", "super cyclone", "difference between imd"]):
-            return (
-                "### 📊 Cyclone Intensity Scales: IMD vs. Saffir-Simpson\n\n"
-                "Different regional meteorological basins classify tropical cyclones using different wind averaging intervals:\n"
-                "- **IMD (North Indian Ocean)**: Uses **3-minute sustained wind speeds**.\n"
-                "- **Saffir-Simpson (NHC/Atlantic/Eastern Pacific)**: Uses **1-minute sustained wind speeds** ($\approx 1.12\\times$ higher).\n\n"
-                "| IMD Classification | Sustained Wind (kt) | Sustained Wind (km/h) | Saffir-Simpson Equiv. |\n"
-                "|---|---|---|---|\n"
-                "| **Depression (D)** | $17 - 27\\text{ kt}$ | $31 - 49\\text{ km/h}$ | Tropical Depression |\n"
-                "| **Deep Depression (DD)** | $28 - 33\\text{ kt}$ | $50 - 61\\text{ km/h}$ | Tropical Depression |\n"
-                "| **Cyclonic Storm (CS)** | $34 - 47\\text{ kt}$ | $62 - 88\\text{ km/h}$ | Tropical Storm |\n"
-                "| **Severe Cyclonic Storm (SCS)** | $48 - 63\\text{ kt}$ | $89 - 117\\text{ km/h}$ | Severe Tropical Storm |\n"
-                "| **Very Severe Cyclonic Storm (VSCS)** | $64 - 89\\text{ kt}$ | $118 - 166\\text{ km/h}$ | Category 1 - 2 Hurricane |\n"
-                "| **Extremely Severe Cyclonic Storm (ESCS)** | $90 - 119\\text{ kt}$ | $167 - 221\\text{ km/h}$ | Category 3 - 4 Major Hurricane |\n"
-                "| **Super Cyclonic Storm (SuCS)** | $\\ge 120\\text{ kt}$ | $\\ge 222\\text{ km/h}$ | Category 5 Hurricane |",
-                "intensity_scales",
-                ["India Meteorological Department (IMD)", "National Hurricane Center (NOAA/NHC)"]
-            )
-
-        # Disaster Safety & Preparedness
-        if any(w in q for w in ["safety", "precaution", "what to do", "prepare", "warning", "evacuation", "emergency", "protect"]):
-            return (
-                "### 🛡️ Tropical Cyclone Disaster Preparedness & Safety Protocol\n\n"
-                "#### ⚠️ 1. Pre-Landfall Phase (48 - 24 Hours):\n"
-                "- **Track Official Bulletins**: Rely exclusively on verified meteorological forecasts.\n"
-                "- **Secure Structures**: Board or tape windows; secure loose outdoor objects and tin sheets.\n"
-                "- **Assemble Emergency Go-Bag**: Non-perishable food, bottled water (3 liters/person/day for 3 days), battery torch, power banks, and essential medications in waterproof bags.\n"
-                "- **Evacuation**: Follow mandatory evacuation orders to designated cyclone relief shelters.\n\n"
-                "#### 🌀 2. During Landfall:\n"
-                "- **Stay Indoors**: Remain in the most interior, windowless room.\n"
-                "- **Beware the Eye**: If winds suddenly stop and the sky clears, **do NOT go outside**. Extreme winds will resume abruptly from the reverse direction.\n"
-                "- **Disconnect Power**: Turn off main electrical switches and gas cylinders.\n\n"
-                "#### 🌊 3. Post-Landfall Phase:\n"
-                "- Avoid fallen power lines and flooded roads.\n"
-                "- Boil drinking water until civil authorities certify the supply.",
-                "disaster_management",
-                ["National Disaster Management Authority (NDMA)", "Red Cross / FEMA Protocols"]
-            )
-
-        # Default fallback for general inquiries
-        return (
-            f"### 🌪️ CycloNet Intelligence Assistant\n\n"
-            f"Regarding your query **\"{query}\"**:\n\n"
-            f"Tropical cyclones and global meteorological phenomena involve complex interactions between ocean thermodynamics, atmospheric circulation, and coastal topography:\n\n"
-            f"- **Core Driving Forces**: Solar radiation heating equatorial oceans, vertical convective heat transfer, and Earth's planetary rotation (Coriolis effect).\n"
-            f"- **Observation Systems**: Geostationary satellites (INSAT-3DR, GOES-16, Himawari-9), Doppler weather radars, and numerical weather prediction (NWP) models.\n"
-            f"- **Decision Support**: Automated intensity estimation (Dvorak/AI) coupled with GIS tracking enables timely emergency evacuation and infrastructure protection.\n\n"
-            f"💡 *Feel free to ask more specific questions about tropical storms, cyclone classification, Dvorak analysis, or emergency preparedness!*",
-            "general_meteorology",
-            ["CycloNet Meteorological Knowledge Base", "WMO Tropical Cyclone Programme"]
+        if any(word in q for word in ('current', 'active', 'this storm', 'this cyclone', 'status',
+                'evacuat', 'safe', 'calm', 'warning', 'emergency', 'prepare', 'precaution', 'protect', 'what to do')):
+            return source_status_text(basin_snapshot()), 'source_status', []
+        lessons = (
+            (('coastal', 'coast', 'shore', 'beach', 'landfall', 'inundation'), 'coastal_hazards',
+             'Coastal hazards: cyclone winds can drive storm surge, while waves, rainfall and river flooding can compound impacts. '
+             'Water levels depend on the storm, tides and local coastal geometry. This explanation does not estimate a location’s flood depth or establish road, harbour or shelter conditions.'),
+            (('dvorak', 't-number', 't number', 't-scale', 'pattern t'), 'dvorak_technique',
+             'The Dvorak technique estimates tropical cyclone intensity from satellite cloud patterns. '
+             'Applying it requires appropriate imagery, procedures and trained interpretation. '
+             'CycloNet’s experimental visual classifier is not a calibrated wind measurement or an official Dvorak analysis.'),
+            (('how do cyclones form', 'cyclogenesis', 'formation', 'causes', 'what causes a cyclone', 'how is a cyclone formed'), 'meteorological_physics',
+             'Cyclogenesis is the development of a tropical cyclone. Ocean heat and moisture can support deep convection; '
+             'rotation, an existing disturbance and the surrounding wind environment also influence development. '
+             'These factors alone do not establish that a cyclone is present or will form.'),
+            (('imd', 'scale', 'saffir', 'category', 'categories', 'classification'), 'intensity_scales',
+             'Cyclone intensity classifications depend on the issuing agency and its wind-averaging convention. '
+             'Keep the source, units and averaging interval with each measurement; categories from different scales are not automatically equivalent. '
+             'CycloNet does not convert an unvalidated image classification into an official intensity category.'),
         )
+        for keywords, category, text in lessons:
+            if any(word in q for word in keywords):
+                return 'General educational information — not a current assessment.\n\n' + text, category, ['CycloNet fixed educational text']
+        return source_status_text(basin_snapshot()), 'source_status', []
 
     def analyze_satellite_image(self, image_bytes: bytes, mime_type: str = "image/jpeg", prompt: Optional[str] = None) -> Dict:
+        """Withhold meteorological vision claims until independently validated.
+
+        A general vision-language model is not a calibrated Dvorak instrument.
+        The separate experimental classifier exposes its validation status.
         """
-        Multimodal satellite analysis using Gemini 3.7 Flash.
-        Performs Dvorak intensity estimation, eye structure inspection, convective core temperature profiling,
-        and rapid hazard assessment from INSAT-3D/3DR, Sentinel, or Doppler Radar frames.
-        """
-        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
-        default_prompt = (
-            "You are an expert satellite meteorologist performing an authoritative Dvorak and synoptic analysis "
-            "of this tropical cyclone satellite / radar frame. "
-            "Analyze the image and respond ONLY with a valid JSON object matching the following structure:\n"
-            "{\n"
-            '  "dvorak_t_number": 5.0,\n'
-            '  "category": "Very Severe Cyclonic Storm",\n'
-            '  "intensity_knots": 90,\n'
-            '  "estimated_wind_kmh": 165,\n'
-            '  "central_pressure_hpa": 965,\n'
-            '  "eye_characterization": "Clear, well-defined eye with symmetric eyewall convection",\n'
-            '  "convective_signature": "Deep convective tops (< -75°C) wrapping around central dense overcast",\n'
-            '  "shear_and_structure": "Low-to-moderate vertical wind shear with healthy poleward outflow channel",\n'
-            '  "coastal_impact_level": "EXTREME",\n'
-            '  "recommended_actions": ["Immediate mandatory evacuation of coastal lowlands", "Harden 400kV substation perimeters", "Pre-position NDRF teams at designated cyclone shelters"]\n'
-            "}"
-        )
-
-        user_prompt = prompt or default_prompt
-
-        api_key = (self.gemini_api_key or "").strip()
-        is_real_key = len(api_key) > 20 and not api_key.startswith("your_") and not api_key.startswith("dummy")
-
-        if is_real_key:
-            for model in self.candidate_models:
-                try:
-                    b64_image = base64.b64encode(image_bytes).decode("utf-8")
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-                    
-                    payload = {
-                        "contents": [
-                            {
-                                "role": "user",
-                                "parts": [
-                                    {"text": user_prompt},
-                                    {
-                                        "inlineData": {
-                                            "mimeType": mime_type,
-                                            "data": b64_image
-                                        }
-                                    }
-                                ]
-                            }
-                        ],
-                        "generationConfig": {
-                            "temperature": 0.2,
-                            "maxOutputTokens": 1024,
-                            "responseMimeType": "application/json"
-                        }
-                    }
-
-                    with httpx.Client(timeout=6.0) as client:
-                        response = client.post(
-                            url,
-                            json=payload,
-                            headers={"Content-Type": "application/json"}
-                        )
-                        if response.is_success:
-                            result = response.json()
-                            candidates = result.get("candidates", [])
-                            if candidates:
-                                raw_text = candidates[0]["content"]["parts"][0]["text"]
-                                parsed = json.loads(raw_text)
-                                parsed["timestamp"] = timestamp
-                                parsed["model_used"] = f"Google {model}"
-                                return parsed
-                        elif response.status_code in (400, 403, 404):
-                            print(f"[Gemini Multimodal HTTP {response.status_code} with {model}]")
-                            break
-                except Exception as e:
-                    print(f"[Gemini Multimodal Exception with {model}] {e}")
-                    break
-
-        # Real image-driven inference fallback using local PyTorch ml_service (ML-07)
-        try:
-            from app.services.ml_service import ml_service
-            if not ml_service.has_model:
-                return {
-                    "status": "ANALYSIS_UNAVAILABLE",
-                    "category": "Analysis Unavailable (Model Weights Uninitialized)",
-                    "dvorak_t_number": None,
-                    "intensity_knots": None,
-                    "estimated_wind_kmh": None,
-                    "central_pressure_hpa": None,
-                    "eye_characterization": "Automated multimodal Dvorak analysis unavailable.",
-                    "convective_signature": "Local ML weights uninitialized and Gemini API offline.",
-                    "shear_and_structure": "Numerical inference withheld to avoid fabricated values (ML-07).",
-                    "coastal_impact_level": "UNKNOWN",
-                    "recommended_actions": ["Refer directly to official IMD/RSMC tropical cyclone advisories."],
-                    "timestamp": timestamp,
-                    "model_used": "UNAVAILABLE",
-                    "is_fallback": True
-                }
-
-            pred = ml_service.predict(image_bytes)
-            cat = pred.get("category", "Unclassified Disturbance")
-            cat_short = pred.get("category_short", "CS")
-            knots = pred.get("wind_speed_knots")
-            dvorak_t = pred.get("dvorak_t")
-            is_cyclone = pred.get("is_cyclone", True)
-            
-            t_num = None
-            if dvorak_t and str(dvorak_t).startswith("T"):
-                try:
-                    t_num = float(str(dvorak_t)[1:])
-                except Exception:
-                    t_num = None
-            
-            wind_kmh = int(knots * 1.852) if knots is not None else None
-            pressure = None
-            
-            if not is_cyclone:
-                return {
-                    "dvorak_t_number": 0.0,
-                    "category": "No Cyclone Detected",
-                    "intensity_knots": 0,
-                    "estimated_wind_kmh": 0,
-                    "central_pressure_hpa": None,
-                    "eye_characterization": "No organized eye or central dense overcast observed.",
-                    "convective_signature": "Non-cyclonic atmospheric cloud patterns.",
-                    "shear_and_structure": "N/A (Non-cyclonic imagery)",
-                    "coastal_impact_level": "NOMINAL",
-                    "recommended_actions": ["No emergency civil defense measures required."],
-                    "timestamp": timestamp,
-                    "model_used": "PyTorch ResNet-50 Local Model (Gemini Offline)",
-                    "is_fallback": True
-                }
-
-            impact_level = "EXTREME" if knots and knots >= 90 else "VERY HIGH" if knots and knots >= 65 else "MODERATE"
-            return {
-                "dvorak_t_number": t_num,
-                "category": cat,
-                "intensity_knots": knots,
-                "estimated_wind_kmh": wind_kmh,
-                "central_pressure_hpa": pressure,
-                "eye_characterization": f"Convective cloud pattern matching {cat_short} signature.",
-                "convective_signature": f"Core eyewall convection classified as {cat}.",
-                "shear_and_structure": "Spiral bands observed.",
-                "coastal_impact_level": impact_level,
-                "recommended_actions": [
-                    f"Follow {cat} standard emergency action plan.",
-                    "Monitor IMD Doppler weather radar feeds.",
-                    "Verify coastal shelter generator and satellite comms."
-                ],
-                "timestamp": timestamp,
-                "model_used": "PyTorch ResNet-50 Local Model (Gemini Offline)",
-                "is_fallback": True
-            }
-        except Exception as e:
-            print(f"[ML Service fallback error] {e}")
-            return {
-                "status": "ANALYSIS_UNAVAILABLE",
-                "category": "Analysis Unavailable (Processing Error)",
-                "dvorak_t_number": None,
-                "intensity_knots": None,
-                "estimated_wind_kmh": None,
-                "central_pressure_hpa": None,
-                "eye_characterization": "Satellite frame could not be analyzed.",
-                "convective_signature": "No valid model response.",
-                "shear_and_structure": "Inference withheld.",
-                "coastal_impact_level": "UNKNOWN",
-                "recommended_actions": ["Consult authoritative IMD bulletins."],
-                "timestamp": timestamp,
-                "model_used": "UNAVAILABLE",
-                "is_fallback": True
-            }
-
-    def generate_pre_landfall_briefing(self, storm_data: Dict, infrastructure_data: Dict, language: str = "en") -> Dict:
-        """
-        Synthesizes an executive pre-landfall operational vulnerability briefing for
-        District Magistrates, Municipal Authorities, and Grid Operators.
-        """
-        timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
-        name = storm_data.get("name", "Active Cyclonic System")
-        category = storm_data.get("category", "Severe Cyclonic Storm")
-        knots = storm_data.get("intensity_knots", 85)
-        wind_kmh = storm_data.get("wind_kmh", int(knots * 1.852))
-        surge_m = storm_data.get("surge_m", 3.5)
-        basin = storm_data.get("basin", "Bay of Bengal")
-
-        prompt = (
-            f"You are the Chief Disaster Response & Meteorological Intelligence Director for the {basin} coastal corridor.\n"
-            f"Generate a comprehensive, executive pre-landfall vulnerability and infrastructure protection briefing for:\n"
-            f"- Storm: {name} ({category})\n"
-            f"- Peak Sustained Winds: {wind_kmh} km/h ({knots} knots)\n"
-            f"- Est. Storm Surge Inundation: {surge_m} meters above astronomical tide\n"
-            f"- High-Voltage Transmission Substations: 9 critical 400kV/220kV hubs monitored\n"
-            f"- Target Output Language: {language}\n\n"
-            f"Format the output strictly as a JSON object with keys: 'executive_summary', 'surge_inundation_threat', "
-            f"'grid_substation_vulnerabilities', 'evacuation_corridors', 'shelter_readiness', 'parametric_payout_recommendation', and 'action_checklist'."
-        )
-
-        api_key = (self.gemini_api_key or "").strip()
-        is_real_key = len(api_key) > 20 and not api_key.startswith("your_") and not api_key.startswith("dummy")
-
-        if is_real_key:
-            for model in self.candidate_models:
-                try:
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-                    payload = {
-                        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                        "generationConfig": {
-                            "temperature": 0.3,
-                            "maxOutputTokens": 2048,
-                            "responseMimeType": "application/json"
-                        }
-                    }
-                    with httpx.Client(timeout=6.0) as client:
-                        response = client.post(
-                            url,
-                            json=payload,
-                            headers={"Content-Type": "application/json"}
-                        )
-                        if response.is_success:
-                            result = response.json()
-                            candidates = result.get("candidates", [])
-                            if candidates:
-                                raw_text = candidates[0]["content"]["parts"][0]["text"]
-                                parsed = json.loads(raw_text)
-                                parsed["timestamp"] = timestamp
-                                parsed["model"] = f"Google {model}"
-                                return parsed
-                        elif response.status_code in (400, 403, 404):
-                            print(f"[Gemini Briefing HTTP {response.status_code} with {model}]")
-                            break
-                except Exception as e:
-                    print(f"[Gemini Briefing Exception with {model}] {e}")
-                    break
-
-        # High-fidelity deterministic scenario briefing (DATA-08, GEO-07, ALERT-04)
         return {
-            "storm_name": name,
-            "category": category,
-            "intensity_knots": knots,
-            "is_simulation": True,
-            "provenance": "Experimental Decision-Support Scenario Model",
-            "disclaimer": "EXPERIMENTAL SCENARIO BRIEFING - NOT AN OFFICIAL GOVERNMENT EVACUATION ORDER OR ADVISORY. Always adhere to directives from the India Meteorological Department (IMD) and National Disaster Management Authority (NDMA).",
-            "executive_summary": (
-                f"Anticipatory pre-landfall scenario briefing for {name} ({category}, estimated {wind_kmh} km/h). "
-                f"Parametric storm surge modeling calculates peak coastal water elevation of {surge_m}m. "
-                "Advisory for local decision-support and contingency planning only."
-            ),
-            "surge_inundation_threat": f"Estimated peak surge elevation of {surge_m}m may overtop low-lying coastal embankments in exposed sectors. Terrain elevation must be verified locally.",
-            "grid_substation_vulnerabilities": "Monitored coastal 400kV/220kV transmission hubs may face salt-spray contamination and inundation risks. Review utility contingency protocols.",
-            "evacuation_corridors": "Low-lying causeways face inundation risks. Consult local traffic police and district emergency operations for verified route clearances.",
-            "shelter_readiness": "District shelter inventories displayed are illustrative open-data estimates. Consult local District Disaster Management Authorities (DDMA) for verified operational shelter status and active capacity.",
-            "parametric_payout_recommendation": f"Hypothetical scenario estimate: Index trigger threshold ({knots} KT >= 65 KT) would qualify under modeled parametric catastrophe terms. No contractual policy is in force and this does not authorize or guarantee financial disbursements.",
-            "action_checklist": [
-                "Coordinate with District Disaster Management Authorities (DDMA) regarding official shelter readiness",
-                "Verify backup emergency power systems and VHF/satellite communication lines at local operations centers",
-                "Monitor official IMD Doppler Weather Radar bulletins and cyclone warnings",
-                "Refer citizens strictly to official civil defense and state government alerts",
-                "Review local contingency staging protocols and relief distribution plans"
-            ],
-            "timestamp": timestamp,
-            "model": "CycloNet Scenario Intelligence Engine"
+            "status":"ANALYSIS_UNAVAILABLE", "category":"Not independently validated",
+            "dvorak_t_number":None, "intensity_knots":None, "estimated_wind_kmh":None,
+            "central_pressure_hpa":None, "eye_characterization":"Not verified",
+            "convective_signature":"Not verified", "shear_and_structure":"Not verified",
+            "coastal_impact_level":"UNKNOWN", "recommended_actions":["Consult official meteorological advisories."],
+            "timestamp":datetime.utcnow().isoformat()+"Z", "model_used":"DISABLED_PENDING_VALIDATION",
+            "scientifically_validated":False, "is_fallback":True,
+            "source":"User image; no verified acquisition metadata", "mode":"UNAVAILABLE"
         }
+
+    def generate_pre_landfall_briefing(self, storm_data: Dict, infrastructure_data: Dict, language: str = "en", *, mode: str = "SCENARIO") -> Dict:
+        # Safety-critical summaries are deterministic: language-model output cannot
+        # introduce measured hazards or operational instructions into a briefing.
+        from app.models.ai_requests import StormScenario, BriefingResponse
+        fields = StormScenario.model_fields
+        values = StormScenario.model_validate({k:v for k,v in storm_data.items() if k in fields}).model_dump()
+        knots = values['intensity_knots']
+        wind_kmh = values['wind_kmh']
+        if wind_kmh is None and knots is not None:
+            wind_kmh = round(knots * 1.852, 2)
+        scenario = mode != 'OBSERVATION'
+        source = 'USER_SCENARIO' if scenario else storm_data.get('source')
+        summary = BriefingResponse(
+            executive_summary=f"{'Experimental scenario' if scenario else 'Source observation summary'}: {values['name']}. Wind: {wind_kmh if wind_kmh is not None else 'Unavailable'} km/h. No operational assessment has been performed.",
+            surge_inundation_threat='Not independently validated. No observed inundation is established.',
+            grid_substation_vulnerabilities='Operational grid conditions unavailable.',
+            evacuation_corridors='Road conditions unavailable; no routing recommendation is supported.',
+            shelter_readiness='Operational shelter status not verified.',
+            parametric_payout_recommendation='Not applicable: no contractual or funded policy has been verified.',
+            action_checklist=['Consult current official advisories and authorized local responders.', 'Check observation timestamps and missing measurements.', 'Obtain authorized field verification before any operational decision.']
+        ).model_dump()
+        return {**summary, 'mode':'SCENARIO' if scenario else 'OBSERVATION', 'is_simulation':scenario,
+                'scientifically_validated':False, 'source':source, 'intensity_knots':knots,
+                'observation_time_utc':None if scenario else storm_data.get('observation_time_utc'),
+                'model_method':'DETERMINISTIC_SOURCE_SUMMARY', 'uncertainty':'Not independently validated',
+                'timestamp':datetime.utcnow().isoformat() + 'Z', 'model':'No generative operational assessment',
+                'language':'en', 'requested_language':language}
 
 chat_service = MeteorologicalChatService()

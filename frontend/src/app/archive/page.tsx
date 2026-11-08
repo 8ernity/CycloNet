@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
-import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
+import { API_BASE_URL, getApiBaseUrl, apiFetch } from "@/lib/api";
 
 interface CycloneHistory {
   id: string;
@@ -51,6 +51,8 @@ export default function ArchivePage() {
   const [cyclones, setCyclones] = useState<CycloneHistory[]>([]);
   const [classifications, setClassifications] = useState<AIClassification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sourceError,setSourceError] = useState(false);
+  const [retry,setRetry] = useState(0);
 
   const { selectedCycloneId, selectCyclone } = useActiveCyclone();
 
@@ -82,35 +84,26 @@ export default function ArchivePage() {
     (sortOrder !== "newest" ? 1 : 0);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchData = async () => {
-      setLoading(true);
+      setLoading(true); setSourceError(false); setCyclones([]); setClassifications([]);
       try {
         if (activeTab === "cyclones") {
-          const res = await fetch(`${getApiBaseUrl()}/api/history/search?query=${searchQuery}`);
-          if (res.ok) {
-            const data = await res.json();
-            setCyclones(data);
-          }
+          const data=await apiFetch<CycloneHistory[]>(`/api/history/search?query=${encodeURIComponent(searchQuery)}`, {signal:controller.signal});
+          if (!controller.signal.aborted) setCyclones(data);
         } else {
-          const res = await fetch(`${getApiBaseUrl()}/api/history/classifications`);
-          if (res.ok) {
-            const data = await res.json();
-            setClassifications(data);
-          }
+          const data=await apiFetch<AIClassification[]>("/api/history/classifications",{signal:controller.signal});
+          if (!controller.signal.aborted) setClassifications(data);
         }
-      } catch (err) {
-        console.error(err);
+      } catch {
+        if (!controller.signal.aborted) setSourceError(true);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
-    
-    // Add a small debounce for search
-    const timer = setTimeout(() => {
-      fetchData();
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [activeTab, searchQuery]);
+    const timer=window.setTimeout(() => void fetchData(),300);
+    return () => {controller.abort(); window.clearTimeout(timer);};
+  }, [activeTab, searchQuery, retry]);
 
   // Synchronize archive context with CycloNet AI assistant
   useEffect(() => {
@@ -445,7 +438,7 @@ export default function ArchivePage() {
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-4 scrollbar-hide">
-          {loading ? (
+          {sourceError ? <div role="alert" className="p-8">Archive unavailable. Your session or data source could not be verified. <button onClick={() => setRetry(value=>value+1)}>Retry archive</button></div> : loading ? (
             <div className="flex items-center justify-center h-full">
               <div className="w-8 h-8 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
             </div>

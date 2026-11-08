@@ -320,6 +320,17 @@ class LiveIngestionService:
                     soup = BeautifulSoup(resp.text, "html.parser")
                     text_content = soup.get_text()
 
+                    # This adapter supports one dated advisory only. A landing page
+                    # containing multiple systems/positions is not an observation.
+                    # Document headings describe the bulletin, not a storm named BULLETIN.
+                    advisory_body = re.sub(r"CYCLONIC STORM BULLETIN\s+NO\.\s*\d+", "", text_content, flags=re.IGNORECASE)
+                    names = set(n.upper() for n in re.findall(r"Cyclonic Storm\s+['\"]?([A-Za-z0-9-]+)", advisory_body, re.IGNORECASE))
+                    positions = set(re.findall(r"(\d{1,2}(?:\.\d+)?)\s*°?\s*N.*?(\d{2,3}(?:\.\d+)?)\s*°?\s*E", text_content, re.IGNORECASE))
+                    dates = set(re.findall(r"20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|\+00:00)", text_content))
+                    if len(names) > 1 or len(positions) > 1 or len(dates) != 1:
+                        return assess_feed(source="IMD_RSMC", status=FeedStatus.DEGRADED,
+                            systems=[], error="Unsupported or ambiguous advisory scope", source_url=url)
+
                     bulletin_indicators = [
                         r"TROPICAL CYCLONE ADVISORY NO\.",
                         r"CYCLONIC STORM BULLETIN NO\.",
@@ -347,7 +358,7 @@ class LiveIngestionService:
 
                     if has_active_bulletin:
                         for kw in keywords:
-                            match = re.search(kw, text_content, re.IGNORECASE)
+                            match = re.search(kw, advisory_body, re.IGNORECASE)
                             if match:
                                 matched_text = match.group(0)
                                 cat = self._determine_imd_category_from_text(matched_text)
@@ -370,11 +381,17 @@ class LiveIngestionService:
                                 p_match = re.search(r"(?:CENTRAL\s+PRESSURE|PRESSURE|ECP)\s*(?:IS|ESTIMATED\s+AT)?\s*(\d{3,4})\s*(?:HPA|MB)", text_content, re.IGNORECASE)
                                 pressure_val = int(p_match.group(1)) if p_match else None
 
-                                s_match = re.search(r"(?:SPEED|MOVED|MOVING\s+AT)\s*(\d{1,3})\s*(?:KMPH|KM/H|KT|KNOTS)", text_content, re.IGNORECASE)
-                                speed_val = int(s_match.group(1)) if s_match else None
+                                speed_matches = re.findall(r"(?:MOVEMENT\s+SPEED|MOVED|MOVING\s+AT)\s*(\d{1,3}(?:\.\d+)?)\s*(KMPH|KM/H|KNOTS|KT)\b", text_content, re.IGNORECASE)
+                                # More than one speed could refer to wind/another fix.
+                                speed_raw, speed_unit = (float(speed_matches[0][0]), speed_matches[0][1].upper()) if len(speed_matches) == 1 else (None, None)
+                                speed_val = speed_raw * (1.852 if speed_unit in ("KT", "KNOTS") else 1) if speed_raw is not None else None
 
-                                d_match = re.search(r"(?:DIRECTION|TOWARDS?|MOVING)\s+([A-Z]{1,3}|NORTH|SOUTH|EAST|WEST|NORTHWEST|NORTHEAST|SOUTHWEST|SOUTHEAST)", text_content, re.IGNORECASE)
-                                dir_val = d_match.group(1).upper() if d_match else None
+                                compass = {'NORTH':'N', 'SOUTH':'S', 'EAST':'E', 'WEST':'W',
+                                    'NORTHWEST':'NW', 'NORTHEAST':'NE', 'SOUTHWEST':'SW', 'SOUTHEAST':'SE'}
+                                compass.update({d:d for d in ('N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW')})
+                                directions = re.findall(r"\b(?:DIRECTION|TOWARDS?|MOVING)\s+(" + '|'.join(compass) + r")\b", text_content, re.IGNORECASE)
+                                direction_values = {compass[d.upper()] for d in directions}
+                                dir_val = next(iter(direction_values)) if len(direction_values) == 1 else None
 
                                 w_match = re.search(r"(?:SUSTAINED\s+WINDS?|WIND\s+SPEED)\s*(?:OF)?\s*(\d{2,3})\s*(?:KT|KNOTS)", text_content, re.IGNORECASE)
                                 knots_val = int(w_match.group(1)) if w_match else None
@@ -384,12 +401,15 @@ class LiveIngestionService:
                                     "name": final_name,
                                     "basin": basin,
                                     "source": "IMD RSMC New Delhi (Live Bulletins)",
+                                    "is_live_telemetry": True,
                                     "category": cat,
                                     "intensity_knots": knots_val,
                                     "lat": lat_extracted,
                                     "lon": lon_extracted,
                                     "central_pressure_hpa": pressure_val,
                                     "movement_speed_kmph": speed_val,
+                                    "movement_speed_raw": speed_raw,
+                                    "movement_speed_source_unit": speed_unit,
                                     "movement_direction": dir_val,
                                     "wind_convention": "3_MIN_SUSTAINED" if knots_val is not None else "UNAVAILABLE",
                                     "data_quality": {
@@ -529,7 +549,7 @@ class LiveIngestionService:
                                             "telemetry_type": "LIVE",
                                             "category": cat,
                                             "intensity_knots": knots,
-                                            "wind_convention": "1_MIN_SUSTAINED" if knots is not None else "UNAVAILABLE",
+                                            "wind_convention": "SOURCE_UNSPECIFIED" if knots is not None else "UNAVAILABLE",
                                             "lat": round(lat_val, 2),
                                             "lon": round(lon_val, 2),
                                             "central_pressure_hpa": None,

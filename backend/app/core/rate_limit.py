@@ -16,6 +16,7 @@ MAX_IN_MEMORY_CLIENTS = 5000
 
 # Endpoint-specific limits (minute limit, hour limit) for (anonymous, authenticated) - SEC-07 / FIX-01
 DEFAULT_QUOTAS = {
+    "websocket": {"min_anon": 20, "min_auth": 20, "hr_anon": 120, "hr_auth": 120},
     "chat": {"min_anon": 30, "min_auth": 60, "hr_anon": 120, "hr_auth": 600},
     "multimodal": {"min_anon": 10, "min_auth": 30, "hr_anon": 50, "hr_auth": 300},
     "briefing": {"min_anon": 15, "min_auth": 40, "hr_anon": 60, "hr_auth": 360},

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="4" skipped="0" tests="12" time="8.687" timestamp="2026-11-08T15:36:01.912180+05:30" hostname="DESKTOP-FHF8V0M"><testcase classname="tests.test_v6_units" name="test_imd_movement_normalization[KT-22.224]" time="0.833" /><testcase classname="tests.test_v6_units" name="test_imd_movement_normalization[KNOTS-22.224]" time="0.024" /><testcase classname="tests.test_v6_units" name="test_imd_movement_normalization[KM/H-12]" time="0.027" /><testcase classname="tests.test_v6_units" name="test_imd_movement_normalization[KMPH-12]" time="0.025" /><testcase classname="tests.test_v6_units" name="test_imd_movement_normalization[-None]" time="0.034" /><testcase classname="tests.test_v6_units" name="test_imd_multi_storm_page_cannot_mix_observations" time="0.031" /><testcase classname="tests.test_v6_units" name="test_wind_speed_is_not_movement_speed" time="0.030" /><testcase classname="tests.test_v6_units" name="test_imd_bulletin_header_is_not_a_storm_name" time="0.028"><failure message="AssertionError: assert 0 == 1&#10; +  where 0 = len([])&#10; +    where [] = FeedResult(source='IMD_RSMC', status=&lt;FeedStatus.DEGRADED: 'DEGRADED'&gt;, systems=[], observed_at=None, retrieved_at=dat...ment_id=None, source_url='https://rsmcnewdelhi.imd.gov.in/', coverage=[], complete_coverage=False, calm_evidence=False).systems">@pytest.mark.asyncio
+    async def test_imd_bulletin_header_is_not_a_storm_name():
+        text=f'CYCLONIC STORM BULLETIN NO. 1 {datetime.now(timezone.utc).replace(microsecond=0).isoformat()} Cyclonic Storm ALPHA over Bay of Bengal position near 15.0N 85.0E'
+        with patch('httpx.AsyncClient.get',AsyncMock(return_value=httpx.Response(200,text=text))):
+            result=await LiveIngestionService()._fetch_imd_bulletins()
+&gt;       assert len(result.systems)==1
+E       AssertionError: assert 0 == 1
+E        +  where 0 = len([])
+E        +    where [] = FeedResult(source='IMD_RSMC', status=&lt;FeedStatus.DEGRADED: 'DEGRADED'&gt;, systems=[], observed_at=None, retrieved_at=dat...ment_id=None, source_url='https://rsmcnewdelhi.imd.gov.in/', coverage=[], complete_coverage=False, calm_evidence=False).systems
+
+tests\test_v6_units.py:36: AssertionError</failure></testcase><testcase classname="tests.test_v6_units" name="test_imd_direction_requires_a_complete_compass_value[MOVING AT 12 KT-None]" time="0.028"><failure message="AssertionError: assert 'AT' == None">movement = 'MOVING AT 12 KT', expected = None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('movement,expected', [('MOVING AT 12 KT',None), ('MOVING NORTHWEST','NW'), ('DIRECTION NNE','NNE'), ('MOVING RANDOM',None)])
+    async def test_imd_direction_requires_a_complete_compass_value(movement,expected):
+        text=f'TROPICAL CYCLONE ADVISORY NO. 1 {datetime.now(timezone.utc).replace(microsecond=0).isoformat()} Cyclonic Storm ALPHA position near 15.0N 85.0E {movement}'
+        with patch('httpx.AsyncClient.get',AsyncMock(return_value=httpx.Response(200,text=text))):
+            result=await LiveIngestionService()._fetch_imd_bulletins()
+&gt;       assert result.systems[0]['movement_direction']==expected
+E       AssertionError: assert 'AT' == None
+
+tests\test_v6_units.py:45: AssertionError</failure></testcase><testcase classname="tests.test_v6_units" name="test_imd_direction_requires_a_complete_compass_value[MOVING NORTHWEST-NW]" time="0.030"><failure message="AssertionError: assert 'NOR' == 'NW'&#10;  &#10;  - NW&#10;  + NOR">movement = 'MOVING NORTHWEST', expected = 'NW'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('movement,expected', [('MOVING AT 12 KT',None), ('MOVING NORTHWEST','NW'), ('DIRECTION NNE','NNE'), ('MOVING RANDOM',None)])
+    async def test_imd_direction_requires_a_complete_compass_value(movement,expected):
+        text=f'TROPICAL CYCLONE ADVISORY NO. 1 {datetime.now(timezone.utc).replace(microsecond=0).isoformat()} Cyclonic Storm ALPHA position near 15.0N 85.0E {movement}'
+        with patch('httpx.AsyncClient.get',AsyncMock(return_value=httpx.Response(200,text=text))):
+            result=await LiveIngestionService()._fetch_imd_bulletins()
+&gt;       assert result.systems[0]['movement_direction']==expected
+E       AssertionError: assert 'NOR' == 'NW'
+E         
+E         - NW
+E         + NOR
+
+tests\test_v6_units.py:45: AssertionError</failure></testcase><testcase classname="tests.test_v6_units" name="test_imd_direction_requires_a_complete_compass_value[DIRECTION NNE-NNE]" time="0.027" /><testcase classname="tests.test_v6_units" name="test_imd_direction_requires_a_complete_compass_value[MOVING RANDOM-None]" time="0.024"><failure message="AssertionError: assert 'RAN' == None">movement = 'MOVING RANDOM', expected = None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize('movement,expected', [('MOVING AT 12 KT',None), ('MOVING NORTHWEST','NW'), ('DIRECTION NNE','NNE'), ('MOVING RANDOM',None)])
+    async def test_imd_direction_requires_a_complete_compass_value(movement,expected):
+        text=f'TROPICAL CYCLONE ADVISORY NO. 1 {datetime.now(timezone.utc).replace(microsecond=0).isoformat()} Cyclonic Storm ALPHA position near 15.0N 85.0E {movement}'
+        with patch('httpx.AsyncClient.get',AsyncMock(return_value=httpx.Response(200,text=text))):
+            result=await LiveIngestionService()._fetch_imd_bulletins()
+&gt;       assert result.systems[0]['movement_direction']==expected
+E       AssertionError: assert 'RAN' == None
+
+tests\test_v6_units.py:45: AssertionError</failure></testcase></testsuite></testsuites>

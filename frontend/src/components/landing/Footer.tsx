@@ -10,18 +10,18 @@ const FOOTER_LINKS = [
     title: "Product & Intelligence",
     links: [
       { label: "Active Storm Dashboard", href: "/dashboard" },
-      { label: "48h Track Forecast & Cone", href: "/forecast" },
+      { label: "Source Tracks & Experimental Forecasts", href: "/forecast" },
       { label: "AI Satellite Classifier", href: "/classification" },
       { label: "Surge & Infrastructure Forecaster", href: "/infrastructure" },
-      { label: "Official Bulletins & CAP Dispatches", href: "/reports" }
+      { label: "Source Bulletins & Exercise Drafts", href: "/reports" }
     ]
   },
   {
     title: "Vulnerability Modules",
     links: [
-      { label: "400kV Power Grid Hardening", href: "/infrastructure" },
-      { label: "Evacuation Corridors & Shelters", href: "/infrastructure" },
-      { label: "Parametric Insurance Triggers", href: "/reports" },
+      { label: "Illustrative Power Assets", href: "/infrastructure" },
+      { label: "Road & Shelter Data Availability", href: "/infrastructure" },
+      { label: "Hypothetical Insurance Scenarios", href: "/reports" },
       { label: "System Comparison Matrix", href: "/compare" },
       { label: "Historical Storm Database", href: "/archive" }
     ]
@@ -29,19 +29,19 @@ const FOOTER_LINKS = [
   {
     title: "Documentation & Feeds",
     links: [
-      { label: "Google Earth Engine SAR Docs", href: "/infrastructure" },
-      { label: "OASIS CAP-CP v1.2 XML Feed", href: "/reports" },
-      { label: "FastAPI REST API Docs", href: "http://localhost:8000/docs" },
+      { label: "Satellite Validation Status", href: "/infrastructure" },
+      { label: "CAP Exercise Drafts", href: "/reports" },
+      { label: "API Configuration", href: "/settings" },
       { label: "Data Ingestion & Feed Status", href: "/settings" }
     ]
   },
   {
     title: "Architecture & Standards",
     links: [
-      { label: "IMD & RSMC Alignment", href: "/reports" },
+      { label: "Official Source References", href: "/reports" },
       { label: "Jelesnianski Surge Model", href: "/infrastructure" },
-      { label: "Sovereign Cloud Deployment", href: "/settings" },
-      { label: "Multi-Agency Alert Standards", href: "/reports" }
+      { label: "Application Settings", href: "/settings" },
+      { label: "Exercise Communications", href: "/reports" }
     ]
   }
 ];
@@ -62,7 +62,7 @@ export function Footer() {
               <span className="brand-logo font-bold text-2xl text-blue-600">CycloNet</span>
             </Link>
             <p className="text-xs sm:text-sm text-text-muted leading-relaxed">
-              AI-powered predictive risk and vulnerability modeling platform for tropical cyclone tracking, parametric storm surge simulation, and early-warning advisory dispatches.
+              Experimental cyclone observations, historical records, image classification and explicitly labeled research scenarios. No operational warning delivery is connected.
             </p>
           </div>
 
@@ -101,8 +101,8 @@ export function Footer() {
             &copy; {new Date().getFullYear()} CycloNet — Cyclone Impact & Infrastructure Vulnerability Forecaster. All rights reserved.
           </p>
           <div className="flex items-center gap-6 text-xs text-text-muted">
-            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> OASIS CAP-CP v1.2</span>
-            <span className="flex items-center gap-1.5"><Shield className="w-3.5 h-3.5 text-sky-500" /> Designed to ISO 27001</span>
+            <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Exercise outputs only</span>
+            <span className="flex items-center gap-1.5"><Shield className="w-3.5 h-3.5 text-sky-500" /> Independent security certification not verified</span>
           </div>
         </div>
 

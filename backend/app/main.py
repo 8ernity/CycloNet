@@ -97,6 +97,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from app.core.request_limits import RequestLimitsMiddleware
+app.add_middleware(RequestLimitsMiddleware)
+
 # SEC-10: Security Headers Middleware
 from starlette.requests import Request
 

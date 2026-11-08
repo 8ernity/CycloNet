@@ -67,4 +67,6 @@ def test_rainfall_pathways_labeled_with_experimental_simulation_origin():
     for p in pathways:
         assert p["origin"] == "EXPERIMENTAL_HYDROLOGICAL_SIMULATION"
         assert p["is_satellite_measured"] is False
-        assert p["mode"] == "DEM_INFORMED_RUNOFF_SIMULATION"
+        assert p["mode"] == "ASSUMED_TERRAIN_RUNOFF_SIMULATION"
+        assert p["terrain_source"] == "ASSUMED_SCENARIO"
+        assert p["scientifically_validated"] is False

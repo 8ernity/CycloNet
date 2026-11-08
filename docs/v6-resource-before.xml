@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="5" time="12.747" timestamp="2026-11-08T15:30:44.466074+05:30" hostname="DESKTOP-FHF8V0M"><testcase classname="tests.test_v6_concurrency" name="test_parallel_user_work_is_bounded" time="12.266" /><testcase classname="tests.test_v6_concurrency" name="test_production_ai_budget_fails_closed" time="0.006" /><testcase classname="tests.test_v6_concurrency" name="test_expired_redis_leases_cannot_admit_unbounded_local_work" time="0.005"><failure message="Failed: DID NOT RAISE HTTPException">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001DB214870D0&gt;
+
+    def test_expired_redis_leases_cannot_admit_unbounded_local_work(monkeypatch):
+        # Redis has forgotten old leases while the native worker calls are still alive.
+        redis=Mock()
+        redis.eval.return_value=1
+        monkeypatch.setattr(rate_limit,'ENVIRONMENT','production')
+        monkeypatch.setattr(rate_limit,'_redis_client',redis)
+        monkeypatch.setattr(rate_limit,'check_redis_rate_limit',lambda *args:(True,1,0,'minute'))
+        held=[]
+        try:
+            for i in range(8):held.append(inference_budget.acquire(SimpleNamespace(client=None),{'id':str(i)}))
+&gt;           with pytest.raises(HTTPException) as error:
+E           Failed: DID NOT RAISE HTTPException
+
+tests\test_v6_concurrency.py:45: Failed</failure></testcase><testcase classname="tests.test_v6_concurrency" name="test_expired_redis_user_leases_do_not_erase_running_user_work" time="0.008"><failure message="Failed: DID NOT RAISE HTTPException">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001DB2147A790&gt;
+
+    def test_expired_redis_user_leases_do_not_erase_running_user_work(monkeypatch):
+        redis=Mock();redis.eval.return_value=1
+        monkeypatch.setattr(rate_limit,'ENVIRONMENT','production')
+        monkeypatch.setattr(rate_limit,'_redis_client',redis)
+        monkeypatch.setattr(rate_limit,'check_redis_rate_limit',lambda *args:(True,1,0,'minute'))
+        held=[]
+        try:
+            for _ in range(2):held.append(inference_budget.acquire(SimpleNamespace(client=None),{'id':'same'}))
+&gt;           with pytest.raises(HTTPException) as error:
+E           Failed: DID NOT RAISE HTTPException
+
+tests\test_v6_concurrency.py:61: Failed</failure></testcase><testcase classname="tests.test_v6_body_concurrency" name="test_parallel_upload_bodies_are_bounded_before_reading" time="0.215"><failure message="Failed: Unbounded upload admission">scope = {'type': 'http', 'method': 'POST', 'path': '/api/classify', 'headers': [(b'content-type', b'multipart/form-data; boundary=fixture')]}
+receive = &lt;function RequestLimitsMiddleware.__call__.&lt;locals&gt;.replay at 0x000001DB2148AC00&gt;
+send = &lt;function test_parallel_upload_bodies_are_bounded_before_reading.&lt;locals&gt;.extra_send at 0x000001DB2148AA20&gt;
+
+    async def app(scope,receive,send):
+        entered.set()
+&gt;       await finish.wait()
+
+tests\test_v6_body_concurrency.py:11: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;asyncio.locks.Event object at 0x000001DB214C4950 [set]&gt;
+
+    async def wait(self):
+        """Block until the internal flag is true.
+    
+        If the internal flag is true on entry, return True
+        immediately.  Otherwise, block until another coroutine calls
+        set() to set the flag to true, then return True.
+        """
+        if self._value:
+            return True
+    
+        fut = self._get_loop().create_future()
+        self._waiters.append(fut)
+        try:
+&gt;           await fut
+E           asyncio.exceptions.CancelledError
+
+C:\Users\arpan\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\locks.py:213: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+    @pytest.mark.asyncio
+    async def test_parallel_upload_bodies_are_bounded_before_reading():
+        entered=asyncio.Event();finish=asyncio.Event()
+        async def app(scope,receive,send):
+            entered.set()
+            await finish.wait()
+        middleware=RequestLimitsMiddleware(app)
+        scope={'type':'http','method':'POST','path':'/api/classify',
+               'headers':[(b'content-type',b'multipart/form-data; boundary=fixture')]}
+        async def receive():return {'type':'http.request','body':b'fixture','more_body':False}
+        async def send(message):pass
+        held=[]
+        try:
+            for _ in range(4):
+                entered.clear()
+                held.append(asyncio.create_task(middleware(scope,receive,send)))
+                await asyncio.wait_for(entered.wait(),1)
+            messages=[];read=False
+            async def extra_receive():
+                nonlocal read
+                read=True
+                return await receive()
+            async def extra_send(message):messages.append(message)
+            # A fifth body must be rejected immediately, not buffered or queued.
+            try:
+&gt;               await asyncio.wait_for(middleware(scope,extra_receive,extra_send),.2)
+
+tests\test_v6_body_concurrency.py:31: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+fut = &lt;Task cancelled name='Task-14' coro=&lt;RequestLimitsMiddleware.__call__() done, defined at D:\Projects\CycloneTracker\backend\app\core\request_limits.py:10&gt;&gt;
+timeout = 0.2
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        This function is a coroutine.
+        """
+        loop = events.get_running_loop()
+    
+        if timeout is None:
+            return await fut
+    
+        if timeout &lt;= 0:
+            fut = ensure_future(fut, loop=loop)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut, loop=loop)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise exceptions.TimeoutError() from exc
+    
+        waiter = loop.create_future()
+        timeout_handle = loop.call_later(timeout, _release_waiter, waiter)
+        cb = functools.partial(_release_waiter, waiter)
+    
+        fut = ensure_future(fut, loop=loop)
+        fut.add_done_callback(cb)
+    
+        try:
+            # wait until the future completes or the timeout
+            try:
+                await waiter
+            except exceptions.CancelledError:
+                if fut.done():
+                    return fut.result()
+                else:
+                    fut.remove_done_callback(cb)
+                    # We must ensure that the task is not running
+                    # after wait_for() returns.
+                    # See https://bugs.python.org/issue32751
+                    await _cancel_and_wait(fut, loop=loop)
+                    raise
+    
+            if fut.done():
+                return fut.result()
+            else:
+                fut.remove_done_callback(cb)
+                # We must ensure that the task is not running
+                # after wait_for() returns.
+                # See https://bugs.python.org/issue32751
+                await _cancel_and_wait(fut, loop=loop)
+                # In case task cancellation failed with some
+                # exception, we should re-raise it
+                # See https://bugs.python.org/issue40607
+                try:
+                    return fut.result()
+                except exceptions.CancelledError as exc:
+&gt;                   raise exceptions.TimeoutError() from exc
+E                   TimeoutError
+
+C:\Users\arpan\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\tasks.py:502: TimeoutError
+
+During handling of the above exception, another exception occurred:
+
+    @pytest.mark.asyncio
+    async def test_parallel_upload_bodies_are_bounded_before_reading():
+        entered=asyncio.Event();finish=asyncio.Event()
+        async def app(scope,receive,send):
+            entered.set()
+            await finish.wait()
+        middleware=RequestLimitsMiddleware(app)
+        scope={'type':'http','method':'POST','path':'/api/classify',
+               'headers':[(b'content-type',b'multipart/form-data; boundary=fixture')]}
+        async def receive():return {'type':'http.request','body':b'fixture','more_body':False}
+        async def send(message):pass
+        held=[]
+        try:
+            for _ in range(4):
+                entered.clear()
+                held.append(asyncio.create_task(middleware(scope,receive,send)))
+                await asyncio.wait_for(entered.wait(),1)
+            messages=[];read=False
+            async def extra_receive():
+                nonlocal read
+                read=True
+                return await receive()
+            async def extra_send(message):messages.append(message)
+            # A fifth body must be rejected immediately, not buffered or queued.
+            try:
+                await asyncio.wait_for(middleware(scope,extra_receive,extra_send),.2)
+&gt;           except asyncio.TimeoutError:pytest.fail('Unbounded upload admission')
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: Unbounded upload admission
+
+tests\test_v6_body_concurrency.py:32: Failed</failure></testcase></testsuite></testsuites>

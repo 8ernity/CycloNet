@@ -1,9 +1,11 @@
 "use client";
+import type { WeatherSystem as ActiveSystem } from "@/types/api";
 import { type SurgeCalculation, type SurgeSector, type RainfallPathway, type Briefing, type DispatchResult, type CatalogItem } from "@/types/api";
+import { ObservationValue } from "@/components/ObservationValue";
 import React, { useState, useEffect, useSyncExternalStore } from "react";
-import { 
-  Building2, Zap, Navigation, Coins, Landmark, ShieldCheck, 
-  Waves, RefreshCw, CheckCircle2, Download, Filter, MapPin, 
+import {
+  Building2, Zap, Navigation, Coins, Landmark, ShieldCheck,
+  Waves, RefreshCw, CheckCircle2, Download, Filter, MapPin,
   AlertTriangle, Radio, Activity, ExternalLink, Siren, PhoneCall,
   Search, ShieldAlert, Sparkles, CloudRain, Layers, Cpu, Compass,
   FileText, CheckCircle, Clock, X, Globe, Send, Copy, ArrowRight,
@@ -12,12 +14,12 @@ import {
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
 import { API_BASE_URL, getApiBaseUrl, apiFetch } from "@/lib/api";
-import { 
-  POWER_SUBSTATIONS, 
-  EVACUATION_ROUTES, 
-  MEDICAL_SHELTERS, 
-  PARAMETRIC_INSURANCE_TRIGGERS, 
-  COASTAL_INUNDATION_ZONES,
+import {
+  POWER_SUBSTATIONS as SCENARIO_POWER_SUBSTATIONS,
+  EVACUATION_ROUTES as SCENARIO_EVACUATION_ROUTES,
+  MEDICAL_SHELTERS as SCENARIO_MEDICAL_SHELTERS,
+  PARAMETRIC_INSURANCE_TRIGGERS as SCENARIO_PARAMETRIC_INSURANCE_TRIGGERS,
+  COASTAL_INUNDATION_ZONES as SCENARIO_COASTAL_INUNDATION_ZONES,
   PowerSubstation,
   MedicalCycloneShelter,
   EvacuationRoute,
@@ -26,28 +28,19 @@ import {
   calculateShelterSuitability
 } from "@/lib/infrastructureData";
 
-interface ActiveSystem {
-  id: string;
-  name: string;
-  basin: string;
-  lat: number;
-  lon: number;
-  intensity_knots: number | null;
-  category: string;
-}
 
-const PRESET_STORMS = [
-  { id: "BOB05-2026", name: "Deep Depression (BOB-05)", basin: "Bay of Bengal", category: "Deep Depression", knots: 35 },
-  { id: "ARB01-2023", name: "Cyclone Biparjoy", basin: "Arabian Sea", category: "Extremely Severe Cyclonic Storm", knots: 90 },
-  { id: "BOB01-2023", name: "Cyclone Mocha", basin: "Bay of Bengal", category: "Super Cyclonic Storm", knots: 130 },
-  { id: "BOB02-2020", name: "Cyclone Amphan", basin: "Bay of Bengal", category: "Super Cyclonic Storm", knots: 140 },
-  { id: "BOB02-2019", name: "Cyclone Fani", basin: "Bay of Bengal", category: "Extremely Severe Cyclonic Storm", knots: 115 },
-  { id: "ARB01-2021", name: "Cyclone Tauktae", basin: "Arabian Sea", category: "Extremely Severe Cyclonic Storm", knots: 100 },
-];
+
+const PRESET_STORMS: {id:string;name:string;basin:string;category:string;knots:number|null}[] = [];
 
 function subscribeLocation(notify: () => void) { window.addEventListener("popstate", notify); return () => window.removeEventListener("popstate", notify); }
 function readTab() { const tab = new URLSearchParams(window.location.search).get("tab"); return tab === "surge" ? "surge_rain" : tab ?? "grid"; }
 export default function InfrastructurePage() {
+  const [scenarioMode, setScenarioMode] = useState(false);
+  const PARAMETRIC_INSURANCE_TRIGGERS = scenarioMode ? SCENARIO_PARAMETRIC_INSURANCE_TRIGGERS : [];
+  const COASTAL_INUNDATION_ZONES = scenarioMode ? SCENARIO_COASTAL_INUNDATION_ZONES : [];
+  const POWER_SUBSTATIONS = scenarioMode ? SCENARIO_POWER_SUBSTATIONS : [];
+  const MEDICAL_SHELTERS = scenarioMode ? SCENARIO_MEDICAL_SHELTERS : [];
+  const EVACUATION_ROUTES = scenarioMode ? SCENARIO_EVACUATION_ROUTES : [];
   const { selectedCycloneId, selectCyclone } = useActiveCyclone();
   const { getConvertedKnots, getConvertedKmh, getConvertedGusts, getConvertedCategory, getSourceBadge } = useDataSource();
 
@@ -75,7 +68,7 @@ export default function InfrastructurePage() {
   const [rainfallPathways, setRainfallPathways] = useState<RainfallPathway[]>([]);
   const [geeLayers, setGeeLayers] = useState<Record<string, unknown>[]>([]);
 
-  // Gemini 3.7 Flash Pre-Landfall Briefing State
+  // Deterministic source and scenario briefing state
   const [briefingModalOpen, setBriefingModalOpen] = useState(false);
   const [briefingLoading, setBriefingLoading] = useState(false);
   const [briefingData, setBriefingData] = useState<Briefing | null>(null);
@@ -124,52 +117,53 @@ export default function InfrastructurePage() {
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchSystem = async () => {
       setLoading(true);
+      setSystem(null);
       try {
-        const url = `${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${encodeURIComponent(selectedCycloneId || "BOB05-2026")}`;
-        const res = await fetch(url);
+        const query = selectedCycloneId ? `?cyclone_id=${encodeURIComponent(selectedCycloneId)}` : "";
+        const res = await fetch(`${getApiBaseUrl()}/api/active-systems${query}`, {signal:controller.signal});
         if (!res.ok) throw new Error("Source unavailable");
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.length > 0) {
-            setSystem(data[0]);
-            setSimWindKts(data[0].intensity_knots ?? simWindKts);
-            if (data[0].central_pressure_hpa != null) setSimPressureHpa(data[0].central_pressure_hpa);
-          }
-        }
+        const data = await res.json();
+        if (!controller.signal.aborted) setSystem(data?.[0] ?? null);
       } catch {
-        setSystem(null);
-        setToast("Source unavailable. Controls remain an illustrative simulation; no live assessment is available.");
+        if (!controller.signal.aborted) setToast("Source unavailable. Operational conditions are not verified.");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
-    fetchSystem();
+    void fetchSystem();
+    return () => controller.abort();
   }, [selectedCycloneId]);
 
-  const rawKnots = simWindKts;
+  const rawKnots = scenarioMode ? simWindKts : system?.intensity_knots ?? null;
   const knots = getConvertedKnots(rawKnots);
   const kmh = getConvertedKmh(rawKnots);
   const gusts = getConvertedGusts(rawKnots);
   const displayCategory = getConvertedCategory(rawKnots, system?.category);
-  const surgeM = knots == null ? null : Number((Math.max(0.8, (knots * 0.035) + 0.5)).toFixed(1));
+  const surgeM = scenarioMode ? surgeCalcData?.peak_surge_height_m ?? null : null;
 
-  // Compute live Hydrodynamic Surge & GEE pathways
+  // Explicit scenario calculations; changes cancel and clear older results.
   useEffect(() => {
+    const controller = new AbortController();
     async function fetchSurgeAndGee() {
+      setSurgeCalcData(null); setSurgeSectors([]); setRainfallPathways([]); setGeeLayers([]);
+      if (!scenarioMode) return;
       try {
         const lat = system?.lat || 18.2;
         const lon = system?.lon || 84.8;
         const basin = system?.basin || "Bay of Bengal";
 
         const [surgeRes, secRes, pathRes, layerRes] = await Promise.all([
-          fetch(`${getApiBaseUrl()}/api/surge/calculate?knots=${simWindKts}&pressure_hpa=${simPressureHpa}&forward_speed=${simForwardSpeed}&angle_deg=${simAngleDeg}&tide_m=${simTideM}&basin=${encodeURIComponent(basin)}`),
-          fetch(`${getApiBaseUrl()}/api/surge/profile?name=${encodeURIComponent(system?.name || "Cyclone")}&lat=${lat}&lon=${lon}&knots=${simWindKts}`),
-          fetch(`${getApiBaseUrl()}/api/gee/rainfall-pathways?lat=${lat}&lon=${lon}&rain_mm=${simRainMm}`),
-          fetch(`${getApiBaseUrl()}/api/gee/layers`)
+          fetch(`${getApiBaseUrl()}/api/surge/calculate?knots=${simWindKts}&pressure_hpa=${simPressureHpa}&forward_speed=${simForwardSpeed}&angle_deg=${simAngleDeg}&tide_m=${simTideM}&basin=${encodeURIComponent(basin)}`, {signal:controller.signal}),
+          fetch(`${getApiBaseUrl()}/api/surge/profile?name=${encodeURIComponent(system?.name || "Cyclone")}&lat=${lat}&lon=${lon}&knots=${simWindKts}`, {signal:controller.signal}),
+          fetch(`${getApiBaseUrl()}/api/gee/rainfall-pathways?lat=${lat}&lon=${lon}&rain_mm=${simRainMm}`, {signal:controller.signal}),
+          fetch(`${getApiBaseUrl()}/api/gee/layers`, {signal:controller.signal})
         ]);
 
+        if (controller.signal.aborted) return;
+        if (![surgeRes,secRes,pathRes,layerRes].every(res => res.ok)) throw new Error("Scenario unavailable");
         if (surgeRes.ok) setSurgeCalcData(await surgeRes.json());
         if (secRes.ok) {
           const d = await secRes.json();
@@ -187,18 +181,18 @@ export default function InfrastructurePage() {
         console.error("Error fetching surge & GEE telemetry", err);
       }
     }
-    fetchSurgeAndGee();
-  }, [system, simWindKts, simPressureHpa, simTideM, simForwardSpeed, simAngleDeg, simRainMm]);
+    const debounce = window.setTimeout(() => void fetchSurgeAndGee(), 350);
+    return () => { controller.abort(); window.clearTimeout(debounce); };
+  }, [scenarioMode, system, simWindKts, simPressureHpa, simTideM, simForwardSpeed, simAngleDeg, simRainMm]);
 
   // Handle Multi-Channel Early Warning Dispatch
   const handleExecuteDispatch = async () => {
-    if (dispatchLoading) return;
+    if (dispatchLoading || !scenarioMode) return;
+    if (!surgeCalcData) { showToast("Scenario calculation unavailable. Retry before generating a draft."); return; }
     setDispatchLoading(true);
     setDispatchStep(1);
 
-    setTimeout(() => setDispatchStep(2), 600);
-    setTimeout(() => setDispatchStep(3), 1300);
-    setTimeout(() => setDispatchStep(4), 2000);
+
 
     try {
       const payload = {
@@ -207,7 +201,7 @@ export default function InfrastructurePage() {
         surge: surgeCalcData?.peak_surge_height_m || surgeM,
         wind: simWindKts,
         channels: dispatchChannels,
-        cyclone_name: system?.name || "Active Cyclone"
+        cyclone_name: system?.name || "Exercise cyclone"
       };
       const data = await apiFetch<DispatchResult>("/api/alerts/dispatch", {
         method: "POST",
@@ -231,6 +225,8 @@ export default function InfrastructurePage() {
   };
 
   const handleGenerateBriefing = async (lang = briefingLanguage) => {
+    if (!scenarioMode) return;
+    setBriefingData(null);
     setBriefingModalOpen(true);
     setBriefingLoading(true);
     try {
@@ -245,7 +241,7 @@ export default function InfrastructurePage() {
       const data = await apiFetch<{briefing: Briefing}>("/api/ai/pre-landfall-briefing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storm_data: stormPayload, language: lang })
+        body: JSON.stringify({ mode: "SCENARIO", storm_data: stormPayload, language: lang })
       });
       setBriefingData(data.briefing);
     } catch (err) {
@@ -267,7 +263,7 @@ export default function InfrastructurePage() {
   }));
 
   const filteredSubstations = analyzedSubstations.filter(sub => {
-    const matchesCriticality = infraFilter === "all" || 
+    const matchesCriticality = infraFilter === "all" ||
       (infraFilter === "critical" && sub.ivf.riskCategory === "CRITICAL") ||
       (infraFilter === "high" && (sub.ivf.riskCategory === "CRITICAL" || sub.ivf.riskCategory === "HIGH"));
     const matchesRegion = regionFilter === "ALL" || sub.region.toLowerCase().includes(regionFilter.toLowerCase());
@@ -309,10 +305,15 @@ export default function InfrastructurePage() {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-12 w-full">
+      <div className="glass-card p-4 border-border" role="status">
+        <p>{scenarioMode ? "ILLUSTRATIVE SCENARIO — asset names, coordinates, capacities and risk calculations are unverified examples." : "Operational status not verified. No authorized infrastructure observations are connected."}</p>
+        {system && <p>Source: {system.source ?? "Unavailable"} · Observation: {system.observation_time_utc ?? "Unavailable"} · {system.is_stale ? "STALE" : "Check source freshness"}</p>}
+        <label><input type="checkbox" checked={scenarioMode} onChange={e => setScenarioMode(e.target.checked)} /> Show illustrative scenario assets</label>
+      </div>
       {/* ── Top Header Bar ─────────────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-6 border-border/80 relative overflow-hidden">
         <div className="absolute -right-20 -top-20 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-        
+
         <div className="space-y-1.5 z-10">
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/15 text-amber-400 border border-amber-500/30">
@@ -324,15 +325,15 @@ export default function InfrastructurePage() {
             </span>
             {system && (
               <span className="text-xs text-muted-foreground font-mono">
-                Active Threat: {system.name} ({displayCategory} • {simWindKts} KT)
+                {system.provenance ?? "UNKNOWN"}: {system.name} ({displayCategory} • {rawKnots ?? "Unavailable"} KT)
               </span>
             )}
           </div>
           <h1 className="text-2xl sm:text-3xl font-heading font-black text-foreground tracking-tight">
-            Infrastructure Vulnerability Index & Automated Advisory Dispatch
+            Infrastructure observations & explicit scenarios
           </h1>
           <p className="text-sm text-muted-foreground max-w-4xl">
-            Mathematical risk scoring for 400kV/220kV power grids, road inundation rerouting, GEE DEM drainage choke-points, hydrodynamic storm surge, and multi-channel emergency alert broadcast.
+            Inspect unavailable field observations or opt into illustrative infrastructure and surge scenarios. Exercise communications remain local drafts.
           </p>
 
           {/* Field Operational Verification Advisory (#50 & #51) */}
@@ -341,7 +342,7 @@ export default function InfrastructurePage() {
             <div>
               <span className="font-bold text-amber-400 uppercase tracking-wide text-[10px] block mb-0.5">Field Operational Verification Advisory</span>
               <p className="text-muted-foreground leading-relaxed">
-                Infrastructure asset inventories (substations, corridors, shelters) are derived from baseline geospatial topological surveys (OpenStreetMap, SRTM DEM, state disaster registry). On-ground operational statuses (generator fuel, medical staffing, real-time road submergence) are simulated exercise states and require dynamic confirmation with District Disaster Management Authorities (DDMA) / State EOC.
+                Example asset names, locations and capacities have no verified source inventory. Current operational attributes remain unavailable until authorized field observations are supplied.
               </p>
             </div>
           </div>
@@ -369,7 +370,7 @@ export default function InfrastructurePage() {
             className="px-3.5 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-primary/20 cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5 animate-pulse" />
-            <span>Gemini 3.7 Briefing</span>
+            <span>Scenario summary</span>
           </button>
 
           <button
@@ -377,7 +378,7 @@ export default function InfrastructurePage() {
             className="px-3.5 py-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
           >
             <Siren className="w-3.5 h-3.5 text-red-400" />
-            <span>🚨 Dispatch Warning</span>
+            <span>Exercise drafts</span>
           </button>
         </div>
       </div>
@@ -398,11 +399,11 @@ export default function InfrastructurePage() {
               <Zap className="w-5 h-5" />
             </span>
             <span className="text-xs font-mono font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded">
-              {criticalSubstationsCount} Critical Nodes
+              {scenarioMode ? `${criticalSubstationsCount} scenario nodes` : "Unverified inventory"}
             </span>
           </div>
           <p className="text-xs text-muted-foreground font-medium">Power Transmission Grid IVF</p>
-          <p className="text-2xl font-mono font-black text-foreground">{(totalGridCapacity / 1000).toFixed(1)}k <span className="text-xs font-normal text-muted-foreground">MVA Capacity</span></p>
+          <p className="text-2xl font-mono font-black text-foreground">{scenarioMode ? `${(totalGridCapacity / 1000).toFixed(1)}k (assumed)` : "Unavailable"} <span className="text-xs font-normal text-muted-foreground">MVA Capacity</span></p>
           <p className="text-[11px] text-amber-400 font-semibold">Multi-factor: Flood (30%) + Wind (25%) + Elev (15%)</p>
         </div>
 
@@ -415,10 +416,10 @@ export default function InfrastructurePage() {
           </div>
           <p className="text-xs text-muted-foreground font-medium">Peak Storm Surge Height</p>
           <p className="text-2xl font-mono font-black text-foreground">
-            {surgeCalcData?.peak_surge_height_m ?? surgeM} <span className="text-xs font-normal text-muted-foreground">meters AMSL</span>
+            {surgeM ?? "Unavailable"} <span className="text-xs font-normal text-muted-foreground">meters AMSL</span>
           </p>
           <p className="text-[11px] text-cyan-400 font-semibold">
-            Inland Penetration: {surgeCalcData?.inland_penetration_km ?? "3.85"} km
+            Inland Penetration: {surgeCalcData?.inland_penetration_km ?? "Unavailable"} km
           </p>
         </div>
 
@@ -427,11 +428,11 @@ export default function InfrastructurePage() {
             <span className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <Building2 className="w-5 h-5" />
             </span>
-            <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">20+ Shelters</span>
+            <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">{scenarioMode ? `${MEDICAL_SHELTERS.length} illustrative shelters` : "Unverified inventory"}</span>
           </div>
           <p className="text-xs text-muted-foreground font-medium">Cyclone Shelters Capacity</p>
-          <p className="text-2xl font-mono font-black text-foreground">{totalShelterCapacity.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">persons</span></p>
-          <p className="text-[11px] text-emerald-400 font-semibold">{totalMedicalBeds} Dedicated Trauma & ICU Beds</p>
+          <p className="text-2xl font-mono font-black text-foreground">{scenarioMode ? `${totalShelterCapacity.toLocaleString()} (assumed)` : "Unavailable"} <span className="text-xs font-normal text-muted-foreground">persons</span></p>
+          <p className="text-[11px] text-emerald-400 font-semibold">{scenarioMode ? `${totalMedicalBeds} assumed beds` : "Medical beds unavailable"}</p>
         </div>
 
         <div className="glass-card p-5 border-border space-y-2">
@@ -468,7 +469,7 @@ export default function InfrastructurePage() {
               : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
           }`}
         >
-          <Navigation className="w-4 h-4 text-blue-400" /> Evacuation Corridors & Rerouting ({EVACUATION_ROUTES.length})
+          <Navigation className="w-4 h-4 text-blue-400" /> Road scenario exposure ({EVACUATION_ROUTES.length})
         </button>
 
         <button
@@ -521,7 +522,7 @@ export default function InfrastructurePage() {
          ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === "grid" && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          
+
           {/* Methodology Banner */}
           <div className="p-4 rounded-xl bg-secondary/40 border border-border/80 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
@@ -599,7 +600,7 @@ export default function InfrastructurePage() {
 
                     {/* Progress Score Bar */}
                     <div className="w-full bg-secondary rounded-full h-2 overflow-hidden">
-                      <div 
+                      <div
                         className={`h-full rounded-full transition-all duration-500 ${
                           ivf.riskCategory === "CRITICAL" ? "bg-red-500" :
                           ivf.riskCategory === "HIGH" ? "bg-amber-500" : "bg-blue-500"
@@ -652,15 +653,15 @@ export default function InfrastructurePage() {
          ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === "routes" && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          
+
           <div className="p-4 rounded-xl bg-blue-950/20 border border-blue-500/30 flex items-center justify-between gap-4">
             <div>
               <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                 <Navigation className="w-4 h-4 text-blue-400" />
-                Anticipatory Evacuation Route Rerouting Engine
+                Road observations and illustrative scenarios
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Evaluates coastal highway elevation profiles against predicted flood depths to recommend safe alternative evacuation routes.
+                Road conditions require current authorized observations. Scenario exposure uses assumed terrain and cannot identify a safe evacuation route.
               </p>
             </div>
             <div className="flex items-center gap-3 text-xs font-mono shrink-0">
@@ -774,7 +775,7 @@ export default function InfrastructurePage() {
                       </div>
                       {suit.isRecommendedDestination && (
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shrink-0">
-                          ✓ RECOMMENDED
+                          AUTHORIZED DESTINATION APPROVAL
                         </span>
                       )}
                     </div>
@@ -782,13 +783,13 @@ export default function InfrastructurePage() {
                     {/* Occupancy Bar */}
                     <div>
                       <div className="flex justify-between text-xs font-mono mb-1">
-                        <span className="text-muted-foreground">Occupancy ({suit.occupancyPercentage}%):</span>
-                        <span className="font-bold text-foreground">{suit.currentOccupancy} / {suit.capacity}</span>
+                        <span className="text-muted-foreground">Occupancy ({suit.occupancyPercentage ?? "Unavailable"}%):</span>
+                        <span className="font-bold text-foreground"><ObservationValue attribute={suit.observations?.occupancy} /> / {suit.capacity ?? "Unavailable"}</span>
                       </div>
                       <div className="w-full bg-secondary rounded-full h-1.5 overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full ${suit.occupancyPercentage >= 80 ? "bg-amber-400" : "bg-emerald-400"}`}
-                          style={{ width: `${suit.occupancyPercentage}%` }}
+                        <div
+                          className={`h-full rounded-full ${(suit.occupancyPercentage ?? 0) >= 80 ? "bg-amber-400" : "bg-emerald-400"}`}
+                          style={{ width: `${suit.occupancyPercentage ?? "Unavailable"}%` }}
                         />
                       </div>
                     </div>
@@ -797,15 +798,15 @@ export default function InfrastructurePage() {
                     <div className="grid grid-cols-2 gap-2 text-xs font-mono">
                       <div className="p-2 rounded bg-secondary/30 border border-border/40">
                         <span className="text-[10px] text-muted-foreground block">Medical Beds:</span>
-                        <span className="font-bold text-emerald-400">{shl.medicalBeds} ICU/Trauma</span>
+                        <span className="font-bold text-emerald-400">{suit.medicalBeds ?? "Unavailable"}</span>
                       </div>
                       <div className="p-2 rounded bg-secondary/30 border border-border/40">
                         <span className="text-[10px] text-muted-foreground block">Road Access:</span>
-                        <span className="font-bold text-sky-400">{suit.roadAccessStatus}</span>
+                        <span className="font-bold text-sky-400">{suit.roadAccessStatus ?? "Unavailable"}</span>
                       </div>
                       <div className="p-2 rounded bg-secondary/30 border border-border/40 col-span-2">
                         <span className="text-[10px] text-muted-foreground block">Power Backup:</span>
-                        <span className="font-bold text-emerald-400">{suit.powerBackupStatus}</span>
+                        <span className="font-bold text-emerald-400">{suit.powerBackupStatus ?? "Unavailable"}</span>
                       </div>
                     </div>
                   </div>
@@ -823,9 +824,9 @@ export default function InfrastructurePage() {
       {/* ══════════════════════════════════════════════════════════════════════
           TAB 4: HYDRODYNAMIC STORM SURGE & GEE DRAINAGE CHOKE POINTS
          ══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === "surge_rain" && (
+      {activeTab === "surge_rain" && scenarioMode && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          
+
           {/* Top Banner */}
           <div className="glass-card p-5 border-border flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-blue-950/20 via-background to-cyan-950/20">
             <div className="flex items-start gap-3">
@@ -838,7 +839,7 @@ export default function InfrastructurePage() {
                     Parametric Hydrodynamic Surge Simulator (Jelesnianski Formulation)
                   </span>
                   <span className="text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 flex items-center gap-1">
-                    <Layers className="w-3 h-3" /> GEE Sentinel-1 SAR & SRTM 30m DEM
+                    <Layers className="w-3 h-3" /> Satellite observations unavailable
                   </span>
                 </div>
                 <h3 className="text-lg font-bold text-foreground mt-1">
@@ -855,7 +856,7 @@ export default function InfrastructurePage() {
               className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold transition-all flex items-center gap-2 shrink-0 shadow-lg shadow-primary/20 cursor-pointer"
             >
               <Sparkles className="w-4 h-4 animate-pulse" />
-              <span>Generate AI Risk Briefing</span>
+              <span>Generate scenario summary</span>
             </button>
           </div>
 
@@ -864,7 +865,7 @@ export default function InfrastructurePage() {
             <div className="glass-card p-5 border-border space-y-1.5">
               <span className="text-[11px] font-mono font-bold text-blue-400 uppercase tracking-wider">Peak Storm Surge (S-peak)</span>
               <p className="text-3xl font-mono font-black text-foreground">
-                {surgeCalcData?.peak_surge_height_m ?? surgeM} <span className="text-sm font-normal text-muted-foreground">meters</span>
+                {surgeM ?? "Unavailable"} <span className="text-sm font-normal text-muted-foreground">meters</span>
               </p>
               <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
                 <CheckCircle className="w-3 h-3" />
@@ -875,7 +876,7 @@ export default function InfrastructurePage() {
             <div className="glass-card p-5 border-border space-y-1.5">
               <span className="text-[11px] font-mono font-bold text-cyan-400 uppercase tracking-wider">Inverted Barometer Effect</span>
               <p className="text-3xl font-mono font-black text-foreground">
-                {surgeCalcData?.inverted_barometer_m ?? "0.68"} <span className="text-sm font-normal text-muted-foreground">m rise</span>
+                {surgeCalcData?.inverted_barometer_m ?? "Unavailable"} <span className="text-sm font-normal text-muted-foreground">m rise</span>
               </p>
               <p className="text-[11px] text-muted-foreground font-mono">
                 ΔP = {1013 - simPressureHpa} hPa below standard
@@ -885,27 +886,27 @@ export default function InfrastructurePage() {
             <div className="glass-card p-5 border-border space-y-1.5">
               <span className="text-[11px] font-mono font-bold text-amber-400 uppercase tracking-wider">Wind Stress On Shelf</span>
               <p className="text-3xl font-mono font-black text-foreground">
-                {surgeCalcData?.wind_setup_m ?? "2.44"} <span className="text-sm font-normal text-muted-foreground">m setup</span>
+                {surgeCalcData?.wind_setup_m ?? "Unavailable"} <span className="text-sm font-normal text-muted-foreground">m setup</span>
               </p>
               <p className="text-[11px] text-amber-400 font-semibold font-mono">
-                {system?.basin?.includes("Bengal") ? "1.45x Bay of Bengal Bathymetry" : "1.10x Arabian Sea"}
+                {system?.basin?.includes("Bengal") ? "Assumed Bay of Bengal shelf" : "Assumed Arabian Sea shelf"}
               </p>
             </div>
 
             <div className="glass-card p-5 border-border space-y-1.5">
               <span className="text-[11px] font-mono font-bold text-purple-400 uppercase tracking-wider">Inland Flood Penetration</span>
               <p className="text-3xl font-mono font-black text-foreground">
-                {surgeCalcData?.inland_penetration_km ?? "4.2"} <span className="text-sm font-normal text-muted-foreground">km inland</span>
+                {surgeCalcData?.inland_penetration_km ?? "Unavailable"} <span className="text-sm font-normal text-muted-foreground">km inland</span>
               </p>
               <p className="text-[11px] text-purple-400 font-semibold">
-                Based on 30m DEM slope (0.75m/km)
+                Based on an assumed slope; no terrain raster is connected
               </p>
             </div>
           </div>
 
           {/* Interactive Physics Sliders */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
+
             <div className="glass-card p-5 border-border space-y-4">
               <h4 className="text-sm font-bold text-foreground flex items-center gap-2 border-b border-border pb-2.5">
                 <Cpu className="w-4 h-4 text-primary" />
@@ -1026,10 +1027,10 @@ export default function InfrastructurePage() {
               <div>
                 <h4 className="text-base font-bold text-foreground flex items-center gap-2">
                   <CloudRain className="w-5 h-5 text-blue-400" />
-                  DEM-Informed Catchment Runoff & Drainage Choke Points
+                  Assumed-Terrain Catchment Runoff & Drainage Choke Points
                 </h4>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  DEM-informed catchment runoff pathway simulation and compound estuarine backwater bottleneck analysis.
+                  Assumed-terrain catchment runoff pathway simulation and compound estuarine backwater bottleneck analysis.
                 </p>
               </div>
 
@@ -1064,7 +1065,7 @@ export default function InfrastructurePage() {
                   </div>
 
                   <p className="text-xs text-muted-foreground font-mono">
-                    Catchment: <strong className="text-foreground">{path.basin}</strong> • Slope: <strong className="text-primary">{path.dem_slope_deg}°</strong>
+                    Catchment: <strong className="text-foreground">{path.basin}</strong> • Assumed slope: <strong className="text-primary">{path.assumed_slope_deg}°</strong>
                   </p>
 
                   <div className="space-y-2 text-xs pt-1 border-t border-border/40">
@@ -1097,9 +1098,9 @@ export default function InfrastructurePage() {
       {/* ══════════════════════════════════════════════════════════════════════
           TAB 5: 🚨 AUTOMATED MULTI-CHANNEL ADVISORY DISPATCHER
          ══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === "dispatch" && (
+      {activeTab === "dispatch" && scenarioMode && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          
+
           <div className="p-5 rounded-2xl bg-gradient-to-r from-red-950/40 via-background to-orange-950/30 border border-red-500/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
               <div className="p-3.5 rounded-2xl bg-red-500/20 text-red-400 border border-red-500/30 shrink-0">
@@ -1107,13 +1108,13 @@ export default function InfrastructurePage() {
               </div>
               <div className="space-y-1">
                 <span className="text-xs font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/40">
-                  National Disaster Management Authority (NDMA) Dispatch Protocol
+                  CycloNet local exercise templates
                 </span>
                 <h3 className="text-xl font-bold text-foreground">
                   Automated Multi-Channel Early Warning Advisory Dispatcher
                 </h3>
                 <p className="text-xs text-muted-foreground max-w-3xl">
-                  Synchronously transmits OASIS CAP-CP v1.2 XML to central repositories, generates trilingual Cell Broadcast SMS, triggers NDMA SACHET mobile push feeds, coordinates coastal siren acoustic arrays, and transmits marine VHF Channel 16 distress broadcasts.
+                  Creates local draft templates for training. No message is transmitted, no agency is represented, and no hardware is activated.
                 </p>
               </div>
             </div>
@@ -1122,8 +1123,8 @@ export default function InfrastructurePage() {
               onClick={handleExecuteDispatch}
               disabled={dispatchLoading}
               className={`px-6 py-3.5 rounded-xl font-bold text-sm tracking-wide uppercase transition-all flex items-center gap-2.5 shrink-0 cursor-pointer shadow-xl ${
-                dispatchLoading 
-                  ? "bg-secondary text-muted-foreground cursor-not-allowed" 
+                dispatchLoading
+                  ? "bg-secondary text-muted-foreground cursor-not-allowed"
                   : "bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-500 hover:to-orange-500 text-white shadow-red-600/30 active:scale-95"
               }`}
             >
@@ -1166,7 +1167,7 @@ export default function InfrastructurePage() {
                     onChange={(e) => setDispatchRiskLevel(e.target.value)}
                     className="w-full px-3 py-2 bg-secondary/80 border border-border rounded-lg text-foreground font-semibold"
                   >
-                    <option value="CRITICAL">🔴 CRITICAL (Mandatory Evacuation)</option>
+                    <option value="CRITICAL">🔴 CRITICAL (Exercise category)</option>
                     <option value="HIGH">🟠 HIGH (Alert & Staging)</option>
                     <option value="MODERATE">🟡 MODERATE (Watch & Caution)</option>
                   </select>
@@ -1175,7 +1176,7 @@ export default function InfrastructurePage() {
                 <div className="grid grid-cols-2 gap-2 font-mono">
                   <div className="p-2 rounded bg-secondary/30 border border-border/40">
                     <span className="text-[10px] text-muted-foreground block">Peak Surge:</span>
-                    <strong className="text-foreground">{surgeCalcData?.peak_surge_height_m ?? surgeM}m</strong>
+                    <strong className="text-foreground">{surgeM ?? "Unavailable"}m</strong>
                   </div>
                   <div className="p-2 rounded bg-secondary/30 border border-border/40">
                     <span className="text-[10px] text-muted-foreground block">Sustained Wind:</span>
@@ -1195,9 +1196,9 @@ export default function InfrastructurePage() {
                 {[
                   { id: "CAP", name: "OASIS CAP-CP v1.2 XML", desc: "Standardized National Disaster XML alert registry" },
                   { id: "SMS", name: "Cell Broadcast & SMS Gateway", desc: "Trilingual SMS alerts (English, Hindi, Regional)" },
-                  { id: "SACHET", name: "NDMA SACHET Mobile Push Feed", desc: "Standard OASIS CAP-CP JSON push payload specification" },
-                  { id: "SIREN", name: "Coastal Acoustic Siren Array", desc: "Acoustic siren trigger schema for coastal district towers" },
-                  { id: "VHF", name: "Marine NAVTEX / VHF Ch 16", desc: "Coast Guard continuous distress loop for offshore vessels" },
+                  { id: "SACHET", name: "Exercise notification JSON", desc: "Local JSON exercise template; no delivery adapter" },
+                  { id: "SIREN", name: "Siren exercise template", desc: "No hardware connection or verified tower inventory" },
+                  { id: "VHF", name: "Marine NAVTEX / VHF Ch 16", desc: "Local radio exercise template; no transmitter connected" },
                 ].map((ch) => {
                   const isSelected = dispatchChannels.includes(ch.id);
                   return (
@@ -1211,8 +1212,8 @@ export default function InfrastructurePage() {
                         }
                       }}
                       className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start gap-3 ${
-                        isSelected 
-                          ? "bg-red-500/10 border-red-500/40 text-foreground" 
+                        isSelected
+                          ? "bg-red-500/10 border-red-500/40 text-foreground"
                           : "bg-secondary/20 border-border text-muted-foreground hover:bg-secondary/40"
                       }`}
                     >
@@ -1232,39 +1233,7 @@ export default function InfrastructurePage() {
             </div>
           </div>
 
-          {/* Live Dispatch Progress Indicator */}
-          {dispatchLoading && (
-            <div className="glass-card p-6 border-red-500/40 bg-red-950/20 space-y-4 animate-in fade-in">
-              <h4 className="text-sm font-bold text-red-400 flex items-center gap-2">
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                Executing Automated Dispatch Protocol...
-              </h4>
-              <div className="space-y-2 text-xs font-mono">
-                <div className="flex items-center gap-2 text-foreground">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Step 1: Grounding meteorological telemetry (Wind {simWindKts}kt, Surge {surgeCalcData?.peak_surge_height_m || surgeM}m)...</span>
-                </div>
-                {dispatchStep >= 2 && (
-                  <div className="flex items-center gap-2 text-foreground animate-in fade-in">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>Step 2: Generating signed OASIS CAP-CP v1.2 XML with GIS polygon footprint...</span>
-                  </div>
-                )}
-                {dispatchStep >= 3 && (
-                  <div className="flex items-center gap-2 text-foreground animate-in fade-in">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>Step 3: Synthesizing Cell Broadcast multi-lingual payloads (EN, HI, REGIONAL)...</span>
-                  </div>
-                )}
-                {dispatchStep >= 4 && (
-                  <div className="flex items-center gap-2 text-foreground animate-in fade-in">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>Step 4: Transmitting protocol packets to 320 Coastal Sirens & Coast Guard VHF Ch 16 (Sandbox Simulation)...</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
+          {dispatchLoading && <div role="status" className="glass-card p-6">Generating local exercise drafts. No transmission or hardware activation occurs.</div>}
 
           {/* Generated Artifacts Viewer */}
           {dispatchResult && (
@@ -1273,12 +1242,12 @@ export default function InfrastructurePage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                      ✓ SIMULATED DISPATCH COMPLETE (SANDBOX)
+                      EXERCISE DRAFT CREATED — NOT TRANSMITTED
                     </span>
                     <span className="text-xs font-mono text-muted-foreground">ID: {dispatchResult.dispatch_id}</span>
                   </div>
                   <h4 className="text-base font-bold text-foreground mt-1">
-                    Multi-Channel Warning Advisory Payloads & Audit Trail
+                    Local exercise templates and audit record
                   </h4>
                 </div>
 
@@ -1329,11 +1298,11 @@ export default function InfrastructurePage() {
                     <div key={lang} className="p-4 rounded-xl bg-secondary/30 border border-border space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-xs font-bold uppercase tracking-wider text-primary">{lang} Broadcast</span>
-                        <button onClick={() => handleCopyText(txt)} className="text-xs text-muted-foreground hover:text-foreground">
+                        <button onClick={() => handleCopyText(txt ?? "Translation unavailable")} className="text-xs text-muted-foreground hover:text-foreground">
                           <Copy className="w-3 h-3" />
                         </button>
                       </div>
-                      <p className="text-xs text-foreground leading-relaxed font-sans">{txt}</p>
+                      <p className="text-xs text-foreground leading-relaxed font-sans">{txt ?? "Translation unavailable"}</p>
                     </div>
                   ))}
                 </div>
@@ -1341,7 +1310,7 @@ export default function InfrastructurePage() {
 
               {dispatchViewerTab === "sachet" && (
                 <div className="space-y-2">
-                  <span className="text-xs text-muted-foreground">NDMA SACHET Mobile Application Push JSON:</span>
+                  <span className="text-xs text-muted-foreground">Exercise notification JSON:</span>
                   <pre className="p-4 rounded-xl bg-zinc-950 border border-border font-mono text-xs text-cyan-400 overflow-x-auto max-h-80 leading-relaxed">
                     {JSON.stringify(dispatchResult.sachet_payload, null, 2)}
                   </pre>
@@ -1357,7 +1326,7 @@ export default function InfrastructurePage() {
 
               {dispatchViewerTab === "vhf" && (
                 <div className="p-5 rounded-xl bg-secondary/30 border border-border space-y-3">
-                  <span className="text-xs font-bold uppercase tracking-wider text-blue-400 font-mono">Coast Guard Marine NAVTEX / VHF Channel 16 Broadcast Script:</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-blue-400 font-mono">Radio exercise draft (not transmitted):</span>
                   <p className="font-mono text-xs text-foreground leading-relaxed p-3 rounded bg-zinc-950 border border-border">{dispatchResult.vhf_payload}</p>
                 </div>
               )}
@@ -1383,17 +1352,17 @@ export default function InfrastructurePage() {
       {/* ══════════════════════════════════════════════════════════════════════
           TAB 6: PARAMETRIC INSURANCE & DISASTER RISK FINANCING
          ══════════════════════════════════════════════════════════════════════ */}
-      {activeTab === "insurance" && (
+      {activeTab === "insurance" && scenarioMode && (
         <div className="space-y-6 animate-in fade-in duration-300">
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {PARAMETRIC_INSURANCE_TRIGGERS.map((trigger, i) => (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 onClick={() => setInsuranceSimulationTier(i)}
                 className={`glass-card p-5 border cursor-pointer transition-all space-y-3 ${
-                  insuranceSimulationTier === i 
-                    ? "border-primary ring-1 ring-primary bg-primary/5" 
+                  insuranceSimulationTier === i
+                    ? "border-primary ring-1 ring-primary bg-primary/5"
                     : "border-border hover:border-primary/50"
                 }`}
               >
@@ -1406,7 +1375,7 @@ export default function InfrastructurePage() {
                   </span>
                 </div>
 
-                <p className="text-xl font-mono font-black text-foreground">{trigger.totalPoolFunded}</p>
+                <p className="text-xl font-mono font-black text-foreground">{trigger.hypotheticalPool}</p>
 
                 <div className="space-y-1.5 text-xs text-muted-foreground font-mono pt-1 border-t border-border/40">
                   <p>Wind Trigger: <strong className="text-foreground">&ge; {trigger.windThresholdKnots} kt</strong></p>
@@ -1431,7 +1400,7 @@ export default function InfrastructurePage() {
                 setTimeout(() => {
                   setIsSimulatingPayout(false);
                   setPayoutSuccess(true);
-                  showToast(`[SANDBOX SIMULATION] Parametric Liquidity Trigger Evaluated for ${PARAMETRIC_INSURANCE_TRIGGERS[insuranceSimulationTier].totalPoolFunded}. (No live funds disbursed)`);
+                  showToast(`[SANDBOX SIMULATION] Parametric Liquidity Trigger Evaluated for ${PARAMETRIC_INSURANCE_TRIGGERS[insuranceSimulationTier].hypotheticalPool}. (No live funds disbursed)`);
                 }, 1400);
               }}
               disabled={isSimulatingPayout}
@@ -1443,7 +1412,7 @@ export default function InfrastructurePage() {
         </div>
       )}
 
-      {/* ── Gemini 3.7 Pre-Landfall Executive Briefing Modal ─────────────────── */}
+      {/* ── Source and scenario briefing modal ─────────────────── */}
       {briefingModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="glass-card w-full max-w-3xl border-primary/40 p-6 space-y-4 max-h-[85vh] overflow-y-auto">
@@ -1451,7 +1420,7 @@ export default function InfrastructurePage() {
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-primary animate-pulse" />
                 <h3 className="text-lg font-bold text-foreground">
-                  Gemini 3.7 Flash Pre-Landfall Executive Briefing
+                  Deterministic scenario summary
                 </h3>
               </div>
               <button onClick={() => setBriefingModalOpen(false)} className="text-muted-foreground hover:text-foreground cursor-pointer">

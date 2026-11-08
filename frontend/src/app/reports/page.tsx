@@ -1,4 +1,5 @@
 "use client";
+import type { WeatherSystem as ActiveSystem } from "@/types/api";
 import { type DispatchReceipt, type CatalogItem } from "@/types/api";
 import React, { useState, useEffect, useMemo } from "react";
 import { 
@@ -20,21 +21,7 @@ import {
   COASTAL_INUNDATION_ZONES 
 } from "@/lib/infrastructureData";
 
-interface ActiveSystem {
-  source?: string;
-  observation_time_utc?: string | null;
-  retrieved_at?: string | null;
-  is_simulation?: boolean;
-  central_pressure_hpa?: number | null;
-  gusts_kmh?: number | null;
-  id: string;
-  name: string;
-  basin: string;
-  lat: number;
-  lon: number;
-  intensity_knots: number | null;
-  category: string;
-}
+
 
 interface Bulletin {
   id: string;
@@ -342,7 +329,7 @@ export default function ReportsPage() {
     setTimeout(() => {
       setIsSimulatingPayout(false);
       setPayoutSuccess(true);
-      showToast(`[SANDBOX SIMULATION] Parametric Liquidity Trigger Evaluated: Simulated disbursement of ${PARAMETRIC_INSURANCE_TRIGGERS[insuranceSimulationTier].totalPoolFunded}. (No live funds transferred)`);
+      showToast(`[SANDBOX SIMULATION] Parametric Liquidity Trigger Evaluated: Simulated disbursement of ${PARAMETRIC_INSURANCE_TRIGGERS[insuranceSimulationTier].hypotheticalPool}. (No live funds transferred)`);
     }, 1800);
   };
 
@@ -911,7 +898,7 @@ export default function ReportsPage() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
-          TAB 5: NDMA CAP-CP EMERGENCY BROADCAST HUB
+          TAB 5: LOCAL EXERCISE TEMPLATES
          ══════════════════════════════════════════════════════════════════════ */}
       {activeTab === "broadcast" && (
         <div className="space-y-6 animate-in fade-in duration-300">
@@ -923,7 +910,7 @@ export default function ReportsPage() {
                 <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">SIMULATED DRILL</span>
               </div>
               <p className="text-xs text-muted-foreground">Cell Broadcast & SMS Pipeline</p>
-              <p className="text-xl font-mono font-bold text-foreground">Sandbox Gateway</p>
+              <p className="text-xl font-mono font-bold text-foreground">No delivery adapter</p>
               <p className="text-[11px] text-muted-foreground">Live Delivery: NOT_APPLICABLE</p>
             </div>
 
@@ -933,17 +920,17 @@ export default function ReportsPage() {
                 <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">SIMULATED DRILL</span>
               </div>
               <p className="text-xs text-muted-foreground">Coastal Acoustic Sirens</p>
-              <p className="text-xl font-mono font-bold text-foreground">Loopback Test</p>
+              <p className="text-xl font-mono font-bold text-foreground">No hardware connection</p>
               <p className="text-[11px] text-muted-foreground">Live Delivery: NOT_APPLICABLE</p>
             </div>
 
             <div className="glass-card p-5 border-border space-y-2">
               <div className="flex items-center justify-between">
                 <span className="p-2 rounded-lg bg-blue-500/10 text-blue-400"><Radio className="w-4 h-4" /></span>
-                <span className="text-[11px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">Ch 16 / Navtex</span>
+                <span className="text-[11px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded">DRAFT ONLY</span>
               </div>
-              <p className="text-xs text-muted-foreground">Coast Guard Marine VHF</p>
-              <p className="text-xl font-mono font-bold text-foreground">Loopback Test</p>
+              <p className="text-xs text-muted-foreground">Radio exercise template</p>
+              <p className="text-xl font-mono font-bold text-foreground">No hardware connection</p>
               <p className="text-[11px] text-muted-foreground">Live Delivery: NOT_APPLICABLE</p>
             </div>
 
@@ -952,7 +939,7 @@ export default function ReportsPage() {
                 <span className="p-2 rounded-lg bg-amber-500/10 text-amber-400"><ShieldCheck className="w-4 h-4" /></span>
                 <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">SIMULATED DRILL</span>
               </div>
-              <p className="text-xs text-muted-foreground">NDMA Sachet Portal</p>
+              <p className="text-xs text-muted-foreground">Official agency resources</p>
               <p className="text-xl font-mono font-bold text-foreground">OASIS CAP v1.2</p>
               <p className="text-[11px] text-muted-foreground">Live Delivery: NOT_APPLICABLE</p>
             </div>
@@ -964,7 +951,7 @@ export default function ReportsPage() {
               <div>
                 <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                   <Send className="w-4 h-4 text-primary" />
-                  NDMA CAP-CP Emergency Alert Dispatch Simulator
+                  Local exercise draft generator
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Test and verify emergency alert propagation across multi-channel public warning infrastructure.
@@ -1004,7 +991,7 @@ export default function ReportsPage() {
                       { id: "sms", label: "Cell Broadcast & SMS" },
                       { id: "siren", label: "Acoustic Sirens" },
                       { id: "vhf", label: "Marine VHF / Navtex" },
-                      { id: "sachet", label: "NDMA Sachet App" },
+                      { id: "sachet", label: "Exercise notification template" },
                     ].map((ch) => (
                       <button
                         key={ch.id}

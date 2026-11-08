@@ -6,23 +6,23 @@ import { Satellite, Sparkles, Waves, BellRing, Database, Radio, ShieldCheck, Map
 import { MicroLabel } from "./MicroLabel";
 
 const integrations = [
-  { icon: Satellite, name: "Google Earth Engine (GEE)", sub: "Sentinel-1 SAR / Sentinel-2" },
-  { icon: Sparkles, name: "Gemini 3.7 Flash Multimodal", sub: "Vision & 7-Language Briefings" },
-  { icon: Waves, name: "Parametric Surge Estimator", sub: "Jelesnianski Formulation" },
-  { icon: BellRing, name: "OASIS CAP-CP v1.2 Feeds", sub: "NDMA / SDMA Dispatches" },
-  { icon: Radio, name: "IMD RSMC & MOSDAC Feeds", sub: "INSAT-3DR Real-Time Streams" },
-  { icon: Database, name: "SRTM 30m DEM Elevation", sub: "Catchment Slope & Choke Points" },
-  { icon: ShieldCheck, name: "400kV Grid Protection", sub: "State Transmission Line Safety" },
-  { icon: MapPin, name: "SACHET Emergency Broadcast", sub: "Geo-Targeted Coastal SMS" },
+  {icon:Satellite,name:"Satellite flood observations",sub:"Disabled pending validation"},
+  {icon:Sparkles,name:"Meteorological image analysis",sub:"Disabled pending validation"},
+  {icon:Waves,name:"Surge scenarios",sub:"Assumed bathymetry; not validated"},
+  {icon:BellRing,name:"CAP exercise templates",sub:"Local drafts; no delivery adapter"},
+  {icon:Radio,name:"Agency bulletin adapters",sub:"Freshness and coverage checked per response"},
+  {icon:Database,name:"Terrain scenarios",sub:"Illustrative slopes; no DEM sampled"},
+  {icon:ShieldCheck,name:"Infrastructure examples",sub:"Unverified scenario inventory"},
+  {icon:MapPin,name:"Shelter observations",sub:"Unavailable until authorized sources connect"},
 ];
 
 export function IntegrationsGrid() {
   return (
     <section id="ecosystem" className="py-24 border-y border-surface-border bg-bg-base text-text-primary transition-colors duration-300 overflow-hidden">
       <div className="container max-w-[1200px] mx-auto px-4 text-center">
-        <MicroLabel className="mb-4 inline-block">Integrated Meteorological & Disaster Tech Stack</MicroLabel>
+        <MicroLabel className="mb-4 inline-block">Research capabilities and limitations</MicroLabel>
         <h2 className="text-2xl sm:text-3xl font-extrabold text-text-primary tracking-tight mb-12">
-          Unified Standards, Satellite Feeds & Early-Warning Protocols
+          What is available and what remains unverified
         </h2>
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">

@@ -1,4 +1,5 @@
 "use client";
+import type { TrackPoint, WeatherSystem as ActiveSystem } from "@/types/api";
 import { type ChartPoint } from "@/types/api";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { 
@@ -21,56 +22,9 @@ const MapWidget = dynamic(() => import("@/components/MapWidget"), {
   )
 });
 
-interface TrackPoint {
-  lat: number;
-  lon: number;
-  time_offset_hours: number;
-  category: string;
-  intensity_knots: number | null;
-  is_forecast: boolean;
-  is_landfall?: boolean;
-  label?: string;
-}
 
-interface ActiveSystem {
-  id: string;
-  name: string;
-  basin: string;
-  lat: number;
-  lon: number;
-  intensity_knots: number | null;
-  category: string;
-  is_simulation?: boolean;
-  year?: string;
-  dvorak_t?: string;
-  dvorak_derivation_method?: string;
-  dvorak_is_empirical_estimate?: boolean;
-  track_generation_method?: string;
-  telemetry_attribution?: {
-    center_fix?: string;
-    intensity_knots?: string;
-    dvorak_t?: string;
-    trajectory_forecast?: string;
-    satellite_image_dvorak?: string;
-  };
-  telemetry_type?: string;
-  telemetry_badge?: string;
-  track_forecast: TrackPoint[];
-  landfall_info?: {
-    status?: string;
-    landfall_time_utc?: string;
-    landfall_location?: string;
-    landfall_intensity_knots?: number;
-    landfall_intensity_kmph?: number;
-    landfall_gusts_kmph?: number;
-    landfall_category?: string;
-    central_pressure_hpa?: number;
-    storm_surge_m?: string;
-    inland_decay?: string;
-    impact_sector?: string;
-  };
-  is_landfall_completed?: boolean;
-}
+
+
 
 interface CycloneCatalogItem {
   id: string;
@@ -81,30 +35,7 @@ interface CycloneCatalogItem {
   dates?: string;
 }
 
-const FALLBACK_CYCLONES: CycloneCatalogItem[] = [
-  { id: "BOB05-2026", name: "Deep Depression (BOB-05)", year: "2026 (Active)", basin: "Bay of Bengal" },
-  { id: "BOB03-2020", name: "Amphan", year: "2020", basin: "Bay of Bengal" },
-  { id: "ARB01-2023", name: "Biparjoy", year: "2023", basin: "Arabian Sea" },
-  { id: "BOB02-2023", name: "Mocha", year: "2023", basin: "Bay of Bengal" },
-  { id: "BOB02-2019", name: "Fani", year: "2019", basin: "Bay of Bengal" },
-  { id: "ARB01-2021", name: "Tauktae", year: "2021", basin: "Arabian Sea" },
-  { id: "BOB04-2024", name: "Dana", year: "2024", basin: "Bay of Bengal" },
-  { id: "BOB01-2024", name: "Remal", year: "2024", basin: "Bay of Bengal" },
-  { id: "BOB09-2024", name: "Fengal", year: "2024", basin: "Bay of Bengal" },
-  { id: "ARB01-2024", name: "Asna", year: "2024", basin: "Arabian Sea" },
-  { id: "BOB06-2023", name: "Michaung", year: "2023", basin: "Bay of Bengal" },
-  { id: "BOB03-2014", name: "Hudhud", year: "2014", basin: "Bay of Bengal" },
-  { id: "BOB06-1999", name: "Odisha Super Cyclone", year: "1999", basin: "Bay of Bengal" },
-  { id: "BOB04-2013", name: "Phailin", year: "2013", basin: "Bay of Bengal" },
-  { id: "ARB01-2007", name: "Gonu", year: "2007", basin: "Arabian Sea" },
-  { id: "BOB04-2007", name: "Sidr", year: "2007", basin: "Bay of Bengal" },
-  { id: "ARB03-2019", name: "Kyarr", year: "2019", basin: "Arabian Sea" },
-  { id: "BOB01-2021", name: "Yaas", year: "2021", basin: "Bay of Bengal" },
-  { id: "BOB04-2020", name: "Nivar", year: "2020", basin: "Bay of Bengal" },
-  { id: "ARB05-2017", name: "Ockhi", year: "2017", basin: "Arabian Sea" },
-  { id: "BOB01-2008", name: "Nargis", year: "2008", basin: "Bay of Bengal" },
-  { id: "BOB02-2009", name: "Aila", year: "2009", basin: "Bay of Bengal" },
-];
+const FALLBACK_CYCLONES: CycloneCatalogItem[] = [];
 
 const getCategoryBadgeClass = (knots: number | null) => {
   if (knots == null) return "bg-slate-500/10 text-slate-400";
@@ -117,12 +48,13 @@ const getCategoryBadgeClass = (knots: number | null) => {
 };
 
 export default function ForecastPage() {
-  const { selectedCycloneId, selectCyclone } = useActiveCyclone("BOB05-2026");
+  const { selectedCycloneId, selectCyclone } = useActiveCyclone();
   const { dataSource, getConvertedKnots, getConvertedKmh, getConvertedGusts, getConvertedCategory, getSourceBadge } = useDataSource();
-  const [selectedId, setSelectedId] = useState<string>(selectedCycloneId || "BOB05-2026");
+  const [selectedId, setSelectedId] = useState<string>(selectedCycloneId || "");
   const [cyclonesList, setCyclonesList] = useState<CycloneCatalogItem[]>(FALLBACK_CYCLONES);
   const [system, setSystem] = useState<ActiveSystem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sourceError, setSourceError] = useState(false);
   const [hoveredPoint, setHoveredPoint] = useState<ChartPoint | null>(null);
 
   const sourceBadge = getSourceBadge();
@@ -135,8 +67,9 @@ export default function ForecastPage() {
     pendingRequest.current = controller;
     setLoading(true);
     setSystem(null);
+    setSourceError(false);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${encodeURIComponent(cycloneId)}`, {signal: controller.signal});
+      const res = await fetch(`${getApiBaseUrl()}/api/active-systems${cycloneId ? `?cyclone_id=${encodeURIComponent(cycloneId)}` : ""}`, {signal: controller.signal});
       if (!res.ok) throw new Error("Forecast unavailable");
       if (res.ok) {
         const data = await res.json();
@@ -151,6 +84,7 @@ export default function ForecastPage() {
     } catch (err) {
       if (controller.signal.aborted) return;
       console.error("Failed to fetch system:", err);
+      setSourceError(true);
       setSystem(null);
     } finally {
       if (!controller.signal.aborted) setLoading(false);
@@ -167,7 +101,7 @@ export default function ForecastPage() {
 
   useEffect(() => {
     const init = async () => {
-      let initialId = selectedCycloneId || "BOB03-2020";
+      let initialId = selectedCycloneId || "";
 
       // 1. Check URL parameters
       if (typeof window !== "undefined") {
@@ -233,40 +167,6 @@ export default function ForecastPage() {
     }
   }, [system]);
 
-  // Feature 5: Rapid Intensification (RI) Analysis (Surge >= 30 KT in 24h)
-  const riAnalysis = useMemo(() => {
-    if (!system || !system.track_forecast) {
-      return { isRI: false, maxSurge: 0, windowLabel: "", isFutureRI: false };
-    }
-    const pts = system.track_forecast;
-    let maxSurge = 0;
-    let riDetected = false;
-    let isFutureRI = false;
-    let windowLabel = "";
-
-    for (let i = 0; i < pts.length; i++) {
-      for (let j = i + 1; j < pts.length; j++) {
-        const dt = pts[j].time_offset_hours - pts[i].time_offset_hours;
-        if (dt > 0 && dt <= 24) {
-          const endWind = pts[j].intensity_knots, startWind = pts[i].intensity_knots;
-          if (endWind == null || startWind == null) continue;
-          const dIntensity = endWind - startWind;
-          if (dIntensity > maxSurge) {
-            maxSurge = dIntensity;
-            windowLabel = `${pts[i].time_offset_hours >= 0 ? '+' : ''}${pts[i].time_offset_hours}h → ${pts[j].time_offset_hours >= 0 ? '+' : ''}${pts[j].time_offset_hours}h`;
-            if (pts[i].time_offset_hours >= 0 || pts[j].time_offset_hours > 0) {
-              isFutureRI = true;
-            }
-          }
-          if (dIntensity >= 30) {
-            riDetected = true;
-          }
-        }
-      }
-    }
-    return { isRI: riDetected, maxSurge, windowLabel, isFutureRI };
-  }, [system]);
-
   // Feature 1: Chart Data Preparation
   const chartData = useMemo(() => {
     if (!system?.track_forecast) return [];
@@ -283,8 +183,8 @@ export default function ForecastPage() {
         isForecast: pt.is_forecast,
         lat: pt.lat,
         lon: pt.lon,
-        lowerBound: convKnots == null ? null : Math.max(15, convKnots - (pt.is_forecast ? Math.min(18, 4 + pt.time_offset_hours * 0.22) : 0)),
-        upperBound: convKnots == null ? null : convKnots + (pt.is_forecast ? Math.min(22, 5 + pt.time_offset_hours * 0.28) : 0),
+        lowerBound: null,
+        upperBound: null,
       };
     });
   }, [system, getConvertedKnots, getConvertedKmh, getConvertedCategory]);
@@ -298,8 +198,8 @@ export default function ForecastPage() {
       const convKnots = getConvertedKnots(pt.intensity_knots);
       const convKmh = getConvertedKmh(pt.intensity_knots);
       const convCat = getConvertedCategory(pt.intensity_knots, pt.category);
-      const uncertaintyKm = pt.time_offset_hours === 0 ? 15 : Math.round(25 + Math.abs(pt.time_offset_hours) * 1.6);
-      const gustKnots = convKnots == null ? null : Math.round(convKnots * 1.15);
+      const uncertaintyKm = null;
+      const gustKnots: number | null = null;
       return {
         ...pt,
         intensity_knots: convKnots,
@@ -308,15 +208,7 @@ export default function ForecastPage() {
         gustKnots,
         gustKmh: gustKnots == null ? null : Math.round(gustKnots * 1.852),
         uncertaintyKm,
-        status: pt.is_landfall
-          ? "Landfall Crossing"
-          : pt.time_offset_hours === 0 
-            ? "Active Fix" 
-            : convKnots == null ? "Data unavailable" : convKnots >= 65
-              ? "Core Intensity" 
-              : pt.time_offset_hours >= 36 
-                ? "Post-Landfall Weakening" 
-                : "Coastal Approach"
+        status: pt.provenance ?? "UNKNOWN"
       };
     });
   }, [system, getConvertedKnots, getConvertedKmh, getConvertedCategory]);
@@ -333,19 +225,19 @@ export default function ForecastPage() {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[500px] text-muted-foreground gap-4">
         <Wind className="w-12 h-12 opacity-50" />
-        <p className="text-sm font-medium">No active cyclonic storm currently tracking.</p>
+        <p className="text-sm font-medium">{sourceError ? "Forecast source unavailable. Retry the request." : "No current track is available; this does not establish calm."}</p>
         <button
-          onClick={() => handleSelectCyclone("ARB01-2023")}
+          onClick={() => fetchSystem(selectedId)}
           className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-all cursor-pointer shadow-md"
         >
-          Load Cyclone Biparjoy Forecast Simulation
+          Retry track source
         </button>
       </div>
     );
   }
 
   const pastPoints = system.track_forecast.filter(p => !p.is_forecast && p.time_offset_hours < 0).reverse();
-  const currentPoint = system.track_forecast.find(p => p.time_offset_hours === 0) || system.track_forecast[0];
+  const currentPoint = system.track_forecast.find(p => p.time_offset_hours === 0) ?? system.track_forecast[0] ?? {lat:system.lat,lon:system.lon,category:system.category,intensity_knots:system.intensity_knots};
   const futurePoints = [...system.track_forecast.filter(p => p.is_forecast)].reverse();
 
   // SVG Chart Geometry Constants
@@ -388,7 +280,7 @@ export default function ForecastPage() {
             </span>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Deep-dive numerical waypoint tables, intensity decay curves, and benchmark verification.
+            Source waypoints, wind values and explicit validation status.
           </p>
         </div>
 
@@ -403,7 +295,7 @@ export default function ForecastPage() {
             >
               {cyclonesList.map((c) => (
                 <option key={c.id} value={c.id} className="bg-card text-foreground">
-                  {c.id.startsWith("BOB05") || c.year?.includes("Active") ? "🟢 Active Feed: " : "📁 Historical: "}
+                  {"Archive: "}
                   {c.name.startsWith("Cyclone") || c.name.startsWith("Deep") ? c.name : `Cyclone ${c.name}`} {c.year ? `(${c.year})` : ""}
                 </option>
               ))}
@@ -426,26 +318,9 @@ export default function ForecastPage() {
       {/* Tracking Mode & Civil Defense Advisory Banner (#34 & #36) */}
       <div className="p-3.5 px-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs bg-secondary/30 border-border">
         <div className="flex items-center gap-2.5 flex-wrap">
-          <span className={`px-2 py-0.5 rounded font-mono font-bold text-[11px] uppercase tracking-wider ${
-            system.id?.includes("2026") || system.is_simulation 
-              ? "bg-purple-500/20 text-purple-300 border border-purple-500/30"
-              : system.year && !system.year.includes("Active")
-                ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-          }`}>
-            {system.id?.includes("2026") || system.is_simulation 
-              ? "SYNTHETIC EXERCISE DRILL"
-              : system.year && !system.year.includes("Active")
-                ? `HISTORICAL ARCHIVE REPLAY (${system.year})`
-                : "OPERATIONAL SURVEILLANCE FEED"}
-          </span>
-          <span className="text-muted-foreground">
-            {system.id?.includes("2026") || system.is_simulation
-              ? "Simulated kinematic scenario for disaster response rehearsal."
-              : system.year && !system.year.includes("Active")
-                ? "Replaying validated post-storm best-track observations."
-                : "Real-time kinematic waypoint tracking."}
-          </span>
+          <span className="px-2 py-0.5 rounded font-mono font-bold">{system.provenance ?? "UNKNOWN"}</span>
+          <span>{system.is_stale ? "STALE — current conditions not verified" : "Check source observation time before use"}</span>
+          <span>Source: {system.source ?? "Unavailable"} · Observation: {system.observation_time_utc ?? "Unavailable"}</span>
         </div>
         <span className="text-[10.5px] text-muted-foreground italic sm:text-right">
           Civil Defense: Statutory warnings follow IMD (RSMC New Delhi) bulletins.
@@ -533,7 +408,7 @@ export default function ForecastPage() {
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-                    {system.is_simulation || system.id?.includes("-") ? "Replay / Model Center" : "Live Surveillance Center"}
+                    {system.provenance ?? "UNKNOWN"}
                   </span>
                   <h4 className="font-heading font-bold text-sm text-foreground">{system.name}</h4>
                 </div>
@@ -547,10 +422,10 @@ export default function ForecastPage() {
               <div className="bg-secondary/30 p-2.5 rounded-xl border border-border/60">
                 <span className="text-[10px] text-muted-foreground block">Max Wind ({sourceBadge.shortLabel})</span>
                 <span className="text-lg font-heading font-bold text-foreground">
-                  {getConvertedKnots(system.intensity_knots)} <span className="text-xs font-normal text-muted-foreground">kt</span>
+                  {getConvertedKnots(system.intensity_knots) ?? "Unavailable"} <span className="text-xs font-normal text-muted-foreground">kt</span>
                 </span>
                 <span className="text-[10px] text-muted-foreground block mt-0.5 font-mono">
-                  {getConvertedKmh(system.intensity_knots)} km/h
+                  {getConvertedKmh(system.intensity_knots) ?? "Unavailable"} km/h
                 </span>
               </div>
 
@@ -570,129 +445,30 @@ export default function ForecastPage() {
                 <span className="text-muted-foreground text-[10.5px]">Dvorak Intensity:</span>
                 <span className="font-mono font-bold text-primary text-xs">
                   {system.dvorak_t || "Not available"}
-                  <span className="text-[10px] text-muted-foreground font-normal ml-1">({system.is_simulation || system.id?.includes("-") ? "Best-Track Reanalysis" : "Parametric CI"})</span>
+                  <span className="text-[10px] text-muted-foreground font-normal ml-1">({system.provenance ?? "UNKNOWN"})</span>
                 </span>
               </div>
               <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5 border-t border-border/40">
-                <span>Fix Type: <strong className="text-emerald-500 font-medium">{system.is_simulation || system.id?.includes("-") ? "Historical Best-Track" : "Live Surveillance"}</strong></span>
+                <span>Fix Type: <strong className="text-emerald-500 font-medium">{system.provenance ?? "UNKNOWN"}</strong></span>
                 <span>•</span>
-                <span>Trajectory: <strong className="text-foreground font-medium">{system.is_simulation || system.id?.includes("-") ? "IBTrACS Verified Archive" : "BAM Dynamic Model"}</strong></span>
+                <span>Trajectory: <strong className="text-foreground font-medium">{system.provenance ?? "UNKNOWN"}</strong></span>
               </div>
             </div>
 
             <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 pt-1.5 border-t border-border/50">
               <Compass className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span>Steering ridge pushing vortex towards coastal landfall.</span>
+              <span>Steering and landfall evolution are not independently validated.</span>
             </div>
           </div>
 
-          {/* Card B: Feature 5 (Rapid Intensification RI Alert) */}
-          <div className={`glass-card p-4.5 border relative overflow-hidden transition-all ${
-            riAnalysis.isRI 
-              ? "border-amber-500/40 bg-amber-500/5 shadow-md shadow-amber-500/5" 
-              : "border-border bg-secondary/15"
-          }`}>
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-2">
-                {riAnalysis.isRI ? (
-                  <div className="p-1.5 rounded-lg bg-amber-500/15 text-amber-500 animate-pulse">
-                    <Flame className="w-4 h-4" />
-                  </div>
-                ) : (
-                  <div className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-500">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                )}
-                <div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-                    WMO / IMD Metric
-                  </span>
-                  <h4 className="font-heading font-bold text-sm text-foreground">
-                    {riAnalysis.isRI ? "Rapid Intensification (RI)" : "Nominal Intensification"}
-                  </h4>
-                </div>
-              </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                riAnalysis.isRI 
-                  ? "bg-amber-500/20 text-amber-400 border-amber-500/30 animate-pulse" 
-                  : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-              }`}>
-                {riAnalysis.isRI ? "RI ALERT" : "STABLE"}
-              </span>
-            </div>
-
-            <p className="text-[11.5px] text-muted-foreground leading-relaxed my-1.5">
-              {riAnalysis.isRI ? (
-                <>
-                  <strong className="text-amber-400">Surge Alert:</strong> Peak 24h gain of <strong className="text-foreground">+{riAnalysis.maxSurge} KT</strong> ({riAnalysis.windowLabel}) meets the official &ge;30 KT/24h threshold.
-                </>
-              ) : (
-                <>
-                  Max 24h wind velocity variation is <strong className="text-foreground">+{riAnalysis.maxSurge} KT</strong>. Storm thermodynamic evolution remains within standard dissipation curves.
-                </>
-              )}
-            </p>
-
-            <div className="pt-1.5 border-t border-border/50 flex items-center justify-between text-[10.5px] text-muted-foreground">
-              <span>Threshold: &ge;30 KT / 24h</span>
-              <span className="font-mono font-medium text-foreground">Peak Delta: +{riAnalysis.maxSurge} KT</span>
-            </div>
+          <div className="glass-card p-4.5 border border-border">
+            <h4 className="font-heading font-bold text-sm">Intensity trend assessment</h4>
+            <p className="text-sm text-muted-foreground">Unavailable. An operational intensification assessment requires a reviewed series with consistent source, timing and wind averaging. Experimental tracks do not establish an alert or stable conditions.</p>
           </div>
 
-          {/* Card C: Feature 3 (Forecast Confidence Decay Meter) */}
-          <div className="glass-card p-4.5 border border-border flex flex-col justify-between">
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-blue-500/15 text-blue-400">
-                  <Gauge className="w-4 h-4" />
-                </div>
-                <div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-                    Historical Verification
-                  </span>
-                  <h4 className="font-heading font-bold text-sm text-foreground">Climatological Error Baseline</h4>
-                </div>
-              </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                IMD 5-YR NIO AVG
-              </span>
-            </div>
-
-            <div className="space-y-2 my-1 text-xs">
-              <div>
-                <div className="flex justify-between text-[10.5px] mb-0.5">
-                  <span className="text-muted-foreground">0h &ndash; 24h Lead</span>
-                  <span className="font-mono font-bold text-emerald-400">&plusmn;86 km (0.78&deg;) Error</span>
-                </div>
-                <div className="w-full h-1.5 rounded-full bg-secondary overflow-hidden">
-                  <div className="h-full bg-emerald-500 rounded-full" style={{ width: "85%" }} />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-[10.5px] mb-0.5">
-                  <span className="text-muted-foreground">24h &ndash; 48h Lead</span>
-                  <span className="font-mono font-bold text-blue-400">&plusmn;161 km (1.45&deg;) Error</span>
-                </div>
-                <div className="w-full h-1.5 rounded-full bg-secondary overflow-hidden">
-                  <div className="h-full bg-blue-500 rounded-full" style={{ width: "65%" }} />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-[10.5px] mb-0.5">
-                  <span className="text-muted-foreground">48h &ndash; 72h+ Lead</span>
-                  <span className="font-mono font-bold text-amber-400">&plusmn;238 km (2.15&deg;) Error</span>
-                </div>
-                <div className="w-full h-1.5 rounded-full bg-secondary overflow-hidden">
-                  <div className="h-full bg-amber-500 rounded-full" style={{ width: "45%" }} />
-                </div>
-              </div>
-            </div>
-
-            <p className="text-[10px] text-muted-foreground pt-1 border-t border-border/50">
-              Calibrated to IMD Annual Cyclone Reports 5-year climatological verification errors for North Indian Ocean cyclonic disturbances.
-            </p>
+          <div className="glass-card p-4.5 border border-border">
+            <h4 className="font-heading font-bold text-sm">Forecast calibration</h4>
+            <p>Not validated. No independently measured CycloNet confidence interval is available.</p>
           </div>
 
         </div>
@@ -707,19 +483,19 @@ export default function ForecastPage() {
               <h3 className="font-heading font-bold text-lg text-foreground">Intensity Over Time & Predicted Decay</h3>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Wind speed trajectory (knots) across historical fixes, current center, and forward +72h forecast envelope.
+              Supplied wind values (knots). Missing observations and unvalidated uncertainty are not estimated.
             </p>
           </div>
 
           <div className="flex items-center gap-3 text-[11px]">
             <span className="flex items-center gap-1.5 text-muted-foreground">
-              <span className="w-3 h-0.5 bg-blue-500 inline-block" /> Past Observed
+              <span className="w-3 h-0.5 bg-blue-500 inline-block" /> Source track points
             </span>
             <span className="flex items-center gap-1.5 text-muted-foreground">
-              <span className="w-3 h-0 border-t-2 border-dashed border-red-500 inline-block" /> AI Forecast
+              <span className="w-3 h-0 border-t-2 border-dashed border-red-500 inline-block" /> Experimental track
             </span>
             <span className="flex items-center gap-1.5 text-muted-foreground">
-              <span className="w-3 h-2 rounded-xs bg-red-500/20 border border-red-500/40 inline-block" /> Uncertainty Band
+              <span className="w-3 h-2 rounded-xs bg-red-500/20 border border-red-500/40 inline-block" /> Uncertainty unavailable
             </span>
           </div>
         </div>
@@ -727,6 +503,7 @@ export default function ForecastPage() {
         {/* Feature 1: Interactive Point HUD Bar */}
         {(() => {
           const activePt = hoveredPoint || chartData.find(d => d.timeOffset === 0) || chartData[0];
+          if (!activePt) return <p className="p-4 text-sm">Track waypoints unavailable. No trajectory is inferred from a single source fix.</p>;
           if (!activePt) return null;
           return (
             <div className="mb-4 bg-secondary/40 border border-border rounded-xl p-3 px-4 flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -743,8 +520,8 @@ export default function ForecastPage() {
               <div className="flex items-center gap-4 font-mono text-[11px]">
                 <div>
                   <span className="text-muted-foreground mr-1">Wind Speed:</span>
-                  <span className="font-bold text-foreground">{activePt.intensity} KT</span>
-                  <span className="text-muted-foreground ml-1">({activePt.kmh} km/h)</span>
+                  <span className="font-bold text-foreground">{activePt.intensity ?? "Unavailable"} KT</span>
+                  <span className="text-muted-foreground ml-1">({activePt.kmh ?? "Unavailable"} km/h)</span>
                 </div>
                 {activePt.isForecast && (
                   <div className="border-l border-border pl-3">
@@ -980,7 +757,7 @@ export default function ForecastPage() {
               <h3 className="font-heading font-bold text-lg text-foreground">Numeric Meteorological Forecast Table</h3>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Official IMD-compatible waypoint guidance matrix. Center fix (0h) reflects observed telemetry; forward track (+12h..+48h) is generated via CycloNet kinematic vector extrapolation.
+              Supplied waypoints retain their source provenance. Experimental extrapolations are not official guidance; a zero-hour offset alone does not establish an observation.
             </p>
           </div>
           <span className="text-xs font-mono px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground border border-border">
@@ -998,7 +775,7 @@ export default function ForecastPage() {
                 <th className="py-3 px-4">Sustained Wind</th>
                 <th className="py-3 px-4">Peak Gusts</th>
                 <th className="py-3 px-4">Uncertainty Radius</th>
-                <th className="py-3 px-4">Operational Phase</th>
+                <th className="py-3 px-4">Provenance</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
@@ -1048,11 +825,11 @@ export default function ForecastPage() {
                     </td>
 
                     <td className="py-3.5 px-4 font-mono text-muted-foreground">
-                      {row.gustKnots} kt ({row.gustKmh} km/h)
+                      {row.gustKnots ?? "Unavailable"} kt ({row.gustKmh ?? "Unavailable"} km/h)
                     </td>
 
                     <td className="py-3.5 px-4 font-mono text-muted-foreground">
-                      &plusmn;{row.uncertaintyKm} km
+                      Not validated
                     </td>
 
                     <td className="py-3.5 px-4">
@@ -1074,82 +851,9 @@ export default function ForecastPage() {
         </div>
       </div>
 
-      {/* Feature 4: Operational Baseline Standards (IMD RSMC New Delhi Verification Envelope) */}
       <div className="glass-card p-6 border border-border">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-          <div>
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5 text-primary" />
-              <h3 className="font-heading font-bold text-lg text-foreground">IMD Operational Verification Baselines & Standards</h3>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Official 5-year climatological Mean Absolute Error (MAE) operational limits published by RSMC New Delhi (IMD).
-            </p>
-          </div>
-
-          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-            Statutory Evaluation Target
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          
-          <div className="bg-secondary/20 p-4 rounded-xl border border-border">
-            <span className="text-xs text-muted-foreground block mb-1">24h Track Envelope</span>
-            <div className="flex items-baseline gap-2 mb-1.5">
-              <span className="text-2xl font-heading font-bold text-foreground">69 km</span>
-              <span className="text-xs text-muted-foreground">IMD Baseline</span>
-            </div>
-            <div className="flex items-center gap-1 text-[11px] text-blue-400 font-medium">
-              <Activity className="w-3.5 h-3.5" />
-              <span>Operational tolerance boundary</span>
-            </div>
-          </div>
-
-          <div className="bg-secondary/20 p-4 rounded-xl border border-border">
-            <span className="text-xs text-muted-foreground block mb-1">48h Track Envelope</span>
-            <div className="flex items-baseline gap-2 mb-1.5">
-              <span className="text-2xl font-heading font-bold text-foreground">118 km</span>
-              <span className="text-xs text-muted-foreground">IMD Baseline</span>
-            </div>
-            <div className="flex items-center gap-1 text-[11px] text-blue-400 font-medium">
-              <Activity className="w-3.5 h-3.5" />
-              <span>Multi-model consensus target</span>
-            </div>
-          </div>
-
-          <div className="bg-secondary/20 p-4 rounded-xl border border-border">
-            <span className="text-xs text-muted-foreground block mb-1">72h Track Envelope</span>
-            <div className="flex items-baseline gap-2 mb-1.5">
-              <span className="text-2xl font-heading font-bold text-foreground">176 km</span>
-              <span className="text-xs text-muted-foreground">IMD Baseline</span>
-            </div>
-            <div className="flex items-center gap-1 text-[11px] text-blue-400 font-medium">
-              <Activity className="w-3.5 h-3.5" />
-              <span>Extended outlook uncertainty limit</span>
-            </div>
-          </div>
-
-          <div className="bg-secondary/20 p-4 rounded-xl border border-border">
-            <span className="text-xs text-muted-foreground block mb-1">24h Intensity Tolerance</span>
-            <div className="flex items-baseline gap-2 mb-1.5">
-              <span className="text-2xl font-heading font-bold text-foreground">&plusmn;8.2 kt</span>
-              <span className="text-xs text-muted-foreground">IMD Baseline</span>
-            </div>
-            <div className="flex items-center gap-1 text-[11px] text-blue-400 font-medium">
-              <Activity className="w-3.5 h-3.5" />
-              <span>Dvorak intensity verification</span>
-            </div>
-          </div>
-
-        </div>
-
-        <div className="mt-4 pt-3 border-t border-border/50 text-[11px] text-muted-foreground flex items-center gap-2">
-          <Info className="w-4 h-4 text-primary shrink-0" />
-          <span>
-            Climatological baselines sourced from India Meteorological Department Annual Tropical Cyclone Reports (RSMC New Delhi). Experimental deep learning models are evaluated against these statutory boundaries under cyclone-disjoint splits.
-          </span>
-        </div>
+        <h3 className="font-heading font-bold text-lg">Model performance</h3>
+        <p>Not validated. No independently evaluated track error, intensity error or calibrated uncertainty is available.</p>
       </div>
 
       {/* Chronological Step-by-Step Vertical Timeline */}
@@ -1168,7 +872,7 @@ export default function ForecastPage() {
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-bold text-primary">+{pt.time_offset_hours} Hours</span>
                     <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
-                      Forecast
+                      {pt.provenance ?? "UNKNOWN"}
                     </span>
                   </div>
                   <p className="font-medium text-foreground text-sm">{pt.category}</p>
@@ -1194,10 +898,10 @@ export default function ForecastPage() {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-sm font-bold text-red-500">
-                    {system.is_simulation || system.id?.includes("-") ? "Reference Fix (Peak / 0h)" : "Current Position (0 Hours)"}
+                    {system.provenance ?? "UNKNOWN"}
                   </span>
                   <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/30">
-                    {system.is_simulation || system.id?.includes("-") ? "Best-Track Archive" : "Live Surveillance"}
+                    {system.provenance ?? "UNKNOWN"}
                   </span>
                 </div>
                 <p className="font-bold text-foreground">{currentPoint.category}</p>
@@ -1224,7 +928,7 @@ export default function ForecastPage() {
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs font-medium text-muted-foreground">{pt.time_offset_hours} Hours</span>
                     <span className="text-[9px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
-                      {system.is_simulation || system.id?.includes("-") ? "Historical Fix" : "Observed"}
+                      {system.provenance ?? "UNKNOWN"}
                     </span>
                   </div>
                   <p className="text-xs font-medium text-foreground/80">{pt.category}</p>

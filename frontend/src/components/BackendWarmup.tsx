@@ -34,8 +34,8 @@ export function BackendWarmup() {
         // Backend is still spinning up (cold-start)
         if (isMounted) {
           setIsWarmingUp(true);
-          if (attempt < 5) {
-            timer = setTimeout(() => pingBackend(attempt + 1), 3000);
+          if (attempt < 10) {
+            timer = setTimeout(() => pingBackend(attempt + 1), 2000);
           }
         }
       }
@@ -65,7 +65,9 @@ export function BackendWarmup() {
       <div className="px-3.5 py-2 rounded-xl bg-card/95 border border-sky-500/30 text-text-primary text-xs shadow-xl backdrop-blur-md flex items-center gap-2.5">
         <RefreshCw className="w-3.5 h-3.5 text-sky-400 animate-spin" />
         <span className="font-medium text-[11px] text-text-muted">
-          Waking up cloud backend service...
+          {getApiBaseUrl().includes("localhost") || getApiBaseUrl().includes("127.0.0.1")
+            ? "Connecting to local backend service..."
+            : "Waking up cloud backend service..."}
         </span>
       </div>
     </div>

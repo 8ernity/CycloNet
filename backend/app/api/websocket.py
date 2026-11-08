@@ -1,10 +1,13 @@
 import os
+import time
 import json
 import asyncio
 import datetime
 import logging
 from typing import List, Dict, Any, Set, Optional
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status, HTTPException
+from app.core.auth import decode_token_payload, parse_role_from_claims, Role
+from app.core.rate_limit import enforce_rate_limit
 
 from app.services.live_ingestion import live_ingestion_service
 
@@ -34,7 +37,10 @@ class SecureWebSocketManager:
     SEC-07: Hardened WebSocket connection manager with allowed-origin verification,
     concurrency limits, timeout backpressure, and public/privileged event isolation.
     """
-    def __init__(self, max_connections: int = MAX_WEBSOCKET_CONNECTIONS):
+    def __init__(self, max_connections: int = MAX_WEBSOCKET_CONNECTIONS, operator_only=False):
+        self.operator_only = operator_only
+        self.expires = {}
+        self.pending = set()
         self.active_connections: Set[WebSocket] = set()
         self.max_connections = max_connections
         self.radar_angle: float = 0.0
@@ -49,14 +55,36 @@ class SecureWebSocketManager:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Unauthorized origin")
             return False
 
+        try:
+            enforce_rate_limit(websocket, endpoint_type="websocket")
+        except HTTPException:
+            await websocket.close(code=1013, reason="Connection rate exceeded or limiter unavailable")
+            return False
         async with self._lock:
-            if len(self.active_connections) >= self.max_connections:
-                logger.warning("[WebSocket] Connection limit reached (%d). Rejecting client.", self.max_connections)
-                await websocket.close(code=status.WS_1013_TRY_AGAIN_LATER, reason="Connection capacity reached")
+            if len(self.active_connections) + len(self.pending) >= self.max_connections:
+                await websocket.close(code=1013, reason="Connection capacity reached")
                 return False
-
+            self.pending.add(websocket)
+        try:
             await websocket.accept()
-            self.active_connections.add(websocket)
+            if self.operator_only:
+                raw = await asyncio.wait_for(websocket.receive_text(), timeout=5)
+                if len(raw.encode()) > MAX_WS_MESSAGE_BYTES:
+                    raise ValueError("Authentication frame too large")
+                frame = json.loads(raw)
+                claims = await asyncio.wait_for(asyncio.to_thread(decode_token_payload, frame.get("token", "")), timeout=5)
+                if not claims or not claims.get("sub") or parse_role_from_claims(claims) not in (Role.ADMINISTRATOR, Role.AUTHORIZED_OPERATOR):
+                    raise ValueError("Operator credentials required")
+                self.expires[websocket] = float(claims['exp'])
+            async with self._lock:
+                self.active_connections.add(websocket)
+        except Exception:
+            self.expires.pop(websocket, None)
+            await websocket.close(code=1008, reason="Operator authentication required")
+            return False
+        finally:
+            async with self._lock:
+                self.pending.discard(websocket)
 
         # Initial connection handshake
         try:
@@ -79,6 +107,7 @@ class SecureWebSocketManager:
         async with self._lock:
             if websocket in self.active_connections:
                 self.active_connections.remove(websocket)
+        self.expires.pop(websocket, None)
         try:
             await websocket.close()
         except Exception:
@@ -86,6 +115,8 @@ class SecureWebSocketManager:
 
     async def _safe_send(self, ws: WebSocket, data: Dict[str, Any]) -> Optional[WebSocket]:
         """Sends data with timeout; returns ws if dead/timed out so it can be evicted."""
+        if self.operator_only and self.expires.get(ws, 0) <= time.time():
+            return ws
         try:
             await asyncio.wait_for(ws.send_json(data), timeout=CLIENT_SEND_TIMEOUT_SECONDS)
             return None
@@ -93,6 +124,19 @@ class SecureWebSocketManager:
             return ws
 
     async def broadcast_public(self, data: Dict[str, Any]):
+        # Only the public telemetry schema is allowed; unknown event types fail closed.
+        if data.get("type") != "surveillance_telemetry":
+            return
+        allowed = {"type", "timestamp", "radar_angle", "is_radar_simulated", "radar_telemetry_type",
+                   "radar_station", "pulse", "active_systems_count", "latest_system",
+                   "sources_status", "is_syncing", "connected_clients"}
+        public = {key: value for key, value in data.items() if key in allowed}
+        if isinstance(public.get("latest_system"), dict):
+            public['latest_system'] = {key: value for key, value in public['latest_system'].items()
+                if key in {'id','name','category','intensity_knots','lat','lon','source','observation_time_utc','is_stale'}}
+        await self._broadcast(public)
+
+    async def _broadcast(self, data: Dict[str, Any]):
         """
         Broadcasts public telemetry concurrently with timeout to prevent slow clients from blocking others.
         """
@@ -113,13 +157,9 @@ class SecureWebSocketManager:
                 await self.disconnect(dead)
 
     async def broadcast_alert(self, alert_data: Dict[str, Any]):
-        """Pushes emergency alert push notification to connected surveillance dashboards."""
-        payload = {
-            "type": "emergency_alert_push",
-            "alert": alert_data,
-            "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
-        }
-        await self.broadcast_public(payload)
+        """Privileged drafts never share the public telemetry transport."""
+        await operator_manager._broadcast({"type":"operator_exercise_draft", "mode":"EXERCISE",
+            "alert":alert_data, "timestamp":datetime.datetime.now(datetime.timezone.utc).isoformat()})
 
     async def start_telemetry_broadcaster(self):
         """Background continuous stream of radar angle, live ingestion status, and meteorological telemetry."""
@@ -138,6 +178,9 @@ class SecureWebSocketManager:
                         "intensity_knots": live_sys[0].get("intensity_knots"),
                         "lat": live_sys[0].get("lat"),
                         "lon": live_sys[0].get("lon"),
+                        "source": live_sys[0].get("source"),
+                        "observation_time_utc": live_sys[0].get("observation_time_utc"),
+                        "is_stale": live_sys[0].get("is_stale", True),
                     }
 
                 telemetry_payload = {
@@ -162,41 +205,45 @@ class SecureWebSocketManager:
             await asyncio.sleep(2.0)
 
 ws_manager = SecureWebSocketManager()
+operator_manager = SecureWebSocketManager(operator_only=True)
+
+async def serve_socket(websocket, manager):
+    if not await manager.connect(websocket):
+        return
+    messages = []
+    try:
+        while True:
+            remaining = manager.expires.get(websocket, time.time()+60) - time.time()
+            if remaining <= 0:
+                await websocket.close(code=1008, reason="Credentials expired")
+                break
+            data = await asyncio.wait_for(websocket.receive_text(), timeout=min(60, remaining))
+            now = time.time()
+            messages = [t for t in messages if t > now-60]
+            if len(messages) >= 60:
+                await websocket.close(code=1008, reason="Message rate exceeded")
+                break
+            messages.append(now)
+            if len(data.encode("utf-8")) > MAX_WS_MESSAGE_BYTES:
+                await websocket.close(code=1009, reason="Message too large")
+                break
+            try:
+                msg = json.loads(data)
+                if isinstance(msg, dict) and msg.get("action") == "ping":
+                    await asyncio.wait_for(websocket.send_json({"type":"pong"}), CLIENT_SEND_TIMEOUT_SECONDS)
+            except (ValueError, RecursionError):
+                await websocket.close(code=1008, reason="Malformed message")
+                break
+    except (WebSocketDisconnect, asyncio.TimeoutError):
+        pass
+    finally:
+        await manager.disconnect(websocket)
 
 @ws_router.websocket("/ws/cyclone-stream")
 async def cyclone_websocket_endpoint(websocket: WebSocket):
-    connected = await ws_manager.connect(websocket)
-    if not connected:
-        return
+    await serve_socket(websocket, ws_manager)
 
-    try:
-        while True:
-            # Enforce message size and timeout limits
-            data = await websocket.receive_text()
-            if len(data.encode("utf-8")) > MAX_WS_MESSAGE_BYTES:
-                logger.warning("[WebSocket] Client message exceeded max bytes (%d). Terminating connection.", MAX_WS_MESSAGE_BYTES)
-                await websocket.close(code=status.WS_1009_MESSAGE_TOO_BIG, reason="Message payload exceeds maximum limit")
-                break
-
-            try:
-                msg = json.loads(data)
-                if not isinstance(msg, dict):
-                    continue
-
-                if msg.get("action") == "ping":
-                    await asyncio.wait_for(
-                        websocket.send_json({
-                            "type": "pong",
-                            "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
-                        }),
-                        timeout=CLIENT_SEND_TIMEOUT_SECONDS
-                    )
-            except json.JSONDecodeError:
-                # Ignore malformed client payload
-                continue
-    except WebSocketDisconnect:
-        pass
-    except Exception as e:
-        logger.debug("[WebSocket] Disconnected with error: %s", e)
-    finally:
-        await ws_manager.disconnect(websocket)
+@ws_router.websocket("/ws/operator-events")
+async def operator_websocket_endpoint(websocket: WebSocket):
+    # JWT is sent in the first bounded frame, never in URLs or public events.
+    await serve_socket(websocket, operator_manager)

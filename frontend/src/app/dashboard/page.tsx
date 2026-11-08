@@ -1,4 +1,5 @@
 "use client";
+import type { WeatherSystem as ActiveSystem } from "@/types/api";
 import { type TrackPoint, type IngestStatus, type CatalogItem } from "@/types/api";
 import React, { useState, useEffect, useRef } from "react";
 import { AlertCircle, CloudRain, MapPin, Navigation, Wind, ShieldCheck, Play, RotateCcw, Activity, Eye, RefreshCw, Radio } from "lucide-react";
@@ -15,46 +16,7 @@ const MapComponent = dynamic(() => import('@/components/MapComponent'), {
   loading: () => <div className="w-full h-full bg-zinc-950 flex items-center justify-center text-muted-foreground animate-pulse">Loading Live Map...</div>
 });
 
-interface ActiveSystem {
-  id: string;
-  name: string;
-  category: string;
-  lat: number;
-  lon: number;
-  intensity_knots: number | null;
-  basin?: string;
-  observation_time_utc?: string | null;
-  source?: string | null;
-  source_type?: string;
-  origin_type?: string;
-  is_simulation?: boolean;
-  year?: string;
-  is_live_telemetry?: boolean;
-  is_stale?: boolean;
-  reconciliation_status?: string;
-  telemetry_badge?: string;
-  telemetry_type?: string;
-  dvorak_t?: string;
-  dvorak_derivation_method?: string;
-  dvorak_is_empirical_estimate?: boolean;
-  track_generation_method?: string;
-  telemetry_attribution?: Record<string, string>;
-  track_forecast?: TrackPoint[];
-  landfall_info?: {
-    status?: string;
-    landfall_time_utc?: string;
-    landfall_location?: string;
-    landfall_intensity_knots?: number;
-    landfall_intensity_kmph?: number;
-    landfall_gusts_kmph?: number;
-    landfall_category?: string;
-    central_pressure_hpa?: number;
-    storm_surge_m?: string;
-    inland_decay?: string;
-    impact_sector?: string;
-  };
-  is_landfall_completed?: boolean;
-}
+
 
 const getStormDetails = (sys: ActiveSystem | null) => {
   if (!sys) {

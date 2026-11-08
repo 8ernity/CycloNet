@@ -50,7 +50,6 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
 
     // Advisories
     fishermen_warning: "Total suspension of fishing operations along coastal waters.",
-    evacuation_notice: "Mandatory coastal evacuation active for vulnerable low-lying zones.",
     power_grid_advisory: "Precautionary power grid isolation ordered in surge inundation belt.",
     shelter_capacity: "Cyclone shelters and emergency relief camps operational 24x7.",
     disaster_hotline: "Emergency NDMA Disaster Response Hotline: 1070 / 1077",
@@ -84,7 +83,6 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
 
     // Advisories
     fishermen_warning: "तटीय क्षेत्रों में मत्स्य पालन कार्यों पर पूर्ण प्रतिबंध लागू।",
-    evacuation_notice: "निचले तटीय इलाकों से नागरिकों को तुरंत सुरक्षित स्थानों पर पहुंचाएं।",
     power_grid_advisory: "बाढ़ संभावित तटीय क्षेत्रों में विद्युत ग्रिड एहतियातन बंद किए गए।",
     shelter_capacity: "चक्रवात आश्रय गृह 24 घंटे सक्रिय और आपातकालीन राशन से लैस हैं।",
     disaster_hotline: "राष्ट्रीय आपदा प्रबंधन हेल्पलाइन: 1070 / 1077",
@@ -118,7 +116,6 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
 
     // Advisories
     fishermen_warning: "ମତ୍ସ୍ୟଜୀବୀମାନଙ୍କୁ ସମୁଦ୍ର ମଧ୍ୟକୁ ଯିବା ଉପରେ ସମ୍ପୂର୍ଣ୍ଣ କଟକଣା।",
-    evacuation_notice: "ତଳିଆ ଉପକୂଳ ଅଞ୍ଚଳରୁ ବାତ୍ୟା ଆଶ୍ରୟସ୍ଥଳୀକୁ ସ୍ଥାନାନ୍ତର ଆରମ୍ଭ।",
     power_grid_advisory: "ଜୁଆର ଆଶଙ୍କା ଥିବା ଅଞ୍ଚଳରେ ବିଦ୍ୟୁତ ସରବରାହ ସତର୍କତାମୂଳକ ବନ୍ଦ।",
     shelter_capacity: "ଓଡ୍ରାଫ୍ ଓ ଏନଡିଆରଏଫ୍ ଟିମ୍ ଉପକୂଳ ଜିଲ୍ଲାଗୁଡ଼ିକରେ ମୁତୟନ।",
     disaster_hotline: "ଓଡ଼ିଶା ରାଜ୍ୟ ବିପର୍ଯ୍ୟୟ ପରିଚାଳନା ହେଲ୍ପଲାଇନ୍: 1070 / 1077",
@@ -152,7 +149,6 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
 
     // Advisories
     fishermen_warning: "উপকূলবর্তী সমুদ্রে সকল মাছ ধরার ট্রলার চলাচল সম্পূর্ণ বন্ধ।",
-    evacuation_notice: "সুন্দরবন ও নিচু উপকূলীয় এলাকা থেকে নিরাপদ আশ্রয়ে দ্রুত স্থানান্তর।",
     power_grid_advisory: "উপকূলীয় বিপজ্জনক সাবস্টেশনগুলিতে আগাম বিদ্যুৎ নিয়ন্ত্রণ চালু।",
     shelter_capacity: "সকল সাইক্লোন শেল্টার ও জরুরি মেডিকেল টিম ২৪ ঘণ্টা প্রস্তুত।",
     disaster_hotline: "পশ্চিমবঙ্গ বিপর্যয় মোকাবিলা হেল্পলাইন: 1070 / 1077",
@@ -186,7 +182,6 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
 
     // Advisories
     fishermen_warning: "తీర ప్రాంత మత్స్యకారులు సముద్రంలోకి వేటకు వెళ్లరాదు.",
-    evacuation_notice: "తీరప్రాంత లోతట్టు గ్రామాల ప్రజలను సురక్షిత పునరావాస కేంద్రాలకు తరలింపు.",
     power_grid_advisory: "తుఫాను ప్రభావ ప్రాంతాలలో ముందుజాగ్రత్తగా విద్యుత్ నిలిపివేత.",
     shelter_capacity: "పునరావాస కేంద్రాలలో తగినంత ఆహారం మరియు తాగునీరు సిద్ధం.",
     disaster_hotline: "ఆంధ్రప్రదేశ్ విపత్తు నిర్వహణ హెల్ప్‌లైన్: 1070 / 1077",
@@ -220,7 +215,6 @@ export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
 
     // Advisories
     fishermen_warning: "மீனவர்கள் கடலுக்கு செல்ல வேண்டாம் என முழுமையான தடை.",
-    evacuation_notice: "கடலோர தாழ்வான பகுதிகளில் உள்ள மக்கள் நிவாரண முகாம்களுக்கு மாற்றம்.",
     power_grid_advisory: "பாதிக்கப்படும் பகுதிகளில் முன்னெச்சரிக்கை மின் தடை.",
     shelter_capacity: "அனைத்து புயல் நிவாரண முகாம்களும் 24 மணி நேரமும் தயார் நிலையில்.",
     disaster_hotline: "தமிழ்நாடு பேரிடர் மேலாண்மை உதவி எண்: 1070 / 1077",

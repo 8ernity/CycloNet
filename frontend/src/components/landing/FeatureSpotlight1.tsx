@@ -43,7 +43,7 @@ export function FeatureSpotlight1() {
                 S_peak = α · ΔP + β · V_max² · cos(θ_coast) + H_tide
               </p>
               <p className="text-[11px] text-text-muted leading-normal">
-                Includes inverted barometer rise (1cm per 1hPa drop) and SRTM 30m DEM slope calculations to estimate inland flood penetration distance.
+                Uses assumed shelf depth and coastal slope. No surveyed bathymetry, sampled DEM, or independently calibrated uncertainty is available.
               </p>
             </div>
 
@@ -53,7 +53,7 @@ export function FeatureSpotlight1() {
               onClick={() => window.location.href = "/infrastructure"}
               className="border-surface-border bg-card text-text-primary hover:bg-card/80 cursor-pointer"
             >
-              Open Hydrodynamic Forecaster
+              Open surge scenarios
             </PillButton>
           </motion.div>
 
@@ -77,15 +77,15 @@ export function FeatureSpotlight1() {
                     <span className="text-xs font-bold text-text-primary font-mono uppercase tracking-wider">Coastal Surge & Inundation Simulation</span>
                   </div>
                   <span className="text-[11px] font-mono text-sky-500 dark:text-sky-400 bg-sky-500/10 px-2 py-1 rounded border border-sky-500/20">
-                    Resolution: 30m DEM
+                    Assumed terrain
                   </span>
                 </div>
 
                 {/* Hydrodynamic surge chart */}
                 <div className="z-10 my-auto">
                   <div className="flex justify-between text-xs text-text-muted font-mono mb-2">
-                    <span>Peak Surge Height: 3.85m</span>
-                    <span className="text-rose-500 font-bold">Inland Penetration: 4.2 km</span>
+                    <span>Illustrative chart — no observation</span>
+                    <span className="text-rose-500 font-bold">Not validated</span>
                   </div>
                   <div className="h-28 w-full bg-secondary/60 rounded-lg p-3 border border-border flex items-end gap-1.5 justify-between">
                     {[22, 35, 48, 70, 92, 98, 86, 64, 43, 30, 16, 9].map((val, idx) => (
@@ -107,7 +107,7 @@ export function FeatureSpotlight1() {
                   <span>Target Basin: Bay of Bengal East Coast</span>
                   <span className="text-emerald-500 dark:text-emerald-400 font-mono font-bold flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    Automated Flood Warnings Armed
+                    No warning issued
                   </span>
                 </div>
               </div>
@@ -121,7 +121,7 @@ export function FeatureSpotlight1() {
                 className="absolute -top-4 -right-4 md:-right-6 px-4 py-2 bg-rose-500/90 text-white rounded-xl shadow-lg text-xs font-bold flex items-center gap-2 backdrop-blur-md"
               >
                 <ShieldAlert className="w-4 h-4" />
-                <span>Parametric Peak Inundation Alert</span>
+                <span>Illustrative scenario</span>
               </motion.div>
             </div>
           </motion.div>
