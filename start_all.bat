@@ -47,6 +47,9 @@ if not exist "frontend\node_modules" (
 )
 
 echo.
+echo Ensuring ports 8000 and 3000 are clear...
+for /f "tokens=5" %%a in ('netstat -aon 2^>nul ^| findstr :8000 ^| findstr LISTENING') do taskkill /f /pid %%a >nul 2>nul
+
 echo Launching services in dedicated consoles...
 
 REM Launch Backend

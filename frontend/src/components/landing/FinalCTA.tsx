@@ -29,21 +29,21 @@ export function FinalCTA() {
         >
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 font-bold text-xs uppercase tracking-wider mb-6">
             <Radar className="w-4 h-4 animate-spin-slow" />
-            Empowering Disaster Management
+            Research and verification
           </div>
 
           <h2 className="text-4xl md:text-6xl font-black tracking-tight text-text-primary mb-6">
-            Ready to protect vulnerable coastlines?
+            Explore cyclone observations and research scenarios.
           </h2>
           <p className="text-lg md:text-xl text-text-muted mb-10 max-w-2xl mx-auto">
-            Join emergency responders, state disaster authorities, and maritime commands using CycloNet to forecast, track, and protect lives with unmatched precision.
+            Inspect source records, missing data and experimental outputs. Scientific validation and operational authorization remain required.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <PillButton className="w-full sm:w-auto cursor-pointer" icon={ArrowRight} onClick={() => window.location.href = '/'}>
+            <PillButton className="w-full sm:w-auto cursor-pointer" icon={ArrowRight} onClick={() => window.location.href = '/dashboard'}>
               Launch CycloNet Dashboard
             </PillButton>
             <PillButton variant="ghost" className="w-full sm:w-auto cursor-pointer" onClick={() => window.location.href = '/forecast'}>
-              View Live Storm Radar
+              Inspect source tracks
             </PillButton>
           </div>
         </motion.div>

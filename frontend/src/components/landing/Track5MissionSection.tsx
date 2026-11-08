@@ -268,15 +268,15 @@ export function Track5MissionSection() {
                       <div className="space-y-3 font-mono text-xs">
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">Sentinel-1 Dual-Pol VV/VH:</span>
-                          <span className="text-emerald-400 font-bold">10m Inundation Vector</span>
+                          <span className="text-emerald-400 font-bold">Unavailable</span>
                         </div>
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">Sentinel-2 MNDWI Index:</span>
-                          <span className="text-sky-400 font-bold">Waterlogged &gt; 0.45</span>
+                          <span className="text-sky-400 font-bold">Not processed</span>
                         </div>
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">SRTM 30m DEM Elevation:</span>
-                          <span className="text-purple-400 font-bold">Slope: 0.75m/km</span>
+                          <span className="text-purple-400 font-bold">Not sampled</span>
                         </div>
                       </div>
                     )}
@@ -285,15 +285,15 @@ export function Track5MissionSection() {
                       <div className="space-y-3 font-mono text-xs">
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">Multimodal Dvorak Estimate:</span>
-                          <span className="text-amber-400 font-bold">T5.5 (105 KT Benchmark)</span>
+                          <span className="text-amber-400 font-bold">Not validated</span>
                         </div>
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">Convective Cloud Top Temp:</span>
-                          <span className="text-cyan-400 font-bold">-82.4°C Core</span>
+                          <span className="text-cyan-400 font-bold">Unavailable</span>
                         </div>
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">Executive Risk Memo:</span>
-                          <span className="text-emerald-400 font-bold">Ready (7 Languages)</span>
+                          <span className="text-emerald-400 font-bold">English source summaries</span>
                         </div>
                       </div>
                     )}
@@ -302,15 +302,15 @@ export function Track5MissionSection() {
                       <div className="space-y-3 font-mono text-xs">
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">Peak Surge Height (Est.):</span>
-                          <span className="text-blue-400 font-bold">3.85 meters</span>
+                          <span className="text-blue-400 font-bold">Scenario inputs required</span>
                         </div>
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">Inverted Barometer Effect:</span>
-                          <span className="text-cyan-400 font-bold">+0.58m (ΔP 58hPa)</span>
+                          <span className="text-cyan-400 font-bold">Scenario inputs required</span>
                         </div>
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">Inland Penetration Distance:</span>
-                          <span className="text-rose-400 font-bold">4.2 km Inland</span>
+                          <span className="text-rose-400 font-bold">Not validated</span>
                         </div>
                       </div>
                     )}
@@ -319,22 +319,22 @@ export function Track5MissionSection() {
                       <div className="space-y-3 font-mono text-xs">
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">400kV Grid Substations:</span>
-                          <span className="text-amber-400 font-bold">3 High Risk Identified</span>
+                          <span className="text-amber-400 font-bold">Field data unavailable</span>
                         </div>
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">Evacuation Corridors:</span>
-                          <span className="text-emerald-400 font-bold">NH-16 & SH-5 Monitored</span>
+                          <span className="text-emerald-400 font-bold">Road conditions unverified</span>
                         </div>
                         <div className="p-3 rounded-lg bg-secondary/50 border border-border flex justify-between items-center">
                           <span className="text-text-muted">Parametric Payout Trigger:</span>
-                          <span className="text-purple-400 font-bold">Policy Rule Armed ($12.5M)</span>
+                          <span className="text-purple-400 font-bold">No funded policy verified</span>
                         </div>
                       </div>
                     )}
 
                     <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-text-primary text-[11px] font-sans flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-                      <span>Directly integrated into the live decision-support dashboard.</span>
+                      <span>Research views keep observations, unavailable data and simulations separate.</span>
                     </div>
                   </div>
                 </div>

@@ -322,7 +322,9 @@ class LiveIngestionService:
 
                     # This adapter supports one dated advisory only. A landing page
                     # containing multiple systems/positions is not an observation.
-                    names = set(re.findall(r"Cyclonic Storm\s+['\"]?([A-Za-z0-9-]+)", text_content, re.IGNORECASE))
+                    # Document headings describe the bulletin, not a storm named BULLETIN.
+                    advisory_body = re.sub(r"CYCLONIC STORM BULLETIN\s+NO\.\s*\d+", "", text_content, flags=re.IGNORECASE)
+                    names = set(n.upper() for n in re.findall(r"Cyclonic Storm\s+['\"]?([A-Za-z0-9-]+)", advisory_body, re.IGNORECASE))
                     positions = set(re.findall(r"(\d{1,2}(?:\.\d+)?)\s*°?\s*N.*?(\d{2,3}(?:\.\d+)?)\s*°?\s*E", text_content, re.IGNORECASE))
                     dates = set(re.findall(r"20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|\+00:00)", text_content))
                     if len(names) > 1 or len(positions) > 1 or len(dates) != 1:
@@ -356,7 +358,7 @@ class LiveIngestionService:
 
                     if has_active_bulletin:
                         for kw in keywords:
-                            match = re.search(kw, text_content, re.IGNORECASE)
+                            match = re.search(kw, advisory_body, re.IGNORECASE)
                             if match:
                                 matched_text = match.group(0)
                                 cat = self._determine_imd_category_from_text(matched_text)
@@ -384,8 +386,12 @@ class LiveIngestionService:
                                 speed_raw, speed_unit = (float(speed_matches[0][0]), speed_matches[0][1].upper()) if len(speed_matches) == 1 else (None, None)
                                 speed_val = speed_raw * (1.852 if speed_unit in ("KT", "KNOTS") else 1) if speed_raw is not None else None
 
-                                d_match = re.search(r"(?:DIRECTION|TOWARDS?|MOVING)\s+([A-Z]{1,3}|NORTH|SOUTH|EAST|WEST|NORTHWEST|NORTHEAST|SOUTHWEST|SOUTHEAST)", text_content, re.IGNORECASE)
-                                dir_val = d_match.group(1).upper() if d_match else None
+                                compass = {'NORTH':'N', 'SOUTH':'S', 'EAST':'E', 'WEST':'W',
+                                    'NORTHWEST':'NW', 'NORTHEAST':'NE', 'SOUTHWEST':'SW', 'SOUTHEAST':'SE'}
+                                compass.update({d:d for d in ('N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW')})
+                                directions = re.findall(r"\b(?:DIRECTION|TOWARDS?|MOVING)\s+(" + '|'.join(compass) + r")\b", text_content, re.IGNORECASE)
+                                direction_values = {compass[d.upper()] for d in directions}
+                                dir_val = next(iter(direction_values)) if len(direction_values) == 1 else None
 
                                 w_match = re.search(r"(?:SUSTAINED\s+WINDS?|WIND\s+SPEED)\s*(?:OF)?\s*(\d{2,3})\s*(?:KT|KNOTS)", text_content, re.IGNORECASE)
                                 knots_val = int(w_match.group(1)) if w_match else None

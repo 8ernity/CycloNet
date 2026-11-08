@@ -68,7 +68,7 @@ export default function InfrastructurePage() {
   const [rainfallPathways, setRainfallPathways] = useState<RainfallPathway[]>([]);
   const [geeLayers, setGeeLayers] = useState<Record<string, unknown>[]>([]);
 
-  // Gemini 3.7 Flash Pre-Landfall Briefing State
+  // Deterministic source and scenario briefing state
   const [briefingModalOpen, setBriefingModalOpen] = useState(false);
   const [briefingLoading, setBriefingLoading] = useState(false);
   const [briefingData, setBriefingData] = useState<Briefing | null>(null);
@@ -658,10 +658,10 @@ export default function InfrastructurePage() {
             <div>
               <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                 <Navigation className="w-4 h-4 text-blue-400" />
-                Anticipatory Evacuation Route Rerouting Engine
+                Road observations and illustrative scenarios
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Evaluates coastal highway elevation profiles against predicted flood depths to recommend safe alternative evacuation routes.
+                Road conditions require current authorized observations. Scenario exposure uses assumed terrain and cannot identify a safe evacuation route.
               </p>
             </div>
             <div className="flex items-center gap-3 text-xs font-mono shrink-0">
@@ -1412,7 +1412,7 @@ export default function InfrastructurePage() {
         </div>
       )}
 
-      {/* ── Gemini 3.7 Pre-Landfall Executive Briefing Modal ─────────────────── */}
+      {/* ── Source and scenario briefing modal ─────────────────── */}
       {briefingModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
           <div className="glass-card w-full max-w-3xl border-primary/40 p-6 space-y-4 max-h-[85vh] overflow-y-auto">

@@ -1,15 +1,30 @@
 """Reject oversized bodies before FastAPI parses or invokes handlers."""
 import json
 import asyncio
+import threading
 from starlette.responses import JSONResponse
 
 class RequestLimitsMiddleware:
     def __init__(self, app):
         self.app = app
+        self.upload_slots = threading.BoundedSemaphore(4)
+        self.json_slots = threading.BoundedSemaphore(32)
 
     async def __call__(self, scope, receive, send):
         if scope['type'] != 'http' or scope.get('method') not in ('POST', 'PUT', 'PATCH'):
             return await self.app(scope, receive, send)
+        headers = dict(scope.get('headers', []))
+        is_upload = b'multipart/form-data' in headers.get(b'content-type', b'').lower() and scope.get('path') in ('/api/classify', '/api/ai/analyze-multimodal')
+        slots = self.upload_slots if is_upload else self.json_slots
+        if not slots.acquire(blocking=False):
+            return await JSONResponse({'detail':'Request body capacity exceeded'}, status_code=429,
+                headers={'Retry-After':'5'})(scope, receive, send)
+        try:
+            return await self._bounded_request(scope, receive, send)
+        finally:
+            slots.release()
+
+    async def _bounded_request(self, scope, receive, send):
         headers = dict(scope.get('headers', []))
         content_type = headers.get(b'content-type', b'').lower().split(b';',1)[0].strip()
         is_json = not content_type or content_type == b'application/json' or content_type.endswith(b'+json')

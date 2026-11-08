@@ -34,3 +34,11 @@ Public read-only catalog/observation routes remain public. Chat, classification,
 The full suite includes atomic Redis concurrency, real PostgreSQL migration/index checks, role matrices, public/operator isolation, malformed payloads and source freshness regressions. Dependency and Gitleaks outputs are linked from the test report. No vulnerabilities were found by those scanners at execution time; scanners cannot prove the absence of vulnerabilities.
 
 No production resources were modified. Hosted authentication, proxy client-IP handling, managed backups/restoration, multi-instance load, external-provider behavior and staging WebSockets require live deployment evidence. Prior V5 CI success does not certify this V6 revision.
+
+## Follow-up verification
+
+The final local backend suite has 231 passing tests. Hosted V6 backend/frontend passed on c24c03f; its secret-scan finding was the recomputed SHA-256 of an evidence report, not a credential. The exception is limited to that exact rule, path and line. No general document or hash exclusion was added. Subsequent changes remain local at the user's request.
+
+## Continued local audit
+
+The latest backend run passes 253 tests, including real PostgreSQL/Redis. New findings closed: aggregate request-body admission, process bounds surviving lost/expired Redis leases, and generated-advice bypasses. Provider output now selects a strict topic only; it cannot author displayed advice. Offline frontend presets and false archive-save success were removed. Production dependencies are unchanged and refreshed Python/npm audits plus the optional data-review audit report no known vulnerabilities. See [continuation review](V6_CONTINUATION_REVIEW.md) for scope and evidence. Fleet behavior after Redis loss still requires staging; the hard process limits are not represented as an exact fleet-wide live-call count.

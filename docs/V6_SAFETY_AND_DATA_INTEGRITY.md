@@ -27,3 +27,13 @@ CAP payloads retain Exercise status. Dispatch responses contain drafts, empty de
 Landing-page fabricated benchmarks, testimonials, funding, certification and integration claims were replaced with actual capability limits. The README now describes implemented behavior and reproducible setup, superseding older promotional descriptions. Historical audit documents describe their own revisions and are not current release certifications.
 
 Software checks cannot establish OPERATIONAL_DISASTER_SYSTEM_READY. Follow official agency advisories for actual emergencies.
+
+## Scientific tooling follow-up
+
+Training now exports per-class precision/recall/F1, macro F1, calibration diagnostics and fixed-heuristic abstention coverage/risk. Decoded content and near-identical thumbnail checks run before model construction; excessive comparison work halts training. These checks do not replace independent scene overlap review. OOD evaluation remains explicitly NOT_EVALUATED, and scientifically_validated remains false. See [details and limitations](V6_SCIENTIFIC_PIPELINE_FOLLOWUP.md).
+
+## Continued safety and authentic-data review
+
+The local continuation closes generated-prose safety bypasses and frontend-only offline presets that could still display evacuation instructions and fabricate classification confidence/wind/Dvorak values. Failed classification now exports null measurements, not a preset, and no fake archive-save action is offered. Chat, classification, landing detail panels and road scenario text now describe actual availability. Source summaries distinguish failed feeds, stale records and fresh unreconciled records. IMD heading/name and compass parsing regressions are corrected.
+
+The authentic 98-frame NOAA sample now has reproducible binary decoding and exact storm/nominal-time joins. Acquisition offsets, missing IR pixels and v03r09/v04r01 center differences remain explicit review findings. There are still zero approved training frames and no new scientific performance claim. See [continuation review](V6_CONTINUATION_REVIEW.md).

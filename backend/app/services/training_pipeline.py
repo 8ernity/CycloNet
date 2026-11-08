@@ -13,6 +13,8 @@ from torchvision.models import resnet50, ResNet50_Weights
 from PIL import Image
 from app.models.checkpoint import CheckpointMetadata, weights_checksum
 from app.services.ml_service import CycloneClassifierHead
+from app.services.evaluation import ClassificationMetrics
+from app.services.image_leakage import verify_image_content_splits
 
 
 class Images(Dataset):
@@ -79,6 +81,7 @@ def run_training(manifest_path=None, output_dir='artifacts', *, epochs=20, batch
             raise InsufficientDatasetError('Every frozen split must contain all classes from independent events')
     else:
         splits = partition_dataset_strictly_disjoint(samples_by_class, seed=seed)
+    content_review = verify_image_content_splits(splits)
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -97,19 +100,15 @@ def run_training(manifest_path=None, output_dir='artifacts', *, epochs=20, batch
 
     def evaluate(loader):
         head.eval()
-        loss_total, correct, count = 0., 0, 0
-        confusion = torch.zeros(len(CLASSES), len(CLASSES), dtype=torch.int64)
+        loss_total, count = 0., 0
+        metrics = ClassificationMetrics(CLASSES)
         with torch.no_grad():
             for images, labels in loader:
                 logits = head(feature_extractor(images).flatten(1))
                 loss_total += criterion(logits, labels).item() * len(labels)
-                predictions = logits.argmax(1)
-                correct += (predictions == labels).sum().item()
                 count += len(labels)
-                for label, prediction in zip(labels, predictions):
-                    confusion[label, prediction] += 1
-        return dict(loss=loss_total/count, accuracy=correct/count, count=count,
-                    confusion_matrix=confusion.tolist())
+                metrics.update(logits.softmax(1).cpu().numpy(), labels.cpu().numpy())
+        return dict(loss=loss_total/count, **metrics.result())
 
     history, best, bad_epochs, selected = [], float('inf'), 0, None
     for epoch in range(epochs):
@@ -157,6 +156,9 @@ def run_training(manifest_path=None, output_dir='artifacts', *, epochs=20, batch
                     classes=CLASSES, class_names=CLASS_NAMES, num_classes=len(CLASSES),
                     uncalibrated_demo=demo, model_status=metadata.model_status), checkpoint)
     metrics = dict(seed=seed, pretrained=pretrained, history=history, test=test,
+                   image_content_review=content_review,
+                   ood_evaluation=dict(status='NOT_EVALUATED',
+                       reason='A separate independently reviewed OOD image benchmark is required; class 0 test accuracy is not an OOD evaluation'),
                    parameters_changed=changed, checkpoint=str(checkpoint.resolve()),
                    metadata=metadata.model_dump(),
                    splits={name:[asdict(s) for s in split] for name,split in zip(['train','validation','test'],splits)})

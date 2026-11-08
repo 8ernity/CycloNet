@@ -38,6 +38,14 @@ export function getApiBaseUrl(): string {
           if (clean) return clean;
         }
       }
+      // When browsing locally on localhost or 127.0.0.1, always prioritize the local backend
+      // so local development never fails against sleeping or unconfigured cloud services.
+      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+        if (process.env.NEXT_PUBLIC_API_URL && (process.env.NEXT_PUBLIC_API_URL.includes("localhost") || process.env.NEXT_PUBLIC_API_URL.includes("127.0.0.1"))) {
+          return process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "").replace(/\/api$/, "");
+        }
+        return "http://localhost:8000";
+      }
     } catch {
       // Fallback on restricted browser environments or SSR
     }

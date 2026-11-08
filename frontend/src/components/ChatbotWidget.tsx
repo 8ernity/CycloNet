@@ -36,12 +36,12 @@ interface Message {
 
 const FEATURE_CARDS = [
   {
-    title: "Pre-Landfall Risk Briefing",
-    desc: "Generate municipal operational memo",
+    title: "Current source status",
+    desc: "Check availability and uncertainty",
     icon: Sparkles,
     color: "blue",
     iconBg: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    query: "Generate a comprehensive pre-landfall vulnerability briefing for the active cyclone on my screen, including storm surge height, 400kV power grid risks, evacuation choke points, and shelter readiness."
+    query: "What is the current backend source status?"
   },
   {
     title: "Hydrodynamic Storm Surge",
@@ -52,20 +52,20 @@ const FEATURE_CARDS = [
     query: "Explain the hydrodynamic physics of storm surge in the Bay of Bengal: how the inverted barometer effect, shallow shelf bathymetry, and astronomical high tide combine to cause coastal inundation."
   },
   {
-    title: "Dvorak & Multimodal Vision",
-    desc: "Estimate intensity from satellite frames",
+    title: "Dvorak concepts",
+    desc: "Learn the limits of image interpretation",
     icon: Satellite,
     color: "rose",
     iconBg: "bg-rose-500/20 text-rose-400 border-rose-500/30",
-    query: "How does Gemini 3.7 Flash perform multimodal visual analysis on INSAT-3DR infrared satellite frames to calculate Dvorak T-numbers and convective cloud top temperatures?"
+    query: "Explain the Dvorak technique and why image classification is not a calibrated wind measurement."
   },
   {
-    title: "Parametric Liquidity & Safety",
-    desc: "Anticipatory cash transfers & evacuation",
+    title: "Cyclone formation",
+    desc: "Explore general meteorology",
     icon: ShieldCheck,
     color: "emerald",
     iconBg: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-    query: "How do parametric disaster insurance smart contracts work with satellite wind speed triggers to release emergency liquidity before cyclone landfall?"
+    query: "Explain cyclogenesis."
   }
 ];
 
@@ -376,6 +376,7 @@ export function ChatbotWidget() {
 
       const res = await fetch(`${getApiBaseUrl()}/api/chat`, {
         method: "POST",
+        signal: AbortSignal.timeout(65000),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: text,
@@ -404,7 +405,7 @@ export function ChatbotWidget() {
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          content: "⚠️ **Connection Notice:** Unable to reach the meteorological intelligence backend. Please ensure the backend server is active at `http://localhost:8000`.",
+          content: "Source information is unavailable. Try again shortly; no current conditions or safety assessment can be established.",
           category: "error",
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
@@ -534,7 +535,7 @@ export function ChatbotWidget() {
             }}
             className="liquid-glass-panel flex flex-col rounded-[26px] overflow-hidden transition-[box-shadow,height] duration-200 relative border border-white/15"
           >
-            {/* Header: CycloNet AI • Gemini 3.7 • Meteorological Intelligence */}
+            {/* Header: educational assistant */}
             <div 
               onMouseDown={handleDragStart}
               onTouchStart={handleDragStart}
@@ -548,10 +549,10 @@ export function ChatbotWidget() {
                 <div>
                   <h3 className="font-heading font-bold text-sm text-white tracking-tight flex items-center gap-1.5">
                     <span>CycloNet AI</span>
-                    <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-primary/20 text-primary border border-primary/30">3.7 Flash</span>
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-primary/20 text-primary border border-primary/30">Research</span>
                   </h3>
                   <p className="text-[11px] text-zinc-400">
-                    Multimodal Meteorological Intelligence
+                    Education and source status
                   </p>
                 </div>
               </div>
@@ -635,14 +636,14 @@ export function ChatbotWidget() {
                         Hi, I&apos;m <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-indigo-400 bg-clip-text text-transparent">CycloNet AI</span>
                       </h2>
                       <p className="text-xs sm:text-sm text-zinc-400 mt-1 max-w-sm">
-                        Your meteorological intelligence companion.
+                        Educational explanations and backend source summaries.
                       </p>
 
                       {/* Powered by divider */}
                       <div className="flex items-center gap-3 my-4 w-full max-w-xs">
                         <div className="h-px bg-white/10 flex-1" />
                         <span className="text-[10px] text-zinc-400 uppercase tracking-wider font-mono">
-                          Powered by Google Gemini 3.7 Flash
+                          No generated operational advice
                         </span>
                         <div className="h-px bg-white/10 flex-1" />
                       </div>

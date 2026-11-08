@@ -16,7 +16,7 @@ export interface EvacuationRoute {
   name: string;
   highwayCode: string;
   path: [number, number][];
-  evacuationPriority: "Corridor 1 (Mandatory)" | "Corridor 2 (High Traffic)" | "Secondary Arterial";
+  evacuationPriority: "Corridor 1 (Illustrative)" | "Corridor 2 (High Traffic)" | "Secondary Arterial";
   floodRiskLevel: "Severe Inundation Risk" | "Moderate Waterlogging" | "Clear / Elevated";
   elevationAvgM: number;
   region: string;
@@ -182,7 +182,7 @@ export const EVACUATION_ROUTES: EvacuationRoute[] = [
       [21.49, 86.92],
       [22.57, 88.36]
     ],
-    evacuationPriority: "Corridor 1 (Mandatory)",
+    evacuationPriority: "Corridor 1 (Illustrative)",
     floodRiskLevel: "Moderate Waterlogging",
     elevationAvgM: 14,
     region: "Bay of Bengal Coastal Belt"
@@ -198,7 +198,7 @@ export const EVACUATION_ROUTES: EvacuationRoute[] = [
       [20.71, 70.98],
       [21.76, 72.15]
     ],
-    evacuationPriority: "Corridor 1 (Mandatory)",
+    evacuationPriority: "Corridor 1 (Illustrative)",
     floodRiskLevel: "Severe Inundation Risk",
     elevationAvgM: 8,
     region: "Saurashtra Coast, Gujarat"
@@ -213,7 +213,7 @@ export const EVACUATION_ROUTES: EvacuationRoute[] = [
       [22.03, 88.08],
       [22.42, 87.97]
     ],
-    evacuationPriority: "Corridor 1 (Mandatory)",
+    evacuationPriority: "Corridor 1 (Illustrative)",
     floodRiskLevel: "Severe Inundation Risk",
     elevationAvgM: 4,
     region: "West Bengal Coastal Corridor"

@@ -21,7 +21,7 @@ export interface IngestStatus {
   active_systems_count: number; sources_status: Record<string, string>; last_error?: string;
 }
 export interface Classification {
-  is_cyclone: boolean | null; category: string; category_short?: string; confidence: number;
+  is_cyclone: boolean | null; category: string; category_short?: string; confidence: number | null;
   dvorak_t?: string | null; wind_speed_knots?: number | null;
   checkpoint_status?: string; is_trained_weights?: boolean; is_offline_preset?: boolean;
   is_uncalibrated_demo?: boolean; model_architecture?: string; overlay_url?: string | null;
@@ -29,8 +29,9 @@ export interface Classification {
   scientifically_validated?: boolean; model_type?: string; is_reliable?: boolean; operational_status?: string;
 }
 export interface VisionAnalysis {
-  category: string; dvorak_t_number?: string; estimated_knots?: number;
+  category: string; dvorak_t_number?: string | null; estimated_knots?: number | null;
   eye_characterization?: string; convective_signature?: string; recommended_actions?: string[];
+  status?: string; scientifically_validated?: boolean;
 }
 export interface SurgeCalculation {
   inland_penetration_km: number; inverted_barometer_m: number; peak_surge_height_m: number;

@@ -5,9 +5,14 @@ def basin_snapshot():
     from app.services.live_ingestion import live_ingestion_service as ingestion
     try:
         systems = [s for s in ingestion.live_systems if not s.get('is_simulation')]
-        current = [s for s in systems if fresh(s.get('observation_time_utc')) and not s.get('is_stale')
-                   and s.get('reconciliation_status') == 'ACTIVE_VERIFIED']
-        status = 'ACTIVE_VERIFIED' if current else 'FEED_STALE' if systems else 'STATUS_UNCERTAIN'
+        recent = [s for s in systems if fresh(s.get('observation_time_utc')) and not s.get('is_stale')]
+        current = [s for s in recent if s.get('reconciliation_status') == 'ACTIVE_VERIFIED']
+        status = 'ACTIVE_VERIFIED' if current else 'STATUS_UNCERTAIN'
+        if systems and not recent:
+            status = 'FEED_STALE'
+        sources = getattr(ingestion, 'sources_status', {}).values()
+        if not systems and sources and all(str(value).startswith(('FAILED', 'UNAVAILABLE')) for value in sources):
+            status = 'FEED_UNAVAILABLE'
         if not systems and getattr(ingestion, 'basin_status', '') == 'NO_ACTIVE_STORMS_VERIFIED' and fresh(ingestion.last_sync):
             status = 'NO_ACTIVE_STORMS_VERIFIED'
         fields = ('id', 'name', 'lat', 'lon', 'intensity_knots', 'source', 'source_url', 'observation_time_utc')

@@ -186,17 +186,26 @@
         "backend/app/services/chat_service.py",
         "backend/app/services/dataset_errors.py",
         "backend/app/services/scientific_manifest.py",
-        "backend/train_classifier.py"
+        "backend/train_classifier.py",
+        "backend/app/services/evaluation.py",
+        "backend/app/services/image_leakage.py",
+        "backend/app/services/training_pipeline.py"
       ],
       "test_evidence": [
         "backend/tests/test_v5_scientific_data.py",
         "docs/SCIENTIFIC_DATA_AND_STAGING.md",
         "backend/tests/test_v6_review.py",
-        "docs/v6-scientific-training-gate.txt"
+        "docs/v6-scientific-training-gate.txt",
+        "backend/tests/test_v6_evaluation.py",
+        "backend/tests/test_v6_image_leakage.py",
+        "backend/tests/test_v5_training.py",
+        "docs/v6-evaluation-before.xml",
+        "docs/v6-evaluation-after.xml"
       ],
       "blockers": [
         "Reviewed image-label joins and independent non-cyclone dataset missing; no approved independent evaluation."
-      ]
+      ],
+      "local_followup": "Per-class scores, calibration/abstention diagnostics and decoded/near-image split admission added; independent real-data scientific evaluation remains blocked."
     },
     {
       "id": "V6-012",
@@ -348,22 +357,151 @@
         "docs/v6-scientific-training-gate.txt"
       ],
       "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "V6-A07",
+      "root_cause": "Training only exported accuracy/confusion; requested precision, recall, F1, calibration and abstention evidence was absent.",
+      "resolution": "Streaming metrics with hand-computed regression fixtures; no fabricated scientific results.",
+      "status": "VERIFIED_FIXED",
+      "changed_files": [
+        "backend/app/services/evaluation.py",
+        "backend/app/services/training_pipeline.py"
+      ],
+      "evidence": [
+        "docs/v6-evaluation-before.xml",
+        "docs/v6-evaluation-after.xml"
+      ]
+    },
+    {
+      "id": "V6-A08",
+      "root_cause": "Byte hashes and event IDs did not catch re-encoded or near-identical images assigned to different events/splits.",
+      "resolution": "Decoded RGB and conservative thumbnail screen before model construction; comparison limit fails closed. Independent scene review still required.",
+      "status": "VERIFIED_FIXED",
+      "changed_files": [
+        "backend/app/services/image_leakage.py",
+        "backend/app/services/training_pipeline.py"
+      ],
+      "evidence": [
+        "docs/v6-evaluation-before.xml",
+        "docs/v6-evaluation-after.xml"
+      ]
+    },
+    {
+      "id": "V6-A09",
+      "root_cause": "Hosted generic secret rule interpreted an evidence checksum as a credential.",
+      "resolution": "Recomputed hash and added an exact rule/path/line allowlist; history scan retained.",
+      "status": "VERIFIED_FIXED_LOCALLY",
+      "changed_files": [
+        ".gitleaks.toml"
+      ],
+      "evidence": [
+        "docs/V6_SCIENTIFIC_PIPELINE_FOLLOWUP.md"
+      ]
+    },
+    {
+      "id": "V6-A10",
+      "root_cause": "Redis leases expire while native calls continue; aggregate request buffering lacked an admission bound.",
+      "resolution": "Hard per-process inference/user slots survive Redis lease loss; body admission rejects excess work before reading.",
+      "changed_files": [
+        "backend/app/core/inference_budget.py",
+        "backend/app/core/request_limits.py",
+        "backend/tests/test_v6_concurrency.py",
+        "backend/tests/test_v6_body_concurrency.py"
+      ],
+      "evidence": [
+        "docs/v6-resource-before.xml",
+        "docs/v6-resource-after.xml"
+      ],
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "V6-A11",
+      "root_cause": "IMD document heading was interpreted as a storm; directions accepted arbitrary prefixes.",
+      "resolution": "Extract names from advisory body and recognize only complete compass values.",
+      "changed_files": [
+        "backend/app/services/live_ingestion.py",
+        "backend/tests/test_v6_units.py"
+      ],
+      "evidence": [
+        "docs/v6-parser-before.xml",
+        "docs/v6-parser-after.xml"
+      ],
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "V6-A12",
+      "root_cause": "Generated advice escaped keyword filtering; fresh unreconciled records and failed feeds had incorrect state labels.",
+      "resolution": "Strict provider topic selection with fixed educational output; explicit uncertain, stale and unavailable source states.",
+      "changed_files": [
+        "backend/app/services/chat_service.py",
+        "backend/app/services/observation_context.py",
+        "backend/tests/test_v6_generated_guidance.py",
+        "backend/tests/test_v6_basin_snapshot.py"
+      ],
+      "evidence": [
+        "docs/v6-guidance-before.xml",
+        "docs/v6-guidance-after.xml",
+        "docs/v6-basin-before.xml",
+        "docs/v6-basin-after.xml"
+      ],
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "V6-A13",
+      "root_cause": "Offline classification presets fabricated confidence/intensity and evacuation instructions; archive save only displayed fake success.",
+      "resolution": "Removed all result presets and fake save control; failures export null measurements; replace/cancel old requests; disable unvalidated vision.",
+      "changed_files": [
+        "frontend/src/app/classification/page.tsx",
+        "frontend/src/types/api.ts",
+        "frontend/tests/browser/v6.spec.ts"
+      ],
+      "evidence": [
+        "docs/v6-classification-before.xml",
+        "docs/v6-continuation-browser-results.xml"
+      ],
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "V6-A14",
+      "root_cause": "Opened chat and landing detail panels retained unsupported model, satellite, monitoring, financial and certification claims.",
+      "resolution": "Render actual capability/availability; remove unsupported operational copy, mandatory scenario labels and unused evacuation announcements.",
+      "changed_files": [
+        "frontend/src/components/ChatbotWidget.tsx",
+        "frontend/src/components/landing/Track5MissionSection.tsx",
+        "frontend/src/components/landing/FinalCTA.tsx",
+        "frontend/src/components/landing/Footer.tsx",
+        "frontend/src/components/landing/Hero.tsx",
+        "frontend/src/app/infrastructure/page.tsx",
+        "frontend/src/lib/infrastructureData.ts",
+        "frontend/src/context/LanguageContext.tsx",
+        "frontend/tests/browser/v6.spec.ts"
+      ],
+      "evidence": [
+        "docs/v6-chat-ui-before.xml",
+        "docs/v6-landing-detail-before.xml",
+        "docs/v6-continuation-browser-results.xml"
+      ],
+      "status": "VERIFIED_FIXED"
     }
   ],
   "verification": {
-    "backend": "216 passed; 0 failures, 0 errors, 0 skips; includes all 8 real-service tests",
-    "frontend_unit": "14 passed",
-    "production_build": "Passed after final application changes",
-    "browser": "10 passed; 0 failures, 0 skips; production Next.js build in Chrome",
-    "postgres_redis": "8 passed (subset of the 216-test full suite)",
+    "backend": "253 passed; zero failures/errors/skips, includes all 8 real-service checks (v6-continuation-backend-results.xml)",
+    "frontend_unit": "14 passed (v6-continuation-unit.txt)",
+    "production_build": "Passed after continuation UI fixes (v6-continuation-build.txt)",
+    "browser": "12 passed, no failures/skips; production build Chrome (v6-continuation-browser-results.xml)",
+    "postgres_redis": "8 passed, included in 253-test full suite",
     "npm_audit": "0 known vulnerabilities",
     "python_windows_audit": "0 known vulnerabilities",
     "python_linux_audit": "0 known vulnerabilities",
-    "gitleaks_history": "56 commits including b3d14cf8ade437bd60435674700839f0ef2b5581; 0 leaks; exit 0",
-    "gitleaks_working": "0 leaks; complete copied snapshot scanned (19.94 MB), exit 0",
-    "typescript": "Passed",
+    "gitleaks_history": "60 commits through 856b5f22b3a813074901fb5612ff713707ea78b1; 0 findings; exit 0",
+    "gitleaks_working": "0 findings; local continuation snapshot; exit 0 (v6-continuation-gitleaks-working.json)",
+    "typescript": "Passed; production build also verified final UI changes",
     "eslint": "0 errors; 172 warnings",
-    "scientific_training": "Expected exit 1: BLOCKED_EXTERNAL_DATASET; no traceback or model fabrication"
+    "scientific_training": "Expected exit 1: BLOCKED_EXTERNAL_DATASET; no traceback or model fabrication",
+    "scientific_pipeline": "17 focused tests passed, subset of full suite; 3 failures reproduced before fixes",
+    "hosted_ci": "c24c03f: backend/frontend jobs passed; secret scan false positive reproduced and fixed locally. Follow-up kept local; no hosted pass claimed.",
+    "scientific_sample": "98 authentic frames checked and joined; 0 training eligible; no scientific validation claimed",
+    "optional_review_dependencies": "h5py 3.16.0 and numpy 2.4.6: no known vulnerabilities (v6-data-review-audit.json)"
   },
   "branch": "codex/v6-production-remediation",
   "concurrent_edits_preserved": [
@@ -377,11 +515,12 @@
     "Unsupported forecast stable/steering/official-guidance claims removed after browser reproduction.",
     "Runoff metadata now states assumed terrain and leaves actual road/asset status unverified."
   ],
-  "final_commit": "b3d14cf8ade437bd60435674700839f0ef2b5581",
-  "final_commit_scope": "Final implementation commit; subsequent evidence-only commit is identified in the delivery response.",
+  "final_commit": "856b5f22b3a813074901fb5612ff713707ea78b1",
+  "final_commit_scope": "Final continuation implementation commit; subsequent evidence-only commit identified in the delivery response.",
   "scientifically_validated": false,
   "operational_disaster_system_ready": false,
   "all_changed_implementation_files": [
+    ".gitleaks.toml",
     "README.md",
     "backend/alembic/versions/20261108_archive_date.py",
     "backend/app/api/routes.py",
@@ -396,19 +535,29 @@
     "backend/app/models/domain.py",
     "backend/app/services/chat_service.py",
     "backend/app/services/dataset_errors.py",
+    "backend/app/services/evaluation.py",
     "backend/app/services/gee_service.py",
+    "backend/app/services/hursat_review.py",
+    "backend/app/services/image_leakage.py",
     "backend/app/services/live_ingestion.py",
     "backend/app/services/observation_context.py",
     "backend/app/services/report_service.py",
     "backend/app/services/scientific_manifest.py",
     "backend/app/services/surge_service.py",
+    "backend/app/services/training_pipeline.py",
+    "backend/requirements-data-review.txt",
+    "backend/scripts/review_hursat_sample.py",
     "backend/tests/conftest.py",
     "backend/tests/test_flood_service_integrity.py",
     "backend/tests/test_track5_services.py",
     "backend/tests/test_v6_ai.py",
+    "backend/tests/test_v6_basin_snapshot.py",
+    "backend/tests/test_v6_body_concurrency.py",
     "backend/tests/test_v6_concurrency.py",
     "backend/tests/test_v6_database.py",
     "backend/tests/test_v6_events.py",
+    "backend/tests/test_v6_generated_guidance.py",
+    "backend/tests/test_v6_hursat_review.py",
     "backend/tests/test_v6_limits.py",
     "backend/tests/test_v6_real_infrastructure.py",
     "backend/tests/test_v6_review.py",
@@ -416,6 +565,7 @@
     "backend/train_classifier.py",
     "frontend/public/sw.js",
     "frontend/src/app/archive/page.tsx",
+    "frontend/src/app/classification/page.tsx",
     "frontend/src/app/compare/page.tsx",
     "frontend/src/app/dashboard/page.tsx",
     "frontend/src/app/forecast/page.tsx",
@@ -431,6 +581,9 @@
     "frontend/src/components/landing/FeatureSpotlight1.tsx",
     "frontend/src/components/landing/FeatureSpotlight2.tsx",
     "frontend/src/components/landing/FeaturesGrid.tsx",
+    "frontend/src/components/landing/FinalCTA.tsx",
+    "frontend/src/components/landing/Footer.tsx",
+    "frontend/src/components/landing/Hero.tsx",
     "frontend/src/components/landing/IntegrationsGrid.tsx",
     "frontend/src/components/landing/InteractiveWorkflow.tsx",
     "frontend/src/components/landing/SecurityCompliance.tsx",
@@ -440,6 +593,7 @@
     "frontend/src/components/landing/Track5MissionSection.tsx",
     "frontend/src/components/landing/TrustMarquee.tsx",
     "frontend/src/components/landing/illustration/scenes/DispatchPanel.tsx",
+    "frontend/src/context/LanguageContext.tsx",
     "frontend/src/lib/infrastructureData.ts",
     "frontend/src/lib/pdfReportGenerator.ts",
     "frontend/src/types/api.ts",
@@ -466,11 +620,17 @@
     "v6-build.txt": "554a3743873f423d08e900093fef85a9681392edc802e39ede1e2d14545773ba",
     "v6-database-before.xml": "65f3c75157aac2bfe2bf165ab28dd040facf97751d03b36f89d78e358feead45",
     "v6-eslint.json": "fce1c6fd37ea490a22bc5fd2bd104715f6f6b30778f32ce890a12897b6d7265a",
+    "v6-evaluation-after.xml": "28c01ef37d002ad61fef9d6bbf495e3da5ae0e902d086fe8fa1030504828f328",
+    "v6-evaluation-before.xml": "e6f66f23c01b100388aae6d501069a41f64773309b7e3112c1b56504d33afa63",
     "v6-events-before.xml": "3cbad40dd7cf95c8bce074cbe8533e29fffdac4d09e76bb23d65736a546bfb43",
     "v6-focused-after.xml": "fdf08efecfe63caf64aa7c2f680e4b33809bec7d3cfc0bd2cbc6ee2a0f48b1e0",
+    "v6-followup-backend-results.xml": "f8fa6fd84255232ecf227b0fe5a37de818fc602835dc205d729145141fc21a5c",
+    "v6-followup-gitleaks-history.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "v6-followup-gitleaks-working.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
     "v6-forecast-claims-before.xml": "d7f3f063ea86dfce17e23cba9505aad8a1f4a1261f531a25494991de4ddbe259",
     "v6-gitleaks-history.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
     "v6-gitleaks-working.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "v6-hosted-ci-observed.json": "ab5d046c5de6736eb1c87272bc7d56e886de996345c8b083692b8f8db1359abb",
     "v6-integration-results.xml": "2755d685baea8bf476416ea8a8700e35a3b64abe18e120b843e99a4cc3ce91be",
     "v6-limits-before.xml": "2ed286bd31491a75c998ec24b25001c721e082109ac147c2251f53f8d0052597",
     "v6-npm-audit.json": "86a7cf084f382c9838e397cf81287b6e16ee723559ecf49b4e7024b7849e1658",
@@ -478,6 +638,47 @@
     "v6-python-linux-audit.json": "f757deeca3e866e5230bd34c04def4e47c6a0a01291b8d0c61002c17e281c205",
     "v6-scientific-training-gate.txt": "b68e98650e2103eae90e3d48efdf1c4a177ea9ad9a080ae1afd740e7010a4dd5",
     "v6-units-before.xml": "0094af5e40c8b3e2e8bc4876f8521cc2116586e8cd067ddc86403a9a09d39213",
-    "v6-vision-before.xml": "f2a5e49e7cf5498bf2e979494d9f6ffbdf925db28251973ee04071d45ed01c01"
+    "v6-vision-before.xml": "f2a5e49e7cf5498bf2e979494d9f6ffbdf925db28251973ee04071d45ed01c01",
+    "v6-basin-after.xml": "5d77b85c075853aa8b42202d7d1a195273b6f4ae413001d42d1dce5b7b247a51",
+    "v6-basin-before.xml": "a5313964de8ea64694242790d148b83c58417fecf9b493ecb061905a4757df4a",
+    "v6-chat-ui-before.xml": "c7c48863031f4f47ec6974521fb5423ef99c38afefec05d51a60459d30db7451",
+    "v6-classification-before.xml": "f90844126d47925ab4fae87584dfc125e0f4bf2b717c4cdda3e515122584bc61",
+    "v6-continuation-backend-results.xml": "e6c99ef0eee52ac364babdedf5587f65102a94f36fac26d678b72e31064886f4",
+    "v6-continuation-browser-results.xml": "74e9dd13bc06f244448e1ca27de5ff7d374df2b5334b907424b4c0c11c2396a3",
+    "v6-continuation-browser.txt": "c035114691ba018f5dda1032b36b1c752030559a47da3413e28fdc696ad58316",
+    "v6-continuation-build.txt": "8e4c2b22d53c6fde41da72358c638975c38f05ef020e31cc9d4b01f80070d636",
+    "v6-continuation-eslint.json": "c97217b6ea68f578292ac45bc82ed911b835ee0ae778e76b6cbda02ba526fcee",
+    "v6-continuation-npm-audit.json": "86a7cf084f382c9838e397cf81287b6e16ee723559ecf49b4e7024b7849e1658",
+    "v6-continuation-python-audit.json": "eec688ee266527aee403b1d346e1549e7a5cc2b53c7887133d821cc9b0d07172",
+    "v6-continuation-python-linux-audit.json": "f757deeca3e866e5230bd34c04def4e47c6a0a01291b8d0c61002c17e281c205",
+    "v6-continuation-unit.txt": "1fd293bfe1e757dffab0a052fb3e39be618bfabe8a2d6081c0a33432deaf0449",
+    "v6-data-review-audit.json": "7d7bd0e0509b7b5195ef797faf9ab6158948423d104c7ce3a7efa21615718551",
+    "v6-guidance-after.xml": "10d7be7ae178f07eb01b25baf8dfc98734ea97edf41b4ba985974528f01ee681",
+    "v6-guidance-before.xml": "3072c646ed03320892638a871b52c49d7a0c8b8ab32c0fc9b860d6318cdafca4",
+    "v6-landing-detail-before.xml": "9ee47213a00ffe3a739a04927609131a329fc5e6e713a305a3de8d95d940188f",
+    "v6-parser-after.xml": "7f59622afbf8f4191c03288a0ddfdfed204b34d91799e84e460468f788e6dffd",
+    "v6-parser-before.xml": "da5ea78610c61aa002109f9bb4a8fdf5959a8841b5a72cff957ce616f4903825",
+    "v6-resource-after.xml": "1d9f15acc13db3a413460b28ac762b5c0366a8e5cc75d1992626ebbd43076a05",
+    "v6-resource-before.xml": "8dc644c9a254f844c31485a1539b01c5b9e49208d1a732bb69ff80ca07ab23f4",
+    "v6-continuation-gitleaks-history.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "v6-continuation-gitleaks-working.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+  },
+  "followup_starting_commit": "c24c03f04cd830be85178e6dc060fb97afb0cf97",
+  "followup_kept_local_at_user_request": true,
+  "continuation_starting_commit": "c5643f08d3cd4a2ad056313531b663f5a55fe3d2",
+  "scientific_sample_review": {
+    "status": "REVIEW_REPORT_GENERATED_NOT_TRAINING_APPROVED",
+    "frames": 98,
+    "exact_nominal_joins": 98,
+    "nominal_times": 49,
+    "training_eligible": 0,
+    "report": "backend/data/manifests/hursat_sample_review.json",
+    "code": [
+      "backend/app/services/hursat_review.py",
+      "backend/scripts/review_hursat_sample.py",
+      "backend/tests/test_v6_hursat_review.py",
+      "backend/requirements-data-review.txt"
+    ],
+    "sha256": "232f44ec326b7db4d79962abee5fef0d690eb3f3f1f8c5a0198d45a870b5ad7e"
   }
 }

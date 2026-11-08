@@ -2,6 +2,16 @@ title = "CycloNet secret scanning"
 [extend]
 useDefault = true
 
+# Recomputed SHA-256 of docs/v6-body-auth-before.xml, not an authentication key.
+# Only this exact historical evidence line in this exact ledger is exempted.
+[[allowlists]]
+description = "Verified V6 regression evidence checksum"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''(^|/)docs/ENGINEERING_PROGRESS_V6\.json$''']
+regexTarget = "line"
+regexes = ['''^\s*"v6-body-auth-before\.xml": "aa18d9460391fc56a946725ef157807ef994fe47b1e5e135e292cec2ba355c79",?\s*$''']
+
 # These exact, deliberately invalid authentication fixtures have no signing key
 # and cannot authenticate. Both the file path and the entire literal must match;
 # no test directory, real credential, or commit is excluded from scanning.

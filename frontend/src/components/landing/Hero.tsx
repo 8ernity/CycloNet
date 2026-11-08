@@ -94,10 +94,10 @@ export function Hero() {
             variants={itemVariants}
             className="text-4xl sm:text-5xl lg:text-[3.5rem] xl:text-[4.25rem] tracking-tight leading-[1.05] hero-headline mb-6 text-text-primary font-extrabold"
           >
-            Predict the next cyclone.
+            Explore cyclone source records.
             <br className="hidden sm:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 drop-shadow-[0_0_25px_rgba(56,189,248,0.3)]">
-              Before it makes landfall.
+              Inspect research scenarios.
             </span>
           </motion.h1>
 
@@ -107,17 +107,17 @@ export function Hero() {
           >
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
               <Satellite className="h-4 w-4 text-emerald-400" />
-              <span>Google Earth Engine (GEE)</span>
+              <span>Observed flood mapping unavailable</span>
             </div>
             <span className="text-slate-400 dark:text-slate-600">·</span>
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-sky-400">
               <Radio className="h-4 w-4 text-sky-400" />
-              <span>Gemini 3.7 Flash Multimodal</span>
+              <span>Vision measurements disabled</span>
             </div>
             <span className="text-slate-400 dark:text-slate-600">·</span>
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
               <Wind className="h-4 w-4 text-indigo-400" />
-              <span>SLOSH Surge Simulator</span>
+              <span>Unvalidated surge scenarios</span>
             </div>
             <span className="text-slate-400 dark:text-slate-600">·</span>
             <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400">
