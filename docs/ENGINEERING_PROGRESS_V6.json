@@ -1,0 +1,483 @@
+{
+  "starting_commit": "93c8827b45a04f42c177209d8114bb3965c68b8b",
+  "requested_audit_baseline": "0cf561b8ec82bf11b4b7270c8edd1fccfd346ef3",
+  "status": "ENGINEERING_READY_DEPLOYMENT_BLOCKED",
+  "main_inspected": true,
+  "existing_edits": [
+    "backend/app/core/database.py",
+    "frontend/src/app/archive/page.tsx",
+    "frontend/src/app/compare/page.tsx",
+    "frontend/src/lib/api.ts"
+  ],
+  "issues": [
+    {
+      "id": "V6-001",
+      "title": "Shelter observations",
+      "status": "VERIFIED_FIXED",
+      "root_cause": "Storm intensity fabricated occupancy, vacancies, road access and generator readiness.",
+      "changed_files": [
+        "frontend/src/lib/infrastructureData.ts",
+        "frontend/src/app/infrastructure/page.tsx",
+        "frontend/src/components/ObservationValue.tsx"
+      ],
+      "test_evidence": [
+        "frontend/tests/v6-infrastructure.test.mjs",
+        "frontend/tests/browser/v6.spec.ts"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "V6-002",
+      "title": "Road observations",
+      "status": "VERIFIED_FIXED",
+      "root_cause": "Heuristic flood depth was presented as road closure and rerouting authority.",
+      "changed_files": [
+        "frontend/src/lib/infrastructureData.ts",
+        "frontend/src/app/infrastructure/page.tsx",
+        "frontend/src/components/MapComponent.tsx",
+        "frontend/src/components/MapWidget.tsx"
+      ],
+      "test_evidence": [
+        "frontend/tests/v6-infrastructure.test.mjs"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "V6-003",
+      "title": "Trusted AI context",
+      "status": "VERIFIED_FIXED",
+      "root_cause": "Untrusted browser selection could establish live weather or calm in AI context.",
+      "changed_files": [
+        "backend/app/services/chat_service.py",
+        "backend/app/services/observation_context.py",
+        "frontend/src/components/ChatbotWidget.tsx"
+      ],
+      "test_evidence": [
+        "backend/tests/test_v6_ai.py",
+        "docs/v6-ai-before.xml",
+        "docs/v6-ai-limits-after.xml"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "V6-004",
+      "title": "Forecast provenance",
+      "status": "VERIFIED_FIXED",
+      "root_cause": "ID/year heuristics mislabeled observations; fixed confidence cones implied calibration.",
+      "changed_files": [
+        "backend/app/api/routes.py",
+        "frontend/src/app/forecast/page.tsx",
+        "frontend/src/components/MapComponent.tsx",
+        "frontend/src/types/api.ts"
+      ],
+      "test_evidence": [
+        "backend/tests/test_v6_ai.py",
+        "frontend/tests/browser/v6.spec.ts",
+        "docs/v6-forecast-claims-before.xml"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "V6-005",
+      "title": "AI request budgets",
+      "status": "VERIFIED_FIXED",
+      "root_cause": "Unbounded chat history/context and request bodies reached expensive handlers.",
+      "changed_files": [
+        "backend/app/models/ai_requests.py",
+        "backend/app/core/request_limits.py",
+        "backend/app/core/inference_budget.py",
+        "backend/app/api/routes.py",
+        "backend/app/services/chat_service.py"
+      ],
+      "test_evidence": [
+        "backend/tests/test_v6_limits.py",
+        "backend/tests/test_v6_concurrency.py",
+        "docs/v6-limits-before.xml",
+        "docs/v6-body-auth-before.xml"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "V6-006",
+      "title": "Briefing safety",
+      "status": "VERIFIED_FIXED",
+      "root_cause": "Eager default wind conversion crashed on null; generated prose could claim authority.",
+      "changed_files": [
+        "backend/app/services/chat_service.py",
+        "backend/app/models/ai_requests.py",
+        "backend/app/api/routes.py"
+      ],
+      "test_evidence": [
+        "backend/tests/test_v6_ai.py",
+        "docs/v6-ai-before.xml"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "V6-007",
+      "title": "Operator event isolation",
+      "status": "VERIFIED_FIXED",
+      "root_cause": "Operator exercise drafts were broadcast to every anonymous telemetry client.",
+      "changed_files": [
+        "backend/app/api/websocket.py",
+        "backend/app/core/rate_limit.py"
+      ],
+      "test_evidence": [
+        "backend/tests/test_v6_events.py",
+        "docs/v6-events-before.xml"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "V6-008",
+      "title": "Expensive endpoints",
+      "status": "VERIFIED_FIXED",
+      "root_cause": "Endpoint quotas did not bound aggregate concurrent AI work; surge profiles lacked quotas.",
+      "changed_files": [
+        "backend/app/core/inference_budget.py",
+        "backend/app/core/request_limits.py",
+        "backend/app/api/routes.py"
+      ],
+      "test_evidence": [
+        "backend/tests/test_v6_concurrency.py",
+        "backend/tests/test_v6_real_infrastructure.py",
+        "docs/v6-integration-results.xml"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "V6-009",
+      "title": "Meteorological parsing",
+      "status": "VERIFIED_FIXED",
+      "root_cause": "Movement units were discarded; page-wide parsing mixed multiple advisories.",
+      "changed_files": [
+        "backend/app/services/live_ingestion.py",
+        "backend/app/api/routes.py"
+      ],
+      "test_evidence": [
+        "backend/tests/test_v6_units.py",
+        "docs/v6-units-before.xml"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "V6-010",
+      "title": "Infrastructure provenance",
+      "status": "VERIFIED_FIXED",
+      "root_cause": "Illustrative inventories were shown by default as field-surveyed operational assets.",
+      "changed_files": [
+        "frontend/src/lib/infrastructureData.ts",
+        "frontend/src/app/infrastructure/page.tsx",
+        "frontend/src/components/MapComponent.tsx",
+        "frontend/src/components/MapWidget.tsx"
+      ],
+      "test_evidence": [
+        "frontend/tests/v6-infrastructure.test.mjs",
+        "frontend/tests/browser/v6.spec.ts"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "V6-011",
+      "title": "Independent ML validation",
+      "status": "BLOCKED_EXTERNAL_VALIDATION_WITH_SAFE_RESTRICTIONS_VERIFIED",
+      "root_cause": "Authentic NOAA inventory lacks reviewed model-ready image joins and independent negatives.",
+      "changed_files": [
+        "backend/app/services/chat_service.py",
+        "backend/app/services/dataset_errors.py",
+        "backend/app/services/scientific_manifest.py",
+        "backend/train_classifier.py"
+      ],
+      "test_evidence": [
+        "backend/tests/test_v5_scientific_data.py",
+        "docs/SCIENTIFIC_DATA_AND_STAGING.md",
+        "backend/tests/test_v6_review.py",
+        "docs/v6-scientific-training-gate.txt"
+      ],
+      "blockers": [
+        "Reviewed image-label joins and independent non-cyclone dataset missing; no approved independent evaluation."
+      ]
+    },
+    {
+      "id": "V6-012",
+      "title": "Satellite and surge validation",
+      "status": "BLOCKED_EXTERNAL_VALIDATION_WITH_SAFE_RESTRICTIONS_VERIFIED",
+      "root_cause": "Available-layer descriptions implied actual SAR/DEM products; surge used assumed terrain and arbitrary confidence.",
+      "changed_files": [
+        "backend/app/services/gee_service.py",
+        "backend/app/services/surge_service.py",
+        "frontend/src/components/landing/IntegrationsGrid.tsx",
+        "backend/app/api/routes.py",
+        "frontend/src/app/infrastructure/page.tsx",
+        "frontend/src/types/api.ts"
+      ],
+      "test_evidence": [
+        "backend/tests/test_flood_service_integrity.py",
+        "backend/tests/test_track5_services.py",
+        "backend/tests/test_v6_review.py"
+      ],
+      "blockers": [
+        "Earth Engine project access and independent flood/surge validation unavailable; observed flood product remains disabled."
+      ]
+    },
+    {
+      "id": "V6-013",
+      "title": "Historical query pagination",
+      "status": "VERIFIED_FIXED",
+      "root_cause": "Archive pagination loaded and sorted all matching records in Python; local database edits weakened production safeguards.",
+      "changed_files": [
+        "backend/app/core/archive_dates.py",
+        "backend/app/core/database.py",
+        "backend/app/models/domain.py",
+        "backend/alembic/versions/20261108_archive_date.py",
+        "backend/app/api/routes.py"
+      ],
+      "test_evidence": [
+        "backend/tests/test_v6_database.py",
+        "backend/tests/test_v6_real_infrastructure.py",
+        "docs/v6-database-before.xml",
+        "docs/v6-integration-results.xml"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "V6-014",
+      "title": "Frontend freshness and offline caching",
+      "status": "VERIFIED_FIXED",
+      "root_cause": "Worker cached authenticated navigation; failed/empty/stale data and duplicated page types diverged.",
+      "changed_files": [
+        "frontend/public/sw.js",
+        "frontend/src/app/forecast/page.tsx",
+        "frontend/src/app/archive/page.tsx",
+        "frontend/src/app/compare/page.tsx",
+        "frontend/src/types/api.ts"
+      ],
+      "test_evidence": [
+        "frontend/tests/v6-service-worker.test.mjs",
+        "frontend/tests/browser/v6.spec.ts",
+        "frontend/tests/dashboard-status.test.mjs"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "V6-015",
+      "title": "Exercise communications",
+      "status": "VERIFIED_FIXED",
+      "root_cause": "Exercise templates claimed agency authority, tower activation, delivery and measured latency.",
+      "changed_files": [
+        "backend/app/services/report_service.py",
+        "frontend/src/app/infrastructure/page.tsx",
+        "frontend/src/app/reports/page.tsx",
+        "backend/tests/test_track5_services.py"
+      ],
+      "test_evidence": [
+        "backend/tests/test_v6_events.py",
+        "docs/v6-events-before.xml"
+      ],
+      "blockers": []
+    }
+  ],
+  "additional_findings": [
+    {
+      "id": "V6-A01",
+      "root_cause": "General vision-model JSON could invent measured wind and evacuation orders.",
+      "resolution": "Meteorological vision estimates disabled pending validation.",
+      "evidence": [
+        "docs/v6-vision-before.xml",
+        "backend/tests/test_v6_ai.py"
+      ],
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "V6-A02",
+      "root_cause": "Landing page claimed unsupported benchmarks, integrations and fabricated testimonials.",
+      "resolution": "Replaced with capability limits and verification requirements.",
+      "evidence": [
+        "frontend/tests/v6-marketing.test.mjs"
+      ],
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "V6-A03",
+      "root_cause": "Forecast page dereferenced nonexistent waypoints when a valid source had an empty track.",
+      "resolution": "Render missing track state and source fix separately.",
+      "evidence": [
+        "frontend/tests/browser/v6.spec.ts"
+      ],
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "V6-A04",
+      "root_cause": "Empty tracks could assert stable intensity and fixed steering/landfall prose; waypoint text implied official guidance.",
+      "resolution": "Removed unsupported assessment and label text; missing wind explicitly unavailable.",
+      "changed_files": [
+        "frontend/src/app/forecast/page.tsx"
+      ],
+      "evidence": [
+        "docs/v6-forecast-claims-before.xml",
+        "frontend/tests/browser/v6.spec.ts"
+      ],
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "V6-A05",
+      "root_cause": "Runoff assumed slopes and example choke points implied measured terrain and actual road impact.",
+      "resolution": "Explicit assumed-terrain mode, no actual road impacts, unverified actual status, simulation provenance.",
+      "changed_files": [
+        "backend/app/services/gee_service.py",
+        "backend/app/api/routes.py",
+        "frontend/src/types/api.ts",
+        "frontend/src/app/infrastructure/page.tsx"
+      ],
+      "evidence": [
+        "backend/tests/test_v6_review.py"
+      ],
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "V6-A06",
+      "root_cause": "Training CLI imported a second copy of its exception class and leaked a traceback on expected dataset rejection.",
+      "resolution": "Shared dataset error module; subprocess regression confirms clean nonzero halt.",
+      "changed_files": [
+        "backend/app/services/dataset_errors.py",
+        "backend/app/services/scientific_manifest.py",
+        "backend/train_classifier.py"
+      ],
+      "evidence": [
+        "backend/tests/test_v6_review.py",
+        "docs/v6-scientific-training-gate.txt"
+      ],
+      "status": "VERIFIED_FIXED"
+    }
+  ],
+  "verification": {
+    "backend": "216 passed; 0 failures, 0 errors, 0 skips; includes all 8 real-service tests",
+    "frontend_unit": "14 passed",
+    "production_build": "Passed after final application changes",
+    "browser": "10 passed; 0 failures, 0 skips; production Next.js build in Chrome",
+    "postgres_redis": "8 passed (subset of the 216-test full suite)",
+    "npm_audit": "0 known vulnerabilities",
+    "python_windows_audit": "0 known vulnerabilities",
+    "python_linux_audit": "0 known vulnerabilities",
+    "gitleaks_history": "56 commits including b3d14cf8ade437bd60435674700839f0ef2b5581; 0 leaks; exit 0",
+    "gitleaks_working": "0 leaks; complete copied snapshot scanned (19.94 MB), exit 0",
+    "typescript": "Passed",
+    "eslint": "0 errors; 172 warnings",
+    "scientific_training": "Expected exit 1: BLOCKED_EXTERNAL_DATASET; no traceback or model fabrication"
+  },
+  "branch": "codex/v6-production-remediation",
+  "concurrent_edits_preserved": [
+    "frontend/src/lib/api.ts",
+    "frontend/src/components/BackendWarmup.tsx",
+    "start_all.bat"
+  ],
+  "review_notes": [
+    "Concurrent local database auto-initialization preserved only in development; production and test validation remain read-only.",
+    "Test leader lock isolated from running local development server.",
+    "Unsupported forecast stable/steering/official-guidance claims removed after browser reproduction.",
+    "Runoff metadata now states assumed terrain and leaves actual road/asset status unverified."
+  ],
+  "final_commit": "b3d14cf8ade437bd60435674700839f0ef2b5581",
+  "final_commit_scope": "Final implementation commit; subsequent evidence-only commit is identified in the delivery response.",
+  "scientifically_validated": false,
+  "operational_disaster_system_ready": false,
+  "all_changed_implementation_files": [
+    "README.md",
+    "backend/alembic/versions/20261108_archive_date.py",
+    "backend/app/api/routes.py",
+    "backend/app/api/websocket.py",
+    "backend/app/core/archive_dates.py",
+    "backend/app/core/database.py",
+    "backend/app/core/inference_budget.py",
+    "backend/app/core/rate_limit.py",
+    "backend/app/core/request_limits.py",
+    "backend/app/main.py",
+    "backend/app/models/ai_requests.py",
+    "backend/app/models/domain.py",
+    "backend/app/services/chat_service.py",
+    "backend/app/services/dataset_errors.py",
+    "backend/app/services/gee_service.py",
+    "backend/app/services/live_ingestion.py",
+    "backend/app/services/observation_context.py",
+    "backend/app/services/report_service.py",
+    "backend/app/services/scientific_manifest.py",
+    "backend/app/services/surge_service.py",
+    "backend/tests/conftest.py",
+    "backend/tests/test_flood_service_integrity.py",
+    "backend/tests/test_track5_services.py",
+    "backend/tests/test_v6_ai.py",
+    "backend/tests/test_v6_concurrency.py",
+    "backend/tests/test_v6_database.py",
+    "backend/tests/test_v6_events.py",
+    "backend/tests/test_v6_limits.py",
+    "backend/tests/test_v6_real_infrastructure.py",
+    "backend/tests/test_v6_review.py",
+    "backend/tests/test_v6_units.py",
+    "backend/train_classifier.py",
+    "frontend/public/sw.js",
+    "frontend/src/app/archive/page.tsx",
+    "frontend/src/app/compare/page.tsx",
+    "frontend/src/app/dashboard/page.tsx",
+    "frontend/src/app/forecast/page.tsx",
+    "frontend/src/app/infrastructure/page.tsx",
+    "frontend/src/app/page.tsx",
+    "frontend/src/app/reports/page.tsx",
+    "frontend/src/components/ChatbotWidget.tsx",
+    "frontend/src/components/CompareMapComponent.tsx",
+    "frontend/src/components/MapComponent.tsx",
+    "frontend/src/components/MapWidget.tsx",
+    "frontend/src/components/ObservationValue.tsx",
+    "frontend/src/components/landing/DeploymentTiers.tsx",
+    "frontend/src/components/landing/FeatureSpotlight1.tsx",
+    "frontend/src/components/landing/FeatureSpotlight2.tsx",
+    "frontend/src/components/landing/FeaturesGrid.tsx",
+    "frontend/src/components/landing/IntegrationsGrid.tsx",
+    "frontend/src/components/landing/InteractiveWorkflow.tsx",
+    "frontend/src/components/landing/SecurityCompliance.tsx",
+    "frontend/src/components/landing/StatsTicker.tsx",
+    "frontend/src/components/landing/StoryDiagram.tsx",
+    "frontend/src/components/landing/Testimonials.tsx",
+    "frontend/src/components/landing/Track5MissionSection.tsx",
+    "frontend/src/components/landing/TrustMarquee.tsx",
+    "frontend/src/components/landing/illustration/scenes/DispatchPanel.tsx",
+    "frontend/src/lib/infrastructureData.ts",
+    "frontend/src/lib/pdfReportGenerator.ts",
+    "frontend/src/types/api.ts",
+    "frontend/tests/browser/reports.spec.ts",
+    "frontend/tests/browser/v6.spec.ts",
+    "frontend/tests/v6-infrastructure.test.mjs",
+    "frontend/tests/v6-marketing.test.mjs",
+    "frontend/tests/v6-service-worker.test.mjs"
+  ],
+  "external_blockers": [
+    "V6 hosted CI and live Render staging verification",
+    "Independent reviewed imagery, negative dataset and ML evaluation",
+    "Authorized Earth Engine processing and independent flood/surge validation",
+    "Current authorized infrastructure observations",
+    "Emergency operating authorization and tested procedures"
+  ],
+  "evidence_sha256": {
+    "v6-ai-before.xml": "5309228b0a173299b3b179a97b845d20342d934ab5ef1f5c959aa1af39303b21",
+    "v6-ai-limits-after.xml": "7491abb2eaa481d7462572e39e100a9b061def0a0c37c1509af78acb344f745c",
+    "v6-backend-results.xml": "c4688480d53c889f9fbf47697a0ed2b005dd84f096df9992937149f7fbeeafda",
+    "v6-body-auth-before.xml": "aa18d9460391fc56a946725ef157807ef994fe47b1e5e135e292cec2ba355c79",
+    "v6-browser-results.xml": "c9b1f3f8c0a279ef9821157cbf10793bf800c7a2fb8f2193fc5fefd75a23a975",
+    "v6-browser.txt": "cc4a706c1c8df3e310e624b2dcf18394365e369adcd06ee77ec579a865fde326",
+    "v6-build.txt": "554a3743873f423d08e900093fef85a9681392edc802e39ede1e2d14545773ba",
+    "v6-database-before.xml": "65f3c75157aac2bfe2bf165ab28dd040facf97751d03b36f89d78e358feead45",
+    "v6-eslint.json": "fce1c6fd37ea490a22bc5fd2bd104715f6f6b30778f32ce890a12897b6d7265a",
+    "v6-events-before.xml": "3cbad40dd7cf95c8bce074cbe8533e29fffdac4d09e76bb23d65736a546bfb43",
+    "v6-focused-after.xml": "fdf08efecfe63caf64aa7c2f680e4b33809bec7d3cfc0bd2cbc6ee2a0f48b1e0",
+    "v6-forecast-claims-before.xml": "d7f3f063ea86dfce17e23cba9505aad8a1f4a1261f531a25494991de4ddbe259",
+    "v6-gitleaks-history.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "v6-gitleaks-working.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "v6-integration-results.xml": "2755d685baea8bf476416ea8a8700e35a3b64abe18e120b843e99a4cc3ce91be",
+    "v6-limits-before.xml": "2ed286bd31491a75c998ec24b25001c721e082109ac147c2251f53f8d0052597",
+    "v6-npm-audit.json": "86a7cf084f382c9838e397cf81287b6e16ee723559ecf49b4e7024b7849e1658",
+    "v6-python-audit.json": "eec688ee266527aee403b1d346e1549e7a5cc2b53c7887133d821cc9b0d07172",
+    "v6-python-linux-audit.json": "f757deeca3e866e5230bd34c04def4e47c6a0a01291b8d0c61002c17e281c205",
+    "v6-scientific-training-gate.txt": "b68e98650e2103eae90e3d48efdf1c4a177ea9ad9a080ae1afd740e7010a4dd5",
+    "v6-units-before.xml": "0094af5e40c8b3e2e8bc4876f8521cc2116586e8cd067ddc86403a9a09d39213",
+    "v6-vision-before.xml": "f2a5e49e7cf5498bf2e979494d9f6ffbdf925db28251973ee04071d45ed01c01"
+  }
+}

@@ -1,0 +1,26 @@
+<testsuites id="" name="" tests="10" failures="0" skipped="0" errors="0" time="130.12328599999998">
+<testsuite name="reports.spec.ts" timestamp="2026-11-08T08:11:41.950Z" hostname="" tests="5" failures="0" skipped="0" time="59.884" errors="0">
+<testcase name="outage dashboard and assistant context never imply healthy feeds or calm" classname="reports.spec.ts" time="19.279">
+</testcase>
+<testcase name="current-year stale observations are neither drills nor verified live data" classname="reports.spec.ts" time="10.225">
+</testcase>
+<testcase name="report outage shows retry and never creates an agency bulletin" classname="reports.spec.ts" time="11.614">
+</testcase>
+<testcase name="unavailable wind remains unavailable on the live dashboard" classname="reports.spec.ts" time="10.12">
+</testcase>
+<testcase name="empty telemetry cannot become an all-clear or invented accuracy claim" classname="reports.spec.ts" time="8.646">
+</testcase>
+</testsuite>
+<testsuite name="v6.spec.ts" timestamp="2026-11-08T08:11:41.950Z" hostname="" tests="5" failures="0" skipped="0" time="61.241" errors="0">
+<testcase name="infrastructure starts with unavailable field data and explicit scenario opt-in" classname="v6.spec.ts" time="12.448">
+</testcase>
+<testcase name="failed forecast request offers retry without choosing an active demo" classname="v6.spec.ts" time="7.604">
+</testcase>
+<testcase name="hyphenated source ID uses explicit provenance and unvalidated accuracy" classname="v6.spec.ts" time="13.058">
+</testcase>
+<testcase name="archive outage has a retry and does not report an empty successful result" classname="v6.spec.ts" time="13.288">
+</testcase>
+<testcase name="landing page does not advertise unimplemented inference or delivery" classname="v6.spec.ts" time="14.843">
+</testcase>
+</testsuite>
+</testsuites>
