@@ -13,93 +13,16 @@ import { PillButton } from "./PillButton";
 import { IllustrationStage } from "./illustration/IllustrationStage";
 
 const IMPACT_METRICS = [
-  {
-    icon: Clock,
-    value: "48h–72h",
-    label: "Anticipatory Lead Time",
-    desc: "Pre-landfall evacuation planning & power grid islanding horizon",
-  },
-  {
-    icon: Satellite,
-    value: "10m / 30m",
-    label: "GEE SAR & DEM Resolution",
-    desc: "Sentinel-1 all-weather flood mapping & catchment slope modeling",
-  },
-  {
-    icon: Globe2,
-    value: "7 Languages",
-    label: "Gemini 3.7 Flash Briefings",
-    desc: "Automated municipal risk memos in regional Indian languages",
-  },
-  {
-    icon: ShieldCheck,
-    value: "Automated",
-    label: "Parametric Liquidity",
-    desc: "7-day smart payout triggers based on Vmax & surge thresholds",
-  },
+  {icon:Clock,value:"Not validated",label:"Forecast accuracy",desc:"Independent evaluation pending"},
+  {icon:Satellite,value:"Unavailable",label:"Observed flood mapping",desc:"Validated satellite processing required"},
+  {icon:Globe2,value:"English",label:"Source summaries",desc:"Deterministic summaries; translations unavailable"},
+  {icon:ShieldCheck,value:"Draft only",label:"Exercise communications",desc:"No transmission or funded payout"},
 ];
-
 const PILLARS = [
-  {
-    id: "gee",
-    tabTitle: "GEE Satellite Feeds",
-    icon: Satellite,
-    badge: "GEE-Compatible Pipeline",
-    headline: "Synthetic Aperture Radar (SAR) Inundation Simulation",
-    description: "Employs Sentinel-1 SAR dual-polarization (VV/VH) radar backscatter schemas, Sentinel-2 MNDWI water indices, and SRTM 30m DEM elevation gradients to simulate flood extent and waterlogged zones through cloud cover.",
-    metrics: [
-      { label: "SAR Standard", val: "10m Dual-Pol" },
-      { label: "DEM Topography", val: "SRTM 30m Grid" },
-      { label: "Simulation Output", val: "GEE GeoJSON" },
-    ],
-    route: "/infrastructure",
-    actionLabel: "View Inundation Layers",
-  },
-  {
-    id: "gemini",
-    tabTitle: "Gemini 3.7 Flash AI",
-    icon: Sparkles,
-    badge: "Multimodal AI Vision",
-    headline: "Dual-Inference Satellite Inspection & Multilingual Pre-Landfall Briefings",
-    description: "Pairs PyTorch ResNet-50 with Gemini 3.7 Flash to estimate Dvorak T-numbers, eye diameters, and cloud-top convective brightness temperatures (< -80°C), auto-generating executive risk briefs in 7 regional Indian languages.",
-    metrics: [
-      { label: "Primary Model", val: "Gemini 3.7 Flash" },
-      { label: "Briefing Languages", val: "7 Regional" },
-      { label: "Inspection", val: "Dvorak & Eye Morphology" },
-    ],
-    route: "/classification",
-    actionLabel: "Test Multimodal Vision",
-  },
-  {
-    id: "surge",
-    tabTitle: "Parametric Surge Estimator",
-    icon: Waves,
-    badge: "Hydrodynamic Modeling",
-    headline: "Coupled Parametric Storm Surge & Astronomical Tide Superposition",
-    description: "Executes physics-based parametric hydrodynamic equations (Jelesnianski formulation) factoring in central pressure deficits (1cm rise per 1hPa drop), forward translation velocities, shallow shelf bathymetry, and 30m DEM slope inland flood penetration.",
-    metrics: [
-      { label: "Surge Physics", val: "Jelesnianski Formulation" },
-      { label: "Shelf Factor", val: "1.45x Bay of Bengal" },
-      { label: "DEM Inundation", val: "0.75m/km Slope" },
-    ],
-    route: "/infrastructure",
-    actionLabel: "Launch Surge Forecaster",
-  },
-  {
-    id: "infrastructure",
-    tabTitle: "Critical Infrastructure",
-    icon: Zap,
-    badge: "Exposure & Resilience",
-    headline: "Power Grid Protection, Evacuation Corridors & Parametric Insurance",
-    description: "Overlays 400kV/220kV power transmission grids, national evacuation highways, and hospital shelter capacities with smart parametric insurance liquidity triggers (7-day post-landfall automated emergency payouts).",
-    metrics: [
-      { label: "Power Lines", val: "400kV / 220kV Grid" },
-      { label: "Insurance Trigger", val: "Vmax ≥65kt / Surge ≥2.5m" },
-      { label: "Advisories", val: "CAP-CP v1.2 XML" },
-    ],
-    route: "/reports",
-    actionLabel: "Inspect Critical Assets",
-  },
+  {id:"gee",tabTitle:"Satellite observations",icon:Satellite,badge:"Unavailable",headline:"Observed flood mapping is disabled",description:"No verified satellite flood product is connected. Ellipse-based overlays are illustrative simulations.",metrics:[{label:"Acquisition",val:"Unavailable"},{label:"Validation",val:"Pending"}],route:"/infrastructure",actionLabel:"Inspect scenarios"},
+  {id:"gemini",tabTitle:"Image classification",icon:Sparkles,badge:"Experimental",headline:"Independent evaluation remains pending",description:"The classifier exposes its checkpoint status. General AI vision output cannot establish measured wind, pressure or emergency instructions.",metrics:[{label:"Accuracy",val:"Not validated"},{label:"Vision estimates",val:"Disabled"}],route:"/classification",actionLabel:"Inspect classifier"},
+  {id:"surge",tabTitle:"Surge scenarios",icon:Waves,badge:"Simulation",headline:"Explore assumptions about wind, pressure and tide",description:"Simplified equations use assumed shelf depth and coastal slope. Results are neither observed water levels nor validated forecasts.",metrics:[{label:"Bathymetry",val:"Assumed"},{label:"Uncertainty",val:"Not validated"}],route:"/infrastructure",actionLabel:"Explore scenarios"},
+  {id:"infrastructure",tabTitle:"Infrastructure examples",icon:Zap,badge:"Unverified",headline:"Field observations are required",description:"Example facilities are kept separate from authorized occupancy, road, generator and destination approvals. Insurance amounts are hypothetical and non-contractual.",metrics:[{label:"Readiness",val:"Unavailable"},{label:"Funding",val:"Not verified"}],route:"/infrastructure",actionLabel:"Inspect infrastructure"},
 ];
 
 export function Track5MissionSection() {
@@ -139,7 +62,7 @@ export function Track5MissionSection() {
           </h2>
 
           <p className="text-sm sm:text-base text-text-muted leading-relaxed max-w-2xl mx-auto mb-8">
-            A unified geospatial intelligence engine shifting emergency disaster operations from reactive post-landfall recovery to proactive, pre-landfall evacuation planning, power grid hardening, and automated parametric relief.
+            A research workspace for inspecting source observations, historical records and explicit scenarios. Scientific and operational validation remain separate requirements.
           </p>
 
           {/* CTAs */}
@@ -208,7 +131,7 @@ export function Track5MissionSection() {
         {/* Radar & Storm Visualization Stage */}
         <div className="w-full relative z-10 flex flex-col items-center mb-20">
           <div className="relative w-full max-w-[850px] flex items-center justify-center mx-auto">
-            <IllustrationStage />
+            <div className="glass-card p-12 text-center"><h3 className="text-2xl font-bold">Research scenarios</h3><p>Current observations, historical records and simulations remain distinct.</p></div>
             
             {/* Floating Badge 1: Vortex Anomaly */}
             <motion.div 
@@ -220,10 +143,10 @@ export function Track5MissionSection() {
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[13px] font-bold text-text-primary leading-tight">Vortex Intensifying</span>
+                  <span className="text-[13px] font-bold text-text-primary leading-tight">Scenario illustration</span>
                   <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-400 font-bold">SIMULATED</span>
                 </div>
-                <span className="text-[11px] font-medium text-text-muted">85 KT (157 km/h) • Cat 2</span>
+                <span className="text-[11px] font-medium text-text-muted">No current weather asserted</span>
               </div>
             </motion.div>
 
@@ -237,10 +160,10 @@ export function Track5MissionSection() {
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[13px] font-bold text-text-primary leading-tight">Cone Forecast Locked</span>
+                  <span className="text-[13px] font-bold text-text-primary leading-tight">Uncertainty not validated</span>
                   <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-400 font-bold">SCENARIO</span>
                 </div>
-                <span className="text-[11px] font-medium text-text-muted">Landfall ETA: 28 hrs</span>
+                <span className="text-[11px] font-medium text-text-muted">No calibrated landfall estimate</span>
               </div>
             </motion.div>
           </div>
@@ -337,7 +260,7 @@ export function Track5MissionSection() {
                         <span className="font-bold text-text-primary">Pipeline Status</span>
                       </div>
                       <span className="text-sky-400 font-semibold px-2 py-0.5 rounded bg-sky-500/10 border border-sky-500/20">
-                        {activePillar.id === "gee" ? "GEE API Connected" : activePillar.id === "gemini" ? "Gemini 3.7 Flash Active" : "Physics Model Online"}
+                        {activePillar.id === "gee" ? "Observed product unavailable" : activePillar.id === "gemini" ? "Vision estimates disabled" : "Experimental scenario"}
                       </span>
                     </div>
 

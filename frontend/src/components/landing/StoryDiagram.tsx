@@ -11,12 +11,12 @@ import { MicroLabel } from './MicroLabel';
 export function StoryDiagram() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isSolved, setIsSolved] = useState(false);
-  
+
   const { scrollYProgress } = useScroll({
     target: containerRef,
     offset: ["start 70%", "end 30%"]
   });
-  
+
   const { shouldReduceMotion } = useMotionTokens();
 
   useMotionValueEvent(scrollYProgress, "change", (latest) => {
@@ -25,30 +25,30 @@ export function StoryDiagram() {
   });
 
   const NODES = [
-    { id: "insat", icon: Satellite, title: "INSAT-3DR TIR-1", 
-      prob: { left: "20%", top: "15%" }, 
-      sol: { left: "15%", top: "20%" }, 
+    { id: "insat", icon: Satellite, title: "Source observations",
+      prob: { left: "20%", top: "15%" },
+      sol: { left: "15%", top: "20%" },
       delay: 0 },
-    { id: "radar", icon: Radio, title: "Doppler Radars", 
-      prob: { left: "35%", top: "80%" }, 
-      sol: { left: "15%", top: "40%" }, 
+    { id: "radar", icon: Radio, title: "Historical archives",
+      prob: { left: "35%", top: "80%" },
+      sol: { left: "15%", top: "40%" },
       delay: 1 },
-    { id: "buoy", icon: Waves, title: "Ocean Buoys (SST)", 
-      prob: { left: "10%", top: "65%" }, 
-      sol: { left: "15%", top: "60%" }, 
+    { id: "buoy", icon: Waves, title: "Scenario parameters",
+      prob: { left: "10%", top: "65%" },
+      sol: { left: "15%", top: "60%" },
       delay: 0.5 },
-    { id: "ecmwf", icon: Wind, title: "NWP & ECMWF Feeds", 
-      prob: { left: "40%", top: "25%" }, 
-      sol: { left: "15%", top: "80%" }, 
+    { id: "ecmwf", icon: Wind, title: "Validation evidence",
+      prob: { left: "40%", top: "25%" },
+      sol: { left: "15%", top: "80%" },
       delay: 1.5 },
   ];
 
   return (
     <section ref={containerRef} id="pipeline" className="relative bg-bg-base text-text-primary overflow-hidden py-20 lg:py-32 border-t border-surface-border transition-colors duration-300">
       <div className="container max-w-[1200px] mx-auto px-4">
-          
+
           <div className="text-center mb-6">
-            <MicroLabel className="inline-block">5-Stage Neural Architecture</MicroLabel>
+            <MicroLabel className="inline-block">Illustrative data workflow</MicroLabel>
           </div>
 
           {/* Text Content Morphing */}
@@ -81,10 +81,10 @@ export function StoryDiagram() {
                 >
                   <h2 className="text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight text-text-primary mb-4">
                     Centralized meteorological intelligence. <br/>
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500">Actionable cyclone predictions.</span>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500">Explicit provenance and uncertainty.</span>
                   </h2>
                   <p className="text-sm md:text-base text-text-muted leading-relaxed max-w-xl mx-auto">
-                    CycloNet unifies multi-spectral satellite imagery, Doppler radar networks, and ocean heat sensors into a single neural AI engine, delivering real-time landfall & intensity forecasts.
+                    CycloNet separates source observations, historical records and experimental scenarios. Diagram connections illustrate the workflow, not live sensor integrations.
                   </p>
                 </motion.div>
               )}
@@ -98,7 +98,7 @@ export function StoryDiagram() {
             {/* Connectors (Only visible in solution state) */}
             <AnimatePresence>
               {isSolved && (
-                <motion.svg 
+                <motion.svg
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -123,7 +123,7 @@ export function StoryDiagram() {
                 y: isSolved ? 0 : [0, (i % 2 === 0 ? -8 : 8), 0],
                 rotate: isSolved ? 0 : [0, (i % 2 === 0 ? 3 : -3), 0],
               };
-              
+
               return (
                 <motion.div
                   key={node.id}
@@ -149,7 +149,7 @@ export function StoryDiagram() {
             {/* Central AI Engine */}
             <AnimatePresence>
               {isSolved && (
-                <motion.div 
+                <motion.div
                   initial={{ scale: 0.5, opacity: 0 }}
                   animate={{ scale: 1.2, opacity: 1 }}
                   exit={{ scale: 0.5, opacity: 0 }}
@@ -157,9 +157,9 @@ export function StoryDiagram() {
                   className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-20"
                 >
                   <div className="absolute inset-0 bg-sky-500/25 blur-[45px] rounded-full" />
-                  <FlowNode 
-                    icon={Cpu} 
-                    title="CycloNet Neural Engine" 
+                  <FlowNode
+                    icon={Cpu}
+                    title="CycloNet Neural Engine"
                     active
                     className="w-[190px] shadow-[0_0_50px_rgba(0,144,255,0.4)]"
                   />
@@ -170,17 +170,17 @@ export function StoryDiagram() {
             {/* Output Node (Right) */}
             <AnimatePresence>
               {isSolved && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, scale: 0.8, x: -20 }}
                   animate={{ opacity: 1, scale: 1, x: 0 }}
                   exit={{ opacity: 0, scale: 0.8, x: -20 }}
                   transition={{ type: "spring", stiffness: 200, delay: 0.8 }}
                   className="absolute left-[85%] top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-[150px] md:w-[170px]"
                 >
-                  <FlowNode 
-                    icon={Activity} 
-                    title="48h Landfall Cone" 
-                    active 
+                  <FlowNode
+                    icon={Activity}
+                    title="48h Landfall Cone"
+                    active
                   />
                 </motion.div>
               )}

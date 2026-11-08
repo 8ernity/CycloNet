@@ -367,16 +367,11 @@ export function ChatbotWidget() {
     try {
       const historyPayload = messages
         .slice(-6)
-        .map(m => ({ role: m.role, content: m.content }));
+        .map(m => ({ role: m.role, content: m.content.slice(0,2000) }));
       
       let uiContext: Record<string, unknown> | null = null;
       if (typeof window !== "undefined") {
-        const stored = window.__cyclonet_current_context;
-        uiContext = {
-          pathname: window.location.pathname,
-          search: window.location.search,
-          ...(stored || {})
-        };
+        uiContext = {page:window.location.pathname.slice(0,80)};
       }
 
       const res = await fetch(`${getApiBaseUrl()}/api/chat`, {
@@ -777,6 +772,7 @@ export function ChatbotWidget() {
                       ref={inputRef}
                       type="text"
                       value={input}
+                      maxLength={3000}
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {

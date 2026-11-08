@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 raw_db_url = os.getenv("DATABASE_URL", "sqlite:///./cyclone_tracker.db")
 if os.getenv('ENVIRONMENT', '').lower() == 'production' and not raw_db_url.startswith(('postgres://', 'postgresql://', 'postgresql+psycopg2://')):
-    raise RuntimeError('Production requires an explicit PostgreSQL DATABASE_URL')
+    raise RuntimeError("Production requires PostgreSQL; SQLite fallback is forbidden")
 
 # Fix Render PostgreSQL URL compatibility (Render uses postgres://, SQLAlchemy requires postgresql://)
 if raw_db_url.startswith("postgres://"):
@@ -18,11 +18,6 @@ if raw_db_url.startswith('postgresql://'):
 SQLALCHEMY_DATABASE_URL = raw_db_url
 
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
-    if os.getenv("ENVIRONMENT") == "production":
-        logger.warning(
-            "[Database] PRODUCTION WARNING: Running with SQLite fallback in production. "
-            "Configure DATABASE_URL to connect to a managed PostgreSQL cluster."
-        )
     connect_args = {"check_same_thread": False}
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
@@ -71,9 +66,27 @@ def init_db():
 
 
 def validate_schema():
-    """Startup only checks the version. Deployment owns schema changes."""
-    from sqlalchemy import text
+    """Production checks are read-only; local development may initialize its DB."""
+    from sqlalchemy import inspect, text
+    from pathlib import Path
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+    backend = Path(__file__).resolve().parents[2]
+    config = Config(str(backend / 'alembic.ini'))
+    config.set_main_option('script_location', str(backend / 'alembic'))
+    from alembic import command
+    expected = set(ScriptDirectory.from_config(config).get_heads())
+    if 'alembic_version' not in inspect(engine).get_table_names():
+        if os.getenv('ENVIRONMENT', 'development').lower() != 'development':
+            raise RuntimeError('Database migration required before startup')
+        logger.info("[Database] 'alembic_version' table not found; auto-applying migrations to head...")
+        command.upgrade(config, 'head')
+        return
     with engine.connect() as conn:
-        revision = conn.execute(text('SELECT version_num FROM alembic_version')).scalar()
-    if revision != '20261107_fenced_state':
-        raise RuntimeError('Database schema is not current; run alembic upgrade head before startup')
+        revisions = set(conn.execute(text('SELECT version_num FROM alembic_version')).scalars())
+    if revisions != expected:
+        if os.getenv('ENVIRONMENT', 'development').lower() != 'development':
+            raise RuntimeError('Database migration required before startup')
+        logger.info("[Database] Revisions %s != expected %s; auto-upgrading to head...", revisions, expected)
+        command.upgrade(config, 'head')
+        return

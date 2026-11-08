@@ -17,7 +17,7 @@ import { Footer } from '@/components/landing/Footer';
 
 export const metadata = {
   title: 'CycloNet — AI Cyclone Impact & Infrastructure Vulnerability Forecaster',
-  description: 'AI-powered predictive risk and vulnerability modeling platform utilizing Google Earth Engine satellite feeds, parametric storm surge simulation, and Gemini 3.7 Flash multimodal reasoning.',
+  description: 'Experimental cyclone data explorer with source provenance, historical records and explicitly labeled scenarios.',
 };
 
 export default function RootLandingPage() {
@@ -29,8 +29,8 @@ export default function RootLandingPage() {
       {/* GSAP & Lenis Multi-Layered Depth Parallax Hero (Preserved Pristine) */}
       <ParallaxComponent
         title="CYCLONET"
-        pretitle="NEVER MISS A CYCLONE"
-        subtitle="AI TROPICAL CYCLONE TRAJECTORY & LANDFALL INTELLIGENCE"
+        pretitle="EXPLORE CYCLONE DATA"
+        subtitle="SOURCE OBSERVATIONS, HISTORICAL RECORDS & RESEARCH SCENARIOS"
         layer1Src="/Galaxy.mp4"
         layer2Src="/NobgEarth.png"
         layer4Src="/Astronaut.png"

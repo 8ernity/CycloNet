@@ -19,7 +19,7 @@ export interface CyclonePdfData {
     lon?: number;
     intensity_knots?: number | null;
     central_pressure_hpa?: number | null;
-    source?: string;
+    source?: string | null;
     observation_time_utc?: string | null;
     retrieved_at?: string | null;
     is_simulation?: boolean;

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, BigInteger
+from sqlalchemy import Column, Integer, String, Float, DateTime, BigInteger, Date, Index, event, text
 from datetime import datetime
 from app.core.database import Base
 
@@ -21,6 +21,8 @@ class CycloneArchive(Base):
     basin = Column(String)
     max_category = Column(String)
     dates = Column(String, nullable=True)
+    start_date = Column(Date, nullable=False, server_default=text("'0001-01-01'"))
+    __table_args__ = (Index("ix_archive_chronology", "start_date", "id"),)
 
 class ActiveCycloneState(Base):
     """
@@ -35,3 +37,9 @@ class ActiveCycloneState(Base):
     last_sync = Column(DateTime, default=datetime.utcnow)
     fencing_generation = Column(BigInteger, nullable=False, default=0, server_default='0')
     leader_token = Column(String, nullable=True)
+
+@event.listens_for(CycloneArchive, 'before_insert')
+@event.listens_for(CycloneArchive, 'before_update')
+def normalize_archive_date(mapper, connection, target):
+    from app.core.archive_dates import archive_start_date
+    target.start_date = archive_start_date(target.year, target.dates)

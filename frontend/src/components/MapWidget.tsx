@@ -1,4 +1,5 @@
 "use client";
+import type { TrackPoint } from "@/types/api";
 import React, { useState, useEffect, useRef } from "react";
 import { 
   MapContainer, 
@@ -21,16 +22,7 @@ import {
   COASTAL_INUNDATION_ZONES 
 } from '@/lib/infrastructureData';
 
-interface TrackPoint {
-  lat: number;
-  lon: number;
-  time_offset_hours: number;
-  category: string;
-  intensity_knots: number | null;
-  is_forecast: boolean;
-  is_landfall?: boolean;
-  is_observed?: boolean;
-}
+
 
 interface MapWidgetProps {
   points: TrackPoint[];
@@ -39,9 +31,9 @@ interface MapWidgetProps {
 
 const MAP_STYLES = {
   satellite: {
-    name: 'Satellite View (GEE / Esri)',
+    name: 'Esri base imagery (not live telemetry)',
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles &copy; Esri &mdash; GEE Multispectral'
+    attribution: 'Tiles &copy; Esri'
   },
   street: {
     name: 'IMD Chart (Street/Geo)',
@@ -69,7 +61,7 @@ function MapReCenter({ center }: { center: [number, number] }) {
 export default function MapWidget({ points, systemName }: MapWidgetProps) {
   const [currentStyle, setCurrentStyle] = useState<MapStyleKey>('satellite');
   const [isLayerMenuOpen, setIsLayerMenuOpen] = useState(false);
-  const [showInfra, setShowInfra] = useState(true);
+  const [showInfra, setShowInfra] = useState(false);
   const [infraFilter, setInfraFilter] = useState<InfraFilter>('all');
   const layerMenuRef = useRef<HTMLDivElement>(null);
 
@@ -177,7 +169,7 @@ export default function MapWidget({ points, systemName }: MapWidgetProps) {
               showInfra ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            <ShieldCheck className="w-3 h-3" /> Infra
+            <ShieldCheck className="w-3 h-3" /> Scenario assets (unverified)
           </button>
           {showInfra && (
             <>
@@ -264,6 +256,7 @@ export default function MapWidget({ points, systemName }: MapWidgetProps) {
         {/* ── Critical Infrastructure Layers ─────────────────────────────────── */}
         {showInfra && (
           <>
+            <div className="absolute bottom-2 left-2 z-[1000] bg-background p-2 text-xs">ILLUSTRATIVE ASSETS — all coordinates and capacities unverified; road status unknown.</div>
             {/* Parametric Coastal Inundation Buffer Zones */}
             {(infraFilter === 'all' || infraFilter === 'parametric') && (
               COASTAL_INUNDATION_ZONES.map((zone, i) => (
@@ -284,8 +277,8 @@ export default function MapWidget({ points, systemName }: MapWidgetProps) {
                         <ShieldAlert className="w-4 h-4 text-cyan-400 shrink-0" />
                         <span>{zone.name}</span>
                       </p>
-                      <p className="text-zinc-300 text-[11px]">Surge Depth: <strong className="text-white">{zone.depthM}</strong></p>
-                      <p className="text-zinc-400 text-[10.5px]">Parametric Trigger: <span className="text-cyan-300 font-medium">100% Liquidity at &ge;64 KT</span></p>
+                      <p className="text-zinc-300 text-[11px]">Scenario depth: <strong className="text-white">{zone.depthM}</strong></p>
+                      <p className="text-zinc-400 text-[10.5px]">Parametric Trigger: <span className="text-cyan-300 font-medium">No verified funding or insurance contract</span></p>
                     </div>
                   </Popup>
                   <Tooltip direction="center">
@@ -312,9 +305,9 @@ export default function MapWidget({ points, systemName }: MapWidgetProps) {
                   <Popup>
                     <div className="p-1.5 space-y-1.5 text-xs text-white">
                       <p className="font-bold text-white text-sm">{route.name}</p>
-                      <p className="text-[11px] text-zinc-300">Priority: <strong className="text-white">{route.evacuationPriority}</strong></p>
+                      <p className="text-[11px] text-zinc-300">Scenario category: <strong className="text-white">{route.evacuationPriority}</strong></p>
                       <p className={`text-[11px] font-semibold ${route.floodRiskLevel.includes("Severe") ? "text-red-400" : "text-blue-400"}`}>
-                        Risk: {route.floodRiskLevel}
+                        Scenario risk: {route.floodRiskLevel}
                       </p>
                     </div>
                   </Popup>
@@ -346,7 +339,7 @@ export default function MapWidget({ points, systemName }: MapWidgetProps) {
                         <span>{sub.name}</span>
                       </div>
                       <p className="text-zinc-300 text-[11px]">Type: <strong className="text-white">{sub.type}</strong></p>
-                      <p className="text-zinc-300 text-[11px]">Capacity: <strong className="text-white">{sub.capacityMVA} MVA</strong></p>
+                      <p className="text-zinc-300 text-[11px]">Assumed capacity: <strong className="text-white">{sub.capacityMVA} MVA</strong></p>
                       <p className="text-zinc-300 text-[11px]">Coastal Distance: <strong className="text-white">{sub.coastalDistanceKm} km</strong> (Elev: {sub.elevationMeters}m)</p>
                       <span className="inline-block px-2.5 py-1 mt-1 rounded-md text-[10.5px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
                         Criticality: {sub.criticality}
@@ -381,11 +374,11 @@ export default function MapWidget({ points, systemName }: MapWidgetProps) {
                         <span>{shl.name}</span>
                       </div>
                       <p className="text-zinc-300 text-[11px]">Type: <strong className="text-white">{shl.type}</strong></p>
-                      <p className="text-zinc-300 text-[11px]">Capacity: <strong className="text-white">{shl.capacityPersons.toLocaleString()} persons</strong></p>
-                      <p className="text-zinc-300 text-[11px]">Medical Beds: <strong className="text-white">{shl.medicalBeds} Beds</strong></p>
-                      <p className="text-zinc-300 text-[10.5px]">Backup Power: <strong className="text-white">{shl.generatorBackup ? "✅ Diesel GenSet" : "❌ Grid Dependent"}</strong></p>
+                      <p className="text-zinc-300 text-[11px]">Assumed capacity: <strong className="text-white">{shl.capacityPersons.toLocaleString()} persons</strong></p>
+                      <p className="text-zinc-300 text-[11px]">Assumed beds: <strong className="text-white">{shl.medicalBeds} Beds</strong></p>
+                      <p className="text-zinc-300 text-[10.5px]">Backup Power: <strong className="text-white">{"Unavailable"}</strong></p>
                       <span className="inline-block px-2.5 py-1 mt-1 rounded-md text-[10.5px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                        Status: {shl.status}
+                        Status: {"Operational status not verified"}
                       </span>
                     </div>
                   </Popup>
@@ -439,7 +432,7 @@ export default function MapWidget({ points, systemName }: MapWidgetProps) {
           }}
         >
           <Tooltip permanent direction="top" offset={[0, -10]} className="custom-tooltip">
-            <span className="text-red-400 font-bold">{currentPoint.intensity_knots ?? "Not available"} KT ({currentPoint.is_observed ? "Observed Fix" : "Best-Track Fix"})</span>
+            <span className="text-red-400 font-bold">{currentPoint.intensity_knots ?? "Not available"} KT ({currentPoint.provenance ?? "UNKNOWN"})</span>
           </Tooltip>
         </CircleMarker>
 

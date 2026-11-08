@@ -43,16 +43,16 @@ export interface ParametricInsuranceTrigger {
   payoutPercentage: number;
   disbursementWindow: string;
   targetBeneficiaries: string;
-  totalPoolFunded: string;
+  hypotheticalPool: string;
 }
 
-// ── Realistic Coastal Critical Infrastructure Dataset (NIO / BoB / Arabian Sea) ──
+// ── Illustrative Coastal Infrastructure Dataset (NIO / BoB / Arabian Sea) ──
 // Metadata documentation addressing #50 (Static Asset Inventories) & #51 (Unverified Field Statuses)
 export const INFRASTRUCTURE_METADATA = {
-  inventoryType: "Static Baseline Reference Inventory (OpenStreetMap / SRTM DEM / State Disaster Records)",
-  lastTopologicalSurvey: "2024-Q4",
+  inventoryType: "Illustrative scenario inventory; no verified asset source",
+  lastTopologicalSurvey: null,
   fieldVerificationRequired: true,
-  operationalNotice: "Asset coordinates, line voltages, and baseline shelter capacities represent static topological inventories. Dynamic field variables (generator fuel levels, active road flooding/choke status, and shelter occupancy) require real-time validation with District Disaster Management Authorities (DDMA) and State Emergency Operations Centers (SEOC)."
+  operationalNotice: "All asset fields are unverified scenario assumptions. No surveyed inventory, current readiness or funded insurance facility is connected."
 };
 
 export const POWER_SUBSTATIONS: PowerSubstation[] = [
@@ -526,7 +526,7 @@ export const PARAMETRIC_INSURANCE_TRIGGERS: ParametricInsuranceTrigger[] = [
     payoutPercentage: 100,
     disbursementWindow: "Pre-Landfall T-24h (Immediate Digital Liquidity)",
     targetBeneficiaries: "District Administration, SDRF Mobilization & Vulnerable Smallholders",
-    totalPoolFunded: "₹250 Crore / $30M USD"
+    hypotheticalPool: "₹250 Crore / $30M USD"
   },
   {
     tier: "Tier 2 (Severe Storm)",
@@ -535,7 +535,7 @@ export const PARAMETRIC_INSURANCE_TRIGGERS: ParametricInsuranceTrigger[] = [
     payoutPercentage: 70,
     disbursementWindow: "Pre-Landfall T-12h (Anticipatory Emergency Transfer)",
     targetBeneficiaries: "Municipal Hardening, Coastal Power Utility Restoration & Shelter Food Banks",
-    totalPoolFunded: "₹140 Crore / $17M USD"
+    hypotheticalPool: "₹140 Crore / $17M USD"
   },
   {
     tier: "Tier 3 (Moderate Wind)",
@@ -544,7 +544,7 @@ export const PARAMETRIC_INSURANCE_TRIGGERS: ParametricInsuranceTrigger[] = [
     payoutPercentage: 35,
     disbursementWindow: "Post-Event T+24h (Automated Satellite Index Payout)",
     targetBeneficiaries: "Fishermen Livelihood Compensation & Rural Drainage Clearing",
-    totalPoolFunded: "₹65 Crore / $8M USD"
+    hypotheticalPool: "₹65 Crore / $8M USD"
   }
 ];
 
@@ -664,14 +664,7 @@ export function calculateSubstationVulnerability(
   else if (riskScore >= 50) riskCategory = "HIGH";
   else if (riskScore >= 25) riskCategory = "MODERATE";
 
-  let recommendedAction = "Normal grid monitoring with standby feeder telemetry.";
-  if (riskCategory === "CRITICAL") {
-    recommendedAction = `De-energize 400/220kV busbars at T-3h before landfall. Switch municipal hospitals to isolated DG microgrids to prevent arc-flash explosions.`;
-  } else if (riskCategory === "HIGH") {
-    recommendedAction = `Erect mobile flood barricades at switchyard perimeter. Pre-position mobile substation restoration teams.`;
-  } else if (riskCategory === "MODERATE") {
-    recommendedAction = `Inspect water pump drainage sumps and verify 6-hour diesel backup battery charge.`;
-  }
+  const recommendedAction = "Illustrative exposure calculation only. No utility switching decision is supported; obtain an authorized utility assessment.";
 
   return {
     floodDepthM,
@@ -698,7 +691,9 @@ export function calculateSubstationVulnerability(
 export interface RouteVulnerabilityAnalysis {
   floodDepthM: number;
   etaToInundationHrs: number;
-  status: "SAFE_EVACUATION" | "MODERATE_RISK" | "INUNDATED_CLOSED";
+  status: "SCENARIO_LOW" | "SCENARIO_MODERATE" | "SCENARIO_HIGH";
+  observed_road_status: VerifiedAttribute<"OPEN" | "CLOSED" | "RESTRICTED" | "UNKNOWN">;
+  scenario_road_risk: "LOW" | "MODERATE" | "HIGH";
   statusBadge: string;
   statusColor: string; // 🔵 blue, 🟠 orange, 🔴 red
   riskScore: number;
@@ -713,7 +708,9 @@ export function calculateRouteVulnerability(
   route: EvacuationRoute,
   stormKnots: number = 85,
   surgeMeters: number = 2.8,
-  rainMm: number = 220
+  rainMm: number = 220,
+  roadObservation?: VerifiedAttribute<"OPEN" | "CLOSED" | "RESTRICTED" | "UNKNOWN">,
+  now = Date.now()
 ): RouteVulnerabilityAnalysis {
   const isLowLying = route.elevationAvgM < 10;
   const floodDepthM = Number((isLowLying ? Math.max(0.6, (surgeMeters * 0.5) + (rainMm / 400)) : 0.2).toFixed(1));
@@ -723,29 +720,18 @@ export function calculateRouteVulnerability(
   const rawRisk = Math.round((1.0 / (1.0 + Math.exp(-4.0 * (floodDepthM - 0.6)))) * 85 + (stormKnots / 140) * 15);
   const riskScore = Math.min(99, Math.max(15, rawRisk));
 
-  let status: "SAFE_EVACUATION" | "MODERATE_RISK" | "INUNDATED_CLOSED" = "SAFE_EVACUATION";
-  let statusBadge = "🔵 SAFE EVACUATION CORRIDOR";
-  let statusColor = "#38bdf8"; // Sky blue
-  let alternativeRouteName = "Direct Arterial Path Open";
-  let recommendedAction = "Corridor is fully clear. Prioritize green-corridor ambulance and bus convoys.";
-
-  if (floodDepthM >= 1.2 || (isLowLying && stormKnots >= 90)) {
-    status = "INUNDATED_CLOSED";
-    statusBadge = "🔴 INUNDATED / ROAD CLOSED";
-    statusColor = "#ef4444"; // Red
-    alternativeRouteName = route.highwayCode === "NH-16" ? "NH-16 Bypass Elevated Flyover (KM 148)" : "State Highway 42 Inland Hill Corridor";
-    recommendedAction = `Submerged by ${floodDepthM}m water. Close toll plazas immediately and divert traffic to ${alternativeRouteName}.`;
-  } else if (floodDepthM >= 0.5 || stormKnots >= 60) {
-    status = "MODERATE_RISK";
-    statusBadge = "🟠 HIGH WATERLOGGING RISK";
-    statusColor = "#f97316"; // Orange
-    alternativeRouteName = "Secondary Arterial Ring Road";
-    recommendedAction = `Restricted to heavy emergency response vehicles only. ETA to full closure: ${etaToInundationHrs} hours.`;
-  }
+  const scenario_road_risk = floodDepthM >= 1.2 ? "HIGH" : floodDepthM >= 0.5 ? "MODERATE" : "LOW";
+  const status = scenario_road_risk === "HIGH" ? "SCENARIO_HIGH" : scenario_road_risk === "MODERATE" ? "SCENARIO_MODERATE" : "SCENARIO_LOW";
+  const statusBadge = `SIMULATED ${scenario_road_risk} EXPOSURE — ROAD STATUS UNKNOWN`;
+  const statusColor = "#94a3b8";
+  const alternativeRouteName = "No verified alternative route";
+  const recommendedAction = "Scenario only. No travel or closure decision is supported; consult authorized road-condition updates.";
 
   return {
     floodDepthM,
     etaToInundationHrs,
+    observed_road_status: currentObservation(roadObservation, now) != null ? roadObservation! : unavailable<"OPEN" | "CLOSED" | "RESTRICTED" | "UNKNOWN">("UNKNOWN"),
+    scenario_road_risk,
     status,
     statusBadge,
     statusColor,
@@ -758,59 +744,71 @@ export function calculateRouteVulnerability(
   };
 }
 
-export interface ShelterSuitabilityAnalysis {
-  capacity: number;
-  currentOccupancy: number;
-  occupancyPercentage: number;
-  floodRisk: "LOW" | "MODERATE" | "HIGH";
-  roadAccessStatus: "OPEN" | "RESTRICTED" | "BLOCKED";
-  powerBackupStatus: "SECURE (DG OPERATIONAL)" | "STANDBY" | "AT RISK";
-  suitabilityScore: number;
-  isRecommendedDestination: boolean;
-  decisionNote: string;
-  scoringMethodology: string;
-  is_heuristic_simulation: boolean;
-  methodologyNotice: string;
+export interface VerifiedAttribute<T> {
+  value: T | null;
+  source: string | null;
+  verified_at: string | null;
+  expires_at: string | null;
+  verification_status: "VERIFIED" | "UNAVAILABLE" | "EXPIRED" | "SIMULATED";
+  authorized: boolean;
 }
-
+export function unavailable<T>(value: T | null = null): VerifiedAttribute<T> {
+  return {value, source:null, verified_at:null, expires_at:null, verification_status:"UNAVAILABLE", authorized:false};
+}
+export function currentObservation<T>(attribute?: VerifiedAttribute<T>, now = Date.now()): T | null {
+  if (!attribute || !attribute.authorized || attribute.verification_status !== "VERIFIED" || !attribute.source) return null;
+  const verified = Date.parse(attribute.verified_at ?? "");
+  const expires = Date.parse(attribute.expires_at ?? "");
+  return Number.isFinite(verified) && Number.isFinite(expires) && verified <= now && expires > now && expires > verified ? attribute.value : null;
+}
+export interface ShelterOperationalData {
+  capacity: VerifiedAttribute<number>;
+  occupancy: VerifiedAttribute<number>;
+  medicalBeds: VerifiedAttribute<number>;
+  road: VerifiedAttribute<"OPEN" | "RESTRICTED" | "BLOCKED">;
+  generator: VerifiedAttribute<"OPERATIONAL" | "UNAVAILABLE">;
+  destinationApproval: VerifiedAttribute<boolean>;
+}
+export interface ShelterScenarioSimulation {
+  mode: "SCENARIO";
+  assumedCapacity: number;
+  assumedOccupancy: number;
+  isRecommendedDestination: false;
+}
+export function simulateShelterScenario(capacity: number, occupancy: number): ShelterScenarioSimulation {
+  if (!Number.isInteger(capacity) || !Number.isInteger(occupancy) || capacity < 0 || occupancy < 0 || occupancy > capacity) throw new Error("Invalid scenario counts");
+  return {mode:"SCENARIO", assumedCapacity:capacity, assumedOccupancy:occupancy, isRecommendedDestination:false};
+}
 export function calculateShelterSuitability(
-  shelter: MedicalCycloneShelter,
-  stormKnots: number = 85
-): ShelterSuitabilityAnalysis {
-  // Simulated dynamic occupancy based on severity
-  const occFactor = Math.min(0.85, 0.45 + (stormKnots / 300));
-  const currentOccupancy = Math.round(shelter.capacityPersons * occFactor);
-  const occupancyPercentage = Math.round((currentOccupancy / shelter.capacityPersons) * 100);
-
-  const floodRisk: "LOW" | "MODERATE" | "HIGH" = "LOW";
-  const roadAccessStatus: "OPEN" | "RESTRICTED" | "BLOCKED" = "OPEN";
-  const powerBackupStatus: "SECURE (DG OPERATIONAL)" | "STANDBY" | "AT RISK" = shelter.generatorBackup ? "SECURE (DG OPERATIONAL)" : "STANDBY";
-
-  const suitabilityScore = Math.round(
-    (100 - (occupancyPercentage * 0.4)) +
-    (shelter.generatorBackup ? 20 : 0) +
-    (shelter.satelliteComms ? 15 : 0) +
-    (shelter.medicalBeds >= 50 ? 10 : 5)
-  );
-
-  const isRecommendedDestination = suitabilityScore >= 75 && occupancyPercentage < 85;
-  const decisionNote = isRecommendedDestination
-    ? `✓ Highly Recommended Evacuation Destination. ${shelter.capacityPersons - currentOccupancy} vacant spots available with ${shelter.medicalBeds} medical beds and generator backup.`
-    : `Capacity constrained (${occupancyPercentage}% full). Divert non-critical evacuees to adjacent community staging center.`;
-
-  return {
-    capacity: shelter.capacityPersons,
-    currentOccupancy,
-    occupancyPercentage,
-    floodRisk,
-    roadAccessStatus,
-    powerBackupStatus,
-    suitabilityScore: Math.min(99, suitabilityScore),
-    isRecommendedDestination,
-    decisionNote,
-    scoringMethodology: "Multi-Criteria Decision Analysis (MCDA) Scoring Model",
-    is_heuristic_simulation: true,
-    methodologyNotice: "Occupancy and suitability scores are parametric triage simulations. Real-time headcounts require field verification with District Disaster Management Authorities."
+  _shelter: MedicalCycloneShelter, _stormKnots = 85, observations?: ShelterOperationalData, now = Date.now()
+) {
+  const count = (field?: VerifiedAttribute<number>) => {
+    const value = currentObservation(field, now);
+    return value != null && Number.isInteger(value) && value >= 0 ? value : null;
   };
+  const capacity = count(observations?.capacity);
+  const occupancy = count(observations?.occupancy);
+  const currentOccupancy = capacity != null && occupancy != null && occupancy <= capacity ? occupancy : null;
+  const availableCapacity = capacity != null && currentOccupancy != null ? capacity - currentOccupancy : null;
+  const roadAccessStatus = currentObservation(observations?.road, now);
+  const powerBackupStatus = currentObservation(observations?.generator, now);
+  const medicalBeds = count(observations?.medicalBeds);
+  const isRecommendedDestination = currentObservation(observations?.destinationApproval, now) === true &&
+    availableCapacity != null && availableCapacity > 0 && roadAccessStatus === "OPEN" && powerBackupStatus === "OPERATIONAL" && medicalBeds != null;
+  return {capacity, currentOccupancy, availableCapacity, medicalBeds,
+    occupancyPercentage: capacity && currentOccupancy != null ? Math.round(currentOccupancy / capacity * 100) : null,
+    roadAccessStatus, powerBackupStatus, isRecommendedDestination,
+    observations: observations ?? null,
+    decisionNote: isRecommendedDestination ? "Current authorized destination approval recorded; confirm with the issuing authority before travel." : "Operational status not verified",
+    is_heuristic_simulation:false};
 }
 
+// Per-field provenance travels separately from illustrative numeric inputs.
+export const INFRASTRUCTURE_FIELD_PROVENANCE = Object.fromEntries(
+  [...POWER_SUBSTATIONS, ...EVACUATION_ROUTES, ...MEDICAL_SHELTERS].map(asset => [asset.id,
+    Object.fromEntries(Object.keys(asset).map(field => [field, {
+      source: "Illustrative scenario assumption", verified_at:null, expires_at:null,
+      verification_status:"SIMULATED", authorized:false
+    }]))
+  ])
+);

@@ -1,3 +1,4 @@
+import type {TrackPoint, WeatherSystem as ActiveSystem} from "@/types/api";
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   MapContainer, 
@@ -45,31 +46,9 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-interface TrackPoint {
-  lat: number;
-  lon: number;
-  time_offset_hours: number;
-  category: string;
-  intensity_knots: number | null;
-  is_forecast: boolean;
-  is_landfall?: boolean;
-  is_observed?: boolean;
-  label?: string;
-}
 
-interface ActiveSystem {
-  id: string;
-  name: string;
-  category: string;
-  lat: number;
-  lon: number;
-  intensity_knots: number | null;
-  basin?: string;
-  track_forecast?: TrackPoint[];
-  landfall_info?: import("@/types/api").LandfallInfo;
-  telemetry_type?: string;
-  is_simulation?: boolean;
-}
+
+
 
 interface MapProps {
   activeSystem: ActiveSystem | null;
@@ -89,7 +68,7 @@ const MAP_STYLES = {
     attribution: 'Tiles &copy; Esri, USGS, NOAA &mdash; Multispectral Feed'
   },
   nasa_viirs: {
-    name: '🛰️ NASA VIIRS True-Color (Live EOSDIS)',
+    name: '🛰️ NASA VIIRS daily imagery (prior date)',
     url: `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/${getGibsDate()}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`,
     attribution: 'Imagery &copy; NASA EOSDIS GIBS / NOAA VIIRS'
   },
@@ -137,76 +116,15 @@ const getCategoryAbbr = (cat: string, knots: number | null): string => {
   return "D";
 };
 
-// IMD (RSMC New Delhi) 5-year Climatological Verification Track Error Radii (degrees):
-// 12h: ~50km (0.45°), 24h: ~86km (0.78°), 36h: ~124km (1.12°), 48h: ~161km (1.45°), 60h: ~198km (1.78°), 72h: ~238km (2.15°)
-// Calibrated to official IMD Annual Cyclone Reports (#47)
-const IMD_NIO_ERROR_RADII_DEG = [0.45, 0.78, 1.12, 1.45, 1.78, 2.15];
-
-function getImdConeRadius(stepIndex: number): number {
-  if (stepIndex < IMD_NIO_ERROR_RADII_DEG.length) {
-    return IMD_NIO_ERROR_RADII_DEG[stepIndex];
-  }
-  return IMD_NIO_ERROR_RADII_DEG[IMD_NIO_ERROR_RADII_DEG.length - 1] + (stepIndex - (IMD_NIO_ERROR_RADII_DEG.length - 1)) * 0.37;
-}
-
-// Generates smooth IMD Cone of Uncertainty polygon enclosing future forecast track
-function generateConeOfUncertainty(
-  forecastPts: { lat: number; lon: number }[]
-): [number, number][] {
-  if (forecastPts.length < 2) return [];
-
-  const leftSide: [number, number][] = [];
-  const rightSide: [number, number][] = [];
-
-  for (let i = 0; i < forecastPts.length; i++) {
-    const pt = forecastPts[i];
-    const prev = forecastPts[Math.max(0, i - 1)];
-    const next = forecastPts[Math.min(forecastPts.length - 1, i + 1)];
-
-    let dLat = next.lat - prev.lat;
-    let dLon = next.lon - prev.lon;
-    if (dLat === 0 && dLon === 0) {
-      dLat = 0.1;
-      dLon = 0.1;
-    }
-
-    const len = Math.hypot(dLat, dLon);
-    const nLat = -dLon / len;
-    const nLon = dLat / len;
-
-    // Radius calibrated to IMD 5-year NIO average track forecast error statistics
-    const radius = getImdConeRadius(i);
-    leftSide.push([pt.lat + nLat * radius, pt.lon + nLon * radius]);
-    rightSide.push([pt.lat - nLat * radius, pt.lon - nLon * radius]);
-  }
-
-  // Rounded cap around the final forecast fix
-  const lastPt = forecastPts[forecastPts.length - 1];
-  const prevPt = forecastPts[Math.max(0, forecastPts.length - 2)];
-  const tipRadius = getImdConeRadius(forecastPts.length - 1);
-  const baseAngle = Math.atan2(lastPt.lat - prevPt.lat, lastPt.lon - prevPt.lon);
-  const capPoints: [number, number][] = [];
-
-  for (let a = -Math.PI / 2; a <= Math.PI / 2; a += Math.PI / 8) {
-    const angle = baseAngle + a;
-    capPoints.push([
-      lastPt.lat + Math.sin(angle) * tipRadius,
-      lastPt.lon + Math.cos(angle) * tipRadius,
-    ]);
-  }
-
-  return [...leftSide, ...capPoints, ...rightSide.reverse()];
-}
-
 export default function MapComponent({ activeSystem }: MapProps) {
   // Default to Satellite View on application startup
   const [currentStyle, setCurrentStyle] = useState<MapStyleKey>('satellite');
   const [isLayerMenuOpen, setIsLayerMenuOpen] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
-  const [showCone, setShowCone] = useState(true);
+
   const [showLegend, setShowLegend] = useState(true);
   const [infraFilter, setInfraFilter] = useState<InfraFilter>('all');
-  const [showInfra, setShowInfra] = useState(true);
+  const [showInfra, setShowInfra] = useState(false);
   
   const center: [number, number] = activeSystem ? [activeSystem.lat, activeSystem.lon] : [17.5, 83.5];
   const zoomLevel = activeSystem ? 6 : 5;
@@ -241,12 +159,6 @@ export default function MapComponent({ activeSystem }: MapProps) {
       currentPoint: curr
     };
   }, [points, activeSystem]);
-
-  // Cone of Uncertainty polygon coordinates
-  const conePolygon: [number, number][] = useMemo(() => {
-    if (!currentPoint || forecastPoints.length === 0) return [];
-    return generateConeOfUncertainty([currentPoint, ...forecastPoints]);
-  }, [currentPoint, forecastPoints]);
 
   const getPointLabel = (pt: TrackPoint) => {
     const raw = pt.label || "";
@@ -298,10 +210,10 @@ export default function MapComponent({ activeSystem }: MapProps) {
                 ? 'bg-primary text-primary-foreground shadow-sm' 
                 : 'bg-secondary text-muted-foreground hover:text-foreground'
             }`}
-            title="Toggle Critical Infrastructure Layer"
+            title="Toggle illustrative scenario assets — unverified"
           >
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Infra Exposure</span>
+            <span>Scenario assets (unverified)</span>
           </button>
 
           {showInfra && (
@@ -367,26 +279,14 @@ export default function MapComponent({ activeSystem }: MapProps) {
           <span className="hidden sm:inline">Labels</span>
         </button>
 
-        {/* Toggle Cone of Uncertainty */}
-        <button
-          onClick={() => setShowCone(!showCone)}
-          className={`px-2.5 py-1.5 rounded-lg border text-xs font-semibold backdrop-blur-md shadow-md transition-all flex items-center gap-1.5 cursor-pointer ${
-            showCone 
-              ? 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-500/20' 
-              : 'bg-background/90 text-foreground/70 border-border hover:bg-secondary'
-          }`}
-          title="Toggle Cone of Uncertainty (Landfall Probability Envelope)"
-        >
-          <ShieldAlert className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Cone</span>
-        </button>
+        <span className="text-xs bg-background/90 p-2 rounded">Uncertainty: Not validated</span>
 
         {/* Map Style Selector */}
         <div className="relative">
           <button 
             onClick={() => setIsLayerMenuOpen(!isLayerMenuOpen)}
             className="bg-background/90 backdrop-blur-md p-2 rounded-lg border border-border shadow-md hover:bg-secondary transition-colors flex items-center justify-center cursor-pointer"
-            title="Switch Map Layers (NASA VIIRS, MODIS, GEE Satellite, Dark Tactical, IMD Chart)"
+            title="Switch Map Layers (NASA VIIRS, MODIS, base imagery, Dark Tactical, IMD Chart)"
           >
             <Layers className="w-4 h-4 text-foreground" />
           </button>
@@ -571,6 +471,7 @@ export default function MapComponent({ activeSystem }: MapProps) {
         {/* ── Critical Infrastructure Layers ─────────────────────────────────── */}
         {showInfra && (
           <>
+            <div className="absolute bottom-2 left-2 z-[1000] bg-background p-2 text-xs">ILLUSTRATIVE ASSETS — all coordinates and capacities unverified; road status unknown.</div>
             {/* 1. Parametric Inundation Zones (Surge Buffer Polygons) */}
             {(infraFilter === 'all' || infraFilter === 'parametric') && (
               COASTAL_INUNDATION_ZONES.map((zone, i) => (
@@ -591,8 +492,8 @@ export default function MapComponent({ activeSystem }: MapProps) {
                         <ShieldAlert className="w-4 h-4 text-cyan-400 shrink-0" />
                         <span>{zone.name}</span>
                       </p>
-                      <p className="text-zinc-300 text-[11px]">Surge Depth: <strong className="text-white">{zone.depthM}</strong></p>
-                      <p className="text-zinc-400 text-[10.5px]">Parametric Trigger: <span className="text-cyan-300 font-medium">100% Liquidity at &ge;64 KT</span></p>
+                      <p className="text-zinc-300 text-[11px]">Scenario depth: <strong className="text-white">{zone.depthM}</strong></p>
+                      <p className="text-zinc-400 text-[10.5px]">Parametric Trigger: <span className="text-cyan-300 font-medium">No verified funding or insurance contract</span></p>
                     </div>
                   </Popup>
                   <Tooltip direction="center">
@@ -620,9 +521,9 @@ export default function MapComponent({ activeSystem }: MapProps) {
                   <Popup>
                     <div className="p-1.5 space-y-1.5 text-xs text-white">
                       <p className="font-bold text-white text-sm">{route.name}</p>
-                      <p className="text-[11px] text-zinc-300">Priority: <strong className="text-white">{route.evacuationPriority}</strong></p>
+                      <p className="text-[11px] text-zinc-300">Scenario category: <strong className="text-white">{route.evacuationPriority}</strong></p>
                       <p className={`text-[11px] font-semibold ${route.floodRiskLevel.includes("Severe") ? "text-red-400" : "text-blue-400"}`}>
-                        Risk: {route.floodRiskLevel}
+                        Scenario risk: {route.floodRiskLevel}
                       </p>
                     </div>
                   </Popup>
@@ -654,7 +555,7 @@ export default function MapComponent({ activeSystem }: MapProps) {
                         <span>{sub.name}</span>
                       </div>
                       <p className="text-zinc-300 text-[11px]">Type: <strong className="text-white">{sub.type}</strong></p>
-                      <p className="text-zinc-300 text-[11px]">Capacity: <strong className="text-white">{sub.capacityMVA} MVA</strong></p>
+                      <p className="text-zinc-300 text-[11px]">Assumed capacity: <strong className="text-white">{sub.capacityMVA} MVA</strong></p>
                       <p className="text-zinc-300 text-[11px]">Coastal Distance: <strong className="text-white">{sub.coastalDistanceKm} km</strong> (Elev: {sub.elevationMeters}m)</p>
                       <span className="inline-block px-2.5 py-1 mt-1 rounded-md text-[10.5px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
                         Criticality: {sub.criticality}
@@ -689,11 +590,11 @@ export default function MapComponent({ activeSystem }: MapProps) {
                         <span>{shl.name}</span>
                       </div>
                       <p className="text-zinc-300 text-[11px]">Type: <strong className="text-white">{shl.type}</strong></p>
-                      <p className="text-zinc-300 text-[11px]">Capacity: <strong className="text-white">{shl.capacityPersons.toLocaleString()} persons</strong></p>
-                      <p className="text-zinc-300 text-[11px]">Medical Beds: <strong className="text-white">{shl.medicalBeds} Beds</strong></p>
-                      <p className="text-zinc-300 text-[10.5px]">Backup Power: <strong className="text-white">{shl.generatorBackup ? "✅ Diesel GenSet" : "❌ Grid Dependent"}</strong></p>
+                      <p className="text-zinc-300 text-[11px]">Assumed capacity: <strong className="text-white">{shl.capacityPersons.toLocaleString()} persons</strong></p>
+                      <p className="text-zinc-300 text-[11px]">Assumed beds: <strong className="text-white">{shl.medicalBeds} Beds</strong></p>
+                      <p className="text-zinc-300 text-[10.5px]">Backup Power: <strong className="text-white">{"Unavailable"}</strong></p>
                       <span className="inline-block px-2.5 py-1 mt-1 rounded-md text-[10.5px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                        Status: {shl.status}
+                        Status: {"Operational status not verified"}
                       </span>
                     </div>
                   </Popup>
@@ -711,20 +612,6 @@ export default function MapComponent({ activeSystem }: MapProps) {
         {/* ── Tropical Cyclone Best-Track Geometry ─────────────────────────── */}
         {activeSystem && (
           <>
-            {/* 1. Translucent Green Cone of Uncertainty Envelope */}
-            {showCone && conePolygon.length > 2 && (
-              <Polygon
-                positions={conePolygon}
-                pathOptions={{
-                  fillColor: "#22c55e",
-                  fillOpacity: 0.35,
-                  color: "#15803d",
-                  weight: 1.5,
-                  dashArray: "3, 3"
-                }}
-              />
-            )}
-
             {/* 2. Track Segments Colored by Severity */}
             {points.map((pt, idx) => {
               if (idx === 0) return null;

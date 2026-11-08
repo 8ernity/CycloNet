@@ -9,46 +9,9 @@ import { motion } from 'framer-motion';
 import { MicroLabel } from './MicroLabel';
 
 const tiers = [
-  {
-    name: "Coastal District EOC",
-    scope: "Single District Command",
-    desc: "Core monitoring & track visualization for local emergency operations.",
-    features: [
-      "Real-time cyclone tracking & radar feed",
-      "Interactive storm cone map",
-      "Automated IMD bulletin generator",
-      "Up to 10 emergency operator seats",
-      "Standard telemetry support"
-    ],
-    elevated: false
-  },
-  {
-    name: "Regional Met Centre (RMC)",
-    scope: "Multi-District State HQ",
-    desc: "Deep AI forecasting & storm surge simulation for state authorities.",
-    features: [
-      "Everything in Coastal District EOC",
-      "48h Ensemble Track & Cone Forecast",
-      "Deep Dvorak AI Intensity Classifier",
-      "Storm Surge & Inundation Simulator",
-      "CycloNet AI Copilot Access",
-      "High-priority alert routing architecture"
-    ],
-    elevated: true
-  },
-  {
-    name: "National Disaster Command",
-    scope: "National Basin Command",
-    desc: "Enterprise computational suite for NDMA, INCOIS & MoES.",
-    features: [
-      "Everything in Regional Met Centre",
-      "Full INSAT-3DR Raw Ingestion Hub",
-      "Automated CAP-CP Early Warning Broadcast",
-      "On-Premise / Sovereign Cloud Deployment",
-      "Dedicated sovereign computational cluster blueprint"
-    ],
-    elevated: false
-  }
+  {name:"Explore records",scope:"Research",desc:"Inspect source provenance and historical observations.",features:["Source timestamps","Missing data states","Historical archive"],elevated:false},
+  {name:"Compare scenarios",scope:"Experimental",desc:"Study assumptions without treating them as observations.",features:["Illustrative surge calculations","Unverified example infrastructure","No operational recommendations"],elevated:true},
+  {name:"Review readiness",scope:"Verification required",desc:"Assess evidence before any hosted or operational use.",features:["Staging verification required","Independent scientific evaluation pending","No live delivery adapters"],elevated:false}
 ];
 
 export function DeploymentTiers() {
@@ -59,10 +22,10 @@ export function DeploymentTiers() {
         <div className="text-center max-w-2xl mx-auto mb-16 md:mb-24">
           <MicroLabel className="mb-4 inline-block">Architecture Deployment Framework</MicroLabel>
           <h2 className="text-3xl md:text-5xl font-black font-heading tracking-tight text-text-primary mb-4">
-            Scaled for your operational jurisdiction.
+            Choose a research workflow.
           </h2>
           <p className="text-text-muted text-sm md:text-base leading-relaxed">
-            From district emergency operation centers to national disaster headquarters, deploy the meteorological tools that match your operational scope.
+            Explore records and scenarios while keeping validation and deployment requirements visible.
           </p>
         </div>
 
@@ -120,14 +83,14 @@ export function DeploymentTiers() {
                     !tier.elevated && "bg-card border-surface-border text-text-primary hover:bg-card/80"
                   )}
                   onClick={() => {
-                    const subject = encodeURIComponent(`Operational Briefing Request: ${tier.name}`);
+                    const subject = encodeURIComponent(`Research Briefing Request: ${tier.name}`);
                     const body = encodeURIComponent(
-                      `Hello CycloNet Team,\n\nI would like to request an operational briefing for the ${tier.name} (${tier.scope}) deployment tier.\n\nAgency / Department:\nJurisdiction:\nPrimary Contact:\nPhone:`
+                      `Hello CycloNet Team,\n\nI would like to request an research briefing for the ${tier.name} (${tier.scope}) deployment tier.\n\nAgency / Department:\nJurisdiction:\nPrimary Contact:\nPhone:`
                     );
                     window.location.href = `mailto:operations@cyclonet.org?subject=${subject}&body=${body}`;
                   }}
                 >
-                  Request Operational Briefing
+                  Request Research Briefing
                 </PillButton>
               </GlassPanel>
             </motion.div>

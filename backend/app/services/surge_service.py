@@ -31,7 +31,7 @@ class HydrodynamicSurgeService:
         # 2. Wind Setup on Shallow Continental Shelf:
         # Implements steady-state shallow-water momentum balance: dS/dx = tau_w / (rho_w * g * h)
         # Garratt drag coefficient formulation: C_d = (0.75 + 0.067 * U_10) * 1e-3 capped at 0.003
-        v_knots = max(20.0, float(intensity_knots))
+        v_knots = max(0.0, float(intensity_knots))
         u10_ms = v_knots * 0.514444  # convert knots to m/s
         cd = min(0.0032, (0.75 + 0.067 * u10_ms) * 1e-3)
         rho_air = 1.225  # kg/m^3
@@ -91,10 +91,14 @@ class HydrodynamicSurgeService:
             "inverted_barometer_m": round(inverted_barometer_surge_m, 2),
             "wind_setup_m": round(wind_surge_m, 2),
             "inland_penetration_km": inland_penetration_km,
-            "uncertainty_range_m": [round(max(0.0, total_peak_surge_m * 0.8), 2), round(total_peak_surge_m * 1.25, 2)],
+            "uncertainty_range_m": None,
+            "mode":"SCENARIO", "is_simulation":True, "scientifically_validated":False,
+            "bathymetry_source":"Assumed constants; no surveyed bathymetry",
+            "elevation_source":"Assumed slope; no DEM sampled",
+            "uncertainty_status":"NOT_VALIDATED",
             "severity_level": severity,
             "color_hex": color,
-            "warning_advisory": warning,
+            "warning_advisory": "Illustrative scenario only; no observed hazard or operational advisory.",
             "bathymetry_shelf_width_km": round(shelf_width_m / 1000.0, 1),
             "bathymetry_avg_depth_m": avg_shelf_depth_m,
             "solver_architecture": "1D_PARAMETRIC_JELESNIANSKI_DEAN_ANALYTICAL_MODEL",
@@ -125,7 +129,7 @@ class HydrodynamicSurgeService:
             {
                 "sector_name": "Left Forward Quadrant (Offshore Wind Sector)",
                 "offset_km": "-35km Southwest",
-                "estimated_surge_m": max(0.5, round(peak * 0.55, 2)),
+                "estimated_surge_m": max(0.0, round(peak * 0.55, 2)),
                 "inundation_depth_m": f"{max(0.0, peak * 0.4):.1f}m - {peak * 0.55:.1f}m",
                 "risk_rating": "HIGH",
                 "is_illustrative_scenario": True,
@@ -134,7 +138,7 @@ class HydrodynamicSurgeService:
             {
                 "sector_name": "Estuarine / River Confluence Zone",
                 "offset_km": "+60km North-East",
-                "estimated_surge_m": max(0.8, round(peak * 0.85, 2)),
+                "estimated_surge_m": max(0.0, round(peak * 0.85, 2)),
                 "inundation_depth_m": f"{max(0.0, peak * 0.7):.1f}m - {peak * 0.85:.1f}m",
                 "risk_rating": "CRITICAL",
                 "is_illustrative_scenario": True,

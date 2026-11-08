@@ -1,4 +1,5 @@
 "use client";
+import type { TrackPoint, WeatherSystem as ActiveSystem } from "@/types/api";
 
 import React, { useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
@@ -51,28 +52,9 @@ interface CycloneArchiveItem {
   dates: string;
 }
 
-interface TrackPoint {
-  lat: number;
-  lon: number;
-  time_offset_hours: number;
-  category: string;
-  intensity_knots: number | null;
-  is_forecast: boolean;
-  is_landfall?: boolean;
-  label?: string;
-}
 
-interface ActiveSystem {
-  id: string;
-  name: string;
-  basin: string;
-  lat: number;
-  lon: number;
-  intensity_knots: number | null;
-  category: string;
-  track_forecast: TrackPoint[];
-  landfall_info?: import("@/types/api").LandfallInfo;
-}
+
+
 
 const PRESETS = [
   {
@@ -120,6 +102,7 @@ export default function ComparePage() {
     async function fetchList() {
       try {
         const res = await fetch(`${getApiBaseUrl()}/api/history/search`);
+        if (!res.ok) throw new Error("Source unavailable");
         if (res.ok) {
           const data = await res.json();
           setCyclonesList(data);
@@ -135,14 +118,17 @@ export default function ComparePage() {
   useEffect(() => {
     const controller = new AbortController();
     async function fetchSys1() {
+      setSystem1(null);
       try {
         const res = await fetch(`${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${selectedId1}`, {signal: controller.signal});
+        if (!res.ok) throw new Error("Source unavailable");
         if (res.ok) {
           const data = await res.json();
           if (!controller.signal.aborted) setSystem1(data?.[0] ?? null);
         }
-      } catch (err) {
-        if (!controller.signal.aborted) setSystem1(null);
+      } catch (err: unknown) {
+        if ((err instanceof Error && err.name === "AbortError") || controller.signal.aborted) return;
+        setSystem1(null);
         console.error("Error fetching system 1 trajectory", err);
       }
     }
@@ -154,14 +140,17 @@ export default function ComparePage() {
   useEffect(() => {
     const controller = new AbortController();
     async function fetchSys2() {
+      setSystem2(null);
       try {
         const res = await fetch(`${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${selectedId2}`, {signal: controller.signal});
+        if (!res.ok) throw new Error("Source unavailable");
         if (res.ok) {
           const data = await res.json();
           if (!controller.signal.aborted) setSystem2(data?.[0] ?? null);
         }
-      } catch (err) {
-        if (!controller.signal.aborted) setSystem2(null);
+      } catch (err: unknown) {
+        if ((err instanceof Error && err.name === "AbortError") || controller.signal.aborted) return;
+        setSystem2(null);
         console.error("Error fetching system 2 trajectory", err);
       }
     }

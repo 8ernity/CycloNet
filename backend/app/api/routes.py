@@ -5,7 +5,9 @@ import logging
 import datetime
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Header, Request, Response, Query
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+from enum import Enum
+from app.models.ai_requests import ChatMessageRequest, BriefingRequest
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -26,13 +28,23 @@ from app.core.auth import (
     require_admin_user
 )
 from app.core.rate_limit import enforce_rate_limit
+from app.core.inference_budget import run_inference
 
 logger = logging.getLogger(__name__)
 MAX_IMAGE_SIZE_BYTES = 15 * 1024 * 1024  # 15 MB threshold
 
 router = APIRouter()
 
+class Provenance(str, Enum):
+    LIVE_OBSERVATION = 'LIVE_OBSERVATION'
+    OFFICIAL_FORECAST = 'OFFICIAL_FORECAST'
+    HISTORICAL_ARCHIVE = 'HISTORICAL_ARCHIVE'
+    EXPERIMENTAL_FORECAST = 'EXPERIMENTAL_FORECAST'
+    DEMO_SIMULATION = 'DEMO_SIMULATION'
+    UNKNOWN = 'UNKNOWN'
+
 class TrackPoint(BaseModel):
+    provenance: Provenance = Provenance.UNKNOWN
     lat: float = Field(ge=-90, le=90, allow_inf_nan=False)
     lon: float = Field(ge=-180, le=180, allow_inf_nan=False)
     time_offset_hours: int
@@ -48,6 +60,7 @@ class TrackPoint(BaseModel):
     issue_time_utc: Optional[datetime.datetime] = None
 
 class SystemResponse(BaseModel):
+    provenance: Provenance = Provenance.UNKNOWN
     id: str
     name: str
     basin: str
@@ -55,6 +68,9 @@ class SystemResponse(BaseModel):
     lon: float = Field(ge=-180, le=180, allow_inf_nan=False)
     intensity_knots: Optional[int] = Field(None, ge=0, le=350)
     central_pressure_hpa: Optional[float] = Field(None, ge=800, le=1100, allow_inf_nan=False)
+    wind_convention: Optional[str] = None
+    movement_speed_raw: Optional[float] = None
+    movement_speed_source_unit: Optional[str] = None
     movement_speed_kmph: Optional[float] = Field(None, ge=0, le=200, allow_inf_nan=False)
     movement_direction: Optional[str] = None
     observation_time_utc: Optional[datetime.datetime] = None
@@ -83,6 +99,28 @@ class SystemResponse(BaseModel):
     landfall_info: Optional[Dict[str, Any]] = None
     is_landfall_completed: Optional[bool] = None
 
+    @model_validator(mode='after')
+    def explicit_provenance(self):
+        if self.is_simulation:
+            self.provenance = Provenance.DEMO_SIMULATION
+        elif self.telemetry_type == 'HISTORICAL_BEST_TRACK':
+            self.provenance = Provenance.HISTORICAL_ARCHIVE
+        elif self.is_live_telemetry:
+            self.provenance = Provenance.LIVE_OBSERVATION
+        for point in self.track_forecast:
+            if self.is_simulation:
+                point.provenance = Provenance.DEMO_SIMULATION
+                point.is_observed = False
+            elif self.provenance == Provenance.HISTORICAL_ARCHIVE:
+                point.provenance = Provenance.HISTORICAL_ARCHIVE
+            elif point.is_forecast:
+                # No independently verified official forecast adapter is connected.
+                point.provenance = Provenance.EXPERIMENTAL_FORECAST
+                point.is_observed = False
+            elif self.provenance == Provenance.LIVE_OBSERVATION:
+                point.provenance = Provenance.LIVE_OBSERVATION
+        return self
+
 class IngestStatusResponse(BaseModel):
     status: str
     last_sync: Optional[str]
@@ -91,11 +129,6 @@ class IngestStatusResponse(BaseModel):
     sources_status: Dict[str, str]
     last_error: Optional[str] = None
     basin_status: str = 'STATUS_UNCERTAIN'
-
-class ChatMessageRequest(BaseModel):
-    message: str
-    history: Optional[List[Dict[str, str]]] = None
-    ui_context: Optional[Dict[str, Any]] = None
 
 class ChatMessageResponse(BaseModel):
     response: str
@@ -245,7 +278,7 @@ async def classify_image(
         raise HTTPException(status_code=400, detail=str(e))
     
     try:
-        result = ml_service.predict(image_bytes)
+        result = await run_inference(req, current_user, ml_service.predict, image_bytes)
         
         # Log classification request scoped to user (SEC-13)
         user_id = current_user.get("id") if current_user else None
@@ -287,29 +320,8 @@ async def search_history(
             CycloneArchive.id.ilike(term) |
             CycloneArchive.dates.ilike(term)
         )
-    # Legacy archive dates are human-readable ranges. Sort the matching catalog
-    # before slicing; sorting each database page can hide the newest storms.
-    cyclones = q.all()
-    
-    MONTHS_MAP = {
-        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
-        'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12
-    }
-    
-    def get_sort_key(c):
-        y = c.year or 0
-        m = 0
-        d = 0
-        parts = (c.dates or '').split('-')[0].strip().split()
-        for p in parts:
-            p_clean = p.lower()[:3]
-            if p_clean in MONTHS_MAP:
-                m = MONTHS_MAP[p_clean]
-            elif p.isdigit():
-                d = int(p)
-        return (y, m, d, c.id)
-        
-    cyclones_sorted = sorted(cyclones, key=get_sort_key, reverse=True)[offset:offset + limit]
+    cyclones_sorted = q.order_by(CycloneArchive.start_date.desc(),
+                                 CycloneArchive.id.desc()).offset(offset).limit(limit).all()
     return [
         {
             "id": c.id,
@@ -354,7 +366,7 @@ async def chat_with_cyclonet(
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
     
     enforce_rate_limit(req, endpoint_type="chat", user=current_user, response=response)
-    result = await asyncio.to_thread(chat_service.ask, request.message, history=request.history, db=db, ui_context=request.ui_context)
+    result = await run_inference(req, current_user, chat_service.ask, request.message, history=[m.model_dump() for m in request.history], db=db, ui_context=request.ui_context.model_dump() if request.ui_context else None)
     return result
 
 # ── Meteorological Alerts & Reports System Endpoints ─────────────────────────
@@ -414,7 +426,7 @@ async def dispatch_advisory(
     current_user: Dict[str, Any] = Depends(require_operator_user)
 ):
     """
-    Executes early warning advisory dispatch (SEC-04, AI-04: requires authorized operator).
+    Creates a local exercise draft (SEC-04, AI-04: requires authorized operator).
     """
     enforce_rate_limit(request, endpoint_type="admin", user=current_user, response=response)
     result = report_service.dispatch_multi_channel_advisory(
@@ -440,7 +452,7 @@ async def broadcast_emergency_alert(
     current_user: Dict[str, Any] = Depends(require_operator_user),
     db: Session = Depends(get_db)
 ):
-    """Simulates multi-channel NDMA CAP-CP emergency broadcast dispatch in sandbox (SEC-04: requires operator)."""
+    """Creates provider-neutral exercise communication drafts (SEC-04: requires operator)."""
     enforce_rate_limit(request, endpoint_type="admin", user=current_user, response=response)
     target = None
     if req.system_id:
@@ -497,7 +509,7 @@ async def get_gee_flood_inundation(
     lon: float = Query(84.8, ge=-180.0, le=180.0),
     knots: int = Query(85, ge=0, le=350)
 ):
-    """Generates Sentinel-1 SAR coastal flood extent GeoJSON."""
+    """Returns experimental ellipse flood scenarios; no satellite observations."""
     enforce_rate_limit(req, endpoint_type="simulation", user=None, response=response)
     return gee_service.get_flood_inundation_zones(lat, lon, knots)
 
@@ -509,12 +521,12 @@ async def get_gee_rainfall_pathways(
     lon: float = Query(84.8, ge=-180.0, le=180.0),
     rain_mm: float = Query(280.0, ge=0.0, le=2500.0)
 ):
-    """Generates DEM-informed catchment runoff pathway simulation and critical drainage choke points."""
+    """Generates Assumed-terrain catchment runoff pathway simulation and critical drainage choke points."""
     enforce_rate_limit(req, endpoint_type="simulation", user=None, response=response)
     return {
         "status": "success",
-        "mode": "DEM_INFORMED_RUNOFF_SIMULATION",
-        "method": "DEM-informed catchment runoff pathway simulation",
+        "mode": "ASSUMED_TERRAIN_RUNOFF_SIMULATION",
+        "method": "Assumed-terrain catchment runoff pathway simulation",
         "center": [lat, lon],
         "rain_accumulation_mm": rain_mm,
         "pathways": gee_service.get_catchment_rainfall_pathways(lat, lon, rain_mm)
@@ -548,12 +560,15 @@ async def calculate_storm_surge(
 
 @router.get("/surge/profile")
 async def get_coastal_surge_profile(
+    req: Request,
+    response: Response,
     name: str = Query("Cyclone", max_length=100),
     lat: float = Query(18.2, ge=-90.0, le=90.0),
     lon: float = Query(84.8, ge=-180.0, le=180.0),
     knots: int = Query(85, ge=0, le=350)
 ):
-    """Generates quadrant-by-quadrant coastal surge profiles and critical asset risk ratings."""
+    """Illustrative coastal profile, not observed water levels or asset conditions."""
+    enforce_rate_limit(req, endpoint_type="simulation", user=None, response=response)
     return {
         "status": "success",
         "cyclone_name": name,
@@ -564,11 +579,6 @@ async def get_coastal_surge_profile(
 # Track 5: Gemini Multimodal AI & Pre-Landfall Briefings
 # ─────────────────────────────────────────────────────────────────────────────
 
-class BriefingRequest(BaseModel):
-    storm_data: Dict[str, Any]
-    infrastructure_data: Optional[Dict[str, Any]] = None
-    language: str = Field("en", max_length=10)
-
 @router.post("/ai/analyze-multimodal")
 async def analyze_multimodal_satellite(
     req: Request,
@@ -577,7 +587,7 @@ async def analyze_multimodal_satellite(
     prompt: Optional[str] = Query(None, max_length=500),
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Performs multimodal Dvorak and convective structural analysis using Gemini."""
+    """Returns disabled meteorological vision capability pending scientific validation."""
     enforce_rate_limit(req, endpoint_type="multimodal", user=current_user, response=response)
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Uploaded file must be a satellite/radar image")
@@ -591,7 +601,7 @@ async def analyze_multimodal_satellite(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     
-    analysis = await asyncio.to_thread(
+    analysis = await run_inference(req, current_user,
         chat_service.analyze_satellite_image,
         image_bytes=image_bytes,
         mime_type=file.content_type,
@@ -610,13 +620,21 @@ async def generate_pre_landfall_briefing(
     response: Response,
     current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
 ):
-    """Generates an authoritative executive pre-landfall briefing for disaster magistrates."""
+    """Summarizes an explicit scenario or backend-resolved observation."""
+    if req_body.mode == "OBSERVATION":
+        from app.services.observation_context import basin_snapshot
+        snapshot = basin_snapshot()
+        storm = next((s for s in snapshot['systems'] if s['id'] == req_body.system_id), None)
+        if storm is None:
+            raise HTTPException(503, "Verified current observation unavailable")
+    else:
+        storm = req_body.storm_data.model_dump()
     enforce_rate_limit(req, endpoint_type="briefing", user=current_user, response=response)
-    briefing = await asyncio.to_thread(
+    briefing = await run_inference(req, current_user,
         chat_service.generate_pre_landfall_briefing,
-        storm_data=req_body.storm_data,
-        infrastructure_data=req_body.infrastructure_data or {},
-        language=req_body.language
+        storm_data=storm,
+        infrastructure_data={},
+        language=req_body.language, mode=req_body.mode
     )
     return {
         "status": "success",

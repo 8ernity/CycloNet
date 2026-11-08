@@ -127,14 +127,17 @@ async def test_api_alert_dispatch_endpoint():
         )
         assert r.status_code == 200
         data = r.json()
-        assert data["status"] == "SIMULATED_DISPATCH_COMPLETE"
+        # V6 deliberately replaces fictitious dispatch receipts with local drafts.
+        assert data["status"] == "EXERCISE_DRAFT_CREATED"
+        assert data["production_dispatch_ready"] is False
         assert "cap_xml" in data
         assert "sms_payload" in data
         assert "sachet_payload" in data
         assert "siren_payload" in data
         assert "vhf_payload" in data
         assert "municipal_briefing" in data
-        assert len(data["municipal_briefing"]) >= 3
-        assert "CAP" in data["channels_delivered"]
-        assert "SMS" in data["channels_delivered"]
+        assert all("de-energ" not in line.lower() for line in data["municipal_briefing"])
+        assert data["channels_delivered"] == {}
+        assert "CAP" in data["channel_drafts"]
+        assert "SMS" in data["channel_drafts"]
 

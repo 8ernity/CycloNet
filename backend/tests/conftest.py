@@ -15,6 +15,10 @@ os.environ["ADMIN_API_KEY"] = "test-remediation-admin-key-2026"
 os.environ["JWT_SECRET_KEY"] = "test-remediation-secret-key-32byteslong!!"
 os.environ["CLERK_SECRET_KEY"] = "test-clerk-secret-key"
 
+# A running developer server must not share leader locks with test workers.
+from app.core import process_lock
+process_lock.LOCK_FILE = str(Path(_test_storage.name) / 'worker.lock')
+
 from app.core import auth
 from app.core.database import init_db
 

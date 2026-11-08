@@ -1,4 +1,5 @@
 "use client";
+import type { TrackPoint } from "@/types/api";
 
 import React, { useState } from 'react';
 import { 
@@ -31,16 +32,7 @@ function ChangeView({ center, zoom }: { center: [number, number]; zoom: number }
   return null;
 }
 
-interface TrackPoint {
-  lat: number;
-  lon: number;
-  time_offset_hours: number;
-  category: string;
-  intensity_knots: number | null;
-  is_forecast: boolean;
-  is_landfall?: boolean;
-  label?: string;
-}
+
 
 interface CycloneComparisonSystem {
   id: string;

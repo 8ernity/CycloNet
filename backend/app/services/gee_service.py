@@ -14,8 +14,8 @@ from datetime import datetime
 
 class SatelliteFloodDetectionService:
     """
-    Genuine Earth Observation (EO) flood detection using Google Earth Engine.
-    Only returns measured pixels from authentic Sentinel-1 SAR or Sentinel-2 multispectral passes.
+    Disabled Earth Observation interface pending a validated processing pipeline.
+    No measured pixels are currently produced.
     Never synthesizes geometric buffer polygons.
     """
     def __init__(self, project_id: Optional[str] = None):
@@ -115,7 +115,7 @@ class ExperimentalFloodSimulationService:
                 "zone_name": "High Vulnerability Flood Inundation Zone (Simulation)",
                 "water_depth_m": outer_depth_m,
                 "confidence_score": None,
-                "confidence_score_simulated": round(min(0.96, 0.75 + (kt / 350.0)), 2),
+                "confidence_score_simulated": None,
                 "satellite_source": "Topographic Elevation + Distance Buffer Heuristic (Simulation)",
                 "origin": "EXPERIMENTAL_HYDROLOGICAL_SIMULATION",
                 "is_satellite_measured": False,
@@ -143,7 +143,7 @@ class ExperimentalFloodSimulationService:
                 "zone_name": "Surge Breach & Direct Marine Flooding (Simulation)",
                 "water_depth_m": core_depth_m,
                 "confidence_score": None,
-                "confidence_score_simulated": round(min(0.99, 0.82 + (kt / 350.0)), 2),
+                "confidence_score_simulated": None,
                 "satellite_source": "Topographic Elevation + Distance Buffer Heuristic (Simulation)",
                 "origin": "EXPERIMENTAL_HYDROLOGICAL_SIMULATION",
                 "is_satellite_measured": False,
@@ -166,7 +166,7 @@ class ExperimentalFloodSimulationService:
             "origin": "EXPERIMENTAL_HYDROLOGICAL_SIMULATION",
             "is_satellite_measured": False,
             "pipeline": "Parametric Hydrodynamic Flood Inundation Simulation",
-            "methodology_disclaimer": "Simulated hydrodynamic buffer polygons. Direct pixel-level SAR matrix thresholding requires authenticated Earth Engine API session with active image overpass.",
+            "methodology_disclaimer": "Simulated hydrodynamic buffer polygons. Direct pixel-level SAR matrix thresholding requires implemented processing, scene selection and independent validation in addition to authorized Earth Engine access.",
             "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
             "gee_sensor": "COPERNICUS/S1_GRD (Simulation Model Parameterized)",
             "center": [center_lat, center_lon],
@@ -183,7 +183,7 @@ class ExperimentalFloodSimulationService:
         accumulated_rain_mm: float = 280.0
     ) -> List[Dict[str, Any]]:
         """
-        DEM-informed catchment runoff pathway simulation.
+        Assumed-terrain catchment runoff pathway simulation.
         Evaluates river basin drainage and catchment flash flood pathways.
         """
         if center_lat >= 21.0:
@@ -238,7 +238,10 @@ class ExperimentalFloodSimulationService:
                 "lon": cp["lon"],
                 "distance_km": round(dist_km, 1),
                 "eta_hours": eta_h,
-                "status": status_txt,
+                "status": "UNVERIFIED",
+                "scenario_status": status_txt,
+                "is_simulation": True,
+                "source": "ILLUSTRATIVE_ASSET",
                 "depth_m": depth_m,
                 "risk": risk_lvl
             })
@@ -248,18 +251,22 @@ class ExperimentalFloodSimulationService:
                 "id": "pathway-primary-drainage",
                 "name": f"{basin_primary} Main Drainage Corridor",
                 "basin": basin_primary,
-                "mode": "DEM_INFORMED_RUNOFF_SIMULATION",
+                "mode": "ASSUMED_TERRAIN_RUNOFF_SIMULATION",
                 "origin": "EXPERIMENTAL_HYDROLOGICAL_SIMULATION",
                 "is_satellite_measured": False,
-                "derivation_method": "DEM-informed catchment runoff pathway simulation (Topographic DEM slope & catchment drainage model)",
-                "dem_slope_deg": slope_deg,
+                "is_simulation": True,
+                "scientifically_validated": False,
+                "terrain_source": "ASSUMED_SCENARIO",
+                "derivation_method": "Assumed-terrain catchment runoff pathway simulation (assumed slope and illustrative drainage model)",
+                "assumed_slope_deg": slope_deg,
                 "rain_accumulation_mm": accumulated_rain_mm,
                 "forecast_window_hours": 24,
                 "discharge_rate_cumecs": int(accumulated_rain_mm * 18.5),
                 "runoff_risk": "CRITICAL" if accumulated_rain_mm > 200 else "HIGH",
-                "flow_accumulation_vector": "DEM-informed seaward gravity runoff vector (North-West to South-East)",
+                "flow_accumulation_vector": "Assumed-terrain seaward gravity runoff vector (North-West to South-East)",
                 "critical_choke_points": choke_points_1,
-                "road_crossings_impacted": ["NH-16 Choke Point (KM 142)", "State Highway 57 Low Causeways"],
+                "road_crossings_impacted": [],
+                "scenario_road_examples": ["NH-16 Choke Point (KM 142)", "State Highway 57 Low Causeways"],
                 "substations_at_risk": ["220kV Primary Coastal Substation", "132kV Switching Feeder"],
                 "coordinates": [
                     [center_lat - 0.45, center_lon - 0.35],
@@ -272,18 +279,22 @@ class ExperimentalFloodSimulationService:
                 "id": "pathway-estuary-convergence",
                 "name": f"{basin_primary} Tidal Estuary Surge & Runoff Convergence",
                 "basin": basin_primary,
-                "mode": "DEM_INFORMED_RUNOFF_SIMULATION",
+                "mode": "ASSUMED_TERRAIN_RUNOFF_SIMULATION",
                 "origin": "EXPERIMENTAL_HYDROLOGICAL_SIMULATION",
                 "is_satellite_measured": False,
-                "derivation_method": "DEM-informed catchment runoff pathway simulation (Estuarine backwater bottleneck model)",
-                "dem_slope_deg": round(slope_deg * 0.7, 2),
+                "is_simulation": True,
+                "scientifically_validated": False,
+                "terrain_source": "ASSUMED_SCENARIO",
+                "derivation_method": "Assumed-terrain catchment runoff pathway simulation (Estuarine backwater bottleneck model)",
+                "assumed_slope_deg": round(slope_deg * 0.7, 2),
                 "rain_accumulation_mm": round(accumulated_rain_mm * 1.12, 1),
                 "forecast_window_hours": 24,
                 "discharge_rate_cumecs": int(accumulated_rain_mm * 24.2),
                 "runoff_risk": "CRITICAL",
-                "flow_accumulation_vector": "DEM-informed compound backwater bottleneck at estuarine barrier",
+                "flow_accumulation_vector": "Assumed-terrain compound backwater bottleneck at estuarine barrier",
                 "critical_choke_points": choke_points_1[-2:],
-                "road_crossings_impacted": ["Coastal Highway Embankment Arterial", "Port Access Link Corridor"],
+                "road_crossings_impacted": [],
+                "scenario_road_examples": ["Coastal Highway Embankment Arterial", "Port Access Link Corridor"],
                 "substations_at_risk": ["400kV Coastal Maritime Power Terminal", "33kV Marine Feeder"],
                 "coordinates": [
                     [center_lat - 0.6, center_lon - 0.1],
@@ -297,7 +308,7 @@ class ExperimentalFloodSimulationService:
 class GoogleEarthEngineService:
     """
     Unified geospatial service coordinating satellite Earth Observation queries
-    and calibrated hydrological simulations with strict provenance separation.
+    and unvalidated hydrological simulations with strict provenance separation.
     """
     def __init__(self):
         self.satellite_service = SatelliteFloodDetectionService()
@@ -316,44 +327,16 @@ class GoogleEarthEngineService:
         return self.satellite_service.is_initialized
 
     def get_available_layers(self) -> List[Dict[str, Any]]:
-        return [
-            {
-                "id": "sentinel1_sar_flood",
-                "name": "Sentinel-1 SAR Flood Inundation (Simulation Fallback / EO Sensor)",
-                "sensor": "COPERNICUS/S1_GRD",
-                "resolution": "10m",
-                "description": "Synthetic Aperture Radar dual-pol backscatter (VV+VH) mapping coastal and riverine flood extent.",
-                "type": "radar_sar",
-                "color_palette": ["#00000000", "#00ffff", "#0055ff", "#000088"]
-            },
-            {
-                "id": "sentinel2_mndwi",
-                "name": "Sentinel-2 Multi-Spectral Water Index (MNDWI)",
-                "sensor": "COPERNICUS/S2_SR_HARMONIZED",
-                "resolution": "10m",
-                "description": "Shortwave Infrared (SWIR) and Green band ratio highlighting expanded inland water bodies.",
-                "type": "optical_multispectral",
-                "color_palette": ["#ffffff00", "#38bdf8", "#0284c7", "#0369a1"]
-            },
-            {
-                "id": "srtm_dem_elevation",
-                "name": "NASA SRTM 30m Coastal DEM & Slope",
-                "sensor": "USGS/SRTMGL1_003",
-                "resolution": "30m",
-                "description": "Digital Elevation Model identifying low-lying coastal terrain (< 3.0m).",
-                "type": "elevation_dem",
-                "color_palette": ["#15803d", "#84cc16", "#eab308", "#f97316", "#ef4444"]
-            },
-            {
-                "id": "gfs_tpw_precipitation",
-                "name": "NOAA GFS Total Precipitable Water",
-                "sensor": "NOAA/GFS0P25",
-                "resolution": "0.25 deg",
-                "description": "Atmospheric column water vapor and 48-hour accumulated rainfall forecasting compound deluge risks.",
-                "type": "atmospheric_nwp",
-                "color_palette": ["#f0fdf4", "#86efac", "#3b82f6", "#8b5cf6", "#d946ef"]
-            }
-        ]
+        # Catalogue references are not implemented/verified data products.
+        return [{"id":ident, "name":name, "sensor":sensor, "resolution":None,
+                 "description":"Unavailable: no validated acquisition or processing product is connected.",
+                 "capability_status":"DISABLED", "is_satellite_measured":False,
+                 "scientifically_validated":False, "type":"unavailable", "color_palette":[]}
+                for ident,name,sensor in [
+                    ("sentinel1_sar_flood","Sentinel-1 flood observations (unavailable)","COPERNICUS/S1_GRD"),
+                    ("sentinel2_mndwi","Sentinel-2 water index (unavailable)","COPERNICUS/S2_SR_HARMONIZED"),
+                    ("srtm_dem_elevation","Surveyed terrain (unavailable)","USGS/SRTMGL1_003"),
+                    ("gfs_tpw_precipitation","Precipitation product (unavailable)","NOAA/GFS0P25")]]
 
     def get_satellite_observed_flood(self, center_lat: float, center_lon: float) -> Dict[str, Any]:
         return self.satellite_service.get_satellite_observed_flood(center_lat, center_lon)

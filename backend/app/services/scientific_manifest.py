@@ -125,7 +125,7 @@ def load_training_csv(path):
     if metadata.get('manifest_sha256') != sha256_file(path):
         raise ValueError('Scientific manifest provenance checksum mismatch')
     if metadata.get('training_ready') is not True:
-        from train_classifier import InsufficientDatasetError
+        from app.services.dataset_errors import InsufficientDatasetError
         raise InsufficientDatasetError('BLOCKED_EXTERNAL_DATASET: inventory has no reviewed, complete scientific image dataset')
     samples = []
     with path.open(encoding='utf-8', newline='') as stream:

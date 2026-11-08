@@ -21,9 +21,7 @@ from torchvision import transforms
 from torchvision.models import resnet50, ResNet50_Weights
 from PIL import Image
 
-class InsufficientDatasetError(Exception):
-    """Raised when dataset lacks sufficient independent storm events to construct disjoint partitions."""
-    pass
+from app.services.dataset_errors import InsufficientDatasetError
 
 class DataLeakageError(Exception):
     """Raised when duplicate images or storm events are shared across train, val, or test splits."""

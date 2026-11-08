@@ -126,180 +126,44 @@ class MeteorologicalReportService:
         return ET.tostring(root, encoding="utf-8", xml_declaration=True).decode("utf-8")
 
     def simulate_emergency_broadcast(self, system: Dict[str, Any], alert_type: str, channels: List[str]) -> Dict[str, Any]:
-        """Simulates a multi-channel emergency alert dispatch with delivery metrics."""
-        name = system.get("name", "Cyclone")
-        knots = system.get("intensity_knots")
-        districts = self.get_affected_districts(system.get("basin", ""), system.get("lat", 17.5), system.get("lon", 84.5))
-        
-        target_names = [d["district"] for d in districts]
-        dispatch_id = f"CAP-SANDBOX-{uuid.uuid4().hex[:6].upper()}"
-        now = datetime.utcnow()
-
-        channel_metrics = {}
-        total_recipients = 0
-
-        for ch in channels:
-            ch_lower = ch.lower()
-            if ch_lower == "sms":
-                channel_metrics["sms"] = {
-                    "channel_name": "NDMA Cell Broadcast & SMS Gateway (Drill Simulation)",
-                    "status": "Simulated Transmission",
-                    "recipients_targeted": "Simulated Local Buffer",
-                    "delivered": "Simulation Drill Verified",
-                    "delivery_rate": "100% (Synthetic Payload)",
-                    "avg_latency": "1.8s (Local Benchmark)"
-                }
-            elif ch_lower == "siren":
-                channel_metrics["siren"] = {
-                    "channel_name": "Coastal Acoustic Early Warning Sirens (Hardware Protocol Schema)",
-                    "status": "Simulated Activation",
-                    "towers_active": "District Coastal Array (Drill Trigger)",
-                    "coverage": "Coastal Sector Coverage Protocol",
-                    "delivery_rate": "100% (Hardware Schema)",
-                    "avg_latency": "0.4s"
-                }
-            elif ch_lower == "vhf":
-                channel_metrics["vhf"] = {
-                    "channel_name": "Indian Coast Guard Marine Navtex / VHF Ch 16 (Broadcast Script)",
-                    "status": "Simulated Marine Transmission",
-                    "coastal_stations": "Marine Safety Loop Script",
-                    "delivery_rate": "100% (Script Generated)",
-                    "avg_latency": "Instant"
-                }
-            elif ch_lower == "sachet":
-                channel_metrics["sachet"] = {
-                    "channel_name": "National NDMA Sachet CAP Mobile Feed (Sandbox Format)",
-                    "status": "Simulated Push Notification",
-                    "subscribers": "Standard OASIS CAP JSON Payload Generated (Drill Mode)",
-                    "delivery_rate": "N/A (Simulation Mode - No Live Subscribers)",
-                    "avg_latency": "0.9s (Local Benchmark)"
-                }
-
+        """Create local exercise templates. No delivery adapter is configured."""
         return {
-            "dispatch_id": dispatch_id,
-            "mode": "SANDBOX_SIMULATION",
-            "system_name": name,
-            "alert_type": alert_type,
-            "timestamp": now.strftime("%Y-%m-%d %H:%M:%S UTC"),
-            "target_districts": target_names,
-            "channels_used": channels,
-            "channel_metrics": channel_metrics,
-            "overall_status": "SIMULATED_DISPATCH_COMPLETE",
-            "message_payload": f"[TEST SIMULATION] EMERGENCY WARNING: {system.get('category', 'Cyclone')} {name} warning active. Sustained winds {(round(knots*1.852) if knots is not None else 'Not available')} km/h. Coastal communities follow local authority evacuation instructions immediately."
+            "dispatch_id": f"CYCLONET-EXERCISE-{uuid.uuid4().hex}",
+            "mode": "SANDBOX_SIMULATION", "system_name": system.get("name", "Unknown"),
+            "alert_type": alert_type, "timestamp": datetime.utcnow().isoformat()+"Z",
+            "target_districts": [], "channels_used": channels,
+            "channel_metrics": {ch.lower(): {"channel_name": f"{ch.upper()} exercise template",
+                "status":"DRAFT_ONLY", "recipients_targeted":None, "delivered":None,
+                "delivery_rate":None, "avg_latency":None} for ch in channels},
+            "overall_status":"EXERCISE_DRAFT_CREATED", "production_dispatch_ready":False,
+            "message_payload":"EXERCISE ONLY. CycloNet training template; no warning issued or message transmitted."
         }
 
-    def dispatch_multi_channel_advisory(
-        self,
-        region: str,
-        risk_level: str,
-        surge: float,
-        wind: float,
-        channels: List[str],
-        cyclone_name: str = "Active Cyclone"
-    ) -> Dict[str, Any]:
-        """
-        Executes end-to-end multi-channel emergency early warning advisory dispatch in sandbox simulation mode.
-        Generates OASIS CAP-CP 1.2 XML, SMS cell broadcast payloads, NDMA SACHET JSON feeds,
-        coastal acoustic siren protocols, VHF marine distress broadcast, and municipal action directives.
-        """
-        now = datetime.utcnow()
-        dispatch_uuid = f"IN-NDMA-CAP-TEST-{uuid.uuid4().hex[:8].upper()}"
-        wind_kmh = int(wind * 1.852)
-        norm_channels = [c.upper() for c in channels]
-        
-        # Determine Severity and Urgency
-        severity = "Extreme" if risk_level.upper() in ["CRITICAL", "EXTREME"] or wind >= 90 else "Severe"
-        urgency = "Immediate" if risk_level.upper() in ["CRITICAL", "EXTREME"] or surge >= 2.5 else "Expected"
-
-        cap_xml = self.generate_cap_xml({"name": cyclone_name, "basin": region,
-                                         "intensity_knots": wind, "is_simulation": True,
-                                         "source": "User-selected exercise parameters"})
-        real_hash = hashlib.sha256(cap_xml.encode("utf-8")).hexdigest()
-
-        # 2. SMS Cell Broadcast Payloads (Multilingual)
-        sms_payload = {
-            "english": f"[EXERCISE SIMULATION] NDMA DRILL: {risk_level} cyclone scenario in {region}. Peak surge {surge}m, wind {wind_kmh} km/h. Monitor official DDMA directives. Dial 1070 for emergency services.",
-            "hindi": f"[प्रायोगिक अभ्यास] एनडीएमए सिमुलेशन: {region} में {risk_level} चक्रवात परिदृश्य। {surge}m लहर, {wind_kmh} km/h हवा। आधिकारिक डीडीएमए निर्देशों का पालन करें। आपातकालीन नंबर 1070।",
-            "regional": f"[অনুশীলনী সতর্কতা] জরুরি মহড়া: {region} উপকূলে {risk_level} সাইক্লোন পরিস্থিতি। {surge}m জলোচ্ছ্বাস ও {wind_kmh} km/h তীব্র ঝড়। স্থানীয় সরকারি নির্দেশাবলী অনুসরণ করুন।"
-        }
-
-        # 3. NDMA SACHET App Broadcast Feed (JSON format)
-        sachet_payload = {
-            "alert_id": dispatch_uuid,
-            "mode": "SANDBOX_SIMULATION",
-            "provider": "NDMA SACHET National Early Warning Feed (Compatible Sandbox)",
-            "incident_type": "CYCLONE_STORM_SURGE",
-            "target_zone": region,
-            "risk_score": 92 if risk_level.upper() == "CRITICAL" else 75,
-            "hazard_parameters": {
-                "peak_surge_meters": surge,
-                "wind_speed_knots": wind,
-                "wind_speed_kmh": wind_kmh
-            },
-            "action_directive": "EXERCISE_SCENARIO_ADVISORY",
-            "safe_shelters_active": "Illustrative open-data proxy (verify with DDMA)",
-            "broadcast_valid_until_utc": (now + timedelta(hours=8)).isoformat() + "Z"
-        }
-
-        # 4. Coastal Acoustic Siren Sequence
-        siren_payload = {
-            "siren_array_status": "SIMULATED_ACTIVATION",
-            "target_towers": 320,
-            "sound_pressure_level": "130 dB @ 30m",
-            "pulse_pattern": "3-minute rising warble followed by 1-minute silent gap (Standard Evacuation Protocol)",
-            "coverage_radius_km": 15.0
-        }
-
-        # 5. Coast Guard / NAVTEX VHF Channel 16 Broadcast
-        vhf_payload = f"[EXERCISE TRANSMISSION] ALL STATIONS, ALL STATIONS, ALL STATIONS. THIS IS COAST GUARD MARINE RESCUE SUB-CENTRE SIMULATION. {risk_level} CYCLONE ADVISORY IN FORCE FOR {region.upper()}. ESTIMATED SURGE {surge} METRES, WINDS {wind} KNOTS GUSTING TO {int(wind*1.25)} KNOTS. ALL FISHING TRAWLERS AND OFFSHORE VESSELS ADVISE RETURN TO SAFE HARBOUR IMMEDIATELY. BREAK."
-
-        # 6. Municipal & District Magistrate Action Directives (ALERT-04, DATA-08)
-        municipal_directives = [
-            f"Coordinate with District Disaster Management Authorities (DDMA) for official evacuation orders across low-lying coastal belts (< 3.0m elevation AMSL) of {region}.",
-            f"Pre-stage NDRF/SDRF water-rescue teams with motorized boats at identified drainage choke points.",
-            f"Review contingency de-energization plans for coastal 220kV/33kV substations to prevent saltwater flashovers.",
-            f"Verify operational readiness of emergency backup generators and satellite comms at designated Multipurpose Cyclone Shelters."
-        ]
-
-        # Channel Delivery Statuses (AI-05: Transparent Sandbox Simulation without fabricated delivery numbers)
-        channel_results = {}
-        if "CAP" in norm_channels:
-            channel_results["CAP"] = {"status": "SIMULATED_EXERCISE", "format": "OASIS CAP-CP v1.2 XML (Exercise)", "dispatched_to": "NDMA-Compatible Sandbox Endpoint", "delivery_rate": "NOT_APPLICABLE (SIMULATED)"}
-        if "SMS" in norm_channels:
-            channel_results["SMS"] = {"status": "SIMULATED_EXERCISE", "format": "Cell Broadcast 3-Lang SMS", "dispatched_to": "TSP Gateway Simulator", "delivery_rate": "NOT_APPLICABLE (SIMULATED)"}
-        if "SACHET" in norm_channels:
-            channel_results["SACHET"] = {"status": "SIMULATED_EXERCISE", "format": "NDMA SACHET Geo-Push Feed", "payload_status": "Drill Mode (No Live Subscribers)", "delivery_rate": "NOT_APPLICABLE (SIMULATED)"}
-        if "SIREN" in norm_channels:
-            channel_results["SIREN"] = {"status": "SIMULATED_EXERCISE", "format": "Electronic Acoustic Warning Array", "schema_status": "Acoustic Protocol Trigger (Exercise)", "delivery_rate": "NOT_APPLICABLE (SIMULATED)"}
-        if "VHF" in norm_channels:
-            channel_results["VHF"] = {"status": "SIMULATED_EXERCISE", "format": "Marine NAVTEX / VHF Ch 16", "coverage": "Offshore Fishing Fleet Broadcast Script", "delivery_rate": "NOT_APPLICABLE (SIMULATED)"}
-
+    def dispatch_multi_channel_advisory(self, region: str, risk_level: str, surge: float,
+            wind: float, channels: List[str], cyclone_name: str = "Exercise cyclone") -> Dict[str, Any]:
+        """Generate neutral, local-only exercise drafts, never public emergency orders."""
+        cap = self.generate_cap_xml({"name":cyclone_name, "basin":region,
+            "intensity_knots":wind, "is_simulation":True, "source":"User-selected exercise parameters"})
+        message = (f"EXERCISE ONLY — CycloNet training scenario for {region}. "
+            f"User-selected wind {wind} kt and surge {surge} m. No observed conditions or operational instructions are asserted.")
         return {
-            "status": "SIMULATED_DISPATCH_COMPLETE",
-            "mode": "SANDBOX_SIMULATION",
-            "production_dispatch_ready": False,
-            "dispatch_authorization_status": "EXERCISE_SIMULATION_ONLY - NOT AUTHORIZED FOR OPERATIONAL BROADCAST",
-            "dispatch_id": dispatch_uuid,
-            "timestamp": now.strftime("%Y-%m-%d %H:%M:%S UTC"),
-            "region": region,
-            "risk_level": risk_level,
-            "storm_surge_m": surge,
-            "wind_speed_kts": wind,
-            "wind_speed_kmh": wind_kmh,
-            "channels_requested": channels,
-            "channels_delivered": channel_results,
-            "cap_xml": cap_xml,
-            "sms_payload": sms_payload,
-            "sachet_payload": sachet_payload,
-            "siren_payload": siren_payload,
-            "vhf_payload": vhf_payload,
-            "municipal_briefing": municipal_directives,
-            "operational_warning": "CycloNet is an experimental research decision-support simulator. Operational broadcast to public channels requires statutory authorization from national disaster management authorities (NDMA/IMD).",
-            "audit_trail": {
-                "initiator": "CycloNet Anticipatory Early Warning Simulator (Exercise Mode)",
-                "dispatch_latency_ms": "NOT_APPLICABLE (SIMULATED)",
-                "cryptographic_hash": f"SHA256:{real_hash}"
-            }
+            "status":"EXERCISE_DRAFT_CREATED", "mode":"SANDBOX_SIMULATION",
+            "production_dispatch_ready":False, "dispatch_authorization_status":"EXERCISE_ONLY_NO_DELIVERY_ADAPTER",
+            "dispatch_id":f"CYCLONET-EXERCISE-{uuid.uuid4().hex}", "timestamp":datetime.utcnow().isoformat()+"Z",
+            "region":region, "risk_level":risk_level, "storm_surge_m":surge,
+            "wind_speed_kts":wind, "wind_speed_kmh":round(wind*1.852,2),
+            "channels_requested":channels, "channels_delivered":{},
+            "channel_drafts":{ch.upper():{"status":"DRAFT_ONLY", "delivery_rate":None} for ch in channels},
+            "cap_xml":cap, "sms_payload":{"english":message, "hindi":None, "regional":None},
+            "sachet_payload":{"mode":"SANDBOX_SIMULATION", "provider":"CycloNet exercise template",
+                "risk_score":None, "safe_shelters_active":None, "message":message},
+            "siren_payload":{"siren_array_status":"NO_HARDWARE_CONNECTION", "target_towers":None,
+                "sound_pressure_level":None, "pulse_pattern":None, "coverage_radius_km":None},
+            "vhf_payload":"EXERCISE ONLY — local training draft. No radio transmission or navigation instructions.",
+            "municipal_briefing":["Obtain authorized, current field assessments before any operational decision."],
+            "operational_warning":"Exercise templates only. No agency affiliation, authorization, delivery, or hardware operation is implied.",
+            "audit_trail":{"initiator":"CycloNet local exercise", "dispatch_latency_ms":None,
+                "cryptographic_hash":"SHA256:"+hashlib.sha256(cap.encode()).hexdigest()}
         }
 
 report_service = MeteorologicalReportService()
