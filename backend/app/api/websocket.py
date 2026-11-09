@@ -240,6 +240,7 @@ async def serve_socket(websocket, manager):
         await manager.disconnect(websocket)
 
 @ws_router.websocket("/ws/cyclone-stream")
+@ws_router.websocket("/ws/live")
 async def cyclone_websocket_endpoint(websocket: WebSocket):
     await serve_socket(websocket, ws_manager)
 

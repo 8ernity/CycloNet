@@ -232,7 +232,7 @@ Exact versions belong to the checked-in lockfiles. The assistant's current code 
 
 ## Run locally
 
-Use **Python 3.11**, **Node 22** as used by CI, and the dependency locks. Configure a Clerk **test instance** shared by frontend and backend. Keep real credentials out of Git, logs and browser-exposed variables.
+Use **Python 3.11.5 or later in the 3.11 series** (locally verified with 3.11.15), **Node 22** as used by CI, and the dependency locks. Configure a Clerk **test instance** shared by frontend and backend. Keep real credentials out of Git, logs and browser-exposed variables.
 
 <details open>
 <summary><strong>1 · Start the backend</strong></summary>

@@ -3,35 +3,38 @@
 > node --test tests/*.test.mjs
 
 [Security] Stripped explicitly supplied Authorization header destined for untrusted origin: https://untrusted.test/api
-✔ production credentials stay on explicitly trusted HTTPS origins (494.4017ms)
-✔ tokens are never persisted in browser storage (221.2161ms)
-✔ backend URLs preserve deployment prefixes and normalize API suffixes (5.7011ms)
-✔ backend URLs reject executable schemes, credentials, and non-address input (0.7817ms)
-✔ missing and malformed historical wind never becomes a category-derived measurement (9.1778ms)
-✔ zero and stale historical measurements remain unchanged (0.6473ms)
-✔ missing category and basin cannot become claimed source facts (0.4927ms)
-✔ valid chat content retains metadata and discards unknown fields (2.0382ms)
-✔ objects, missing text and malformed metadata never reach the renderer (0.9419ms)
-✔ chunked oversized response cancels its stream before parsing (127.7071ms)
-✔ invalid encoding, malformed JSON and HTTP errors fail closed (5.6042ms)
-✔ split multibyte text decodes correctly across network chunks (2.1268ms)
-✔ dashboard outage rendering never invents healthy feeds, calm or wind observations (1019.7818ms)
-✔ stale current-year source observations never render as drills or verified live (316.9903ms)
-✔ PDF preserves source provenance and missing measurements (764.2663ms)
-✔ V6-001 missing field observations cannot become shelter readiness (3.7417ms)
-✔ V6-002 route scenarios never assert actual road state or emergency orders (1.3369ms)
-✔ V6-010 illustrative substations never issue utility switching orders (0.7951ms)
-✔ authorized observations expire and simulated values cannot authorize destinations (0.8107ms)
-✔ verified fixture renders value with source and validity timestamps; expired value renders unavailable (190.6698ms)
-✔ landing page makes no unsupported service benchmarks or official integration claims (1076.8946ms)
-✔ V6-014 offline navigation and external data never use cached authenticated responses (163.4025ms)
-✔ live stream uses the configured API deployment (1359.1406ms)
-✔ replacing a stream cannot let the old socket start another connection (45.8332ms)
-ℹ tests 24
+✔ production credentials stay on explicitly trusted HTTPS origins (3199.1999ms)
+✔ tokens are never persisted in browser storage (923.3727ms)
+✔ backend URLs preserve deployment prefixes and normalize API suffixes (53.8178ms)
+✔ backend URLs reject executable schemes, credentials, and non-address input (0.7544ms)
+✔ missing and malformed historical wind never becomes a category-derived measurement (53.2261ms)
+✔ zero and stale historical measurements remain unchanged (0.7001ms)
+✔ missing category and basin cannot become claimed source facts (0.3461ms)
+✔ valid chat content retains metadata and discards unknown fields (149.0515ms)
+✔ objects, missing text and malformed metadata never reach the renderer (0.9417ms)
+✔ chunked oversized response cancels its stream before parsing (1479.797ms)
+✔ invalid encoding, malformed JSON and HTTP errors fail closed (42.0696ms)
+✔ split multibyte text decodes correctly across network chunks (111.192ms)
+✔ dashboard outage rendering never invents healthy feeds, calm or wind observations (9121.1936ms)
+✔ stale current-year source observations never render as drills or verified live (2630.5669ms)
+✔ PDF preserves source provenance and missing measurements (4860.1931ms)
+✔ failed PDF save propagates an error instead of reporting a successful download (3663.3001ms)
+✔ numeric observations cannot invent forecast fixes, landfall or district conditions (3595.546ms)
+✔ nonfinite measurements and out-of-range coordinates remain unavailable in PDF (902.4258ms)
+✔ V6-001 missing field observations cannot become shelter readiness (4.112ms)
+✔ V6-002 route scenarios never assert actual road state or emergency orders (359.9596ms)
+✔ V6-010 illustrative substations never issue utility switching orders (0.8645ms)
+✔ authorized observations expire and simulated values cannot authorize destinations (0.8045ms)
+✔ verified fixture renders value with source and validity timestamps; expired value renders unavailable (1537.0178ms)
+✔ landing page makes no unsupported service benchmarks or official integration claims (7407.2121ms)
+✔ V6-014 offline navigation and external data never use cached authenticated responses (375.0441ms)
+✔ live stream uses the configured API deployment (3165.4178ms)
+✔ replacing a stream cannot let the old socket start another connection (623.4699ms)
+ℹ tests 27
 ℹ suites 0
-ℹ pass 24
+ℹ pass 27
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 9313.7753
+ℹ duration_ms 39432.2655

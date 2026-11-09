@@ -11,7 +11,8 @@ from app.models.ai_requests import ChatMessageRequest, BriefingRequest
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from app.services.ml_service import ml_service, validate_image_payload
+from app.services.ml_runtime import ml_service
+from app.services.image_validation import validate_image_payload
 from app.services.chat_service import chat_service
 from app.services.gee_service import gee_service
 from app.services.surge_service import surge_service

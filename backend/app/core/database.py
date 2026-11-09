@@ -1,6 +1,7 @@
 import os
 import logging
 from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import declarative_base, sessionmaker
 from app.core.runtime import runtime_environment
 
@@ -26,6 +27,9 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     )
 else:
     # Production PostgreSQL connection pool configuration (BACK-01)
+    # Preserve deployment options such as search_path; enforce our timeout last.
+    configured_options = make_url(SQLALCHEMY_DATABASE_URL).query.get('options', '')
+    connection_options = f'{configured_options} -c statement_timeout=15000'.strip()
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
         pool_size=int(os.getenv("DB_POOL_SIZE", "5")),
@@ -33,7 +37,7 @@ else:
         pool_timeout=int(os.getenv("DB_POOL_TIMEOUT", "5")),
         pool_recycle=int(os.getenv("DB_POOL_RECYCLE", "1800")),
         pool_pre_ping=True,
-        connect_args={"connect_timeout": 5, "options": "-c statement_timeout=15000"}
+        connect_args={"connect_timeout": 5, "options": connection_options}
     )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

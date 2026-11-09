@@ -19,7 +19,7 @@ from app.core.process_lock import (
     is_leader
 )
 from app.services.live_ingestion import live_ingestion_service
-from app.services.ml_service import ml_service
+from app.services.ml_runtime import ml_service
 
 # Background task handles for graceful shutdown (DB-04)
 _background_tasks = []

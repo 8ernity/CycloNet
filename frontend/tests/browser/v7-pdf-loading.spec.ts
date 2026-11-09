@@ -1,11 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
-async function openFixtureReport(page: Page) {
+async function openFixtureReport(page: Page, wind: number | null = null) {
   await page.route('**/api/**', route => route.fulfill({ status: 503, json: { detail: 'Fixture unavailable' } }));
   await page.route('**/api/reports/bulletins?*', route => route.fulfill({ json: {
     mode: 'EXPERIMENTAL_ANALYSIS', system: { id: 'FIXTURE', name: 'Local PDF fixture', basin: 'Not available',
-      lat: 15, lon: 85, intensity_knots: null, central_pressure_hpa: null, category: 'Not available',
+      lat: -15, lon: -85, intensity_knots: wind, central_pressure_hpa: null, category: 'Source fixture category',
       source: 'Local browser test fixture', observation_time_utc: null, is_simulation: true },
     bulletins: [], affected_districts: [], port_signals: [], cap_xml: ''
   } }));
@@ -27,7 +27,28 @@ test('PDF library loads on demand and produces an actual download', async ({ pag
   const contents = await readFile(file!);
   expect(contents.subarray(0, 5).toString()).toBe('%PDF-');
   expect(contents.length).toBeGreaterThan(1000);
+  expect(contents.toString()).toContain('Forecast not available');
+  expect(contents.toString()).toContain('Source fixture category');
+  expect(contents.toString()).not.toContain('Landfall');
+  if (process.env.V7_PDF_PREVIEW) await download.saveAs(process.env.V7_PDF_PREVIEW);
   await expect(page.getByRole('button', { name: 'Download PDF', exact: true }).first()).toBeEnabled();
+});
+
+test('report exports preserve source category and label illustrative exposure', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('cyclonet_data_source', 'JTWC'));
+  await openFixtureReport(page, 35);
+  await expect(page.getByText(/Sea conditions and coastal squalls are not established/)).toBeVisible();
+  const pending = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'JSON', exact: true }).click();
+  const download = await pending;
+  const report = JSON.parse(await readFile((await download.path())!, 'utf8'));
+  expect(report.system.category).toBe('Source fixture category');
+  expect(report.system.intensity_knots).toBe(35);
+  expect(report.system.source).toBe('Local browser test fixture');
+  expect(report.displayPreference.type).toBe('JTWC');
+  expect(report.infrastructureExposure.is_simulation).toBe(true);
+  expect(report.parametricInsuranceTriggers.is_simulation).toBe(true);
+  expect(report.disclaimer).toContain('Not an official warning');
 });
 
 test('failed PDF chunk load reports failure and restores the control', async ({ page }) => {

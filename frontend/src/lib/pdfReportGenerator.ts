@@ -23,6 +23,8 @@ export interface CyclonePdfData {
     observation_time_utc?: string | null;
     retrieved_at?: string | null;
     is_simulation?: boolean;
+    wind_averaging_minutes?: number | null;
+    wind_convention?: string | null;
     category?: string;
   };
   alertInfo?: {
@@ -77,9 +79,7 @@ function getTableFinalY(docInstance: jsPDF, fallbackY: number): number {
 export function generateCyclonePdfReport(data: CyclonePdfData): void {
   const system = data.system || {};
   const alertInfo = data.alertInfo || { level: "DATA_UNAVAILABLE", title: "Data unavailable", desc: "Consult official agencies." };
-  const sourceInfo = data.sourceInfo;
   const affectedDistricts = data.affectedDistricts || [];
-  const portSignals = data.portSignals || [];
 
   const doc = new jsPDF({
     orientation: "portrait",
@@ -93,20 +93,20 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   const maxContentY = pageHeight - 20; // Safe bottom boundary before footer
   let y = 14;
 
-  const hasKnots = typeof system.intensity_knots === "number" && !isNaN(system.intensity_knots) && system.intensity_knots >= 0;
+  const hasKnots = typeof system.intensity_knots === "number" && Number.isFinite(system.intensity_knots) && system.intensity_knots >= 0;
   const knots = hasKnots ? Number(system.intensity_knots) : null;
   const kmh = knots !== null ? Math.round(knots * 1.852) : null;
   const gusts = null;
   const surge = null;
   const wave = null;
-  const pressure = system.central_pressure_hpa ?? null;
+  const pressure = typeof system.central_pressure_hpa === 'number' && Number.isFinite(system.central_pressure_hpa) && system.central_pressure_hpa > 0 ? system.central_pressure_hpa : null;
   const now = new Date();
   const dateStr = now.toUTCString();
 
   const systemName = system.name || "Unclassified Cyclonic Disturbance";
   const systemCategory = system.category || "Category Pending Assessment";
-  const systemBasin = system.basin || "North Indian Ocean";
-  const hasCoords = typeof system.lat === "number" && typeof system.lon === "number" && !isNaN(system.lat) && !isNaN(system.lon);
+  const systemBasin = system.basin || "Not available";
+  const hasCoords = typeof system.lat === "number" && typeof system.lon === "number" && Number.isFinite(system.lat) && Number.isFinite(system.lon) && Math.abs(system.lat) <= 90 && Math.abs(system.lon) <= 180;
   const systemLat = hasCoords ? (system.lat as number) : null;
   const systemLon = hasCoords ? (system.lon as number) : null;
   const systemId = system.id || "N/A (Pending Reference Code)";
@@ -129,18 +129,18 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
-  doc.text("CYCLONET EXPERIMENTAL ANALYSIS — NOT AN OFFICIAL EMERGENCY WARNING", margin, 10);
+  doc.text("CYCLONET | EXPERIMENTAL SOURCE SUMMARY", margin, 10);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(252, 211, 77); // Amber-300
-  doc.text("EXERCISE / SIMULATION ADVISORY • DECISION SUPPORT & RESEARCH ONLY", margin, 15.5);
+  doc.text("NOT AN OFFICIAL WARNING OR OPERATIONAL FORECAST", margin, 15.5);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(148, 163, 184); // Slate-400
-  const agencyLabel = sourceInfo?.label ? `${sourceInfo.label} (${sourceInfo.avgWindow || "3-Min"})` : "Source not available";
-  doc.text(`${agencyLabel} • Simulation Benchmark • Generated: ${dateStr}`, margin, 20.5);
+  const agencyLabel = system.source || "Source not available";
+  doc.text(`Generated: ${dateStr}`, margin, 20.5);
 
   // Badge on Header Right
   doc.setFillColor(...accentColor);
@@ -148,33 +148,35 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.text(`${alertLevel} DRILL`, pageWidth - margin - 20, 11.5, { align: "center" });
+  doc.text("UNVALIDATED", pageWidth - margin - 20, 11.5, { align: "center" });
   doc.setFontSize(5.5);
-  doc.text("EXERCISE ADVISORY", pageWidth - margin - 20, 16, { align: "center" });
+  doc.text("RESEARCH REPORT", pageWidth - margin - 20, 16, { align: "center" });
 
   y = 32;
 
   // ── 2. System Identification & Status Callout ──────────────────────────────
   doc.setFillColor(248, 250, 252); // Slate-50
   doc.setDrawColor(226, 232, 240); // Slate-200
-  doc.roundedRect(margin, y, pageWidth - (margin * 2), 20, 2, 2, "FD");
-
   doc.setTextColor(15, 23, 42);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
-  doc.text(`SYSTEM: ${systemName.toUpperCase()} (${systemCategory.toUpperCase()})`, margin + 4, y + 6);
-
+  const systemLines = doc.splitTextToSize(`SYSTEM: ${systemName.toUpperCase()} (${systemCategory.toUpperCase()})`, pageWidth - margin * 2 - 8);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  const coordFixStr = (systemLat !== null && systemLon !== null)
+    ? `${Math.abs(systemLat).toFixed(2)} ${systemLat < 0 ? 'S' : 'N'}, ${Math.abs(systemLon).toFixed(2)} ${systemLon < 0 ? 'W' : 'E'}`
+    : "Not available";
+  const details = doc.splitTextToSize(`Basin: ${systemBasin} | Center fix: ${coordFixStr} | Ref: ${systemId}\nSource: ${agencyLabel}\nAssessment: ${alertInfo.title || "Data unavailable"}`, pageWidth - margin * 2 - 8);
+  const boxHeight = 8 + systemLines.length * 4.5 + details.length * 3.5;
+  doc.roundedRect(margin, y, pageWidth - margin * 2, boxHeight, 2, 2, "FD");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10.5);
+  doc.text(systemLines, margin + 4, y + 6);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(71, 85, 105);
-  const scaleRef = sourceInfo?.scaleName || "WMO RSMC Scale";
-  const coordFixStr = (systemLat !== null && systemLon !== null)
-    ? `${systemLat.toFixed(2)}°N, ${systemLon.toFixed(2)}°E`
-    : "Not available";
-  doc.text(`Basin: ${systemBasin}  |  Center Fix: ${coordFixStr}  |  Ref Code: ${systemId}  |  Scale: ${scaleRef}`, margin + 4, y + 11);
-  doc.text(`Status Directive: ${alertInfo.title || "Data unavailable"}`, margin + 4, y + 16);
-
-  y += 24;
+  doc.text(details, margin + 4, y + 7 + systemLines.length * 4.5);
+  y += boxHeight + 6;
 
   // ── 3. Synoptic Meteorological Parameters Grid (FIX-004) ───────────────────
   doc.setTextColor(15, 23, 42);
@@ -183,13 +185,14 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.text("1. SUPPLIED SOURCE TELEMETRY (EXPERIMENTAL REPORT)", margin, y);
   y += 3.5;
 
-  const windHeaderLabel = sourceInfo?.shortLabel ? `Max Sustained Wind (${sourceInfo.shortLabel}):` : "Max Sustained Wind (3-min):";
+  const averaging = typeof system.wind_averaging_minutes === 'number' && Number.isFinite(system.wind_averaging_minutes) && system.wind_averaging_minutes > 0 ? `${system.wind_averaging_minutes} min` : 'Not available';
+  const windHeaderLabel = 'Supplied sustained wind:';
   const windValStr = knots !== null ? `${knots} Knots (${kmh} km/h)` : "Not available";
   const pressureValStr = pressure !== null ? `${pressure} hPa` : "Not available";
 
   const paramData = [
     ["Source issue time", system.observation_time_utc || "Not available", "Retrieved", system.retrieved_at || "Not available"],
-    ["Simulation", system.is_simulation ? "Yes — synthetic / replay" : "No", "Source", system.source || "Not available"],
+    ["Simulation", system.is_simulation === true ? "Yes - synthetic / replay" : system.is_simulation === false ? "No" : "Not available", "Wind convention / averaging", system.wind_convention || averaging],
     [
       { content: windHeaderLabel, styles: { fontStyle: "bold" as const } },
       windValStr,
@@ -243,7 +246,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
       { content: "Significant Wave Height:", styles: { fontStyle: "bold" as const } },
       waveValStr,
       { content: "Hydrodynamic Solver Status:", styles: { fontStyle: "bold" as const } },
-      "Parametric approximation; uncoupled with astronomical tide or 2D SWE"
+      "Not evaluated in this source report"
     ]
   ];
 
@@ -274,26 +277,17 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.setTextColor(15, 23, 42);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
-  doc.text("2. 48-HOUR TRACK & INTENSITY FORECAST OUTLOOK", margin, y);
+  doc.text("3. SOURCE POSITION AND FORECAST AVAILABILITY", margin, y);
   y += 3.5;
 
-  const forecastRows = (systemLat !== null && systemLon !== null && knots !== null) ? [
-    ["Current Fix", "00 UTC", `${systemLat.toFixed(1)}°N, ${systemLon.toFixed(1)}°E`, `${knots} kts (${kmh} km/h)`, systemCategory, "Maritime Basin"],
-    ["+12 Hours", "+12h", `${(systemLat + 0.6).toFixed(1)}°N, ${(systemLon - 0.4).toFixed(1)}°E`, `${knots + 5} kts (${Math.round((knots + 5) * 1.852)} km/h)`, systemCategory, "Approaching Coast"],
-    ["+24 Hours (Landfall)", "+24h", `${(systemLat + 1.3).toFixed(1)}°N, ${(systemLon - 0.7).toFixed(1)}°E`, `${Math.max(35, knots - 15)} kts (${Math.round(Math.max(35, knots - 15) * 1.852)} km/h)`, "Severe Cyclonic Storm", "Landfall Sector"],
-    ["+36 Hours", "+36h", `${(systemLat + 2.0).toFixed(1)}°N, ${(systemLon - 0.8).toFixed(1)}°E`, "35 kts (65 km/h)", "Cyclonic Storm", "Inland Movement"],
-    ["+48 Hours", "+48h", `${(systemLat + 2.6).toFixed(1)}°N, ${(systemLon - 0.9).toFixed(1)}°E`, "25 kts (45 km/h)", "Deep Depression", "Weakening over land"],
-  ] : [
-    ["Current Fix", "00 UTC", coordFixStr, windValStr, systemCategory, "Observation Pending"],
-    ["+12 Hours", "+12h", "[Pending Fix]", "[Pending Fix]", "[Pending Fix]", "Forecast Track Pending Synoptic Fix"],
-    ["+24 Hours", "+24h", "[Pending Fix]", "[Pending Fix]", "[Pending Fix]", "Forecast Track Pending Synoptic Fix"],
-    ["+36 Hours", "+36h", "[Pending Fix]", "[Pending Fix]", "[Pending Fix]", "Forecast Track Pending Synoptic Fix"],
-    ["+48 Hours", "+48h", "[Pending Fix]", "[Pending Fix]", "[Pending Fix]", "Forecast Track Pending Synoptic Fix"],
+  const forecastRows = [
+    ["Supplied fix", system.observation_time_utc || "Not available", coordFixStr, windValStr, systemCategory, "Source record; freshness must be checked"],
+    ["Forecast", "Not available", "Not available", "Not available", "Not available", "Forecast not available: no verified forecast supplied to this export"],
   ];
 
   runAutoTable(doc, {
     startY: y,
-    head: [["Lead Time", "Valid", "Coordinates", "Sustained Winds", "System Category", "Sector"]],
+    head: [["Record", "Source time", "Coordinates", "Sustained Winds", "Source Category", "Availability"]],
     body: forecastRows,
     theme: "striped",
     headStyles: {
@@ -322,21 +316,21 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.setTextColor(15, 23, 42);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
-  doc.text("3. COASTAL DISTRICT VULNERABILITY (OPEN DATA INVENTORY)", margin, y);
+  doc.text("4. SUPPLIED DISTRICT INFORMATION (NOT INDEPENDENTLY VERIFIED)", margin, y);
   y += 3.5;
 
   const districtRows = affectedDistricts.map(d => [
-    d.district || "Coastal District",
-    d.state || systemBasin,
-    d.risk || "High",
-    d.shelters || "Open Data Inventory (Consult DDMA)",
-    d.evacuation || "Advisory Hazard Zone (Consult DDMA Directives)"
+    d.district || "Not available",
+    d.state || "Not available",
+    d.risk || "Not available",
+    d.shelters || "Not available",
+    d.evacuation || "Not available"
   ]);
 
   runAutoTable(doc, {
     startY: y,
     head: [["District / Jurisdiction", "State", "Hazard Rating", "Shelter Facilities", "Advisory Status"]],
-    body: districtRows.length > 0 ? districtRows : [["Maritime Sector / No Landfall Districts Reported", systemBasin, "Offshore Advisory", "Not available", "Consult Official Maritime Broadcasts"]],
+    body: districtRows.length > 0 ? districtRows : [["Not available", "Not available", "Not available", "Not available", "No district conditions established"]],
     theme: "striped",
     headStyles: {
       fillColor: [30, 41, 59],
@@ -373,7 +367,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.setTextColor(15, 23, 42);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
-  doc.text("4. SIMULATED DECISION-SUPPORT DIRECTIVES (EXERCISE PROTOCOL)", margin, y);
+  doc.text("5. SAFETY AND USE LIMITATIONS", margin, y);
   y += 4;
 
   doc.setFillColor(254, 242, 242); // Red-50
@@ -383,7 +377,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   doc.setTextColor(153, 27, 27); // Red-800
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7.5);
-  doc.text("EXERCISE DECISION-SUPPORT GUIDELINES (NOT STATUTORY ORDERS):", margin + 3.5, y + 4.5);
+  doc.text("RESEARCH SUMMARY - NO OPERATIONAL AUTHORITY:", margin + 3.5, y + 4.5);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
@@ -405,7 +399,7 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
     hashNum = (hashNum * 0x01000193) >>> 0;
   }
   const authHash = hashNum.toString(16).toUpperCase().padStart(8, "0");
-  const footerFeedsLabel = sourceInfo?.label ? `CycloNet AI Meteorological Intelligence • ${sourceInfo.label}` : "CycloNet AI Meteorological Intelligence • IMD / RSMC Grounded Feeds";
+  const footerFeedsLabel = "CycloNet experimental source summary";
 
   for (let page = 1; page <= totalPages; page++) {
     doc.setPage(page);
@@ -421,12 +415,12 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
     doc.setFontSize(6.8);
     doc.setTextColor(100, 116, 139); // Slate-500
     doc.text(footerFeedsLabel, margin, footerY + 2.5);
-    doc.text(`Verification Checksum: CN-AUTH-${authHash}`, pageWidth - margin, footerY + 2.5, { align: "right" });
+    doc.text(`Document reference: CN-${authHash} (not verification)`, pageWidth - margin, footerY + 2.5, { align: "right" });
 
     // Row 2: Left operational context, Right page numbers
     doc.setFontSize(6.2);
     doc.setTextColor(148, 163, 184); // Slate-400
-    doc.text("EXERCISE / SIMULATION ONLY • NOT AN OFFICIAL GOVERNMENT WARNING • Consult IMD/NDMA for official advisories", margin, footerY + 6.5);
+    doc.text("EXPERIMENTAL - NOT AN OFFICIAL WARNING - Consult authorized agencies", margin, footerY + 6.5);
     doc.text(`Page ${page} of ${totalPages}`, pageWidth - margin, footerY + 6.5, { align: "right" });
   }
 

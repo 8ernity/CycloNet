@@ -31,3 +31,28 @@ test('failed PDF save propagates an error instead of reporting a successful down
   vm.runInNewContext(code,context);
   assert.throws(()=>context.exports.generateCyclonePdfReport({system:{name:'Fixture',intensity_knots:null}}),/download/i);
 });
+
+function reportText(data) {
+  let pdf;
+  const Original=JsPDF;
+  function Captured(options) { pdf=new Original(options); pdf.save=()=>{}; return pdf; }
+  Captured.API=Original.API;
+  const context={exports:{},console,Date,setTimeout,require:name=>name==='jspdf'?{__esModule:true,default:Captured}:{__esModule:true,...autoTableModule,default:autoTableModule.autoTable}};
+  const code=ts.transpileModule(fs.readFileSync('src/lib/pdfReportGenerator.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
+  vm.runInNewContext(code,context);
+  context.exports.generateCyclonePdfReport(data);
+  return pdf.output();
+}
+
+test('numeric observations cannot invent forecast fixes, landfall or district conditions',()=>{
+  const output=reportText({system:{name:'Southern fixture',lat:-15,lon:-85,intensity_knots:80,is_simulation:false},affectedDistricts:[{district:'Fixture district'}]});
+  assert.doesNotMatch(output,/Landfall|Approaching Coast|Weakening over land|\(85 kts|\(65 kts|North Indian Ocean|Grounded Feeds|CN-AUTH|\(High\)|3-min/i);
+  assert.match(output,/Forecast not available/);
+  assert.match(output,/15\.00 S, 85\.00 W/);
+});
+
+test('nonfinite measurements and out-of-range coordinates remain unavailable in PDF',()=>{
+  const output=reportText({system:{name:'Invalid fixture',lat:95,lon:200,intensity_knots:Infinity,central_pressure_hpa:NaN}});
+  assert.doesNotMatch(output,/Infinity|NaN|95\.00|200\.00/);
+  assert.match(output,/Not available/);
+});

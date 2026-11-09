@@ -11,6 +11,17 @@ from app import main
 from app.core import auth, database
 
 
+def test_postgres_connection_retains_schema_and_enforces_timeout(monkeypatch):
+    monkeypatch.setenv('ENVIRONMENT', 'production')
+    monkeypatch.setenv('DATABASE_URL', 'postgresql://fixture@localhost/fixture?options=-csearch_path%3Dfixture_schema%20-cstatement_timeout%3D0')
+    with patch('sqlalchemy.create_engine') as create:
+        runpy.run_path('app/core/database.py')
+    args = create.call_args.kwargs['connect_args']
+    assert args['options'].startswith('-csearch_path=fixture_schema -cstatement_timeout=0')
+    assert args['options'].endswith('-c statement_timeout=15000')
+    assert args['connect_timeout'] == 5
+
+
 def test_invalid_auth_aborts_startup_before_workers():
     async def start():
         with patch.object(auth, 'validate_production_auth', side_effect=RuntimeError('Invalid auth')), \

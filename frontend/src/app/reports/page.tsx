@@ -116,8 +116,8 @@ export default function ReportsPage() {
             setCyclonesList(data.map((c: CatalogItem) => ({
               id: c.id,
               name: c.name.startsWith("Cyclone ") || c.name.startsWith("Deep Depression") || c.name.startsWith("Depression") || c.name.startsWith("Super Cyclone") || c.name.includes("Cyclone") ? c.name : `Cyclone ${c.name}`,
-              basin: c.basin || "Bay of Bengal",
-              category: c.max_category || "Cyclonic Storm",
+              basin: c.basin || "Not available",
+              category: c.max_category || c.maxCategory || c.category || "Not available",
               knots: c.knots ?? null,
             })));
           }
@@ -180,7 +180,7 @@ export default function ReportsPage() {
     if (knots >= 120) return { level: "RED", title: "Experimental high-wind scenario", desc: "Wind threshold category only. Landfall timing, surge, and evacuation requirements are not established by this report.", color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/40", icon: <AlertOctagon className="w-8 h-8 text-red-500 animate-pulse" /> };
     if (knots >= 90) return { level: "ORANGE", title: "Experimental wind assessment", desc: "Wind threshold category only. Consult official agencies for impact forecasts.", color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/40", icon: <AlertTriangle className="w-8 h-8 text-orange-500 animate-bounce" /> };
     if (knots >= 48) return { level: "ORANGE", title: "Experimental wind assessment", desc: "Wind threshold category only. Rainfall and coastal impacts are not established.", color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/40", icon: <AlertTriangle className="w-8 h-8 text-orange-500" /> };
-    if (knots >= 34) return { level: "YELLOW", title: "Experimental wind assessment", desc: "Cyclonic Storm / Deep Depression. Sea conditions rough to very rough. Coastal squalls developing.", color: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/40", icon: <AlertTriangle className="w-8 h-8 text-yellow-500" /> };
+    if (knots >= 34) return { level: "YELLOW", title: "Experimental wind assessment", desc: "Wind threshold category only. Sea conditions and coastal squalls are not established by this measurement.", color: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/40", icon: <AlertTriangle className="w-8 h-8 text-yellow-500" /> };
     return { level: "GREEN", title: "Experimental low-wind assessment", desc: "Low measured wind does not establish basin-wide calm or absence of other hazards.", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/40", icon: <Info className="w-8 h-8 text-emerald-500" /> };
   }, [system, getConvertedKnots]);
 
@@ -202,35 +202,16 @@ export default function ReportsPage() {
     try {
       const activeSystem = system;
       if (!activeSystem) return;
-      const rawKnots = activeSystem.intensity_knots;
-      const convertedKnots = getConvertedKnots(rawKnots);
-      const convertedCategory = getConvertedCategory(rawKnots, activeSystem.category || "Cyclonic Storm");
-
       const { generateCyclonePdfReport } = await import("@/lib/pdfReportGenerator");
       generateCyclonePdfReport({
-        system: {
-          ...activeSystem,
-          intensity_knots: activeSystem.intensity_knots,
-          category: convertedCategory,
-        },
-        alertInfo: alertInfo || {
-          level: "ORANGE",
-          title: "CYCLONE WARNING",
-          desc: "Active threat assessment issued.",
-        },
-        sourceInfo: {
-          type: sourceBadge.type,
-          label: activeSystem.source ?? "Not available",
-          shortLabel: sourceBadge.shortLabel,
-          avgWindow: sourceBadge.avgWindow,
-          scaleName: sourceBadge.scaleName,
-        },
+        system: activeSystem,
+        alertInfo,
         bulletins: bulletins && bulletins.length > 0 ? bulletins : [],
         affectedDistricts,
         portSignals,
 
       });
-      showToast(`Generated & downloaded Cyclone PDF advisory (${sourceBadge.shortLabel})!`);
+      showToast("Experimental PDF report download started.");
     } catch (err: unknown) {
       console.error("PDF generation failed:", err);
       showToast(`PDF generation error: ${(err instanceof Error ? (err instanceof Error ? err.message : "Request failed") : "Request failed") || "Please check console"}`);
@@ -255,27 +236,25 @@ export default function ReportsPage() {
   };
 
   const handleDownloadJson = () => {
-    const rawKnots = system?.intensity_knots ?? null;
     const reportData = {
       timestamp: new Date().toISOString(),
-      dataSource: sourceBadge,
-      system: system ? {
-        ...system,
-        intensity_knots: getConvertedKnots(rawKnots),
-        intensity_kmh: getConvertedKmh(rawKnots),
-        category: getConvertedCategory(rawKnots, system.category)
-      } : null,
+      mode: reportMode,
+      disclaimer: "Experimental source summary. Not an official warning or independently validated forecast.",
+      displayPreference: sourceBadge,
+      system,
       alertInfo,
       bulletins,
       affectedDistricts,
       portSignals,
       infrastructureExposure: {
+        is_simulation: true,
+        disclaimer: "Illustrative planning fixtures; not measured storm exposure or verified facility status.",
         powerSubstations: POWER_SUBSTATIONS,
         evacuationRoutes: EVACUATION_ROUTES,
         medicalShelters: MEDICAL_SHELTERS,
         inundationZones: COASTAL_INUNDATION_ZONES
       },
-      parametricInsuranceTriggers: PARAMETRIC_INSURANCE_TRIGGERS
+      parametricInsuranceTriggers: { is_simulation: true, disclaimer: "Illustrative thresholds; no coverage or payout established.", scenarios: PARAMETRIC_INSURANCE_TRIGGERS }
     };
     const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -461,7 +440,7 @@ export default function ReportsPage() {
             onClick={handleDownloadPdf}
             disabled={pdfLoading}
             aria-busy={pdfLoading}
-            title="Download Cyclone Meteorological PDF Advisory (Exercise Simulation)"
+            title="Download experimental source summary (not an official warning)"
             className="flex items-center gap-1.5 px-3.5 py-2 bg-primary text-primary-foreground hover:bg-primary/90 font-bold rounded-lg text-xs shadow-lg shadow-primary/20 transition-all cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" /> {pdfLoading ? "Preparing PDF…" : "Download PDF"}
@@ -859,7 +838,7 @@ export default function ReportsPage() {
                       onClick={handleDownloadPdf}
                       disabled={pdfLoading}
                       aria-busy={pdfLoading}
-                      title="Download Cyclone Meteorological PDF Advisory (Exercise Simulation)"
+                      title="Download experimental source summary (not an official warning)"
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium transition-colors cursor-pointer"
                     >
                       <Download className="w-3.5 h-3.5" /> {pdfLoading ? "Preparing PDF…" : "Download PDF"}

@@ -16,7 +16,6 @@ from app.core.database import SessionLocal
 from app.models.domain import CycloneArchive, ActiveCycloneState
 from app.models.feed_result import FeedResult, FeedStatus
 from app.services.feed_policy import assess_feed, reconcile, parse_time, fresh, BASINS
-from app.services.ml_service import ml_service
 
 def get_default_active_bob_system() -> Dict[str, Any]:
     """
