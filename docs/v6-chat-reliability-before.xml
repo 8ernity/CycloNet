@@ -1,0 +1,142 @@
+<testsuites id="" name="" tests="4" failures="4" skipped="0" errors="0" time="82.732072">
+<testsuite name="chat-reliability.spec.ts" timestamp="2026-11-08T18:03:55.263Z" hostname="" tests="4" failures="4" skipped="0" time="55.341" errors="0">
+<testcase name="new conversation cancels the old request and can send immediately" classname="chat-reliability.spec.ts" time="15.563">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\chat-reliability-new-conve-b2b6f-st-and-can-send-immediately\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeEnabled() failed" type="expect.toBeEnabled">
+<![CDATA[  chat-reliability.spec.ts:9:1 › new conversation cancels the old request and can send immediately ─
+
+    Error: expect(locator).toBeEnabled() failed
+
+    Locator:  getByTitle('Send Message')
+    Expected: enabled
+    Received: disabled
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeEnabled" getByTitle('Send Message') with timeout 5000ms
+      - waiting for getByTitle('Send Message')
+        13 × locator resolved to <button disabled title="Send Message" class="w-8 h-8 rounded-full bg-blue-500 hover:bg-blue-400 text-white disabled:opacity-30 disabled:pointer-events-none transition-all shadow-md shadow-blue-500/25 flex items-center justify-center shrink-0 cursor-pointer hover:scale-105">…</button>
+           - unexpected value "disabled"
+
+
+      31 |     await page.getByRole('button',{name:'New Conversation'}).click();
+      32 |     await page.getByPlaceholder('Ask me anything about cyclones...').fill('Second question');
+    > 33 |     await expect(page.getByTitle('Send Message')).toBeEnabled();
+         |                                                   ^
+      34 |     await page.getByTitle('Send Message').click();
+      35 |     await expect(page.getByText('CURRENT_REPLY',{exact:true})).toBeVisible();
+      36 |     releaseOld();
+        at D:\Projects\CycloneTracker\frontend\tests\browser\chat-reliability.spec.ts:33:51
+
+    Error Context: ..\..\test-results\chat-reliability-new-conve-b2b6f-st-and-can-send-immediately\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="malformed chat object response shows a recoverable error" classname="chat-reliability.spec.ts" time="13.749">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\chat-reliability-malformed-7b6ad-e-shows-a-recoverable-error\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  chat-reliability.spec.ts:47:3 › malformed chat object response shows a recoverable error ─────────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText(/Source information is unavailable/)
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByText(/Source information is unavailable/) with timeout 5000ms
+      - waiting for getByText(/Source information is unavailable/)
+
+
+      52 |     await page.getByPlaceholder('Ask me anything about cyclones...').fill('Explain cyclogenesis');
+      53 |     await page.getByTitle('Send Message').click();
+    > 54 |     await expect(page.getByText(/Source information is unavailable/)).toBeVisible();
+         |                                                                       ^
+      55 |     await page.getByPlaceholder('Ask me anything about cyclones...').fill('Try again');
+      56 |     await expect(page.getByTitle('Send Message')).toBeEnabled();
+      57 |     expect(errors).toEqual([]);
+        at D:\Projects\CycloneTracker\frontend\tests\browser\chat-reliability.spec.ts:54:71
+
+    Error Context: ..\..\test-results\chat-reliability-malformed-7b6ad-e-shows-a-recoverable-error\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="malformed chat invalid sources shows a recoverable error" classname="chat-reliability.spec.ts" time="12.943">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\chat-reliability-malformed-fd4a2-s-shows-a-recoverable-error\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  chat-reliability.spec.ts:47:3 › malformed chat invalid sources shows a recoverable error ─────────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText(/Source information is unavailable/)
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByText(/Source information is unavailable/) with timeout 5000ms
+      - waiting for getByText(/Source information is unavailable/)
+
+
+      52 |     await page.getByPlaceholder('Ask me anything about cyclones...').fill('Explain cyclogenesis');
+      53 |     await page.getByTitle('Send Message').click();
+    > 54 |     await expect(page.getByText(/Source information is unavailable/)).toBeVisible();
+         |                                                                       ^
+      55 |     await page.getByPlaceholder('Ask me anything about cyclones...').fill('Try again');
+      56 |     await expect(page.getByTitle('Send Message')).toBeEnabled();
+      57 |     expect(errors).toEqual([]);
+        at D:\Projects\CycloneTracker\frontend\tests\browser\chat-reliability.spec.ts:54:71
+
+    Error Context: ..\..\test-results\chat-reliability-malformed-fd4a2-s-shows-a-recoverable-error\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="malformed chat excessive response shows a recoverable error" classname="chat-reliability.spec.ts" time="13.086">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\chat-reliability-malformed-eff88-e-shows-a-recoverable-error\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  chat-reliability.spec.ts:47:3 › malformed chat excessive response shows a recoverable error ──────
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText(/Source information is unavailable/)
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByText(/Source information is unavailable/) with timeout 5000ms
+      - waiting for getByText(/Source information is unavailable/)
+
+
+      52 |     await page.getByPlaceholder('Ask me anything about cyclones...').fill('Explain cyclogenesis');
+      53 |     await page.getByTitle('Send Message').click();
+    > 54 |     await expect(page.getByText(/Source information is unavailable/)).toBeVisible();
+         |                                                                       ^
+      55 |     await page.getByPlaceholder('Ask me anything about cyclones...').fill('Try again');
+      56 |     await expect(page.getByTitle('Send Message')).toBeEnabled();
+      57 |     expect(errors).toEqual([]);
+        at D:\Projects\CycloneTracker\frontend\tests\browser\chat-reliability.spec.ts:54:71
+
+    Error Context: ..\..\test-results\chat-reliability-malformed-eff88-e-shows-a-recoverable-error\error-context.md
+]]>
+</failure>
+</testcase>
+</testsuite>
+</testsuites>

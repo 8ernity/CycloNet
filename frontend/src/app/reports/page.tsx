@@ -12,7 +12,6 @@ import {
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
 import { API_BASE_URL, getApiBaseUrl, apiFetch } from "@/lib/api";
-import { generateCyclonePdfReport } from "@/lib/pdfReportGenerator";
 import { 
   POWER_SUBSTATIONS, 
   EVACUATION_ROUTES, 
@@ -83,6 +82,7 @@ export default function ReportsPage() {
   const [portSignals, setPortSignals] = useState<PortSignal[]>([]);
   const [capXml, setCapXml] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"hazards" | "bulletins" | "broadcast">("hazards");
   const [selectedBulletin, setSelectedBulletin] = useState<Bulletin | null>(null);
   const [filterLevel, setFilterLevel] = useState<string>("ALL");
@@ -196,7 +196,9 @@ export default function ReportsPage() {
     });
   }, [bulletins, filterLevel, searchQuery]);
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
+    if (pdfLoading || !system) return;
+    setPdfLoading(true);
     try {
       const activeSystem = system;
       if (!activeSystem) return;
@@ -204,6 +206,7 @@ export default function ReportsPage() {
       const convertedKnots = getConvertedKnots(rawKnots);
       const convertedCategory = getConvertedCategory(rawKnots, activeSystem.category || "Cyclonic Storm");
 
+      const { generateCyclonePdfReport } = await import("@/lib/pdfReportGenerator");
       generateCyclonePdfReport({
         system: {
           ...activeSystem,
@@ -231,6 +234,8 @@ export default function ReportsPage() {
     } catch (err: unknown) {
       console.error("PDF generation failed:", err);
       showToast(`PDF generation error: ${(err instanceof Error ? (err instanceof Error ? err.message : "Request failed") : "Request failed") || "Please check console"}`);
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -454,10 +459,12 @@ export default function ReportsPage() {
           {/* Download PDF */}
           <button
             onClick={handleDownloadPdf}
+            disabled={pdfLoading}
+            aria-busy={pdfLoading}
             title="Download Cyclone Meteorological PDF Advisory (Exercise Simulation)"
             className="flex items-center gap-1.5 px-3.5 py-2 bg-primary text-primary-foreground hover:bg-primary/90 font-bold rounded-lg text-xs shadow-lg shadow-primary/20 transition-all cursor-pointer"
           >
-            <Download className="w-3.5 h-3.5" /> Download PDF
+            <Download className="w-3.5 h-3.5" /> {pdfLoading ? "Preparing PDF…" : "Download PDF"}
           </button>
         </div>
       </div>
@@ -850,10 +857,12 @@ export default function ReportsPage() {
                     </button>
                     <button
                       onClick={handleDownloadPdf}
+                      disabled={pdfLoading}
+                      aria-busy={pdfLoading}
                       title="Download Cyclone Meteorological PDF Advisory (Exercise Simulation)"
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium transition-colors cursor-pointer"
                     >
-                      <Download className="w-3.5 h-3.5" /> Download PDF
+                      <Download className="w-3.5 h-3.5" /> {pdfLoading ? "Preparing PDF…" : "Download PDF"}
                     </button>
                   </div>
                 </div>

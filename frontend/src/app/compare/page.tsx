@@ -255,11 +255,12 @@ export default function ComparePage() {
               Primary Cyclone (Storm 1)
             </span>
             <span className="text-xs font-mono font-bold text-cyan-300 px-2 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/30">
-              {system1?.basin || "Bay of Bengal"}
+              {system1?.basin || "Basin not available"}
             </span>
           </div>
 
           <select
+            aria-label="Primary cyclone"
             value={selectedId1}
             onChange={(e) => setSelectedId1(e.target.value)}
             className="w-full bg-background/90 border border-cyan-500/40 rounded-xl px-3 py-2.5 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-400 cursor-pointer shadow-inner"
@@ -308,11 +309,12 @@ export default function ComparePage() {
               Comparison Cyclone (Storm 2)
             </span>
             <span className="text-xs font-mono font-bold text-amber-300 px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/30">
-              {system2?.basin || "Bay of Bengal"}
+              {system2?.basin || "Basin not available"}
             </span>
           </div>
 
           <select
+            aria-label="Comparison cyclone"
             value={selectedId2}
             onChange={(e) => setSelectedId2(e.target.value)}
             className="w-full bg-background/90 border border-amber-500/40 rounded-xl px-3 py-2.5 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-amber-400 cursor-pointer shadow-inner"

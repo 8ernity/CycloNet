@@ -30,6 +30,7 @@ import {
 
 
 
+import {catalogObservation} from '@/lib/catalogObservation';
 const PRESET_STORMS: {id:string;name:string;basin:string;category:string;knots:number|null}[] = [];
 
 function subscribeLocation(notify: () => void) { window.addEventListener("popstate", notify); return () => window.removeEventListener("popstate", notify); }
@@ -101,11 +102,8 @@ export default function InfrastructurePage() {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
             setCyclonesList(data.map((c: CatalogItem) => ({
-              id: c.id,
+              ...catalogObservation(c),
               name: c.name.startsWith("Cyclone ") || c.name.startsWith("Deep Depression") || c.name.startsWith("Depression") || c.name.startsWith("Super Cyclone") || c.name.includes("Cyclone") ? c.name : `Cyclone ${c.name}`,
-              basin: c.basin || "Bay of Bengal",
-              category: c.max_category || "Cyclonic Storm",
-              knots: c.knots || (c.max_category?.includes("Super") ? 140 : c.max_category?.includes("Extremely") ? 100 : c.max_category?.includes("Very Severe") ? 80 : c.max_category?.includes("Severe") ? 55 : 35),
             })));
           }
         }
@@ -351,6 +349,7 @@ export default function InfrastructurePage() {
         {/* Storm Selector & AI Briefing Actions */}
         <div className="flex items-center gap-2.5 z-10 shrink-0 flex-wrap">
           <select
+            aria-label="Selected cyclone"
             value={selectedCycloneId || system?.id}
             onChange={(e) => {
               const storm = cyclonesList.find(s => s.id === e.target.value);
@@ -744,6 +743,7 @@ export default function InfrastructurePage() {
               </div>
 
               <select
+                aria-label="Filter facilities by state"
                 value={regionFilter}
                 onChange={(e) => setRegionFilter(e.target.value)}
                 className="px-3 py-1.5 bg-secondary/80 border border-border rounded-lg text-xs font-semibold text-foreground"
@@ -1163,6 +1163,7 @@ export default function InfrastructurePage() {
                 <div>
                   <label className="text-muted-foreground block mb-1">Alert Severity Level:</label>
                   <select
+                    aria-label="Exercise alert severity"
                     value={dispatchRiskLevel}
                     onChange={(e) => setDispatchRiskLevel(e.target.value)}
                     className="w-full px-3 py-2 bg-secondary/80 border border-border rounded-lg text-foreground font-semibold"

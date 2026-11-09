@@ -1,0 +1,112 @@
+<testsuites id="" name="" tests="32" failures="0" skipped="0" errors="1" time="210.16184300000003">
+<testsuite name="chat-reliability.spec.ts" timestamp="2026-11-09T10:12:01.425Z" hostname="" tests="4" failures="0" skipped="0" time="49.774" errors="1">
+<testcase name="new conversation cancels the old request and can send immediately" classname="chat-reliability.spec.ts" time="30.301">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\chat-reliability-new-conve-b2b6f-st-and-can-send-immediately\error-context.md]]
+]]>
+</system-out>
+<error message="Test timeout of 30000ms exceeded." type="Error">
+<![CDATA[  chat-reliability.spec.ts:9:1 › new conversation cancels the old request and can send immediately ─
+
+    Test timeout of 30000ms exceeded.
+
+    Error: expect(locator).toHaveCount(expected) failed
+
+    Locator: getByText('OBSOLETE_REPLY', { exact: true })
+    Expected: 0
+    Error: Test timeout of 30000ms exceeded.
+
+    Call log:
+      - Expect "toHaveCount" getByText('OBSOLETE_REPLY', { exact: true }) with timeout 5000ms
+      - waiting for getByText('OBSOLETE_REPLY', { exact: true })
+      - Test timeout of 30000ms exceeded.
+
+
+      35 |     await expect(page.getByText('CURRENT_REPLY',{exact:true})).toBeVisible();
+      36 |     releaseOld();
+    > 37 |     await expect(page.getByText('OBSOLETE_REPLY',{exact:true})).toHaveCount(0);
+         |                                                                 ^
+      38 |     await expect(page.getByText('Source information is unavailable.',{exact:false})).toHaveCount(0);
+      39 |   } finally {releaseOld();}
+      40 | });
+        at D:\Projects\CycloneTracker\frontend\tests\browser\chat-reliability.spec.ts:37:65
+
+    Error Context: ..\..\test-results\chat-reliability-new-conve-b2b6f-st-and-can-send-immediately\error-context.md
+]]>
+</error>
+</testcase>
+<testcase name="malformed chat object response shows a recoverable error" classname="chat-reliability.spec.ts" time="7.299">
+</testcase>
+<testcase name="malformed chat invalid sources shows a recoverable error" classname="chat-reliability.spec.ts" time="6.514">
+</testcase>
+<testcase name="malformed chat excessive response shows a recoverable error" classname="chat-reliability.spec.ts" time="5.66">
+</testcase>
+</testsuite>
+<testsuite name="reports.spec.ts" timestamp="2026-11-09T10:12:01.425Z" hostname="" tests="5" failures="0" skipped="0" time="16.062" errors="0">
+<testcase name="outage dashboard and assistant context never imply healthy feeds or calm" classname="reports.spec.ts" time="4.406">
+</testcase>
+<testcase name="current-year stale observations are neither drills nor verified live data" classname="reports.spec.ts" time="3.511">
+</testcase>
+<testcase name="report outage shows retry and never creates an agency bulletin" classname="reports.spec.ts" time="2.59">
+</testcase>
+<testcase name="unavailable wind remains unavailable on the live dashboard" classname="reports.spec.ts" time="2.914">
+</testcase>
+<testcase name="empty telemetry cannot become an all-clear or invented accuracy claim" classname="reports.spec.ts" time="2.641">
+</testcase>
+</testsuite>
+<testsuite name="settings-sync.spec.ts" timestamp="2026-11-09T10:12:01.425Z" hostname="" tests="7" failures="0" skipped="0" time="22.196" errors="0">
+<testcase name="dashboard refresh reads public observations without requesting admin ingestion" classname="settings-sync.spec.ts" time="3.563">
+</testcase>
+<testcase name="settings describes actual notification and wind-convention behavior" classname="settings-sync.spec.ts" time="2.941">
+</testcase>
+<testcase name="display preference is accessible, persisted, and never advertises converted observations" classname="settings-sync.spec.ts" time="3.165">
+</testcase>
+<testcase name="settings fits a narrow viewport and invalid endpoints cannot be saved" classname="settings-sync.spec.ts" time="3.205">
+</testcase>
+<testcase name="settings opens at the top after navigating from a scrolled page" classname="settings-sync.spec.ts" time="3.524">
+</testcase>
+<testcase name="custom backend saves a normalized URL and persists across reload" classname="settings-sync.spec.ts" time="3.206">
+</testcase>
+<testcase name="denied browser permission does not claim notifications are active" classname="settings-sync.spec.ts" time="2.592">
+</testcase>
+</testsuite>
+<testsuite name="v6.spec.ts" timestamp="2026-11-09T10:12:01.425Z" hostname="" tests="7" failures="0" skipped="0" time="34.609" errors="0">
+<testcase name="opened assistant accurately describes available educational and source-status functions" classname="v6.spec.ts" time="5.409">
+</testcase>
+<testcase name="offline sample image cannot create intensity measurements or operational instructions" classname="v6.spec.ts" time="5.243">
+</testcase>
+<testcase name="infrastructure starts with unavailable field data and explicit scenario opt-in" classname="v6.spec.ts" time="5.799">
+</testcase>
+<testcase name="failed forecast request offers retry without choosing an active demo" classname="v6.spec.ts" time="2.876">
+</testcase>
+<testcase name="hyphenated source ID uses explicit provenance and unvalidated accuracy" classname="v6.spec.ts" time="2.857">
+</testcase>
+<testcase name="archive outage has a retry and does not report an empty successful result" classname="v6.spec.ts" time="8.531">
+</testcase>
+<testcase name="landing page does not advertise unimplemented inference or delivery" classname="v6.spec.ts" time="3.894">
+</testcase>
+</testsuite>
+<testsuite name="v7-accessibility.spec.ts" timestamp="2026-11-09T10:12:01.425Z" hostname="" tests="4" failures="0" skipped="0" time="35.822" errors="0">
+<testcase name="illustrative sample selection works with the keyboard" classname="v7-accessibility.spec.ts" time="2.624">
+</testcase>
+<testcase name="missing comparison records do not invent a basin" classname="v7-accessibility.spec.ts" time="2.966">
+</testcase>
+<testcase name="dark pages pass automated accessibility checks during unavailable data" classname="v7-accessibility.spec.ts" time="15.228">
+</testcase>
+<testcase name="light pages pass automated accessibility checks during unavailable data" classname="v7-accessibility.spec.ts" time="15.004">
+</testcase>
+</testsuite>
+<testsuite name="v7-reliability.spec.ts" timestamp="2026-11-09T10:12:01.425Z" hostname="" tests="5" failures="0" skipped="0" time="28.862" errors="0">
+<testcase name="HTTP 503 readiness is visible rather than silently treated as a waking service" classname="v7-reliability.spec.ts" time="2.181">
+</testcase>
+<testcase name="mobile navigation opens, supports keyboard dismissal, and reaches settings" classname="v7-reliability.spec.ts" time="3.311">
+</testcase>
+<testcase name="mobile pages remain usable during a provider outage" classname="v7-reliability.spec.ts" time="7.622">
+</testcase>
+<testcase name="tablet pages remain usable during a provider outage" classname="v7-reliability.spec.ts" time="8.673">
+</testcase>
+<testcase name="desktop pages remain usable during a provider outage" classname="v7-reliability.spec.ts" time="7.075">
+</testcase>
+</testsuite>
+</testsuites>

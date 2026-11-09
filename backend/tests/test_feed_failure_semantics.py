@@ -12,7 +12,7 @@ async def test_imd_http_500_does_not_result_in_no_active_storms():
     service = LiveIngestionService()
     mock_resp = MagicMock(status_code=500, text="Internal Server Error")
     
-    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+    with patch("app.services.feed_http.FeedClient.get", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = mock_resp
         res = await service._fetch_imd_bulletins()
         assert res.status == FeedStatus.FAILED
@@ -24,7 +24,7 @@ async def test_imd_http_500_does_not_result_in_no_active_storms():
 async def test_gdacs_timeout_does_not_result_in_healthy():
     """2. GDACS timeout does not result in HEALTHY."""
     service = LiveIngestionService()
-    with patch("httpx.AsyncClient.get", side_effect=httpx.TimeoutException("Connection timed out")):
+    with patch("app.services.feed_http.FeedClient.get", side_effect=httpx.TimeoutException("Connection timed out")):
         res = await service._fetch_gdacs_active_systems()
         assert res.status == FeedStatus.FAILED
         assert service.sources_status["GDACS_UN"] != "HEALTHY"
@@ -36,7 +36,7 @@ async def test_jtwc_malformed_feed_does_not_result_in_verified_calm():
     service = LiveIngestionService()
     mock_resp = MagicMock(status_code=200, text="<<<MALFORMED NOT XML OR ADVISORY>>>")
     
-    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+    with patch("app.services.feed_http.FeedClient.get", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = mock_resp
         res = await service._fetch_jtwc_active_systems()
         assert res.status == FeedStatus.FAILED
@@ -58,7 +58,7 @@ async def test_undated_empty_advisory_cannot_verify_calm():
         else:
             return mock_jtwc
 
-    with patch("httpx.AsyncClient.get", side_effect=mock_fetch_all):
+    with patch("app.services.feed_http.FeedClient.get", side_effect=mock_fetch_all):
         sync_result = await service.sync_all_sources()
         assert service.sources_status["IMD_RSMC"] == "DEGRADED"
         assert service.sources_status["GDACS_UN"] == "DEGRADED"
@@ -77,7 +77,7 @@ async def test_two_failed_feeds_and_one_valid_feed_produce_partial_monitoring():
             return mock_gdacs
         raise httpx.ConnectError("Network connection refused")
 
-    with patch("httpx.AsyncClient.get", side_effect=mock_fetch):
+    with patch("app.services.feed_http.FeedClient.get", side_effect=mock_fetch):
         sync_result = await service.sync_all_sources()
         assert sync_result["status"] == "outage"
         assert service.sources_status["GDACS_UN"] == "DEGRADED"
@@ -100,7 +100,7 @@ async def test_three_failed_feeds_preserve_last_valid_records_as_stale():
     }
     service.live_systems = [valid_system]
 
-    with patch("httpx.AsyncClient.get", side_effect=httpx.ConnectError("Total network outage")):
+    with patch("app.services.feed_http.FeedClient.get", side_effect=httpx.ConnectError("Total network outage")):
         sync_result = await service.sync_all_sources()
         assert sync_result["status"] == "outage"
         assert len(service.live_systems) == 1
@@ -137,7 +137,7 @@ async def test_undated_recovery_preserves_stale_information():
         else:
             return mock_jtwc
 
-    with patch("httpx.AsyncClient.get", side_effect=mock_recover):
+    with patch("app.services.feed_http.FeedClient.get", side_effect=mock_recover):
         sync_result = await service.sync_all_sources()
         assert sync_result["status"] == "outage"
         assert len(service.live_systems) == 1
@@ -161,7 +161,7 @@ async def test_missing_wind_and_pressure_remain_null_end_to_end():
     </rss>""".encode("utf-8")
     
     mock_resp = MagicMock(status_code=200, content=gdacs_xml)
-    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+    with patch("app.services.feed_http.FeedClient.get", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = mock_resp
         res = await service._fetch_gdacs_active_systems()
         assert res.status == FeedStatus.STALE

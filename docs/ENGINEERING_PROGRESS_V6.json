@@ -680,5 +680,69 @@
       "backend/requirements-data-review.txt"
     ],
     "sha256": "232f44ec326b7db4d79962abee5fef0d690eb3f3f1f8c5a0198d45a870b5ad7e"
+  },
+  "local_uncommitted_review": {
+    "branch": "main",
+    "base_commit": "767c105c9a87b833c308004d22bbbb32311c6fcc",
+    "committed": false,
+    "pushed": false,
+    "issue": "V6-A15",
+    "root_cause": "Cleared conversations retained old requests; unvalidated and unbounded reply JSON reached React rendering.",
+    "resolution": "Abort discarded requests, fence updates by request identity, validate typed metadata/text, and bound streamed responses before parsing.",
+    "changed_files": [
+      "frontend/src/components/ChatbotWidget.tsx",
+      "frontend/src/lib/chatResponse.ts",
+      "frontend/tests/chat-response.test.mjs",
+      "frontend/tests/browser/chat-reliability.spec.ts"
+    ],
+    "verification": {
+      "before": "4 browser regression failures",
+      "unit": "19 passed",
+      "typescript": "passed",
+      "eslint": "0 errors; 172 existing warnings",
+      "build": "passed",
+      "browser": "16 passed; zero failures/skips (v6-chat-reliability-browser-results.xml)"
+    },
+    "report": "docs/V6_LOCAL_CHAT_RELIABILITY.md",
+    "status": "VERIFIED_FIXED",
+    "evidence_sha256": {
+      "v6-chat-reliability-before.xml": "4a78f592bc676d47b481c16d7189233badb52008397edc290f24b935a149726d",
+      "v6-chat-reliability-browser-results.xml": "a5864617b2b8560dc545e41b99f6ebeb0c9f0a2a61a9a08138d911979e77ec63",
+      "v6-chat-reliability-browser.txt": "0ece27d9315891197a94d0b569e121a5fa04ddfaed7d482354f707ba8bb0cbac",
+      "v6-chat-reliability-build.txt": "0a6fed5233e1d429c9c0968ca6d67b84e73247f3e182488596a525dcc309eeda",
+      "v6-chat-reliability-eslint.json": "ccec66067fcf2c0f021ad8dfe792788cd5a0cd4ddc26f40fca48288fa1b301a5",
+      "v6-chat-reliability-unit.txt": "e2cd8bdaf29fbcc345a65540b9f9e63d22324ab5e3e2c0faf5afcc636a1954ee"
+    }
+  },
+  "local_settings_and_refresh_review": {
+    "date": "2026-11-09",
+    "branch": "main",
+    "committed": false,
+    "pushed": false,
+    "status": "VERIFIED_LOCALLY",
+    "report": "docs/SETTINGS_AND_FEED_REFRESH.md",
+    "changes": [
+      "Read-only observation refresh replaces administrator ingestion POST",
+      "Responsive and accessible settings with accurate feature descriptions",
+      "Validated custom backend settings",
+      "Accurate account and selected-record labels"
+    ],
+    "verification": {
+      "unit": 21,
+      "browser": 23,
+      "typescript": "passed",
+      "build": "passed",
+      "eslint_errors": 0,
+      "eslint_warnings": 168
+    },
+    "evidence_sha256": {
+      "settings-sync-before.xml": "4a045a8242a3a44501b0d08c7b16a8e9ca12d025d39e3a6a1d0f2a1fc954fc6f",
+      "settings-sync-unit.txt": "435606039a765af3ce54bb168b511b0bd0028544a5bc06f43e362e20893aae2a",
+      "settings-sync-build.txt": "9b53031aa546b0983a85d64e458ab0d74ce9a42a367b62f8202b3d8265bd0360",
+      "settings-sync-eslint.json": "f1c0695d67343f11bcb59bca318ccd02d783c811c29f1715de5181d224b59948",
+      "settings-sync-browser-results.xml": "47e419c308428b22d3fe97cb362d05b960cac83a95c979f441a1db1b6634d7a8",
+      "settings-sync-browser.txt": "a27994418240b2b2145acd3d11d5ebe9ae22c1901a183eb4bd90774f8b0e9e29"
+    },
+    "limitations": "No hosted deployment or live source ingestion verification; backend administrator controls unchanged."
   }
 }

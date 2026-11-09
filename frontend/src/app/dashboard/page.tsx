@@ -151,25 +151,15 @@ export default function DashboardLiveMonitoringPage() {
     setIsSyncingIngest(true);
     setIngestError(null);
     try {
-      const data = await apiFetch<IngestStatus & {synced_at: string | null}>("/api/ingest/sync", {
-        method: "POST"
-      });
-      setIngestStatus({
-        status: data.status,
-        basin_status: data.basin_status,
-        last_sync: data.synced_at,
-        is_syncing: false,
-        active_systems_count: data.active_systems_count || 0,
-        sources_status: data.sources_status
-      });
-      fetchActiveSystems(false);
+      const data = await apiFetch<IngestStatus>("/api/ingest/status");
+      setIngestStatus(data);
+      clearSelectedCyclone();
+      await fetchActiveSystems(false);
     } catch (err: unknown) {
-      if (err instanceof ApiClientError && (err.status === 401 || err.status === 403)) {
-        setIngestError("Administrative authorization required to trigger manual ingestion sync.");
-      } else if (err instanceof ApiClientError && err.status === 429) {
-        setIngestError("Rate limit exceeded. Please wait before triggering another sync.");
+      if (err instanceof ApiClientError && err.status === 429) {
+        setIngestError("Too many refreshes. Please wait a moment and try again.");
       } else {
-        setIngestError((err instanceof Error ? err.message : "Request failed") || "Ingestion sync error");
+        setIngestError("Live data could not be refreshed. The feed may be unavailable; try again shortly.");
       }
     } finally {
       setIsSyncingIngest(false);
@@ -365,6 +355,7 @@ export default function DashboardLiveMonitoringPage() {
 
         <div className="flex items-center gap-2">
           <select
+            aria-label="Storm or live source selection"
             value={
               !activeSystem
                 ? "LIVE_SCAN"
@@ -407,10 +398,10 @@ export default function DashboardLiveMonitoringPage() {
             onClick={handleSyncFeeds}
             disabled={isSyncingIngest}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-600 dark:text-blue-400 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer hover:scale-105 active:scale-95 shadow-xs"
-            title="Poll IMD, NOAA, and MOSDAC feeds for newly evolving cyclones"
+            title="Reload the latest backend observations. Starting a new ingestion job requires administrator access."
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncingIngest ? "animate-spin" : ""}`} />
-            <span>{isSyncingIngest ? "Syncing..." : "Sync Live Feeds"}</span>
+            <span>{isSyncingIngest ? "Refreshing..." : "Refresh live data"}</span>
           </button>
         </div>
       </div>

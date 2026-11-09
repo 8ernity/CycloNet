@@ -7,6 +7,21 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Attribution links must remain identifiable without relying on color. */
+.leaflet-container .leaflet-control-attribution a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -100,7 +115,7 @@
   --popover: #090e24;
   --popover-foreground: #f8fafc;
   --primary: #0090FF;
-  --primary-foreground: #ffffff;
+  --primary-foreground: #040714;
   --secondary: #121938;
   --secondary-foreground: #f4f4f5;
   --muted: #0d1533;

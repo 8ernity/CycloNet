@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="15.004" timestamp="2026-11-09T14:59:57.271399+05:30" hostname="DESKTOP-FHF8V0M"><testcase classname="tests.test_v7_production" name="test_revision_marker_alone_cannot_certify_missing_domain_tables" time="1.719"><failure message="Failed: DID NOT RAISE RuntimeError">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001E559966B50&gt;
+
+    def test_revision_marker_alone_cannot_certify_missing_domain_tables(monkeypatch):
+        broken=create_engine('sqlite:///:memory:')
+        with broken.begin() as conn:
+            conn.execute(text('CREATE TABLE alembic_version(version_num VARCHAR(32))'))
+            conn.execute(text("INSERT INTO alembic_version VALUES ('20261108_archive_date')"))
+        monkeypatch.setattr(database,'engine',broken)
+&gt;       with pytest.raises(RuntimeError,match='schema'):
+E       Failed: DID NOT RAISE RuntimeError
+
+tests\test_v7_production.py:75: Failed</failure></testcase></testsuite></testsuites>

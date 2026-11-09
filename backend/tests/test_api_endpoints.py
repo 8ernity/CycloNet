@@ -12,7 +12,9 @@ async def test_root_and_health():
         
         r_health = await client.get("/health")
         assert r_health.status_code == 200
-        assert r_health.json()["status"] == "healthy"
+        # Legacy health must reflect the full readiness contract, not DB-only health.
+        assert r_health.json()["status"] == "ready"
+        assert r_health.json()["authentication_configured"] is True
 
 @pytest.mark.anyio
 async def test_ingest_status():

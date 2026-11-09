@@ -16,7 +16,7 @@ function cn(...inputs: ClassValue[]) {
 
 import { useLanguage } from "@/context/LanguageContext";
 
-const navItems = [
+export const navItems = [
   { key: "live_monitoring", name: "Live Monitoring", href: "/dashboard", icon: Activity },
   { key: "classification", name: "Classification", href: "/classification", icon: UploadCloud },
   { key: "historical_archive", name: "Historical Archive", href: "/archive", icon: History },
@@ -37,7 +37,7 @@ export function Sidebar() {
   const displayName = isAuthenticated
     ? (clerkUser?.fullName || clerkUser?.primaryEmailAddress?.emailAddress?.split("@")[0] || "Officer")
     : "Guest Visitor";
-  const displayRole = isAuthenticated ? "VERIFIED OPERATOR" : "PUBLIC DEMO";
+  const displayRole = isAuthenticated ? "SIGNED IN" : "PUBLIC VIEWER";
   const displayInitials = isAuthenticated ? displayName.slice(0, 2).toUpperCase() : "GV";
   const avatarUrl = isAuthenticated ? clerkUser?.imageUrl : null;
 

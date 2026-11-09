@@ -1,0 +1,125 @@
+<testsuites id="" name="" tests="4" failures="2" skipped="0" errors="2" time="130.698816">
+<testsuite name="settings-sync.spec.ts" timestamp="2026-11-08T18:18:05.728Z" hostname="" tests="4" failures="2" skipped="0" time="79.061" errors="2">
+<testcase name="dashboard refresh reads public observations without requesting admin ingestion" classname="settings-sync.spec.ts" time="7.532">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\settings-sync-dashboard-re-d771a--requesting-admin-ingestion\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(received).toBe(expected) // Object.is equality" type="expect.toBe">
+<![CDATA[  settings-sync.spec.ts:3:1 › dashboard refresh reads public observations without requesting admin ingestion 
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: 0
+    Received: 1
+
+      14 |   await page.getByRole('button',{name:/Sync Live Feeds|Refresh live data/}).click();
+      15 |   await expect.poll(()=>reads).toBeGreaterThan(before);
+    > 16 |   expect(posts).toBe(0);
+         |                 ^
+      17 |   await expect(page.getByText(/Administrative authorization required/)).toHaveCount(0);
+      18 | });
+      19 |
+        at D:\Projects\CycloneTracker\frontend\tests\browser\settings-sync.spec.ts:16:17
+
+    Error Context: ..\..\test-results\settings-sync-dashboard-re-d771a--requesting-admin-ingestion\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="settings describes actual notification and wind-convention behavior" classname="settings-sync.spec.ts" time="11.213">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\settings-sync-settings-des-cb185-nd-wind-convention-behavior\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).not.toContainText(expected) failed" type="expect.not.toContainText">
+<![CDATA[  settings-sync.spec.ts:20:1 › settings describes actual notification and wind-convention behavior ─
+
+    Error: expect(locator).not.toContainText(expected) failed
+
+    Locator: getByRole('main')
+    Expected pattern: not /Web Push connected|Browser Notification Active|\+14%|1\.14x|Listening on user endpoint/
+    Received string: "System & Meteorological SettingsConfigure data ingestion standards, wind conversion models, and UI radar themes.Save All ChangesAppearance & Radar LightingCyberpunk Radar ThemeNeon Green Dark Mode (Power ON)PowerEmergency Alerts & BulletinsBrowser Web Push BulletinsReceive browser push notifications for real-time alerts.Emergency Siren Audio & Drill ModeLocal browser siren audio & simulated CAP dispatch drill trigger (client sandbox).Gateway Status: 🟢 Browser Notification Active • ⚪ Siren IdleMeteorological Data Source & Agency StandardSelect your primary meteorological agency standard. Data calculations and categories across Dashboard and Forecast will adapt immediately.Active: IMD (3-min)🇮🇳IMD Protocol3-Minute Sustained WindIndia Meteorological Department & WMO RSMC standard for the North Indian Ocean basin.• Scale: CS / VSCS / ESCS / SuCS• Example: 100 kts (Extremely Severe)🇺🇸JTWC Protocol1-Minute Sustained Wind (+14%)US Joint Typhoon Warning Center standard using Saffir-Simpson Hurricane Wind Scale.• Scale: Saffir-Simpson (Cat 1–5)• Example: 114 kts (Category 4 Major)⚙️Custom APILocal / Research EndpointConnect custom meteorological WRF simulations or proprietary AI model outputs.• Custom JSON Payload Protocol• Configurable REST EndpointActive Conversion Rule:IMD 3-Min Winds = Base Knots × 1.00 | Categories: WMO Standard (Depression to Super Cyclone)IMD 3-Min Active"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "not toContainText" getByRole('main') with timeout 5000ms
+      - waiting for getByRole('main')
+        12 × locator resolved to <main class="flex-1 p-6 overflow-x-hidden">…</main>
+           - unexpected value "System & Meteorological SettingsConfigure data ingestion standards, wind conversion models, and UI radar themes.Save All ChangesAppearance & Radar LightingCyberpunk Radar ThemeNeon Green Dark Mode (Power ON)PowerEmergency Alerts & BulletinsBrowser Web Push BulletinsReceive browser push notifications for real-time alerts.Emergency Siren Audio & Drill ModeLocal browser siren audio & simulated CAP dispatch drill trigger (client sandbox).Gateway Status: 🟢 Browser Notification Active • ⚪ Siren IdleMeteorological Data Source & Agency StandardSelect your primary meteorological agency standard. Data calculations and categories across Dashboard and Forecast will adapt immediately.Active: IMD (3-min)🇮🇳IMD Protocol3-Minute Sustained WindIndia Meteorological Department & WMO RSMC standard for the North Indian Ocean basin.• Scale: CS / VSCS / ESCS / SuCS• Example: 100 kts (Extremely Severe)🇺🇸JTWC Protocol1-Minute Sustained Wind (+14%)US Joint Typhoon Warning Center standard using Saffir-Simpson Hurricane Wind Scale.• Scale: Saffir-Simpson (Cat 1–5)• Example: 114 kts (Category 4 Major)⚙️Custom APILocal / Research EndpointConnect custom meteorological WRF simulations or proprietary AI model outputs.• Custom JSON Payload Protocol• Configurable REST EndpointActive Conversion Rule:IMD 3-Min Winds = Base Knots × 1.00 | Categories: WMO Standard (Depression to Super Cyclone)IMD 3-Min Active"
+
+
+      21 |   await page.goto('/settings',{waitUntil:'domcontentloaded'});
+      22 |   await page.screenshot({path:process.env.SETTINGS_SCREENSHOT_PREFIX+'-desktop.png',fullPage:true});
+    > 23 |   await expect(page.getByRole('main')).not.toContainText(/Web Push connected|Browser Notification Active|\+14%|1\.14x|Listening on user endpoint/);
+         |                                            ^
+      24 |   await expect(page.getByRole('button',{name:'Send test notification'})).toBeVisible();
+      25 |   await expect(page.getByRole('main')).toContainText('No push subscription or live alert delivery is connected');
+      26 |   await expect(page.getByRole('heading',{name:'Settings',exact:true}).last()).toBeVisible();
+        at D:\Projects\CycloneTracker\frontend\tests\browser\settings-sync.spec.ts:23:44
+
+    Error Context: ..\..\test-results\settings-sync-settings-des-cb185-nd-wind-convention-behavior\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="display preference is accessible, persisted, and never advertises converted observations" classname="settings-sync.spec.ts" time="30.092">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\settings-sync-display-pref-75ab5-ises-converted-observations\error-context.md]]
+]]>
+</system-out>
+<error message="Test timeout of 30000ms exceeded." type="Error">
+<![CDATA[  settings-sync.spec.ts:29:1 › display preference is accessible, persisted, and never advertises converted observations 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.focus: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: /JTWC categories/ })
+
+
+      30 |   await page.goto('/settings',{waitUntil:'domcontentloaded'});
+      31 |   const jtwc=page.getByRole('button',{name:/JTWC categories/});
+    > 32 |   await jtwc.focus();
+         |              ^
+      33 |   await page.keyboard.press('Enter');
+      34 |   await expect(jtwc).toHaveAttribute('aria-pressed','true');
+      35 |   await expect(page.getByRole('main')).toContainText('No automatic wind conversion');
+        at D:\Projects\CycloneTracker\frontend\tests\browser\settings-sync.spec.ts:32:14
+
+    Error Context: ..\..\test-results\settings-sync-display-pref-75ab5-ises-converted-observations\error-context.md
+]]>
+</error>
+</testcase>
+<testcase name="settings fits a narrow viewport and invalid endpoints cannot be saved" classname="settings-sync.spec.ts" time="30.224">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\settings-sync-settings-fit-00639-d-endpoints-cannot-be-saved\error-context.md]]
+]]>
+</system-out>
+<error message="Test timeout of 30000ms exceeded." type="Error">
+<![CDATA[  settings-sync.spec.ts:40:1 › settings fits a narrow viewport and invalid endpoints cannot be saved 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: /Custom backend/ })
+
+
+      41 |   await page.setViewportSize({width:390,height:844});
+      42 |   await page.goto('/settings',{waitUntil:'domcontentloaded'});
+    > 43 |   await page.getByRole('button',{name:/Custom backend/}).click();
+         |                                                          ^
+      44 |   await page.getByLabel('Backend URL').fill('javascript:alert(1)');
+      45 |   await page.getByRole('button',{name:'Save endpoint'}).click();
+      46 |   await expect(page.getByRole('alert')).toContainText('HTTP or HTTPS');
+        at D:\Projects\CycloneTracker\frontend\tests\browser\settings-sync.spec.ts:43:58
+
+    Error Context: ..\..\test-results\settings-sync-settings-fit-00639-d-endpoints-cannot-be-saved\error-context.md
+]]>
+</error>
+</testcase>
+</testsuite>
+</testsuites>

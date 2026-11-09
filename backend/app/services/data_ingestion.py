@@ -3,7 +3,7 @@ from app.models.domain import CycloneArchive
 
 def seed_historical_data(db: Session):
     """
-    Seeds the SQLite database with comprehensive historical IMD Best-Track data
+    Seeds the local development database with historical catalog records
     across Bay of Bengal and Arabian Sea basins (1999–2024).
     """
     historical_systems = [

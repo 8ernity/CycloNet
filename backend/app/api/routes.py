@@ -16,7 +16,7 @@ from app.services.chat_service import chat_service
 from app.services.gee_service import gee_service
 from app.services.surge_service import surge_service
 from app.services.report_service import report_service
-from app.services.best_tracks import get_cyclone_trajectory
+from app.services.best_tracks import get_cyclone_trajectory, REAL_CYCLONE_TRACKS
 from app.services.live_ingestion import live_ingestion_service
 from app.core.database import get_db
 from app.models.domain import CycloneArchive, ClassificationHistory
@@ -224,24 +224,28 @@ async def get_active_systems(simulate: bool = False, cyclone_id: Optional[str] =
     return [result]
 
 @router.get("/cyclones")
-async def get_cyclones_catalog(db: Session = Depends(get_db)):
+async def get_cyclones_catalog(limit: int = Query(1000, ge=1, le=1000),
+                              offset: int = Query(0, ge=0), db: Session = Depends(get_db)):
     """
     Returns complete cyclone catalog including active live systems and historical database entries.
     Fixes Problem LIVE-03 (nonexistent /api/cyclones endpoint).
     """
     catalog = []
-    for sys in live_ingestion_service.live_systems:
+    for sys in live_ingestion_service.live_systems[:100]:
+        current = sys.get('reconciliation_status') == 'ACTIVE_VERIFIED' and not sys.get('is_stale') and not sys.get('is_simulation')
         catalog.append({
             "id": sys.get("id"),
             "name": sys.get("name"),
             "year": str(datetime.datetime.utcnow().year),
             "maxCategory": sys.get("category"),
             "basin": sys.get("basin"),
-            "dates": "Current Active",
-            "is_live": True,
+            "dates": sys.get('observation_time_utc') or 'Time unavailable',
+            "is_live": current,
+            "is_stale": bool(sys.get('is_stale')),
+            "source_id": sys.get('source_id'),
             "is_simulation": sys.get("is_simulation", False)
         })
-    cyclones = db.query(CycloneArchive).all()
+    cyclones = db.query(CycloneArchive).order_by(CycloneArchive.start_date.desc(), CycloneArchive.id.desc()).offset(offset).limit(limit).all()
     for c in cyclones:
         catalog.append({
             "id": c.id,
@@ -251,7 +255,7 @@ async def get_cyclones_catalog(db: Session = Depends(get_db)):
             "basin": c.basin,
             "dates": c.dates or str(c.year),
             "is_live": False,
-            "is_simulation": "2026" in c.id or "SIM" in c.id
+            "is_simulation": bool(REAL_CYCLONE_TRACKS.get(c.id, {}).get('is_simulation'))
         })
     return catalog
 
@@ -300,7 +304,7 @@ async def classify_image(
         raise
     except Exception as e:
         db.rollback()
-        logger.exception("Satellite classification error: %s", e)
+        logger.error("Satellite classification failed: %s", type(e).__name__)
         raise HTTPException(status_code=500, detail="Internal processing error during satellite classification.")
 
 @router.get("/history/search")
@@ -310,7 +314,7 @@ async def search_history(
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db)
 ):
-    """Fetches historical cyclones from SQLite database populated via imdtrack."""
+    """Fetches a bounded page of historical catalog records."""
     q = db.query(CycloneArchive)
     if query.strip():
         term = f"%{query.strip()}%"
@@ -329,7 +333,8 @@ async def search_history(
             "year": str(c.year),
             "maxCategory": c.max_category,
             "basin": c.basin,
-            "dates": c.dates or str(c.year)
+            "dates": c.dates or str(c.year),
+            "is_simulation": bool(REAL_CYCLONE_TRACKS.get(c.id, {}).get('is_simulation'))
         } for c in cyclones_sorted
     ]
 

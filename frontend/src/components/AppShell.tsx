@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { setAuthTokenProvider } from "@/lib/api";
 import { usePathname } from "next/navigation";
@@ -15,6 +15,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => setAuthTokenProvider(null);
   }, [getToken]);
   const pathname = usePathname();
+  const contentRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    window.scrollTo({top:0, left:0, behavior:"instant"});
+    contentRef.current?.scrollTo({top:0, left:0, behavior:"instant"});
+  }, [pathname]);
   const isAuthPage = pathname === "/login" || pathname === "/signup";
   const isFullScreenPage = pathname === "/";
 
@@ -33,10 +38,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-3 focus:text-primary-foreground">
+        Skip to main content
+      </a>
       <Sidebar />
-      <div className="flex-1 lg:pl-64 flex flex-col min-h-screen">
+      <div className="min-w-0 w-full flex-1 lg:pl-64 flex flex-col min-h-screen">
         <Header />
-        <main className="flex-1 p-6 overflow-x-hidden">
+        <main id="main-content" tabIndex={-1} ref={contentRef} className="min-w-0 flex-1 p-4 sm:p-6 overflow-x-clip">
           {children}
         </main>
       </div>

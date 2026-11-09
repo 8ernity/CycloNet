@@ -1,0 +1,17 @@
+{
+  "scope": "Local production build; mocked unavailable providers; script delivery only, not hosted load or field performance",
+  "measurements": [
+    {
+      "path": "/reports",
+      "scripts": 12,
+      "decodedJavascriptBytes": 1379793,
+      "transferredJavascriptBytes": 425301
+    },
+    {
+      "path": "/settings",
+      "scripts": 11,
+      "decodedJavascriptBytes": 871416,
+      "transferredJavascriptBytes": 267258
+    }
+  ]
+}

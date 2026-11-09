@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="41.744" timestamp="2026-11-09T15:45:06.064848+05:30" hostname="DESKTOP-FHF8V0M"><testcase classname="tests.test_v7_sqlite_migration" name="test_failed_backup_removes_only_its_new_partial_copy" time="38.102"><failure message="PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\arpan\\AppData\\Local\\Packages\\sandbox.{92ee8003-9ec6-4f20-af91-50b3334c82f5}\\AC\\Temp\\pytest-of-arpan\\pytest-0\\test_failed_backup_removes_onl0\\partial.sqlite'">scripts\rehearse_sqlite_migration.py:64: in backup_sqlite
+    src.backup(dst, pages=256, progress=progress, sleep=.1)
+E   sqlite3.DatabaseError: file is not a database
+
+During handling of the above exception, another exception occurred:
+tests\test_v7_sqlite_migration.py:63: in test_failed_backup_removes_only_its_new_partial_copy
+    backup_sqlite(source, destination)
+scripts\rehearse_sqlite_migration.py:68: in backup_sqlite
+    destination.unlink(missing_ok=True)
+C:\Users\arpan\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1147: in unlink
+    os.unlink(self)
+E   PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\arpan\\AppData\\Local\\Packages\\sandbox.{92ee8003-9ec6-4f20-af91-50b3334c82f5}\\AC\\Temp\\pytest-of-arpan\\pytest-0\\test_failed_backup_removes_onl0\\partial.sqlite'</failure></testcase></testsuite></testsuites>

@@ -1,13 +1,14 @@
 import datetime
 from typing import List, Dict, Any, Optional
 
-# Real historical IMD/IBTrACS best-track datasets with authentic coordinates,
-# timing offsets, intensity (knots), IMD classification categories, and precise landfall metadata.
+# Curated historical catalog excerpts plus explicitly tagged demonstration data.
+# This embedded catalog is not independent scientific validation evidence.
 REAL_CYCLONE_TRACKS: Dict[str, Dict[str, Any]] = {
     # -------------------------------------------------------------
     # 0. Deep Depression BOB-05 (September 2026) - Bay of Bengal
     # -------------------------------------------------------------
     "BOB05-2026": {
+        "is_simulation": True,
         "name": "Deep Depression (BOB-05)",
         "basin": "Bay of Bengal",
         "category": "Deep Depression",
@@ -861,9 +862,8 @@ def _derive_landfall_info(data: Dict[str, Any], formatted_points: List[Dict[str,
 
 def get_cyclone_trajectory(cyclone_id: str, name: str, basin: str, category: str) -> Dict[str, Any]:
     """
-    Returns authentic track trajectory coordinates, forecast cone, and structured landfall metadata.
-    If pre-defined in REAL_CYCLONE_TRACKS, uses real IMD/IBTrACS coordinates and authentic timestamps.
-    Otherwise generates an authentic curved meteorological path.
+    Returns curated catalog tracks or an explicitly labeled illustrative scenario.
+    Embedded demonstration entries retain their simulation provenance.
     """
     # 1. Match by ID or Name
     data = REAL_CYCLONE_TRACKS.get(cyclone_id)
@@ -882,12 +882,13 @@ def get_cyclone_trajectory(cyclone_id: str, name: str, basin: str, category: str
     peak_idx = data.get("peak_index", 0)
     peak_pt = data["points"][peak_idx]
     is_active = data.get("is_active", False)
+    simulation = data.get('is_simulation', False)
 
     formatted_points = []
     for i, pt in enumerate(data["points"]):
         # Historical points occurring after peak intensity are NOT forecasts (DATA-04)
         is_fc = (i > peak_idx) if is_active else pt.get("is_forecast", False)
-        is_obs = not is_fc
+        is_obs = not is_fc and not simulation
         offset_h = pt.get("time_offset_hours", 0)
         abbr = IMD_ABBR.get(pt.get("category", ""), "CS")
         desc = pt.get("desc", "")
@@ -924,17 +925,19 @@ def get_cyclone_trajectory(cyclone_id: str, name: str, basin: str, category: str
         "lon": peak_pt["lon"],
         "intensity_knots": peak_pt["intensity_knots"],
         "category": data["category"],
-        "is_simulation": False,
-        "telemetry_type": "HISTORICAL_BEST_TRACK",
+        "is_simulation": simulation,
+        "is_measured_observation": False if simulation else None,
+        "data_quality_status": "DEMONSTRATION" if simulation else "CURATED_CATALOG_NOT_INDEPENDENTLY_VERIFIED",
+        "telemetry_type": "SIMULATION" if simulation else "HISTORICAL_BEST_TRACK",
         "dvorak_t": f"T{min(6.5, max(2.5, round(2.5 + (peak_pt['intensity_knots'] - 30) / 20.0, 1)))}",
         "dvorak_derivation_method": "Empirical Dvorak CI from Historical Max Wind",
         "dvorak_is_empirical_estimate": True,
-        "track_generation_method": "Official IMD / IBTrACS Best-Track Dataset",
+        "track_generation_method": "Explicit demonstration track" if simulation else "Curated historical catalog excerpt; independent source verification required",
         "telemetry_attribution": {
-            "center_fix": "IMD_HISTORICAL_OBSERVATION",
-            "intensity_knots": "IMD_HISTORICAL_OBSERVATION",
+            "center_fix": "SIMULATED_BASELINE" if simulation else "CURATED_HISTORICAL_CATALOG",
+            "intensity_knots": "SIMULATED_BASELINE" if simulation else "CURATED_HISTORICAL_CATALOG",
             "dvorak_t": "PARAMETRIC_ESTIMATE",
-            "trajectory_forecast": "IMD_HISTORICAL_BEST_TRACK"
+            "trajectory_forecast": "SIMULATED_BASELINE" if simulation else "CURATED_HISTORICAL_CATALOG"
         },
         "track_forecast": formatted_points,
         "landfall_info": landfall_info,

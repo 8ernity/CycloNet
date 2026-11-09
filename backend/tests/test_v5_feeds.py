@@ -26,7 +26,7 @@ async def test_partial_empty_does_not_erase_unrelated_storm():
                                        ('_fetch_gdacs_active_systems','<rss><channel/></rss>')])
 async def test_generic_documents_are_not_calm(method, body):
     import httpx
-    with patch('httpx.AsyncClient.get', AsyncMock(return_value=httpx.Response(200, text=body))):
+    with patch('app.services.feed_http.FeedClient.get', AsyncMock(return_value=httpx.Response(200, text=body))):
         result = await getattr(LiveIngestionService(), method)()
     assert result.status not in (FeedStatus.HEALTHY, FeedStatus.NO_ACTIVE_STORMS)
 
@@ -41,7 +41,7 @@ def test_track_does_not_invent_observation_time_or_wind():
 async def test_authentic_jtwc_other_hemisphere_calm_is_not_indian_ocean_calm():
     import httpx
     body=(Path(__file__).parent/'fixtures/jtwc-rss-20261107.xml').read_bytes()
-    with patch('httpx.AsyncClient.get', AsyncMock(return_value=httpx.Response(200, content=body))):
+    with patch('app.services.feed_http.FeedClient.get', AsyncMock(return_value=httpx.Response(200, content=body))):
         result=await LiveIngestionService()._fetch_jtwc_active_systems()
     assert result.status not in (FeedStatus.HEALTHY,FeedStatus.NO_ACTIVE_STORMS)
     assert not result.calm_evidence

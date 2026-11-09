@@ -1,0 +1,30 @@
+✔ PDF preserves source provenance and missing measurements (236.8712ms)
+✖ failed PDF save propagates an error instead of reporting a successful download (113.7343ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1250.9781
+
+✖ failing tests:
+
+test at tests\pdf.test.mjs:25:1
+✖ failed PDF save propagates an error instead of reporting a successful download (113.7343ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///D:/Projects/CycloneTracker/frontend/tests/pdf.test.mjs:32:10)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: /download/i,
+    operator: 'throws',
+    diff: 'simple'
+  }

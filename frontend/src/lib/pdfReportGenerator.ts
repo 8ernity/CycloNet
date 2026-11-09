@@ -467,5 +467,6 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
     doc.save(fileName);
   } catch (err) {
     console.error("doc.save fallback failed:", err);
+    throw new Error("PDF download could not be started. Please try again.");
   }
 }

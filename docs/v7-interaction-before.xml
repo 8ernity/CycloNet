@@ -1,0 +1,163 @@
+<testsuites id="" name="" tests="5" failures="5" skipped="0" errors="0" time="56.837853">
+<testsuite name="v7-interaction.spec.ts" timestamp="2026-11-09T14:20:48.265Z" hostname="" tests="5" failures="5" skipped="0" time="42.743" errors="0">
+<testcase name="keyboard users can skip navigation and focus page content" classname="v7-interaction.spec.ts" time="13.63">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\v7-interaction-keyboard-us-d3c0c-tion-and-focus-page-content\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeFocused() failed" type="expect.toBeFocused">
+<![CDATA[  v7-interaction.spec.ts:3:1 › keyboard users can skip navigation and focus page content ───────────
+
+    Error: expect(locator).toBeFocused() failed
+
+    Locator: getByRole('link', { name: 'Skip to main content' })
+    Expected: focused
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeFocused" getByRole('link', { name: 'Skip to main content' }) with timeout 5000ms
+      - waiting for getByRole('link', { name: 'Skip to main content' })
+
+
+      4 |   await page.goto('/settings', { waitUntil: 'domcontentloaded' });
+      5 |   await page.keyboard.press('Tab');
+    > 6 |   await expect(page.getByRole('link', { name: 'Skip to main content' })).toBeFocused();
+        |                                                                          ^
+      7 |   await page.keyboard.press('Enter');
+      8 |   await expect(page.getByRole('main')).toBeFocused();
+      9 | });
+        at D:\Projects\CycloneTracker\frontend\tests\browser\v7-interaction.spec.ts:6:74
+
+    Error Context: ..\..\test-results\v7-interaction-keyboard-us-d3c0c-tion-and-focus-page-content\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="assistant has a name, focuses input, and Escape restores its opener" classname="v7-interaction.spec.ts" time="8.666">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\v7-interaction-assistant-h-a07bc--Escape-restores-its-opener\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  v7-interaction.spec.ts:11:1 › assistant has a name, focuses input, and Escape restores its opener 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('dialog', { name: 'CycloNet AI assistant' })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByRole('dialog', { name: 'CycloNet AI assistant' }) with timeout 5000ms
+      - waiting for getByRole('dialog', { name: 'CycloNet AI assistant' })
+
+
+      13 |   const opener = page.getByRole('button', { name: 'Ask CycloNet AI' });
+      14 |   await opener.click();
+    > 15 |   await expect(page.getByRole('dialog', { name: 'CycloNet AI assistant' })).toBeVisible();
+         |                                                                             ^
+      16 |   await expect(page.getByRole('textbox', { name: 'Message CycloNet AI' })).toBeFocused();
+      17 |   await page.keyboard.press('Escape');
+      18 |   await expect(page.getByRole('dialog', { name: 'CycloNet AI assistant' })).toBeHidden();
+        at D:\Projects\CycloneTracker\frontend\tests\browser\v7-interaction.spec.ts:15:77
+
+    Error Context: ..\..\test-results\v7-interaction-assistant-h-a07bc--Escape-restores-its-opener\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="saved desktop assistant dimensions fit a narrow screen and resize" classname="v7-interaction.spec.ts" time="8.529">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\v7-interaction-saved-deskt-83fec--a-narrow-screen-and-resize\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(received).toBe(expected) // Object.is equality" type="expect.toBe">
+<![CDATA[  v7-interaction.spec.ts:22:1 › saved desktop assistant dimensions fit a narrow screen and resize ──
+
+    Error: expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+    Call Log:
+    - Timeout 5000ms exceeded while waiting on the predicate
+
+      35 |       const box = await window.boundingBox();
+      36 |       return !!box && box.x >= 0 && box.y >= 0 && box.x + box.width <= viewport.width && box.y + box.height <= viewport.height;
+    > 37 |     }).toBe(true);
+         |        ^
+      38 |   }
+      39 | });
+      40 |
+        at D:\Projects\CycloneTracker\frontend\tests\browser\v7-interaction.spec.ts:37:8
+
+    Error Context: ..\..\test-results\v7-interaction-saved-deskt-83fec--a-narrow-screen-and-resize\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="closed assistant does not poll screen context" classname="v7-interaction.spec.ts" time="4.296">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\v7-interaction-closed-assistant-does-not-poll-screen-context\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(received).toBeNull()" type="expect.toBeNull">
+<![CDATA[  v7-interaction.spec.ts:41:1 › closed assistant does not poll screen context ──────────────────────
+
+    Error: expect(received).toBeNull()
+
+    Received: "3"
+
+      48 |   await page.goto('/settings', { waitUntil: 'domcontentloaded' });
+      49 |   await page.waitForTimeout(2200);
+    > 50 |   expect(await page.locator('html').getAttribute('data-context-reads')).toBeNull();
+         |                                                                         ^
+      51 | });
+      52 |
+      53 | test('reduced motion disables decorative hero autoplay and smooth scrolling', async ({ page }) => {
+        at D:\Projects\CycloneTracker\frontend\tests\browser\v7-interaction.spec.ts:50:73
+
+    Error Context: ..\..\test-results\v7-interaction-closed-assistant-does-not-poll-screen-context\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="reduced motion disables decorative hero autoplay and smooth scrolling" classname="v7-interaction.spec.ts" time="7.622">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\v7-interaction-reduced-mot-a4690-toplay-and-smooth-scrolling\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).not.toHaveClass(expected) failed" type="expect.not.toHaveClass">
+<![CDATA[  v7-interaction.spec.ts:53:1 › reduced motion disables decorative hero autoplay and smooth scrolling 
+
+    Error: expect(locator).not.toHaveClass(expected) failed
+
+    Locator: locator('html')
+    Expected pattern: not /lenis-smooth/
+    Received string: "MOT0tq_variable fJfFLG_variable _5Hl15a_variable h-full antialiased lenis lenis-smooth dark"
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "not toHaveClass" locator('html') with timeout 5000ms
+      - waiting for locator('html')
+        11 × locator resolved to <html lang="en" class="MOT0tq_variable fJfFLG_variable _5Hl15a_variable h-full antialiased lenis lenis-smooth dark">…</html>
+           - unexpected value "MOT0tq_variable fJfFLG_variable _5Hl15a_variable h-full antialiased lenis lenis-smooth dark"
+
+
+      55 |   await page.goto('/', { waitUntil: 'domcontentloaded' });
+      56 |   await expect.poll(() => page.locator('.parallax video').evaluateAll(videos => videos.every(video => (video as HTMLVideoElement).paused))).toBe(true);
+    > 57 |   await expect(page.locator('html')).not.toHaveClass(/lenis-smooth/);
+         |                                          ^
+      58 | });
+      59 |
+        at D:\Projects\CycloneTracker\frontend\tests\browser\v7-interaction.spec.ts:57:42
+
+    Error Context: ..\..\test-results\v7-interaction-reduced-mot-a4690-toplay-and-smooth-scrolling\error-context.md
+]]>
+</failure>
+</testcase>
+</testsuite>
+</testsuites>

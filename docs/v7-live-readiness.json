@@ -1,0 +1,1 @@
+{"checks": [{"check": "frontend", "ok": false, "error_type": "HTTPError"}, {"check": "backend_readiness", "ok": false, "error_type": "TimeoutError"}]}

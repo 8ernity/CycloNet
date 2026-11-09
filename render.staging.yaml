@@ -3,7 +3,7 @@ services:
   # ── CycloNet Backend (FastAPI + PyTorch + Gemini AI) ────────────────────────
   - type: web
     name: cyclonet-backend-staging
-    branch: staging
+    branch: main
     autoDeployTrigger: "off"
     runtime: python
     rootDir: backend
@@ -12,19 +12,26 @@ services:
     buildCommand: "pip install --require-hashes --extra-index-url https://download.pytorch.org/whl/cpu -r requirements-linux.lock"
     preDeployCommand: "alembic upgrade head"
     healthCheckPath: /health/ready
-    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    maxShutdownDelaySeconds: 90
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT --timeout-graceful-shutdown 60 --timeout-keep-alive 5 --ws-max-size 4096 --no-access-log"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.15
       - key: ENVIRONMENT
         value: production
+      - key: DB_POOL_SIZE
+        value: "5"
+      - key: DB_MAX_OVERFLOW
+        value: "5"
+      - key: DB_POOL_TIMEOUT
+        value: "5"
       - key: DATABASE_URL
         fromDatabase:
           name: cyclonet-db-staging
           property: connectionString
       - key: REDIS_URL
         fromService:
-          type: redis
+          type: keyvalue
           name: cyclonet-redis-staging
           property: connectionString
       - key: REDIS_FAIL_CLOSED
@@ -36,7 +43,7 @@ services:
       - key: CLERK_AUTHORIZED_PARTIES
         value: "https://cyclonet-frontend-staging.onrender.com"
       - key: GEE_PROJECT_ID
-        value: cyclonet-ee-staging-8ernity
+        sync: false # Supply a real authorized project; proposed names are not evidence.
       - key: REQUIRE_VALIDATED_ML
         value: "false" # Experimental API only; no validated model is bundled.
       - key: GEMINI_API_KEY
@@ -49,7 +56,7 @@ services:
   # ── CycloNet Frontend (Next.js 16 + Tailwind CSS) ───────────────────────────
   - type: web
     name: cyclonet-frontend-staging
-    branch: staging
+    branch: main
     autoDeployTrigger: "off"
     runtime: node
     rootDir: frontend
@@ -57,14 +64,13 @@ services:
     region: oregon
     buildCommand: "npm ci && npm run build"
     startCommand: "npm run start"
+    healthCheckPath: /login
+    maxShutdownDelaySeconds: 30
     envVars:
       - key: NODE_VERSION
         value: 22.22.0
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          name: cyclonet-backend-staging
-          type: web
-          property: host
+        value: "https://cyclonet-backend-staging.onrender.com"
       - key: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
         sync: false # Set securely in Render dashboard
       - key: CLERK_SECRET_KEY
@@ -79,7 +85,7 @@ services:
         value: /
 
   # ── CycloNet Redis Cache & Distributed Lock Store ───────────────────────────
-  - type: redis
+  - type: keyvalue
     name: cyclonet-redis-staging
     plan: starter
     region: oregon

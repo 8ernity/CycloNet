@@ -233,7 +233,10 @@ export default function ClassificationPage() {
             </h3>
             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
               {[1, 2, 3, 4].map((i) => (
-                <div 
+                <button
+                  type="button"
+                  aria-label={`Select illustrative sample frame ${i}`}
+                  aria-pressed={selectedFrame === i}
                   key={i} 
                   onClick={() => handleDemoFrameSelect(i)}
                   className={`min-w-[130px] aspect-square rounded-lg border-2 cursor-pointer transition-all relative overflow-hidden group ${selectedFrame === i ? 'border-primary shadow-lg shadow-primary/30 scale-105 ring-2 ring-primary/40' : 'border-border hover:border-primary/50'}`}
@@ -244,7 +247,7 @@ export default function ClassificationPage() {
                     Sample
                   </div>
                   <div className="absolute bottom-2 left-2 text-[11px] font-semibold text-white">Frame #{i}</div>
-                </div>
+                </button>
               ))}
             </div>
           </div>

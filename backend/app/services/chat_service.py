@@ -78,7 +78,7 @@ class MeteorologicalChatService:
             return {
                 "response": db_context,
                 "category": "database_telemetry",
-                "sources": ["CycloNet Historical Archive (SQLite)"],
+                "sources": ["CycloNet historical catalog; not current observations"],
                 "timestamp": timestamp
             }
 
@@ -92,7 +92,7 @@ class MeteorologicalChatService:
         }
 
     def _get_database_context(self, text: str, db, ui_context: Optional[Dict] = None) -> Optional[str]:
-        """Queries local SQLite archive for specific storms mentioned by name or currently active on UI."""
+        """Queries the historical catalog for storms mentioned by name."""
         try:
             from app.models.domain import CycloneArchive
             words = re.findall(r'\b[A-Za-z]+\b', text)
@@ -107,7 +107,7 @@ class MeteorologicalChatService:
                             f"- Storm Code: {record.id}\n"
                             f"- Basin: {record.basin}\n"
                             f"- Peak Intensity Category: {record.max_category}\n"
-                            f"- Historical data available in CycloNet SQLite database (/archive route)."
+                            f"- Historical catalog data available in the archive (/archive route)."
                         )
             
         except Exception:

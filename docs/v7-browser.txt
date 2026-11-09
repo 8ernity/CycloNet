@@ -1,0 +1,50 @@
+
+[WebServer] (node:19052) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 40 tests using 1 worker
+
+
+(node:18444) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[1/40] tests\browser\chat-reliability.spec.ts:9:1 › new conversation cancels the old request and can send immediately
+[2/40] tests\browser\chat-reliability.spec.ts:47:3 › malformed chat object response shows a recoverable error
+[3/40] tests\browser\chat-reliability.spec.ts:47:3 › malformed chat invalid sources shows a recoverable error
+[4/40] tests\browser\chat-reliability.spec.ts:47:3 › malformed chat excessive response shows a recoverable error
+[5/40] tests\browser\reports.spec.ts:3:1 › outage dashboard and assistant context never imply healthy feeds or calm
+[6/40] tests\browser\reports.spec.ts:14:1 › current-year stale observations are neither drills nor verified live data
+[7/40] tests\browser\reports.spec.ts:24:1 › report outage shows retry and never creates an agency bulletin
+[8/40] tests\browser\reports.spec.ts:33:1 › unavailable wind remains unavailable on the live dashboard
+[9/40] tests\browser\reports.spec.ts:41:1 › empty telemetry cannot become an all-clear or invented accuracy claim
+[10/40] tests\browser\settings-sync.spec.ts:3:1 › dashboard refresh reads public observations without requesting admin ingestion
+[11/40] tests\browser\settings-sync.spec.ts:22:1 › settings describes actual notification and wind-convention behavior
+[12/40] tests\browser\settings-sync.spec.ts:36:1 › display preference is accessible, persisted, and never advertises converted observations
+[13/40] tests\browser\settings-sync.spec.ts:47:1 › settings fits a narrow viewport and invalid endpoints cannot be saved
+[14/40] tests\browser\settings-sync.spec.ts:61:1 › settings opens at the top after navigating from a scrolled page
+[15/40] tests\browser\settings-sync.spec.ts:73:1 › custom backend saves a normalized URL and persists across reload
+[16/40] tests\browser\settings-sync.spec.ts:83:1 › denied browser permission does not claim notifications are active
+[17/40] tests\browser\v6.spec.ts:3:1 › opened assistant accurately describes available educational and source-status functions
+[18/40] tests\browser\v6.spec.ts:12:1 › offline sample image cannot create intensity measurements or operational instructions
+[19/40] tests\browser\v6.spec.ts:33:1 › infrastructure starts with unavailable field data and explicit scenario opt-in
+[20/40] tests\browser\v6.spec.ts:48:1 › failed forecast request offers retry without choosing an active demo
+[21/40] tests\browser\v6.spec.ts:58:1 › hyphenated source ID uses explicit provenance and unvalidated accuracy
+[22/40] tests\browser\v6.spec.ts:70:1 › archive outage has a retry and does not report an empty successful result
+[23/40] tests\browser\v6.spec.ts:78:1 › landing page does not advertise unimplemented inference or delivery
+[24/40] tests\browser\v7-accessibility.spec.ts:5:1 › illustrative sample selection works with the keyboard
+[25/40] tests\browser\v7-accessibility.spec.ts:13:1 › missing comparison records do not invent a basin
+[26/40] tests\browser\v7-accessibility.spec.ts:20:3 › dark pages pass automated accessibility checks during unavailable data
+[27/40] tests\browser\v7-accessibility.spec.ts:20:3 › light pages pass automated accessibility checks during unavailable data
+[28/40] tests\browser\v7-interaction.spec.ts:5:1 › keyboard users can skip navigation and focus page content
+[29/40] tests\browser\v7-interaction.spec.ts:13:1 › assistant has a name, focuses input, and Escape restores its opener
+[30/40] tests\browser\v7-interaction.spec.ts:38:1 › saved desktop assistant dimensions fit a narrow screen and resize
+[31/40] tests\browser\v7-interaction.spec.ts:57:1 › closed assistant does not poll screen context
+[32/40] tests\browser\v7-interaction.spec.ts:69:1 › reduced motion disables decorative hero autoplay and smooth scrolling
+[33/40] tests\browser\v7-pdf-loading.spec.ts:16:1 › PDF library loads on demand and produces an actual download
+[34/40] tests\browser\v7-pdf-loading.spec.ts:33:1 › failed PDF chunk load reports failure and restores the control
+[35/40] tests\browser\v7-performance.spec.ts:4:1 › record local reports and settings JavaScript delivery
+[36/40] tests\browser\v7-reliability.spec.ts:3:1 › HTTP 503 readiness is visible rather than silently treated as a waking service
+[37/40] tests\browser\v7-reliability.spec.ts:9:1 › mobile navigation opens, supports keyboard dismissal, and reaches settings
+[38/40] tests\browser\v7-reliability.spec.ts:23:3 › mobile pages remain usable during a provider outage
+[39/40] tests\browser\v7-reliability.spec.ts:23:3 › tablet pages remain usable during a provider outage
+[40/40] tests\browser\v7-reliability.spec.ts:23:3 › desktop pages remain usable during a provider outage
+  40 passed (5.5m)

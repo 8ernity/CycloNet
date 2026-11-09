@@ -1,368 +1,132 @@
 "use client";
-import { useMounted, useStoredValue } from "@/hooks/useBrowserState";
-import React, { useState, useEffect } from "react";
-import { Settings, Moon, Sun, Bell, Database, Check, RefreshCw, Radio, Globe, Shield, ArrowRight } from "lucide-react";
+import { useMounted } from "@/hooks/useBrowserState";
+import { useState } from "react";
+import { Moon, Sun, Bell, Database, Check, RefreshCw, Radio, Globe, Shield, Info } from "lucide-react";
 import { useTheme } from "next-themes";
 import { NeonThemeToggle } from "@/components/NeonThemeToggle";
-import { useDataSource, DataSourceType } from "@/hooks/useDataSource";
+import { useDataSource, type DataSourceType } from "@/hooks/useDataSource";
+import { normalizeBackendUrl } from "@/lib/backendUrl";
+
+const options = [
+  {id:"IMD", title:"IMD categories", subtitle:"Regional category display", icon:Database,
+   description:"Use IMD category thresholds to display the reported wind value."},
+  {id:"JTWC", title:"JTWC categories", subtitle:"Alternative category display", icon:Radio,
+   description:"Compare category thresholds without changing the reported wind or its averaging period."},
+  {id:"CUSTOM", title:"Custom backend", subtitle:"Local or research service", icon:Globe,
+   description:"Use a compatible CycloNet API. Save a valid endpoint before switching."},
+] as const;
+const panel = "min-w-0 rounded-2xl border border-border bg-card/85 p-5 sm:p-6";
 
 export default function SettingsPage() {
-  const { theme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const mounted = useMounted();
-  const [notificationsStored, storeNotifications] = useStoredValue("cyclonet_daily_notifications", "true");
-  const notifications = notificationsStored === "true";
-  const setNotifications = (value: boolean) => storeNotifications(String(value));
-  const [smsStored, storeSms] = useStoredValue("cyclonet_sms_alerts", "false");
-  const smsAlerts = smsStored === "true";
-  const setSmsAlerts = (value: boolean) => storeSms(String(value));
-  const [customUrlDraft, setCustomUrlInput] = useState<string | null>(null);
-  const [testingCustomUrl, setTestingCustomUrl] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const { dataSource, customApiUrl, setDataSource, setCustomApiUrl } = useDataSource();
+  const [customOpen, setCustomOpen] = useState(false);
+  const [draft, setDraft] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [notifying, setNotifying] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const customValue = draft ?? customApiUrl;
 
-  const { dataSource, customApiUrl, setDataSource, setCustomApiUrl, getSourceBadge } = useDataSource();
-
-  const customUrlInput = customUrlDraft ?? customApiUrl;
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+  const selectSource = (source: DataSourceType) => {
+    setMessage(null); setError(null);
+    if (source === "CUSTOM") {setCustomOpen(true);return;}
+    setDataSource(source); setCustomOpen(false);
+    setMessage(`${source} category display saved in this browser. Reported wind is unchanged.`);
   };
-
-  const handleSave = () => {
-    if (dataSource === "CUSTOM") {
-      setCustomApiUrl(customUrlInput);
-    }
-    if (typeof window !== "undefined") {
-      localStorage.setItem("cyclonet_daily_notifications", String(notifications));
-      localStorage.setItem("cyclonet_sms_alerts", String(smsAlerts));
-    }
-    showToast("Settings and data source preferences saved successfully.");
-  };
-
-  const handleSourceSelect = (src: DataSourceType) => {
-    setDataSource(src);
-    if (src === "JTWC") {
-      showToast("Switched to JTWC 1-Min Sustained Wind Standard (+14% conversion active).");
-    } else if (src === "IMD") {
-      showToast("Switched to IMD 3-Min WMO Regional Standard.");
-    } else {
-      showToast("Switched to Custom API Endpoint.");
-    }
-  };
-
-  const handleToggleNotifications = async () => {
-    const nextVal = !notifications;
-    if (nextVal) {
-      if (typeof window !== "undefined" && "Notification" in window) {
-        try {
-          const perm = await Notification.requestPermission();
-          if (perm === "granted") {
-            setNotifications(true);
-            localStorage.setItem("cyclonet_daily_notifications", "true");
-            showToast("Web Push Notifications enabled! Browser permission granted.");
-            try {
-              new Notification("CycloNet Alert Feed Active", {
-                body: "Web Push connected. You will receive active tropical cyclone bulletins & track updates.",
-                icon: "/favicon.ico"
-              });
-            } catch {}
-            return;
-          } else {
-            setNotifications(false);
-            localStorage.setItem("cyclonet_daily_notifications", "false");
-            showToast("Notification permission denied or blocked in browser settings.");
-            return;
-          }
-        } catch (e) {
-          console.warn("Notification permission error:", e);
-        }
-      }
-    }
-    setNotifications(nextVal);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("cyclonet_daily_notifications", String(nextVal));
-      if (!nextVal) showToast("Weather bulletin notifications muted.");
-    }
-  };
-
-  const handleToggleSms = () => {
-    const nextVal = !smsAlerts;
-    setSmsAlerts(nextVal);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("cyclonet_sms_alerts", String(nextVal));
-      if (nextVal) {
-        showToast("Local Emergency Siren & Sandbox Drill Mode enabled (browser simulated).");
-      } else {
-        showToast("Emergency siren & drill mode muted.");
-      }
-    }
-  };
-
-  const handleTestEndpoint = async () => {
-    setTestingCustomUrl(true);
+  const saveEndpoint = () => {
+    setError(null); setMessage(null);
     try {
-      const targetUrl = customUrlInput.trim().replace(/\/+$/, "");
-      const res = await fetch(`${targetUrl}/health`, { method: "GET" });
-      if (res.ok) {
-        showToast("Custom API Endpoint is Online & Healthy (200 OK)!");
-      } else {
-        showToast(`Custom API returned error status: HTTP ${res.status}`);
-      }
-    } catch {
-      showToast("Connection failed: Unable to reach custom API endpoint.");
-    } finally {
-      setTestingCustomUrl(false);
-    }
+      const url = normalizeBackendUrl(customValue);
+      setCustomApiUrl(url); setDataSource("CUSTOM"); setDraft(url);
+      setMessage("Backend address saved in this browser. API compatibility and availability are not yet verified.");
+    } catch (e) {setError(e instanceof Error ? e.message : "Could not save this preference.");}
   };
-
-  if (!mounted) return null;
-
-  const currentBadge = getSourceBadge();
+  const testEndpoint = async () => {
+    setError(null); setMessage(null); setTesting(true);
+    try {
+      const url = normalizeBackendUrl(customValue);
+      const response = await fetch(`${url}/health`, {credentials:"omit", redirect:"error", signal:AbortSignal.timeout(8000)});
+      if (!response.ok) throw new Error(`Endpoint returned HTTP ${response.status}.`);
+      setMessage("Health endpoint responded. This does not verify weather data or full API compatibility.");
+    } catch (e) {setError(e instanceof Error && e.name !== "TimeoutError" ? e.message : "Endpoint check timed out. Check the URL and try again.");}
+    finally {setTesting(false);}
+  };
+  const testNotification = async () => {
+    setMessage(null); setError(null); setNotifying(true);
+    try {
+      if (!("Notification" in window)) throw new Error("Browser notifications are not supported here.");
+      const permission = Notification.permission === "default" ? await Notification.requestPermission() : Notification.permission;
+      if (permission !== "granted") throw new Error("Notification permission is blocked. You can change it in your browser settings.");
+      new Notification("CycloNet — test notification", {body:"Local display test only. No weather warning or live alert subscription.",icon:"/icon.svg"});
+      setMessage("Test notification requested. This does not enable live alert delivery.");
+    } catch (e) {setError(e instanceof Error ? e.message : "Notification test unavailable.");}
+    finally {setNotifying(false);}
+  };
+  if (!mounted) return <div className="p-6 text-muted-foreground" role="status">Loading settings…</div>;
+  const dark = resolvedTheme === "dark";
+  const permission = typeof Notification === "undefined" ? "Not supported" : Notification.permission;
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-12 max-w-5xl mx-auto w-full">
-      {/* Header */}
-      <div className="glass-card p-6 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+    <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-5 pb-8" data-testid="settings-page">
+      <div className="flex flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-heading font-bold text-foreground flex items-center gap-2">
-            <Settings className="w-5 h-5 text-primary" />
-            System & Meteorological Settings
-          </h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Configure data ingestion standards, wind conversion models, and UI radar themes.
-          </p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary mb-2">Workspace preferences</p>
+          <h2 className="text-2xl font-heading font-bold text-foreground">Settings</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Personalize your view and configure the API used by this browser.</p>
         </div>
-        <button 
-          onClick={handleSave} 
-          className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-lg hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 w-fit"
-        >
-          Save All Changes
-        </button>
-      </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Appearance Settings */}
-        <div className="glass-card p-6 space-y-4">
-          <h3 className="text-base font-bold flex items-center gap-2 text-foreground">
-            {theme === 'dark' ? <Moon className="w-4 h-4 text-emerald-400" /> : <Sun className="w-4 h-4 text-amber-500" />} 
-            Appearance & Radar Lighting
-          </h3>
-          <div className="flex items-center justify-between p-4 bg-secondary/20 rounded-xl border border-border gap-4">
-            <div>
-              <p className="font-semibold text-sm text-foreground">Cyberpunk Radar Theme</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {theme === "dark" ? "Neon Green Dark Mode (Power ON)" : "Standard Light Mode (Power OFF)"}
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <NeonThemeToggle size="md" />
-            </div>
-          </div>
-        </div>
-
-        {/* Notification Settings */}
-        <div className="glass-card p-6 space-y-4">
-          <h3 className="text-base font-bold flex items-center gap-2 text-foreground">
-            <Bell className="w-4 h-4 text-amber-500" />
-            Emergency Alerts & Bulletins
-          </h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3.5 bg-secondary/20 rounded-xl border border-border">
-              <div>
-                <p className="font-semibold text-sm text-foreground">Browser Web Push Bulletins</p>
-                <p className="text-xs text-muted-foreground">Receive browser push notifications for real-time alerts.</p>
-              </div>
-              <button 
-                onClick={handleToggleNotifications}
-                className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${notifications ? 'bg-primary' : 'bg-secondary'}`}
-              >
-                <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${notifications ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-            </div>
-            
-            <div className="flex items-center justify-between p-3.5 bg-secondary/20 rounded-xl border border-border">
-              <div>
-                <p className="font-semibold text-sm text-foreground">Emergency Siren Audio & Drill Mode</p>
-                <p className="text-xs text-muted-foreground">Local browser siren audio & simulated CAP dispatch drill trigger (client sandbox).</p>
-              </div>
-              <button 
-                onClick={handleToggleSms}
-                className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${smsAlerts ? 'bg-destructive' : 'bg-secondary'}`}
-              >
-                <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${smsAlerts ? 'translate-x-6' : 'translate-x-1'}`} />
-              </button>
-            </div>
-
-            <div className="pt-2 text-[10.5px] text-muted-foreground border-t border-border/40 font-mono">
-              Gateway Status: {notifications ? "🟢 Browser Notification Active" : "⚪ Notification Muted"} • {smsAlerts ? "🟡 Local Drill Siren Active (Sandbox)" : "⚪ Siren Idle"}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Meteorological Data Source Settings ────────────────────────────── */}
-        <div className="glass-card p-6 lg:col-span-2 space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/80 pb-4">
-            <div>
-              <h3 className="text-base font-bold flex items-center gap-2 text-foreground">
-                <Database className="w-4 h-4 text-blue-500" />
-                Meteorological Data Source & Agency Standard
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Select your primary meteorological agency standard. Data calculations and categories across Dashboard and Forecast will adapt immediately.
-              </p>
-            </div>
-
-            <span className={`px-3 py-1 rounded-full text-xs font-bold border ${currentBadge.badgeClass} w-fit`}>
-              Active: {currentBadge.shortLabel}
-            </span>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* IMD Source Option */}
-            <div 
-              onClick={() => handleSourceSelect("IMD")}
-              className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex flex-col justify-between space-y-3 ${
-                dataSource === "IMD" 
-                  ? "border-emerald-500 bg-emerald-500/10 shadow-md ring-1 ring-emerald-500/20" 
-                  : "border-border bg-secondary/20 hover:border-emerald-500/50"
-              }`}
-            >
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-base">🇮🇳</span>
-                    <p className="font-bold text-sm text-foreground">IMD Protocol</p>
-                  </div>
-                  {dataSource === "IMD" && <Check className="w-4 h-4 text-emerald-400" />}
-                </div>
-                <p className="text-xs font-semibold text-emerald-400 mb-1">3-Minute Sustained Wind</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  India Meteorological Department & WMO RSMC standard for the North Indian Ocean basin.
-                </p>
-              </div>
-
-              <div className="pt-2 border-t border-border/50 text-[11px] font-mono text-muted-foreground space-y-0.5">
-                <p>• Scale: CS / VSCS / ESCS / SuCS</p>
-                <p>• Example: 100 kts (Extremely Severe)</p>
-              </div>
-            </div>
-
-            {/* JTWC Source Option */}
-            <div 
-              onClick={() => handleSourceSelect("JTWC")}
-              className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex flex-col justify-between space-y-3 ${
-                dataSource === "JTWC" 
-                  ? "border-blue-500 bg-blue-500/10 shadow-md ring-1 ring-blue-500/20" 
-                  : "border-border bg-secondary/20 hover:border-blue-500/50"
-              }`}
-            >
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-base">🇺🇸</span>
-                    <p className="font-bold text-sm text-foreground">JTWC Protocol</p>
-                  </div>
-                  {dataSource === "JTWC" && <Check className="w-4 h-4 text-blue-400" />}
-                </div>
-                <p className="text-xs font-semibold text-blue-400 mb-1">1-Minute Sustained Wind (+14%)</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  US Joint Typhoon Warning Center standard using Saffir-Simpson Hurricane Wind Scale.
-                </p>
-              </div>
-
-              <div className="pt-2 border-t border-border/50 text-[11px] font-mono text-muted-foreground space-y-0.5">
-                <p>• Scale: Saffir-Simpson (Cat 1–5)</p>
-                <p>• Example: 114 kts (Category 4 Major)</p>
-              </div>
-            </div>
-
-            {/* Custom API Option */}
-            <div 
-              onClick={() => handleSourceSelect("CUSTOM")}
-              className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex flex-col justify-between space-y-3 ${
-                dataSource === "CUSTOM" 
-                  ? "border-purple-500 bg-purple-500/10 shadow-md ring-1 ring-purple-500/20" 
-                  : "border-border bg-secondary/20 hover:border-purple-500/50"
-              }`}
-            >
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-base">⚙️</span>
-                    <p className="font-bold text-sm text-foreground">Custom API</p>
-                  </div>
-                  {dataSource === "CUSTOM" && <Check className="w-4 h-4 text-purple-400" />}
-                </div>
-                <p className="text-xs font-semibold text-purple-400 mb-1">Local / Research Endpoint</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Connect custom meteorological WRF simulations or proprietary AI model outputs.
-                </p>
-              </div>
-
-              <div className="pt-2 border-t border-border/50 text-[11px] font-mono text-muted-foreground space-y-0.5">
-                <p>• Custom JSON Payload Protocol</p>
-                <p>• Configurable REST Endpoint</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Custom API Endpoint Configuration Box */}
-          {dataSource === "CUSTOM" && (
-            <div className="p-4 rounded-xl bg-secondary/30 border border-purple-500/30 space-y-3 animate-in fade-in duration-300">
-              <label className="text-xs font-semibold text-foreground uppercase tracking-wider block">
-                Custom API Ingestion URL
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={customUrlInput}
-                  onChange={(e) => setCustomUrlInput(e.target.value)}
-                  placeholder="https://your-custom-weather-api.com/api"
-                  className="flex-1 px-3 py-2 bg-secondary/70 border border-border rounded-lg text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
-                />
-                <button
-                  onClick={handleTestEndpoint}
-                  disabled={testingCustomUrl}
-                  className="px-3.5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg text-xs transition-colors flex items-center gap-1.5"
-                >
-                  {testingCustomUrl ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : "Test Endpoint"}
-                </button>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Endpoints must return standard REST JSON schemas conforming to <code>/api/active-systems</code>.
-              </p>
-            </div>
-          )}
-
-          {/* Real-Time Conversion Demonstration Strip */}
-          <div className="p-4 rounded-xl bg-secondary/20 border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="space-y-0.5">
-              <span className="font-bold text-foreground flex items-center gap-1.5">
-                <Shield className="w-3.5 h-3.5 text-primary" />
-                Active Conversion Rule:
-              </span>
-              <p className="text-muted-foreground font-mono">
-                {dataSource === "JTWC"
-                  ? "JTWC 1-Min Winds = Direct ATCF Telemetry or WMO TCP 1.14x Standard | Categories: Saffir-Simpson (Cat 1-5)"
-                  : dataSource === "CUSTOM"
-                  ? "Custom Ingestion Mode active | Listening on user endpoint"
-                  : "IMD 3-Min Winds = Base Knots × 1.00 | Categories: WMO Standard (Depression to Super Cyclone)"}
-              </p>
-            </div>
-            <span className="text-xs font-mono text-primary font-bold bg-primary/10 px-2.5 py-1 rounded border border-primary/20 shrink-0">
-              {dataSource === "JTWC" ? "JTWC 1-Min Active" : dataSource === "CUSTOM" ? "Custom Feed Active" : "IMD 3-Min Active"}
-            </span>
-          </div>
-        </div>
-
+        <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-border bg-secondary/40 px-3 py-1.5 text-xs text-muted-foreground"><Check className="h-3.5 w-3.5" /> Preferences save locally</span>
       </div>
 
-      {toast && (
-        <div className="fixed bottom-6 right-6 bg-zinc-900 text-white border border-primary/40 px-4 py-3 rounded-xl shadow-2xl shadow-primary/20 animate-in slide-in-from-bottom-3 z-50 text-xs font-semibold">
-          {toast}
+      {(message || error) && <div role={error ? "alert" : "status"} className={`rounded-xl border px-4 py-3 text-sm break-words ${error ? "border-red-500/30 bg-red-500/10 text-red-500" : "border-primary/30 bg-primary/10 text-foreground"}`}>{error || message}</div>}
+
+      <div className="grid min-w-0 gap-5 lg:grid-cols-2">
+        <section className={panel} aria-labelledby="appearance-heading">
+          <h3 id="appearance-heading" className="flex items-center gap-2 text-base font-semibold"><Moon className="h-4 w-4 text-primary" /> Appearance</h3>
+          <p className="mt-1 text-xs text-muted-foreground">Choose the theme for this browser.</p>
+          <div className="my-5 flex items-center justify-between gap-4 rounded-xl bg-secondary/30 p-4">
+            <div><p className="text-sm font-semibold">{dark ? "Dark theme" : "Light theme"}</p><p className="mt-1 text-xs text-muted-foreground">{dark ? "Low-light interface with neon accents" : "Bright interface with high-contrast text"}</p></div>
+            <NeonThemeToggle size="md" className="shrink-0" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {[{id:"light",label:"Light",icon:Sun},{id:"dark",label:"Dark",icon:Moon}].map(({id,label,icon:Icon})=><button key={id} onClick={()=>setTheme(id)} aria-pressed={resolvedTheme===id} className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium focus-visible:outline-2 focus-visible:outline-primary ${resolvedTheme===id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-secondary"}`}><Icon className="h-4 w-4" />{label}</button>)}
+          </div>
+        </section>
+
+        <section className={panel} aria-labelledby="notifications-heading">
+          <div className="flex flex-wrap items-center justify-between gap-2"><h3 id="notifications-heading" className="flex items-center gap-2 text-base font-semibold"><Bell className="h-4 w-4 text-amber-500" /> Notifications</h3><span className="rounded-full bg-secondary px-2.5 py-1 text-[11px] text-muted-foreground">Local test only</span></div>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">No push subscription or live alert delivery is connected. Browser permission alone does not subscribe you to weather warnings.</p>
+          <div className="my-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border px-3 py-2.5 text-xs"><span className="text-muted-foreground">Browser permission</span><span className="capitalize font-medium">{permission}</span></div>
+          <button onClick={testNotification} disabled={notifying || permission==="Not supported"} className="rounded-lg border border-border bg-secondary/40 px-3 py-2.5 text-sm font-medium hover:bg-secondary disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-primary">{notifying ? "Requesting permission…" : "Send test notification"}</button>
+          <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">Siren delivery and emergency dispatch are not connected.</p>
+        </section>
+      </div>
+
+      <section className={panel} aria-labelledby="source-heading">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div><h3 id="source-heading" className="flex items-center gap-2 text-base font-semibold"><Database className="h-4 w-4 text-primary" /> Data display and backend</h3><p className="mt-1 text-xs text-muted-foreground">A display preference does not change which agency observed a storm.</p></div>
+          <span className="w-fit shrink-0 rounded-full bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary">{dataSource === "CUSTOM" ? "Custom backend selected" : `${dataSource} category display`}</span>
         </div>
-      )}
+        <div className="mt-5 grid min-w-0 gap-3 md:grid-cols-3">
+          {options.map(({id,title,subtitle,description,icon:Icon})=><button key={id} aria-pressed={dataSource===id} onClick={()=>selectSource(id)} className={`flex min-w-0 flex-col rounded-xl border p-4 text-left transition-colors focus-visible:outline-2 focus-visible:outline-primary ${dataSource===id ? "border-primary bg-primary/10" : "border-border bg-secondary/20 hover:bg-secondary/50"}`}>
+            <span className="mb-3 flex w-full items-center justify-between"><Icon className="h-5 w-5 text-primary" />{dataSource===id && <Check className="h-4 w-4 text-primary" />}</span>
+            <span className="block text-sm font-semibold">{title}</span><span className="mt-1 block text-[11px] font-medium text-primary">{subtitle}</span><span className="mt-2 block text-xs leading-relaxed text-muted-foreground">{description}</span>
+          </button>)}
+        </div>
+        {(customOpen || dataSource==="CUSTOM") && <div className="mt-4 rounded-xl border border-border bg-secondary/20 p-4">
+          <label htmlFor="backend-url" className="block text-sm font-semibold">Backend URL</label>
+          <p className="mb-3 mt-1 text-xs text-muted-foreground">Use a trusted CycloNet-compatible API. Authentication tokens are not sent to untrusted origins.</p>
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
+            <input id="backend-url" type="url" value={customValue} onChange={e=>{setDraft(e.target.value);setError(null);}} placeholder="https://your-backend.example" className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2.5 text-sm focus:outline-2 focus:outline-primary" />
+            <button onClick={testEndpoint} disabled={testing} className="flex shrink-0 items-center justify-center gap-2 rounded-lg border border-border px-3 py-2.5 text-xs font-semibold disabled:opacity-50">{testing && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}{testing ? "Checking…" : "Test endpoint"}</button>
+            <button onClick={saveEndpoint} className="shrink-0 rounded-lg bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground">Save endpoint</button>
+          </div>
+        </div>}
+        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-border bg-secondary/25 p-4"><Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary" /><div><p className="text-xs font-semibold">No automatic wind conversion</p><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Reported wind values and source averaging periods are preserved. Changing category display does not create an IMD or JTWC observation.</p></div></div>
+      </section>
+
+      <div className="flex items-start gap-2.5 px-1 text-xs leading-relaxed text-muted-foreground"><Info className="mt-0.5 h-4 w-4 shrink-0" /><p>Live observations refresh from the backend. Use <strong className="font-medium text-foreground">Refresh live data</strong> on the dashboard to reload them. Starting a new ingestion job requires a backend-verified administrator role; signing in alone does not grant it.</p></div>
     </div>
   );
 }

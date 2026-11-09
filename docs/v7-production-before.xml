@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="12" skipped="0" tests="12" time="17.403" timestamp="2026-11-09T14:37:01.634074+05:30" hostname="DESKTOP-FHF8V0M"><testcase classname="tests.test_v7_production" name="test_invalid_auth_aborts_startup_before_workers" time="1.041"><failure message="NameError: name 'logger' is not defined">app = &lt;fastapi.applications.FastAPI object at 0x000001E39F4E3C10&gt;
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        from app.core.database import validate_schema
+        from app.core.auth import validate_production_auth
+        try:
+&gt;           validate_production_auth()
+
+app\main.py:30: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\arpan\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\unittest\mock.py:1124: in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\arpan\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\unittest\mock.py:1128: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = &lt;MagicMock name='validate_production_auth' id='2077141902416'&gt;, args = ()
+kwargs = {}
+
+    def _execute_mock_call(self, /, *args, **kwargs):
+        # separate from _increment_mock_call so that awaited functions are
+        # executed separately from their call, also AsyncMock overrides this method
+    
+        effect = self.side_effect
+        if effect is not None:
+            if _is_exception(effect):
+&gt;               raise effect
+E               RuntimeError: Invalid auth
+
+C:\Users\arpan\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\unittest\mock.py:1183: RuntimeError
+
+During handling of the above exception, another exception occurred:
+
+    def test_invalid_auth_aborts_startup_before_workers():
+        async def start():
+            with patch.object(auth, 'validate_production_auth', side_effect=RuntimeError('Invalid auth')), \
+                 patch.object(database, 'validate_schema'), \
+                 patch.object(main, 'acquire_worker_leader_lock', side_effect=AssertionError('Workers started')):
+                with pytest.raises(RuntimeError, match='Invalid auth'):
+                    async with main.lifespan(main.app):
+                        pass
+&gt;       asyncio.run(start())
+
+tests\test_v7_production.py:21: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\arpan\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Users\arpan\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\arpan\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\asyncio\base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests\test_v7_production.py:19: in start
+    async with main.lifespan(main.app):
+C:\Users\arpan\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+app = &lt;fastapi.applications.FastAPI object at 0x000001E39F4E3C10&gt;
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        from app.core.database import validate_schema
+        from app.core.auth import validate_production_auth
+        try:
+            validate_production_auth()
+        except RuntimeError as e:
+&gt;           logger.warning("[Auth] Production auth configuration incomplete: %s. Authenticated requests will fail closed.", e)
+            ^^^^^^
+E           NameError: name 'logger' is not defined
+
+app\main.py:32: NameError</failure></testcase><testcase classname="tests.test_v7_production" name="test_render_cannot_silently_use_sqlite[None]" time="0.006"><failure message="Failed: DID NOT RAISE RuntimeError">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001E3A00F4650&gt;
+environment = None
+
+    @pytest.mark.parametrize('environment', [None, '', 'development', 'prod', 'production '])
+    def test_render_cannot_silently_use_sqlite(monkeypatch, environment):
+        monkeypatch.setenv('RENDER', 'true')
+        if environment is None:
+            monkeypatch.delenv('ENVIRONMENT', raising=False)
+        else:
+            monkeypatch.setenv('ENVIRONMENT', environment)
+        monkeypatch.setenv('DATABASE_URL', 'sqlite:///:memory:')
+&gt;       with pytest.raises(RuntimeError):
+E       Failed: DID NOT RAISE RuntimeError
+
+tests\test_v7_production.py:32: Failed</failure></testcase><testcase classname="tests.test_v7_production" name="test_render_cannot_silently_use_sqlite[]" time="0.007"><failure message="Failed: DID NOT RAISE RuntimeError">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001E3A00CB0D0&gt;
+environment = ''
+
+    @pytest.mark.parametrize('environment', [None, '', 'development', 'prod', 'production '])
+    def test_render_cannot_silently_use_sqlite(monkeypatch, environment):
+        monkeypatch.setenv('RENDER', 'true')
+        if environment is None:
+            monkeypatch.delenv('ENVIRONMENT', raising=False)
+        else:
+            monkeypatch.setenv('ENVIRONMENT', environment)
+        monkeypatch.setenv('DATABASE_URL', 'sqlite:///:memory:')
+&gt;       with pytest.raises(RuntimeError):
+E       Failed: DID NOT RAISE RuntimeError
+
+tests\test_v7_production.py:32: Failed</failure></testcase><testcase classname="tests.test_v7_production" name="test_render_cannot_silently_use_sqlite[development]" time="0.006"><failure message="Failed: DID NOT RAISE RuntimeError">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001E39FD75F10&gt;
+environment = 'development'
+
+    @pytest.mark.parametrize('environment', [None, '', 'development', 'prod', 'production '])
+    def test_render_cannot_silently_use_sqlite(monkeypatch, environment):
+        monkeypatch.setenv('RENDER', 'true')
+        if environment is None:
+            monkeypatch.delenv('ENVIRONMENT', raising=False)
+        else:
+            monkeypatch.setenv('ENVIRONMENT', environment)
+        monkeypatch.setenv('DATABASE_URL', 'sqlite:///:memory:')
+&gt;       with pytest.raises(RuntimeError):
+E       Failed: DID NOT RAISE RuntimeError
+
+tests\test_v7_production.py:32: Failed</failure></testcase><testcase classname="tests.test_v7_production" name="test_render_cannot_silently_use_sqlite[prod]" time="0.006"><failure message="Failed: DID NOT RAISE RuntimeError">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001E39FD4A690&gt;
+environment = 'prod'
+
+    @pytest.mark.parametrize('environment', [None, '', 'development', 'prod', 'production '])
+    def test_render_cannot_silently_use_sqlite(monkeypatch, environment):
+        monkeypatch.setenv('RENDER', 'true')
+        if environment is None:
+            monkeypatch.delenv('ENVIRONMENT', raising=False)
+        else:
+            monkeypatch.setenv('ENVIRONMENT', environment)
+        monkeypatch.setenv('DATABASE_URL', 'sqlite:///:memory:')
+&gt;       with pytest.raises(RuntimeError):
+E       Failed: DID NOT RAISE RuntimeError
+
+tests\test_v7_production.py:32: Failed</failure></testcase><testcase classname="tests.test_v7_production" name="test_render_cannot_silently_use_sqlite[production ]" time="0.005"><failure message="Failed: DID NOT RAISE RuntimeError">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001E39FD76C10&gt;
+environment = 'production '
+
+    @pytest.mark.parametrize('environment', [None, '', 'development', 'prod', 'production '])
+    def test_render_cannot_silently_use_sqlite(monkeypatch, environment):
+        monkeypatch.setenv('RENDER', 'true')
+        if environment is None:
+            monkeypatch.delenv('ENVIRONMENT', raising=False)
+        else:
+            monkeypatch.setenv('ENVIRONMENT', environment)
+        monkeypatch.setenv('DATABASE_URL', 'sqlite:///:memory:')
+&gt;       with pytest.raises(RuntimeError):
+E       Failed: DID NOT RAISE RuntimeError
+
+tests\test_v7_production.py:32: Failed</failure></testcase><testcase classname="tests.test_v7_production" name="test_schema_validation_is_read_only_even_in_development" time="0.013"><failure message="Failed: DID NOT RAISE RuntimeError">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001E39FCF27D0&gt;
+
+    def test_schema_validation_is_read_only_even_in_development(monkeypatch):
+        monkeypatch.setenv('ENVIRONMENT', 'development')
+        monkeypatch.setattr(database, 'engine', create_engine('sqlite:///:memory:'))
+        with patch('alembic.command.upgrade') as upgrade:
+&gt;           with pytest.raises(RuntimeError, match='migration'):
+E           Failed: DID NOT RAISE RuntimeError
+
+tests\test_v7_production.py:40: Failed</failure></testcase><testcase classname="tests.test_v7_production" name="test_production_rejects_malformed_jwks[http://clerk.example/keys]" time="0.004"><failure message="Failed: DID NOT RAISE RuntimeError">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001E39FCF3490&gt;
+jwks = 'http://clerk.example/keys'
+
+    @pytest.mark.parametrize('jwks', ['http://clerk.example/keys', 'https://user:pass@clerk.example/keys', 'https://'])
+    def test_production_rejects_malformed_jwks(monkeypatch, jwks):
+        monkeypatch.setenv('ENVIRONMENT', 'production')
+        monkeypatch.setattr(auth, 'CLERK_ISSUER', 'https://clerk.example')
+        monkeypatch.setattr(auth, 'CLERK_PEM_PUBLIC_KEY', '')
+        monkeypatch.setattr(auth, 'CLERK_JWKS_URL', jwks)
+        monkeypatch.setattr(auth, 'CLERK_AUTHORIZED_PARTIES', {'https://frontend.example'})
+&gt;       with pytest.raises(RuntimeError):
+E       Failed: DID NOT RAISE RuntimeError
+
+tests\test_v7_production.py:52: Failed</failure></testcase><testcase classname="tests.test_v7_production" name="test_production_rejects_malformed_jwks[https://user:pass@clerk.example/keys]" time="0.005"><failure message="Failed: DID NOT RAISE RuntimeError">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001E39FD2B490&gt;
+jwks = 'https://user:pass@clerk.example/keys'
+
+    @pytest.mark.parametrize('jwks', ['http://clerk.example/keys', 'https://user:pass@clerk.example/keys', 'https://'])
+    def test_production_rejects_malformed_jwks(monkeypatch, jwks):
+        monkeypatch.setenv('ENVIRONMENT', 'production')
+        monkeypatch.setattr(auth, 'CLERK_ISSUER', 'https://clerk.example')
+        monkeypatch.setattr(auth, 'CLERK_PEM_PUBLIC_KEY', '')
+        monkeypatch.setattr(auth, 'CLERK_JWKS_URL', jwks)
+        monkeypatch.setattr(auth, 'CLERK_AUTHORIZED_PARTIES', {'https://frontend.example'})
+&gt;       with pytest.raises(RuntimeError):
+E       Failed: DID NOT RAISE RuntimeError
+
+tests\test_v7_production.py:52: Failed</failure></testcase><testcase classname="tests.test_v7_production" name="test_production_rejects_malformed_jwks[https://]" time="0.003"><failure message="Failed: DID NOT RAISE RuntimeError">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001E39FD9EE90&gt;
+jwks = 'https://'
+
+    @pytest.mark.parametrize('jwks', ['http://clerk.example/keys', 'https://user:pass@clerk.example/keys', 'https://'])
+    def test_production_rejects_malformed_jwks(monkeypatch, jwks):
+        monkeypatch.setenv('ENVIRONMENT', 'production')
+        monkeypatch.setattr(auth, 'CLERK_ISSUER', 'https://clerk.example')
+        monkeypatch.setattr(auth, 'CLERK_PEM_PUBLIC_KEY', '')
+        monkeypatch.setattr(auth, 'CLERK_JWKS_URL', jwks)
+        monkeypatch.setattr(auth, 'CLERK_AUTHORIZED_PARTIES', {'https://frontend.example'})
+&gt;       with pytest.raises(RuntimeError):
+E       Failed: DID NOT RAISE RuntimeError
+
+tests\test_v7_production.py:52: Failed</failure></testcase><testcase classname="tests.test_v7_production" name="test_legacy_health_cannot_bypass_readiness" time="0.003"><failure message="AssertionError: assert 'healthy' == 'unready'&#10;  &#10;  - unready&#10;  + healthy">monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x000001E39FD1E150&gt;
+
+    def test_legacy_health_cannot_bypass_readiness(monkeypatch):
+        monkeypatch.setattr(main, 'health_ready', lambda response: {'status': 'unready'})
+&gt;       assert main.health(Response())['status'] == 'unready'
+E       AssertionError: assert 'healthy' == 'unready'
+E         
+E         - unready
+E         + healthy
+
+tests\test_v7_production.py:58: AssertionError</failure></testcase><testcase classname="tests.test_v7_production" name="test_api_responses_are_not_shared_cacheable" time="0.027"><failure message="AssertionError: assert 'no-store' in ''&#10; +  where '' = get('cache-control', '')&#10; +    where get = Headers({'www-authenticate': 'Bearer', 'content-length': '96', 'content-type': 'application/json', 'vary': 'Origin', '...referrer-policy': 'strict-origin-when-cross-origin', 'permissions-policy': 'geolocation=(), microphone=(), camera=()'}).get&#10;[+1 more line; full report in element text]">def test_api_responses_are_not_shared_cacheable():
+        response = TestClient(main.app).get('/api/history/classifications')
+        assert response.status_code == 401
+&gt;       assert 'no-store' in response.headers.get('cache-control', '')
+E       AssertionError: assert 'no-store' in ''
+E        +  where '' = get('cache-control', '')
+E        +    where get = Headers({'www-authenticate': 'Bearer', 'content-length': '96', 'content-type': 'application/json', 'vary': 'Origin', '...referrer-policy': 'strict-origin-when-cross-origin', 'permissions-policy': 'geolocation=(), microphone=(), camera=()'}).get
+E        +      where Headers({'www-authenticate': 'Bearer', 'content-length': '96', 'content-type': 'application/json', 'vary': 'Origin', '...referrer-policy': 'strict-origin-when-cross-origin', 'permissions-policy': 'geolocation=(), microphone=(), camera=()'}) = &lt;Response [401 Unauthorized]&gt;.headers
+
+tests\test_v7_production.py:64: AssertionError</failure></testcase></testsuite></testsuites>

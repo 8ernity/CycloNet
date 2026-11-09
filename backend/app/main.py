@@ -1,5 +1,7 @@
 import os
 import asyncio
+import logging
+from app.core.runtime import runtime_environment
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,15 +23,16 @@ from app.services.ml_service import ml_service
 
 # Background task handles for graceful shutdown (DB-04)
 _background_tasks = []
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from app.core.database import validate_schema
     from app.core.auth import validate_production_auth
-    try:
-        validate_production_auth()
-    except RuntimeError as e:
-        logger.warning("[Auth] Production auth configuration incomplete: %s. Authenticated requests will fail closed.", e)
+    validate_production_auth()
+    if runtime_environment() == 'development':
+        from app.core.database import init_db
+        init_db()
     validate_schema()
     if os.getenv('REQUIRE_VALIDATED_ML', 'false').lower() == 'true':
         await asyncio.to_thread(ml_service.load_model)
@@ -79,7 +82,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="CycloNet Prediction API",
-    description="API for identifying, classifying, and predicting tropical cyclones using ML.",
+    description="Experimental cyclone source viewer and scenario API. Unvalidated inference is restricted.",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -99,6 +102,8 @@ app.add_middleware(
 
 from app.core.request_limits import RequestLimitsMiddleware
 app.add_middleware(RequestLimitsMiddleware)
+from app.core.observability import RequestObservabilityMiddleware
+app.add_middleware(RequestObservabilityMiddleware)
 
 # SEC-10: Security Headers Middleware
 from starlette.requests import Request
@@ -110,6 +115,8 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    if request.url.path.startswith('/api/') or request.headers.get('authorization'):
+        response.headers['Cache-Control'] = 'private, no-store'
     if request.url.scheme == "https":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
@@ -144,8 +151,8 @@ def health_ready(response: Response):
     if redis_url:
         try:
             import redis
-            rc = redis.from_url(redis_url, socket_timeout=1.5)
-            rc.ping()
+            with redis.from_url(redis_url, socket_timeout=1.5, socket_connect_timeout=1.5) as rc:
+                rc.ping()
             redis_ok = True
         except Exception:
             redis_ok = False
@@ -182,6 +189,11 @@ def health_ready(response: Response):
                "scientifically_validated": ml_service.scientifically_validated},
         "is_worker_leader": is_leader(), "leader_generation": get_leader_generation(),
         "ingestion_sources": live_ingestion_service.sources_status,
+        "ingestion": {"last_attempt_at": live_ingestion_service.last_attempt_at,
+                      "last_duration_ms": live_ingestion_service.last_duration_ms,
+                      "last_outcome": live_ingestion_service.last_sync_outcome,
+                      "last_success_by_source": {key: value.isoformat() if value else None
+                          for key, value in live_ingestion_service.last_successful_sync.items()}},
         "feed_data_status": getattr(live_ingestion_service, "basin_status", "STATUS_UNCERTAIN"),
         "operational_status": "EXPERIMENTAL"
     }
@@ -197,21 +209,5 @@ def health_ml(response: Response):
 
 @app.get("/health")
 def health(response: Response):
-    """Comprehensive health check for backward compatibility."""
-    db_ok = False
-    try:
-        db = SessionLocal()
-        db.execute(text("SELECT 1"))
-        db.close()
-        db_ok = True
-    except Exception:
-        db_ok = False
-
-    status_str = "healthy" if db_ok else "degraded"
-    return {
-        "status": status_str,
-        "database": "connected" if db_ok else "unreachable",
-        "model_loaded": ml_service.checkpoint_loaded,
-        "is_worker_leader": is_leader(),
-        "ingestion_sources": live_ingestion_service.sources_status
-    }
+    """Legacy callers receive the same readiness decision and HTTP status."""
+    return health_ready(response)

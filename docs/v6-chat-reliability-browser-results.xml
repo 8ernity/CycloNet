@@ -1,0 +1,40 @@
+<testsuites id="" name="" tests="16" failures="0" skipped="0" errors="0" time="105.115863">
+<testsuite name="chat-reliability.spec.ts" timestamp="2026-11-08T18:07:36.938Z" hostname="" tests="4" failures="0" skipped="0" time="30.097" errors="0">
+<testcase name="new conversation cancels the old request and can send immediately" classname="chat-reliability.spec.ts" time="12.66">
+</testcase>
+<testcase name="malformed chat object response shows a recoverable error" classname="chat-reliability.spec.ts" time="6.434">
+</testcase>
+<testcase name="malformed chat invalid sources shows a recoverable error" classname="chat-reliability.spec.ts" time="5.757">
+</testcase>
+<testcase name="malformed chat excessive response shows a recoverable error" classname="chat-reliability.spec.ts" time="5.246">
+</testcase>
+</testsuite>
+<testsuite name="reports.spec.ts" timestamp="2026-11-08T18:07:36.938Z" hostname="" tests="5" failures="0" skipped="0" time="14.077" errors="0">
+<testcase name="outage dashboard and assistant context never imply healthy feeds or calm" classname="reports.spec.ts" time="2.748">
+</testcase>
+<testcase name="current-year stale observations are neither drills nor verified live data" classname="reports.spec.ts" time="3.083">
+</testcase>
+<testcase name="report outage shows retry and never creates an agency bulletin" classname="reports.spec.ts" time="2.836">
+</testcase>
+<testcase name="unavailable wind remains unavailable on the live dashboard" classname="reports.spec.ts" time="3.322">
+</testcase>
+<testcase name="empty telemetry cannot become an all-clear or invented accuracy claim" classname="reports.spec.ts" time="2.088">
+</testcase>
+</testsuite>
+<testsuite name="v6.spec.ts" timestamp="2026-11-08T18:07:36.938Z" hostname="" tests="7" failures="0" skipped="0" time="45.87" errors="0">
+<testcase name="opened assistant accurately describes available educational and source-status functions" classname="v6.spec.ts" time="5.721">
+</testcase>
+<testcase name="offline sample image cannot create intensity measurements or operational instructions" classname="v6.spec.ts" time="5.32">
+</testcase>
+<testcase name="infrastructure starts with unavailable field data and explicit scenario opt-in" classname="v6.spec.ts" time="4.328">
+</testcase>
+<testcase name="failed forecast request offers retry without choosing an active demo" classname="v6.spec.ts" time="2.604">
+</testcase>
+<testcase name="hyphenated source ID uses explicit provenance and unvalidated accuracy" classname="v6.spec.ts" time="3.762">
+</testcase>
+<testcase name="archive outage has a retry and does not report an empty successful result" classname="v6.spec.ts" time="15.395">
+</testcase>
+<testcase name="landing page does not advertise unimplemented inference or delivery" classname="v6.spec.ts" time="8.74">
+</testcase>
+</testsuite>
+</testsuites>

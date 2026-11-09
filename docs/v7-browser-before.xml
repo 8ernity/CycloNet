@@ -1,0 +1,67 @@
+<testsuites id="" name="" tests="2" failures="1" skipped="0" errors="1" time="52.778203999999995">
+<testsuite name="v7-reliability.spec.ts" timestamp="2026-11-09T09:19:30.504Z" hostname="" tests="2" failures="1" skipped="0" time="42.736" errors="1">
+<testcase name="HTTP 503 readiness is visible rather than silently treated as a waking service" classname="v7-reliability.spec.ts" time="12.448">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\v7-reliability-HTTP-503-re-044e0-treated-as-a-waking-service\error-context.md]]
+]]>
+</system-out>
+<failure message="expect(locator).toBeVisible() failed" type="expect.toBeVisible">
+<![CDATA[  v7-reliability.spec.ts:3:1 › HTTP 503 readiness is visible rather than silently treated as a waking service 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText('Backend unavailable. Data may be out of date.')
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByText('Backend unavailable. Data may be out of date.') with timeout 5000ms
+      - waiting for getByText('Backend unavailable. Data may be out of date.')
+
+
+      4 |   await page.route('**/health**',route=>route.fulfill({status:503,json:{status:'unready'}}));
+      5 |   await page.goto('/settings',{waitUntil:'domcontentloaded'});
+    > 6 |   await expect(page.getByText('Backend unavailable. Data may be out of date.')).toBeVisible();
+        |                                                                                 ^
+      7 | });
+      8 |
+      9 | test('mobile navigation opens, supports keyboard dismissal, and reaches settings',async({page})=>{
+        at D:\Projects\CycloneTracker\frontend\tests\browser\v7-reliability.spec.ts:6:81
+
+    Error Context: ..\..\test-results\v7-reliability-HTTP-503-re-044e0-treated-as-a-waking-service\error-context.md
+]]>
+</failure>
+</testcase>
+<testcase name="mobile navigation opens, supports keyboard dismissal, and reaches settings" classname="v7-reliability.spec.ts" time="30.288">
+<system-out>
+<![CDATA[
+[[ATTACHMENT|..\frontend\test-results\v7-reliability-mobile-navi-9af1b-missal-and-reaches-settings\error-context.md]]
+]]>
+</system-out>
+<error message="Test timeout of 30000ms exceeded." type="Error">
+<![CDATA[  v7-reliability.spec.ts:9:1 › mobile navigation opens, supports keyboard dismissal, and reaches settings 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: 'Open navigation' })
+
+
+      10 |   await page.setViewportSize({width:390,height:844});
+      11 |   await page.goto('/dashboard',{waitUntil:'domcontentloaded'});
+    > 12 |   await page.getByRole('button',{name:'Open navigation'}).click();
+         |                                                           ^
+      13 |   await expect(page.getByRole('navigation',{name:'Mobile navigation'})).toBeVisible();
+      14 |   await page.keyboard.press('Escape');
+      15 |   await expect(page.getByRole('navigation',{name:'Mobile navigation'})).not.toBeVisible();
+        at D:\Projects\CycloneTracker\frontend\tests\browser\v7-reliability.spec.ts:12:59
+
+    Error Context: ..\..\test-results\v7-reliability-mobile-navi-9af1b-missal-and-reaches-settings\error-context.md
+]]>
+</error>
+</testcase>
+</testsuite>
+</testsuites>

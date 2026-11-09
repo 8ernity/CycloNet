@@ -1,0 +1,14 @@
+{
+  "verified": true,
+  "counts": {
+    "cyclone_archive": 1,
+    "classification_history": 1,
+    "active_cyclone_state": 1
+  },
+  "ownership_and_nulls": "exact record comparison",
+  "scope": "isolated local rehearsal only; not a live migration",
+  "backup_sha256": "a0ebbda818973abb71b67c0a1d85b71771fc2ddcd2c221e54f4f4ca12cc61b3f",
+  "schema": "rehearsal_dbb6b168689a44f3b7d9d2d38e18e0ba",
+  "source_backup_unchanged": true,
+  "input_scope": "Synthetic local fixture in legacy SQLite schema; no live user data"
+}

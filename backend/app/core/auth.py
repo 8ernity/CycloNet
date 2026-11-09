@@ -3,6 +3,7 @@ import time
 import datetime
 import secrets
 import logging
+from urllib.parse import urlsplit
 from enum import Enum
 from typing import Optional, Dict, Any, List
 from fastapi import Header, HTTPException, Depends, Request, Security
@@ -31,6 +32,30 @@ def validate_production_auth():
         raise RuntimeError("Production requires Clerk issuer and PEM or JWKS configuration")
     if not CLERK_AUDIENCE and not CLERK_AUTHORIZED_PARTIES:
         raise RuntimeError("Production requires Clerk audience or authorized parties")
+    def secure_url(value, origin_only=False):
+        try:
+            parsed = urlsplit(value)
+            return (parsed.scheme == 'https' and bool(parsed.hostname) and parsed.port in (None, 443)
+                    and not (parsed.username or parsed.password or parsed.query or parsed.fragment)
+                    and not any(c.isspace() for c in value)
+                    and (not origin_only or parsed.path in ('', '/')))
+        except ValueError:
+            return False
+    if not secure_url(CLERK_ISSUER, True):
+        raise RuntimeError('Invalid Clerk issuer HTTPS origin')
+    if CLERK_JWKS_URL and not secure_url(CLERK_JWKS_URL):
+        raise RuntimeError('Invalid Clerk JWKS HTTPS URL')
+    if any(not secure_url(origin, True) for origin in CLERK_AUTHORIZED_PARTIES):
+        raise RuntimeError('Invalid Clerk authorized party HTTPS origin')
+    if CLERK_PEM_PUBLIC_KEY:
+        try:
+            from cryptography.hazmat.primitives.serialization import load_pem_public_key
+            from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+            key = load_pem_public_key(CLERK_PEM_PUBLIC_KEY.encode())
+            if not isinstance(key, RSAPublicKey) or key.key_size < 2048:
+                raise ValueError('Unsupported key')
+        except Exception:
+            raise RuntimeError('Invalid Clerk RSA public key') from None
 
 def clerk_claims_allowed(claims):
     return bool(claims.get("sub")) and (not CLERK_AUTHORIZED_PARTIES or claims.get("azp") in CLERK_AUTHORIZED_PARTIES)
@@ -74,7 +99,7 @@ def get_jwks_client() -> Optional[PyJWKClient]:
         try:
             _jwks_client = PyJWKClient(jwks_url, cache_jwk_set=True, lifespan=3600)
         except Exception as e:
-            logger.warning("[Auth] Failed to initialize JWKS client for %s: %s", jwks_url, e)
+            logger.warning("[Auth] Failed to initialize JWKS client: %s", type(e).__name__)
     return _jwks_client
 
 def is_valid_admin_key(candidate: Optional[str]) -> bool:

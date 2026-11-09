@@ -3,9 +3,12 @@ import os
 import json
 import re
 import datetime
+import time
+from app.core.observability import logger as event_logger
 import xml.etree.ElementTree as ET
 from typing import List, Dict, Any, Optional
 import httpx
+from app.services.feed_http import FeedClient
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
@@ -81,6 +84,9 @@ class LiveIngestionService:
 
     def __init__(self):
         self.last_sync: Optional[datetime.datetime] = None
+        self.last_attempt_at = None
+        self.last_duration_ms = None
+        self.last_sync_outcome = 'not_started'
         self.is_syncing: bool = False
         self.last_error: Optional[str] = None
         self.sources_status: Dict[str, str] = {
@@ -168,6 +174,9 @@ class LiveIngestionService:
             raise RuntimeError("Only the active lease owner may ingest")
         self._sync_generation = process_lock.get_leader_generation()
         self.is_syncing = True
+        started = time.monotonic()
+        self.last_attempt_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        self.last_sync_outcome = 'failed'
         self.last_error = None
         discovered_systems: List[Dict[str, Any]] = []
 
@@ -214,6 +223,7 @@ class LiveIngestionService:
             self.retired_systems = retired
 
             self.last_sync = datetime.datetime.utcnow()
+            self.last_sync_outcome = status_label
 
             return {
                 "status": status_label,
@@ -228,7 +238,7 @@ class LiveIngestionService:
             print(f"[Live Ingestion Error] Failed during sync: {e}")
             return {
                 "status": "partial" if self.live_systems else "error",
-                "synced_at": datetime.datetime.utcnow().isoformat() + "Z",
+                "synced_at": self.last_sync.isoformat() + "Z" if self.last_sync else None,
                 "active_systems_count": len(self.live_systems),
                 "systems": self.live_systems,
                 "sources_status": self.sources_status,
@@ -237,6 +247,9 @@ class LiveIngestionService:
             }
         finally:
             self.is_syncing = False
+            self.last_duration_ms = round((time.monotonic() - started) * 1000, 2)
+            event_logger.info(json.dumps({'event':'ingestion_sync','outcome':self.last_sync_outcome,
+                                         'duration_ms':self.last_duration_ms,'time':self.last_attempt_at}))
 
     def _extract_coordinates_from_bulletin(self, text: str) -> Optional[tuple]:
         """
@@ -282,7 +295,7 @@ class LiveIngestionService:
             "aftermath", "death toll", "rebuilding", "clearing", "reconstruction"
         }
         try:
-            async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
+            async with FeedClient(timeout=6.0, follow_redirects=True) as client:
                 resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
                 if resp.status_code == 200:
                     root = ET.fromstring(resp.content)
@@ -314,7 +327,7 @@ class LiveIngestionService:
         url = "https://rsmcnewdelhi.imd.gov.in/"
         
         try:
-            async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
+            async with FeedClient(timeout=8.0, follow_redirects=True) as client:
                 resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
                 if resp.status_code == 200:
                     soup = BeautifulSoup(resp.text, "html.parser")
@@ -484,7 +497,7 @@ class LiveIngestionService:
         self.sources_status["GDACS_UN"] = "Polling"
         url = "https://www.gdacs.org/xml/rss.xml"
         try:
-            async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
+            async with FeedClient(timeout=8.0, follow_redirects=True) as client:
                 resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
                 if resp.status_code == 200:
                     try:
@@ -612,7 +625,7 @@ class LiveIngestionService:
         url = "https://www.metoc.navy.mil/jtwc/rss/jtwc.rss"
 
         try:
-            async with httpx.AsyncClient(timeout=6.0, follow_redirects=True) as client:
+            async with FeedClient(timeout=6.0, follow_redirects=True) as client:
                 resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
                 if resp.status_code == 200:
                     text_content = resp.text

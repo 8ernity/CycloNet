@@ -2,11 +2,12 @@ import os
 import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+from app.core.runtime import runtime_environment
 
 logger = logging.getLogger(__name__)
 
 raw_db_url = os.getenv("DATABASE_URL", "sqlite:///./cyclone_tracker.db")
-if os.getenv('ENVIRONMENT', '').lower() == 'production' and not raw_db_url.startswith(('postgres://', 'postgresql://', 'postgresql+psycopg2://')):
+if runtime_environment() == 'production' and not raw_db_url.startswith(('postgres://', 'postgresql://', 'postgresql+psycopg2://')):
     raise RuntimeError("Production requires PostgreSQL; SQLite fallback is forbidden")
 
 # Fix Render PostgreSQL URL compatibility (Render uses postgres://, SQLAlchemy requires postgresql://)
@@ -27,11 +28,12 @@ else:
     # Production PostgreSQL connection pool configuration (BACK-01)
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
-        pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
-        max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "20")),
-        pool_timeout=int(os.getenv("DB_POOL_TIMEOUT", "30")),
+        pool_size=int(os.getenv("DB_POOL_SIZE", "5")),
+        max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "5")),
+        pool_timeout=int(os.getenv("DB_POOL_TIMEOUT", "5")),
         pool_recycle=int(os.getenv("DB_POOL_RECYCLE", "1800")),
-        pool_pre_ping=True
+        pool_pre_ping=True,
+        connect_args={"connect_timeout": 5, "options": "-c statement_timeout=15000"}
     )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -50,7 +52,7 @@ def init_db():
     Initializes database schema and populates historical archive seed records.
     Safe for both application startup and test runner execution (BACK-01).
     """
-    if os.getenv('ENVIRONMENT', '').lower() == 'production':
+    if runtime_environment() == 'production':
         validate_schema()
         return
     from pathlib import Path
@@ -66,7 +68,7 @@ def init_db():
 
 
 def validate_schema():
-    """Production checks are read-only; local development may initialize its DB."""
+    """Read-only in every environment. Initialization is a separate operation."""
     from sqlalchemy import inspect, text
     from pathlib import Path
     from alembic.config import Config
@@ -74,19 +76,19 @@ def validate_schema():
     backend = Path(__file__).resolve().parents[2]
     config = Config(str(backend / 'alembic.ini'))
     config.set_main_option('script_location', str(backend / 'alembic'))
-    from alembic import command
     expected = set(ScriptDirectory.from_config(config).get_heads())
     if 'alembic_version' not in inspect(engine).get_table_names():
-        if os.getenv('ENVIRONMENT', 'development').lower() != 'development':
-            raise RuntimeError('Database migration required before startup')
-        logger.info("[Database] 'alembic_version' table not found; auto-applying migrations to head...")
-        command.upgrade(config, 'head')
-        return
+        raise RuntimeError('Database migration required before startup')
     with engine.connect() as conn:
         revisions = set(conn.execute(text('SELECT version_num FROM alembic_version')).scalars())
     if revisions != expected:
-        if os.getenv('ENVIRONMENT', 'development').lower() != 'development':
-            raise RuntimeError('Database migration required before startup')
-        logger.info("[Database] Revisions %s != expected %s; auto-upgrading to head...", revisions, expected)
-        command.upgrade(config, 'head')
-        return
+        raise RuntimeError('Database migration required before startup')
+    from app.models import domain  # Register every required application table.
+    inspector = inspect(engine)
+    actual_tables = set(inspector.get_table_names())
+    for table in Base.metadata.sorted_tables:
+        if table.name not in actual_tables:
+            raise RuntimeError('Database schema is incomplete')
+        columns = {column['name'] for column in inspector.get_columns(table.name)}
+        if not set(table.columns.keys()).issubset(columns):
+            raise RuntimeError('Database schema is incomplete')

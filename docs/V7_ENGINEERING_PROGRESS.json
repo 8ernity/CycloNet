@@ -1,0 +1,405 @@
+{
+  "date": "2026-11-09",
+  "status": "ENGINEERING_READY_DEPLOYMENT_BLOCKED",
+  "base_commit": "767c105c9a87b833c308004d22bbbb32311c6fcc",
+  "latest_main_fetched_and_compared": true,
+  "branch": "main",
+  "committed": false,
+  "pushed": false,
+  "production_mutations": false,
+  "render_read_only_workspace_confirmed": true,
+  "owner_decision": "Keep changes local; no paid resources or publishing (2026-11-09)",
+  "render_latest_access": "Plugin installed/enabled; list_services and get_service returned Unknown tool; dashboard fallback failed to initialize",
+  "readme_restoration": {
+    "reference_commit": "93c8827",
+    "scope": "README.md only for restoration",
+    "badges": 8,
+    "mermaid_diagrams": 4,
+    "details_sections": 6,
+    "relative_links_and_anchors": "passed",
+    "local_desktop_mobile_render": "passed"
+  },
+  "verification": {
+    "backend": {
+      "tests": 288,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "browser": {
+      "tests": 32,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "frontend_unit_passed": 24,
+    "typescript": "passed",
+    "build": "passed",
+    "eslint_errors": 0,
+    "eslint_warnings": 165,
+    "blueprint_schema": "both passed",
+    "local_backup_restore": "passed"
+  },
+  "issues": [
+    {
+      "id": "FIX-001",
+      "severity": "P0 CRITICAL",
+      "confirmed_root_cause": "Hosted mode could default to development/SQLite; a revision marker alone did not establish required tables/columns.",
+      "affected_files": [
+        "backend/app/core/runtime.py",
+        "backend/app/core/database.py",
+        "backend/app/main.py",
+        "backend/alembic/env.py",
+        "backend/scripts/rehearse_sqlite_migration.py"
+      ],
+      "implementation": "Require explicit production on Render and PostgreSQL in production; read-only revision/table/column validation; separate development initialization; bounded pool and database timeouts.",
+      "regression_tests": [
+        "backend/tests/test_v7_production.py",
+        "backend/tests/test_v5_infrastructure.py",
+        "backend/scripts/verify_disposable_recovery.py",
+        "backend/tests/test_v7_sqlite_migration.py"
+      ],
+      "verification": "Startup regressions, real migrations, local backup/restart and legacy SQLite import rehearsal pass. Offline source unchanged; exact ownership/null/state reconciliation, sequence continuity and atomic rollback checked.",
+      "unresolved_dependencies": [
+        "Approved managed staging PostgreSQL",
+        "Backup/import and integrity verification of existing live SQLite",
+        "Managed redeploy/persistence acceptance"
+      ],
+      "status": "LOCAL_VERIFIED_EXTERNAL_BLOCKED"
+    },
+    {
+      "id": "FIX-002",
+      "severity": "P0 CRITICAL",
+      "confirmed_root_cause": "The inspected Render workspace has no managed coordination service; source safeguards require real Redis.",
+      "affected_files": [
+        "backend/app/core/process_lock.py",
+        "backend/app/core/shared_state.py",
+        "backend/app/core/rate_limit.py",
+        "backend/app/core/inference_budget.py",
+        "backend/tests/test_v7_real_workers.py"
+      ],
+      "implementation": "Preserved atomic quotas, ownership-checked leases, DB fencing and process semaphores; added independent contender-process/expiration/renewal checks.",
+      "regression_tests": [
+        "backend/tests/test_v5_infrastructure.py",
+        "backend/tests/test_v6_real_infrastructure.py",
+        "backend/tests/test_v7_real_workers.py"
+      ],
+      "verification": "Real Redis concurrency and independent process contention pass; stale leaders cannot write.",
+      "unresolved_dependencies": [
+        "Approved non-evicting staging Key Value",
+        "Verify actual authenticated transport",
+        "Two live backend instances, reconnect/crash/soak acceptance"
+      ],
+      "status": "LOCAL_VERIFIED_EXTERNAL_BLOCKED"
+    },
+    {
+      "id": "FIX-003",
+      "severity": "P0 CRITICAL",
+      "confirmed_root_cause": "Actual Free Singapore services differ from the Blueprints; NEXT_PUBLIC_API_URL referenced a private hostname.",
+      "affected_files": [
+        "render.yaml",
+        "render.staging.yaml",
+        "docs/V7_STAGING_APPROVAL.md"
+      ],
+      "implementation": "Public HTTPS API origins, main branch, manual deployment configuration, pre-deploy migration, readiness probes, pool settings and graceful shutdown limits; unconfirmed Earth Engine project replaced with secure manual input.",
+      "regression_tests": [],
+      "verification": "Both documents pass current public Render schema; read-only actual inventory captured.",
+      "unresolved_dependencies": [
+        "Approve paid staging plan/region and deployment",
+        "Verify actual environment presence and Clerk values",
+        "Apply and verify hosted configuration; local schema validation is not deployment"
+      ],
+      "status": "LOCAL_VERIFIED_EXTERNAL_BLOCKED"
+    },
+    {
+      "id": "FIX-004",
+      "severity": "P0 CRITICAL",
+      "confirmed_root_cause": "Startup caught mandatory auth failures; URL prefix checks accepted malformed JWKS settings.",
+      "affected_files": [
+        "backend/app/core/auth.py",
+        "backend/app/main.py"
+      ],
+      "implementation": "Propagate startup auth failure before workers; validate HTTPS issuer/JWKS/origins and supplied RSA PEM type/size; retain verified JWT and exact roles.",
+      "regression_tests": [
+        "backend/tests/test_v7_production.py",
+        "backend/tests/test_auth_production_hardening.py",
+        "backend/tests/test_v6_review.py"
+      ],
+      "verification": "Local startup and authorization matrices pass.",
+      "unresolved_dependencies": [
+        "Correct Clerk test-instance configuration in staging secret stores",
+        "Real login/logout, revocation/expiry, key rotation and role acceptance"
+      ],
+      "status": "LOCAL_VERIFIED_EXTERNAL_BLOCKED"
+    },
+    {
+      "id": "FIX-005",
+      "severity": "P1 HIGH",
+      "confirmed_root_cause": "API cache policy and unbounded catalog retrieval added risks beyond retained V6 protections.",
+      "affected_files": [
+        "backend/app/main.py",
+        "backend/app/api/routes.py",
+        "backend/app/core/observability.py",
+        "backend/app/services/feed_http.py"
+      ],
+      "implementation": "Private/no-store API responses; bounded catalog SQL; bounded provider streams; credential-free request logging and sanitized classification exception type.",
+      "regression_tests": [
+        "backend/tests/test_v7_production.py",
+        "backend/tests/test_v7_monitoring.py",
+        "backend/tests/test_v7_catalog_feed.py",
+        "backend/tests/test_v7_feed_http.py",
+        "backend/tests/test_v6_review.py"
+      ],
+      "verification": "Full backend security/body/inference/WebSocket suites pass; npm/Python scans and Git history scan clean.",
+      "unresolved_dependencies": [
+        "Live ingress/proxy, authenticated WebSocket and external abuse acceptance"
+      ],
+      "status": "LOCAL_VERIFIED_EXTERNAL_BLOCKED"
+    },
+    {
+      "id": "FIX-006",
+      "severity": "P1 HIGH",
+      "confirmed_root_cause": "Infrastructure catalog used truthy wind/category guesses, replacing zero and missing values.",
+      "affected_files": [
+        "frontend/src/lib/catalogObservation.ts",
+        "frontend/src/app/infrastructure/page.tsx"
+      ],
+      "implementation": "Finite non-negative numeric wind only; zero preserved; missing/malformed values remain null; missing basin/category remain unavailable; support actual maxCategory contract.",
+      "regression_tests": [
+        "frontend/tests/catalog-observation.test.mjs",
+        "frontend/tests/v6-infrastructure.test.mjs"
+      ],
+      "verification": "Zero/null/undefined/non-finite/malformed and stale record tests pass.",
+      "unresolved_dependencies": [],
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "FIX-007",
+      "severity": "P2 MEDIUM",
+      "confirmed_root_cause": "SQLite descriptions and broad simulation/year heuristics overstated source provenance; an explicit demo track claimed historical measurements.",
+      "affected_files": [
+        "backend/app/services/chat_service.py",
+        "backend/app/services/data_ingestion.py",
+        "backend/app/services/best_tracks.py",
+        "backend/app/api/routes.py"
+      ],
+      "implementation": "Storage-neutral catalog language; explicit demonstration metadata used for catalog/trajectory; stale records not live; curated excerpts do not claim independent verification.",
+      "regression_tests": [
+        "backend/tests/test_v7_catalog_feed.py"
+      ],
+      "verification": "Captured stale/drill failures now pass; no simulation inferred solely from year.",
+      "unresolved_dependencies": [],
+      "status": "VERIFIED_FIXED"
+    },
+    {
+      "id": "FIX-008",
+      "severity": "P1 SCIENTIFIC BLOCKER",
+      "confirmed_root_cause": "Authentic inventory exists but no complete independently approved image dataset/negative corpus exists.",
+      "affected_files": [
+        "backend/data/manifests/cyclonet_ni_scientific_v1.csv",
+        "backend/data/manifests/hursat_sample_review.json",
+        "backend/app/services/scientific_manifest.py"
+      ],
+      "implementation": "Retained authentic records, frozen partitions, checksums, 98-frame QC review and fail-closed admission; no fabricated labels or review approval.",
+      "regression_tests": [
+        "backend/tests/test_v5_scientific_data.py",
+        "backend/tests/test_v6_hursat_review.py",
+        "backend/tests/test_v6_image_leakage.py"
+      ],
+      "verification": "Scientific provenance/leakage tests pass; 0 training-eligible frames.",
+      "unresolved_dependencies": [
+        "Independent acquisition/track/wind-convention/pixel QC review",
+        "Approved sufficient class images",
+        "Independent negatives and OOD corpus"
+      ],
+      "status": "LOCAL_VERIFIED_EXTERNAL_BLOCKED"
+    },
+    {
+      "id": "FIX-009",
+      "severity": "P1 SCIENTIFIC BLOCKER",
+      "confirmed_root_cause": "Independent reviewed training/evaluation corpus is absent.",
+      "affected_files": [
+        "backend/train_classifier.py",
+        "backend/app/services/training_pipeline.py",
+        "backend/app/services/evaluation.py"
+      ],
+      "implementation": "Retained honest training gate and scientifically_validated=false; do not manufacture model artifacts or evaluation metrics.",
+      "regression_tests": [
+        "backend/tests/test_v6_evaluation.py",
+        "backend/tests/test_dataset_independence.py"
+      ],
+      "verification": "Training CLI safely exits 1 with BLOCKED_EXTERNAL_DATASET; no checkpoint produced.",
+      "unresolved_dependencies": [
+        "Approved dataset",
+        "Predeclared thresholds and baselines",
+        "Validation-only calibration and untouched test/OOD evaluation with independent approval"
+      ],
+      "status": "LOCAL_VERIFIED_EXTERNAL_BLOCKED"
+    },
+    {
+      "id": "FIX-010",
+      "severity": "P1 SCIENTIFIC BLOCKER",
+      "confirmed_root_cause": "Authorized project, suitable scenes, validated SAR processing and reference masks are not established.",
+      "affected_files": [
+        "backend/app/services/gee_service.py",
+        "render.staging.yaml"
+      ],
+      "implementation": "Preserved SATELLITE_DATA_UNAVAILABLE and empty measured features; proposed project name cannot imply authorization.",
+      "regression_tests": [
+        "backend/tests/test_flood_service_integrity.py",
+        "backend/tests/test_v5_scientific_data.py"
+      ],
+      "verification": "Unavailable/scenario separation tests pass; no validated satellite result claimed.",
+      "unresolved_dependencies": [
+        "Actual authorized Earth Engine project/service identity",
+        "Matched Sentinel-1 acquisitions",
+        "Reproducible preprocessing and independent flood references/accuracy review"
+      ],
+      "status": "LOCAL_VERIFIED_EXTERNAL_BLOCKED"
+    },
+    {
+      "id": "FIX-011",
+      "severity": "P1 HIGH",
+      "confirmed_root_cause": "Provider downloads were byte-unbounded and malformed timestamp types could raise; source status could be mislabeled in catalog.",
+      "affected_files": [
+        "backend/app/services/feed_http.py",
+        "backend/app/services/feed_policy.py",
+        "backend/app/services/live_ingestion.py",
+        "backend/app/api/routes.py"
+      ],
+      "implementation": "4 MiB decoded feed limit, 20-second total deadline, at most two attempts with delay; malformed timestamps unknown; preserve stale/outage semantics; record attempt/outcome/duration and source successes.",
+      "regression_tests": [
+        "backend/tests/test_v7_feed_http.py",
+        "backend/tests/test_v7_catalog_feed.py",
+        "backend/tests/test_v5_feeds.py",
+        "backend/tests/test_v6_units.py",
+        "backend/tests/test_feed_failure_semantics.py"
+      ],
+      "verification": "Golden fixtures and outage tests pass. Actual read-only check: IMD/JTWC degraded, GDACS failed; no records or false calm admitted.",
+      "unresolved_dependencies": [
+        "Additional supported current agency examples and timely provider observations",
+        "Hosted source-connectivity acceptance"
+      ],
+      "status": "LOCAL_VERIFIED_EXTERNAL_BLOCKED"
+    },
+    {
+      "id": "FIX-012",
+      "severity": "P1 HIGH",
+      "confirmed_root_cause": "Keep-alive failures were swallowed; legacy health checked only the database; logger configuration could disable request evidence.",
+      "affected_files": [
+        ".github/workflows/keep-alive.yml",
+        "scripts/check_readiness.py",
+        "backend/app/core/observability.py",
+        "backend/alembic/env.py",
+        "backend/app/main.py",
+        "frontend/src/components/BackendWarmup.tsx"
+      ],
+      "implementation": "Failing readiness workflow, full-health alias, structured privacy-preserving request IDs/durations, ingestion diagnostics and visible HTTP error state; remove misleading waking/healthy UI behavior.",
+      "regression_tests": [
+        "backend/tests/test_v7_monitoring.py",
+        "backend/tests/test_v7_production.py",
+        "frontend/tests/browser/v7-reliability.spec.ts"
+      ],
+      "verification": "Readiness, privacy and browser failure tests pass. Public deployment probe failed and is recorded as failure.",
+      "unresolved_dependencies": [
+        "Actual monitoring receiver/dashboard/subscriber configuration",
+        "Demonstrated failure/recovery notifications"
+      ],
+      "status": "LOCAL_VERIFIED_EXTERNAL_BLOCKED"
+    },
+    {
+      "id": "FIX-013",
+      "severity": "P1 HIGH",
+      "confirmed_root_cause": "No verified managed backup/restore evidence existed for deployed services.",
+      "affected_files": [
+        "backend/scripts/verify_disposable_recovery.py",
+        "docs/V7_DEPLOYMENT_VERIFICATION.md"
+      ],
+      "implementation": "Prepared guarded disposable restore exercise and recovery runbook with proposed RPO 24h/RTO 60m; compare all application-table counts/checksums and test restart/migration round trip.",
+      "regression_tests": [
+        "backend/scripts/verify_disposable_recovery.py",
+        "backend/tests/test_v5_infrastructure.py",
+        "backend/tests/test_v7_real_workers.py"
+      ],
+      "verification": "Local restore identical; history and ownership retained; restart persistence demonstrated in 45.61s for tiny fixtures.",
+      "unresolved_dependencies": [
+        "Owner-approved objectives",
+        "Managed retention/encryption verification",
+        "Real staging restore, code rollback and failure recovery"
+      ],
+      "status": "LOCAL_VERIFIED_EXTERNAL_BLOCKED"
+    },
+    {
+      "id": "FIX-014",
+      "severity": "P2 MEDIUM",
+      "confirmed_root_cause": "Mobile menu had no action; HTTP readiness failure did not show an unavailable state; deployment workflows remain untested.",
+      "affected_files": [
+        "frontend/src/components/Header.tsx",
+        "frontend/src/components/Sidebar.tsx",
+        "frontend/src/components/BackendWarmup.tsx",
+        "frontend/src/app/globals.css",
+        "frontend/src/app/dashboard/page.tsx",
+        "frontend/src/app/compare/page.tsx",
+        "frontend/src/app/infrastructure/page.tsx",
+        "frontend/src/app/classification/page.tsx",
+        "frontend/tests/browser/v7-accessibility.spec.ts"
+      ],
+      "implementation": "Accessible mobile navigation; honest unavailable readiness; labeled storm selectors; keyboard-operated sample buttons; contrast-correct primary buttons and underlined map attribution. Missing comparison records show Basin not available. Automated WCAG checks in both themes, all eight main pages, plus keyboard and three-viewport outage checks.",
+      "regression_tests": [
+        "frontend/tests/browser/v7-reliability.spec.ts",
+        "frontend/tests/browser/settings-sync.spec.ts",
+        "frontend/tests/browser/chat-reliability.spec.ts",
+        "frontend/tests/browser/v7-accessibility.spec.ts"
+      ],
+      "verification": "Final browser totals below include all accessibility regressions; 24 frontend unit tests, typecheck and build pass. Initial two-theme accessibility failures and a separate earlier chat timeout are retained.",
+      "unresolved_dependencies": [
+        "Real deployed auth/API workflows",
+        "Manual assistive-technology review beyond automated WCAG and keyboard checks",
+        "Hosted load/soak and final performance acceptance"
+      ],
+      "status": "LOCAL_VERIFIED_EXTERNAL_BLOCKED"
+    }
+  ],
+  "remaining_blockers": "docs/V7_REMAINING_BLOCKERS.md",
+  "followup_verification": {
+    "legacy_sqlite_rehearsal": "passed with synthetic legacy-schema fixtures",
+    "migration_safeguards": 11,
+    "automated_accessibility": "eight main pages; dark and light themes; no WCAG A/AA violations in tested unavailable states",
+    "ci_disposable_postgres_port": "55432; YAML checked; hosted execution not performed"
+  },
+  "evidence_sha256": {
+    "v7-accessibility-before.xml": "3d8a3c92eeadfda3926e75d32598d30f1b30117066601572410757afa8eac650",
+    "v7-agency-readonly-check.json": "5ddfb4f7da2303dbfb9a027be4f5c5f97ad6f97929032b3bdcbdf08d2545ed3f",
+    "v7-backend-results.xml": "7083983195dccd9a0fffe720335fbc3f71404d7266ae78cffc732e8faa12ba1c",
+    "v7-backend.txt": "70cc2f75e9e2cfef5cb1c75eb77178bc259b9b746724d326e47eb0bdb821e35a",
+    "v7-backup-cleanup-before.xml": "3caaf5a4eee86694ab80ab4e75b462cec91d48a2f2773187a2e305f0fa07bb1a",
+    "v7-blueprint-validation.json": "7984a0bfdcb9eecf015b83f4851f91432656e8a9e70bf840bdf6a28cc8b1ac3b",
+    "v7-browser-before.xml": "4d03c9a07a0f3d23bda454e2e6eab3dbdd627f4fb2c7d259f3b2d096c79c924b",
+    "v7-browser-results.xml": "be4aa193e24dcf97b4e57dbbdaf90106f8f7d5bb19556640a3db08719d1d898d",
+    "v7-browser-timeout.xml": "95d658e2ad25b79a60657cf130c1711f585e0b5decb05f8021fca1d7f280abb6",
+    "v7-browser.txt": "9a52196e4ed3d9f893bce7d3d82ced7f34c6c66cf241387abd8c61e5739f8628",
+    "v7-build.txt": "71924d26ca0ec0bf19c3d60c01d7d96c531a02cc909008733132ed1f13ecbdd9",
+    "v7-catalog-before.txt": "cf7741b2bdce7ef0b61a79c23234b0f5061620b4b87c5396ebdff58bd24d252b",
+    "v7-catalog-feed-before.xml": "cfe695a472314b37642de37a0aa0b9afce3ecd52c685d7450367fb1d0ce0ff9d",
+    "v7-chat-recheck.xml": "de431df1761e9afe8c6bbc61671c5fc3a006a91d6dffaa616bfdd1216468c226",
+    "v7-drill-provenance-before.xml": "9be7102c389bf785f920b83c9df32a0ed58a46619b4943401aab39edd49e25da",
+    "v7-eslint.json": "bbb14ce395ef1423c2fb0363e06ed34ac321fa0aab3e3358a1ed8b03a73219e7",
+    "v7-focused-results.xml": "8f7a5ffa9a3542a88c2909a23628211b8ae3b6b9c8b766cfd41a4f69583bba72",
+    "v7-frontend-unit.txt": "fc0efd3f710f32a9a220a0a6e28777a29d0e4f5b65fb6b2a853bca04b05c3ced",
+    "v7-gitleaks-history.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "v7-gitleaks-working.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "v7-live-readiness.json": "45dba1e975b52ac3f0e233e394d977aaf9a450f8fdbedc465a96a48e4e52e442",
+    "v7-local-recovery.json": "0282c4c5e22355b93b119ad6acec3d5b2cbfb3f9b72f45e4a29e909ffc7bbbb1",
+    "v7-npm-audit.json": "86a7cf084f382c9838e397cf81287b6e16ee723559ecf49b4e7024b7849e1658",
+    "v7-production-after.xml": "c7a30d4a71295989ec0ba77cccf0a19453d2bb6bd07914a41e67b2fc6aa1d3d3",
+    "v7-production-before.xml": "af183eee846c067661152d2c9d39887a53f8337173900b0839fc491b21b33776",
+    "v7-python-linux-audit.json": "f757deeca3e866e5230bd34c04def4e47c6a0a01291b8d0c61002c17e281c205",
+    "v7-python-windows-audit.json": "eec688ee266527aee403b1d346e1549e7a5cc2b53c7887133d821cc9b0d07172",
+    "v7-render-observed.json": "d9f5b3b29f7af8023cde44df760903157d295cce5f6e068564e3361db61d31f1",
+    "v7-schema-before.xml": "9df85866f0d86b715fbc51f0f75db0f5a14cf4e630531531edcf514212bf4db4",
+    "v7-sqlite-migration-before.xml": "46c7b9f24a07dfad2179f28064c0122d06f50cf66dbed81a47bb654a1fc4f466",
+    "v7-sqlite-migration-rehearsal.json": "f38cd0d922e53e24bbca3543ade25ad64949585401b5ef3d5dcd0c4954394b32",
+    "v7-sqlite-migration-results.xml": "226e7828e4cf7e456563a1cf83d7b2c0d805dd0b47e58365a18a88b2b647004d",
+    "v7-training-gate.txt": "b68e98650e2103eae90e3d48efdf1c4a177ea9ad9a080ae1afd740e7010a4dd5"
+  }
+}

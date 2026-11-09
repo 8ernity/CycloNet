@@ -10,7 +10,7 @@ def parse_time(value):
         return None
     if isinstance(value, datetime):
         dt = value
-    else:
+    elif isinstance(value, str):
         try:
             dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
         except (ValueError, TypeError):
@@ -18,6 +18,8 @@ def parse_time(value):
                 dt = parsedate_to_datetime(value)
             except (ValueError, TypeError):
                 return None
+    else:
+        return None
     return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
 
 def fresh(value, now=None):

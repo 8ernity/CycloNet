@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { 
   X, 
   Send, 
@@ -24,6 +24,7 @@ import {
 import { useLiquidGlass } from "@/hooks/useLiquidGlass";
 import { CycloneLogo } from "@/components/CycloneLogo";
 import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
+import { readChatReply } from "@/lib/chatResponse";
 
 interface Message {
   id: string;
@@ -70,7 +71,13 @@ const FEATURE_CARDS = [
 ];
 
 
+function fitDimension(value: number, minimum: number, available: number) {
+  return Math.min(Math.max(1, available), Math.max(minimum, Number.isFinite(value) ? value : minimum));
+}
+
 export function ChatbotWidget() {
+  const reduceMotion = useReducedMotion();
+  const openerRef = useRef<HTMLElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [input, setInput] = useState("");
@@ -81,6 +88,13 @@ export function ChatbotWidget() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<CycloneSpeechRecognition | null>(null);
+  const pendingRequest = useRef<AbortController | null>(null);
+
+  useEffect(() => () => {
+    pendingRequest.current?.abort();
+    pendingRequest.current = null;
+    recognitionRef.current?.stop();
+  }, []);
 
   const toggleVoiceInput = () => {
     if (typeof window === "undefined") return;
@@ -135,6 +149,7 @@ export function ChatbotWidget() {
 
   // Sync live UI telemetry from window.__cyclonet_current_context
   useEffect(() => {
+    if (!isOpen) return;
     const updateContext = () => {
       if (typeof window !== "undefined") {
         setScreenContext(window.__cyclonet_current_context || null);
@@ -171,8 +186,8 @@ export function ChatbotWidget() {
         try {
           const parsed = JSON.parse(savedSize);
           if (typeof parsed.width === "number" && typeof parsed.height === "number") {
-            initialWidth = Math.max(380, Math.min(parsed.width, window.innerWidth - 32));
-            initialHeight = Math.max(400, Math.min(parsed.height, window.innerHeight - 60));
+            initialWidth = fitDimension(parsed.width, 380, window.innerWidth - 32);
+            initialHeight = fitDimension(parsed.height, 400, window.innerHeight - 60);
           }
         } catch (_) {}
       }
@@ -217,6 +232,7 @@ export function ChatbotWidget() {
   // Listen for external open trigger
   useEffect(() => {
     const handleExternalOpen = () => {
+      openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       setIsOpen(true);
       setIsMinimized(false);
     };
@@ -228,8 +244,11 @@ export function ChatbotWidget() {
   useEffect(() => {
     const handleResize = () => {
       if (typeof window === "undefined") return;
-      const currentHeight = isMinimized ? 56 : size.height;
-      const maxX = Math.max(SAFE_MARGIN, window.innerWidth - size.width - SAFE_MARGIN);
+      const width = fitDimension(size.width, 380, window.innerWidth - SAFE_MARGIN * 2);
+      const height = fitDimension(size.height, 400, window.innerHeight - SAFE_MARGIN * 2);
+      setSize({ width, height });
+      const currentHeight = isMinimized ? 64 : height;
+      const maxX = Math.max(SAFE_MARGIN, window.innerWidth - width - SAFE_MARGIN);
       const maxY = Math.max(SAFE_MARGIN, window.innerHeight - currentHeight - SAFE_MARGIN);
       setPos(prev => ({
         x: Math.max(SAFE_MARGIN, Math.min(prev.x, maxX)),
@@ -290,8 +309,8 @@ export function ChatbotWidget() {
         const maxAllowedW = window.innerWidth - pos.x - SAFE_MARGIN;
         const maxAllowedH = window.innerHeight - pos.y - SAFE_MARGIN;
 
-        const newW = Math.max(380, Math.min(resizeStart.width + deltaX, maxAllowedW));
-        const newH = Math.max(400, Math.min(resizeStart.height + deltaY, maxAllowedH));
+        const newW = fitDimension(resizeStart.width + deltaX, 380, maxAllowedW);
+        const newH = fitDimension(resizeStart.height + deltaY, 400, maxAllowedH);
         setSize({ width: newW, height: newH });
       }
     };
@@ -312,8 +331,8 @@ export function ChatbotWidget() {
         const maxAllowedW = window.innerWidth - pos.x - SAFE_MARGIN;
         const maxAllowedH = window.innerHeight - pos.y - SAFE_MARGIN;
 
-        const newW = Math.max(380, Math.min(resizeStart.width + deltaX, maxAllowedW));
-        const newH = Math.max(400, Math.min(resizeStart.height + deltaY, maxAllowedH));
+        const newW = fitDimension(resizeStart.width + deltaX, 380, maxAllowedW);
+        const newH = fitDimension(resizeStart.height + deltaY, 400, maxAllowedH);
         setSize({ width: newW, height: newH });
       }
     };
@@ -339,8 +358,22 @@ export function ChatbotWidget() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (!isOpen || isMinimized || !hasMounted) return;
+    const frame = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [isOpen, isMinimized, hasMounted]);
+
+  const closeAssistant = () => {
+    setIsOpen(false);
+    setIsMenuOpen(false);
+    recognitionRef.current?.stop();
+    setIsListening(false);
+    openerRef.current?.focus();
+  };
+
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: reduceMotion ? "instant" : "smooth" });
   };
 
   useEffect(() => {
@@ -351,7 +384,9 @@ export function ChatbotWidget() {
 
   const handleSend = async (textToSend?: string) => {
     const text = (textToSend || input).trim();
-    if (!text || loading) return;
+    if (!text || pendingRequest.current) return;
+    const controller = new AbortController();
+    pendingRequest.current = controller;
 
     const userMessage: Message = {
       id: crypto.randomUUID(),
@@ -376,7 +411,7 @@ export function ChatbotWidget() {
 
       const res = await fetch(`${getApiBaseUrl()}/api/chat`, {
         method: "POST",
-        signal: AbortSignal.timeout(65000),
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(65000)]),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: text,
@@ -389,7 +424,8 @@ export function ChatbotWidget() {
         throw new Error(`Server returned ${res.status}`);
       }
 
-      const data = await res.json();
+      const data = await readChatReply(res);
+      if (pendingRequest.current !== controller) return;
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -400,6 +436,7 @@ export function ChatbotWidget() {
       };
       setMessages(prev => [...prev, assistantMessage]);
     } catch (err: unknown) {
+      if (pendingRequest.current !== controller) return;
       setMessages(prev => [
         ...prev,
         {
@@ -411,7 +448,10 @@ export function ChatbotWidget() {
         }
       ]);
     } finally {
-      setLoading(false);
+      if (pendingRequest.current === controller) {
+        pendingRequest.current = null;
+        setLoading(false);
+      }
     }
   };
 
@@ -422,7 +462,11 @@ export function ChatbotWidget() {
   };
 
   const handleClear = () => {
+    pendingRequest.current?.abort();
+    pendingRequest.current = null;
+    setLoading(false);
     setMessages([]);
+    setCopiedId(null);
     setIsMenuOpen(false);
   };
 
@@ -515,10 +559,20 @@ export function ChatbotWidget() {
         {isOpen && hasMounted && (
           <motion.div
             ref={glassRef}
+            role="dialog"
+            aria-label="CycloNet AI assistant"
+            aria-modal="false"
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") return;
+              event.preventDefault();
+              event.stopPropagation();
+              if (isMenuOpen) setIsMenuOpen(false);
+              else closeAssistant();
+            }}
             initial={{ opacity: 0, scale: 0.9, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 15 }}
-            transition={{ type: "spring", stiffness: 350, damping: 26 }}
+            transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 350, damping: 26 }}
             style={{
               position: "fixed",
               left: `${pos.x}px`,
@@ -571,6 +625,7 @@ export function ChatbotWidget() {
                       setIsMenuOpen(!isMenuOpen);
                     }}
                     title="More Options"
+                    aria-expanded={isMenuOpen}
                     className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
                   >
                     <MoreHorizontal className="w-4 h-4" />
@@ -602,7 +657,7 @@ export function ChatbotWidget() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setIsOpen(false);
+                    closeAssistant();
                   }}
                   title="Close Assistant"
                   className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-rose-500/20 transition-colors cursor-pointer"
@@ -680,7 +735,7 @@ export function ChatbotWidget() {
                     </div>
                   ) : (
                     /* Active Chat Stream */
-                    <div className="space-y-4">
+                    <div role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions text" className="space-y-4">
                       {messages.map((msg) => (
                         <motion.div
                           key={msg.id}
@@ -750,7 +805,7 @@ export function ChatbotWidget() {
                             <span className="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
                             <span className="w-2 h-2 rounded-full bg-primary animate-bounce" />
                             <span className="text-[11px] text-muted-foreground font-mono ml-2">
-                              Analyzing meteorological telemetry...
+                              Preparing response…
                             </span>
                           </div>
                         </motion.div>
@@ -771,6 +826,7 @@ export function ChatbotWidget() {
                     
                     <input
                       ref={inputRef}
+                      aria-label="Message CycloNet AI"
                       type="text"
                       value={input}
                       maxLength={3000}
@@ -782,7 +838,7 @@ export function ChatbotWidget() {
                         }
                       }}
                       placeholder="Ask me anything about cyclones..."
-                      className="flex-1 bg-transparent border-none outline-none text-xs text-white placeholder:text-zinc-400 leading-normal"
+                      className="min-w-0 flex-1 bg-transparent border-none outline-none text-xs text-white placeholder:text-zinc-400 leading-normal"
                     />
 
                     {/* Voice Input Mic Button */}

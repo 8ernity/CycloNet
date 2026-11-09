@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "@studio-freight/lenis";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 export interface ParallaxComponentProps {
   title?: string;
@@ -24,11 +24,17 @@ export function ParallaxComponent({
   layer4Src = "/Astronaut.png",
 }: ParallaxComponentProps) {
   const parallaxRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    if (reduceMotion) {
+      parallaxRef.current?.querySelectorAll('video').forEach(video => video.pause());
+      return;
+    }
     gsap.registerPlugin(ScrollTrigger);
 
     const triggerElement = parallaxRef.current?.querySelector("[data-parallax-layers]");
+    let timeline: gsap.core.Timeline | undefined;
 
     if (triggerElement) {
       const tl = gsap.timeline({
@@ -41,6 +47,7 @@ export function ParallaxComponent({
           preventOverlaps: true,
         },
       });
+      timeline = tl;
 
       const layers = [
         { layer: "1", yPercent: 70 },
@@ -75,14 +82,13 @@ export function ParallaxComponent({
     gsap.ticker.lagSmoothing(500, 33);
 
     return () => {
-      ScrollTrigger.getAll().forEach((st) => st.kill());
-      if (triggerElement) {
-        gsap.killTweensOf(triggerElement);
-      }
+      timeline?.scrollTrigger?.kill();
+      timeline?.kill();
+      if (triggerElement) gsap.set(triggerElement.querySelectorAll('[data-parallax-layer]'), { clearProps: 'transform' });
       gsap.ticker.remove(tickerCallback);
       lenis.destroy();
     };
-  }, []);
+  }, [reduceMotion]);
 
   return (
     <div className="parallax relative w-full overflow-hidden bg-[#030712] select-none" ref={parallaxRef}>
@@ -95,7 +101,7 @@ export function ParallaxComponent({
             {layer1Src?.match(/\.(mp4|webm|mov|m4v|ogg)$/i) ? (
               <video
                 src={layer1Src}
-                autoPlay
+                autoPlay={!reduceMotion}
                 loop
                 muted
                 playsInline
@@ -118,7 +124,7 @@ export function ParallaxComponent({
             {layer2Src?.match(/\.(mp4|webm|mov|m4v|ogg)$/i) ? (
               <video
                 src={layer2Src}
-                autoPlay
+                autoPlay={!reduceMotion}
                 loop
                 muted
                 playsInline
@@ -206,8 +212,8 @@ export function ParallaxComponent({
           <div className="absolute bottom-12 sm:bottom-14 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2 pointer-events-none select-none">
             <div className="w-5 h-8 rounded-full border-2 border-slate-300/80 flex items-start justify-center p-1 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
               <motion.div
-                animate={{ y: [0, 8, 0], opacity: [1, 0.2, 1] }}
-                transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                animate={reduceMotion ? { y: 0, opacity: 1 } : { y: [0, 8, 0], opacity: [1, 0.2, 1] }}
+                transition={reduceMotion ? { duration: 0 } : { duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
                 className="w-1 h-2 rounded-full bg-cyan-300 shadow-[0_0_8px_#38bdf8]"
               />
             </div>

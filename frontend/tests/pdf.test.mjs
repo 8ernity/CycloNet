@@ -21,3 +21,13 @@ test('PDF preserves source provenance and missing measurements',()=>{
   assert.doesNotMatch(output,/INDIA METEOROLOGICAL DEPARTMENT/);
   assert.doesNotMatch(output,/\(0 kt\)/i);
 });
+
+test('failed PDF save propagates an error instead of reporting a successful download',()=>{
+  const Original=JsPDF;
+  function FailedSave(options) { const pdf=new Original(options); pdf.save=()=>{throw new Error('Fixture browser download failure');}; return pdf; }
+  FailedSave.API=Original.API;
+  const context={exports:{},console:{log(){},warn(){},error(){}},Date,setTimeout,require:name=>name==='jspdf'?{__esModule:true,default:FailedSave}:{__esModule:true,...autoTableModule,default:autoTableModule.autoTable}};
+  const code=ts.transpileModule(fs.readFileSync('src/lib/pdfReportGenerator.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
+  vm.runInNewContext(code,context);
+  assert.throws(()=>context.exports.generateCyclonePdfReport({system:{name:'Fixture',intensity_knots:null}}),/download/i);
+});

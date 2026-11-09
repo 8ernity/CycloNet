@@ -1,23 +1,30 @@
-# NOTICE (DEV-05): This workflow provides a temporary synthetic traffic ping to mitigate
-# free-tier inactivity spin-down on Render. Artificial pings DO NOT constitute operational
-# high availability (HA) or an emergency decision-support SLA. Production deployments require
-# paid always-on instances with persistent compute, multi-AZ failover, and managed monitoring.
-name: Keep Render Services Alive
-
+# Readiness monitoring, not synthetic warming or a high-availability guarantee.
+name: CycloNet readiness monitoring
 on:
   schedule:
-    # Runs every 5 minutes to beat Render's 15-minute inactivity idle timer
-    - cron: '*/5 * * * *'
-  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
-
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: readiness-monitor
+  cancel-in-progress: false
 jobs:
-  ping-services:
+  readiness:
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
-      - name: Ping Frontend and Backend
-        run: |
-          echo "Pinging CycloNet Frontend..."
-          curl -s -f -m 60 --retry 3 --retry-delay 5 "https://cyclonet-frontend.onrender.com" || echo "Frontend ping failed or waking up"
-          
-          echo "Pinging CycloNet Backend..."
-          curl -s -f -m 60 --retry 3 --retry-delay 5 "https://cyclonet-backend.onrender.com/health" || curl -s -f -m 60 "https://cyclonet-backend.onrender.com/" || echo "Backend ping failed or waking up"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify frontend and backend readiness
+        run: python scripts/check_readiness.py > readiness.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: readiness-result
+          path: readiness.json
+      - name: Mark unhealthy deployment
+        if: failure()
+        run: echo "::error::Readiness failed. Inspect the artifact and Render logs. Maintainers must enable workflow failure notifications."

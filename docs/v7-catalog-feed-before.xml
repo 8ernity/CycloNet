@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="3" skipped="0" tests="3" time="14.310" timestamp="2026-11-09T14:42:56.309129+05:30" hostname="DESKTOP-FHF8V0M"><testcase classname="tests.test_v7_catalog_feed" name="test_catalog_cannot_call_stale_records_live" time="1.748"><failure message="assert True is False">def test_catalog_cannot_call_stale_records_live():
+        with patch.object(type(live_ingestion_service), 'live_systems', new_callable=__import__('unittest.mock',fromlist=['PropertyMock']).PropertyMock) as systems:
+            systems.return_value=[{'id':'source-id','name':'Source','reconciliation_status':'ACTIVE_STALE','is_stale':True}]
+            data=TestClient(app).get('/api/cyclones').json()
+        record=next(row for row in data if row['id']=='source-id')
+&gt;       assert record['is_live'] is False
+E       assert True is False
+
+tests\test_v7_catalog_feed.py:16: AssertionError</failure></testcase><testcase classname="tests.test_v7_catalog_feed" name="test_catalog_query_has_database_limit" time="0.027"><failure message="assert False&#10; +  where False = any(&lt;generator object test_catalog_query_has_database_limit.&lt;locals&gt;.&lt;genexpr&gt; at 0x0000015689E30110&gt;)">def test_catalog_query_has_database_limit():
+        statements=[]
+        def capture(conn,cursor,statement,parameters,context,executemany):
+            if 'cyclone_archive' in statement.lower(): statements.append(statement.upper())
+        event.listen(database.engine,'before_cursor_execute',capture)
+        try:
+            assert TestClient(app).get('/api/cyclones?limit=2').status_code==200
+        finally:
+            event.remove(database.engine,'before_cursor_execute',capture)
+&gt;       assert any('LIMIT' in s for s in statements)
+E       assert False
+E        +  where False = any(&lt;generator object test_catalog_query_has_database_limit.&lt;locals&gt;.&lt;genexpr&gt; at 0x0000015689E30110&gt;)
+
+tests\test_v7_catalog_feed.py:29: AssertionError</failure></testcase><testcase classname="tests.test_v7_catalog_feed" name="test_malformed_provider_timestamp_is_unknown" time="0.005"><failure message="AttributeError: 'int' object has no attribute 'replace'">def test_malformed_provider_timestamp_is_unknown():
+        for value in [42, {}, [], True]:
+&gt;           assert feed_policy.parse_time(value) is None
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests\test_v7_catalog_feed.py:34: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+value = 42
+
+    def parse_time(value):
+        if not value:
+            return None
+        if isinstance(value, datetime):
+            dt = value
+        else:
+            try:
+&gt;               dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                                            ^^^^^^^^^^^^^
+E               AttributeError: 'int' object has no attribute 'replace'
+
+app\services\feed_policy.py:15: AttributeError</failure></testcase></testsuite></testsuites>

@@ -1,75 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
-import { Server, RefreshCw, CheckCircle2 } from "lucide-react";
+import { getApiBaseUrl } from "@/lib/api";
+import { AlertCircle } from "lucide-react";
 
 export function BackendWarmup() {
-  const [isWarmingUp, setIsWarmingUp] = useState(false);
-  const [isReady, setIsReady] = useState(false);
-
+  const [unavailable, setUnavailable] = useState(false);
   useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
-    let isMounted = true;
-
-    const pingBackend = async (attempt: number = 0) => {
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout>;
+    let controller: AbortController;
+    const check = async () => {
+      controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-        const res = await fetch(`${getApiBaseUrl()}/health`, {
-          method: "GET",
-          headers: { Accept: "application/json" },
-          cache: "no-store",
-          signal: controller.signal,
+        const response = await fetch(`${getApiBaseUrl()}/health/ready`, {
+          cache: "no-store", credentials: "omit", signal: controller.signal,
         });
-        clearTimeout(timeoutId);
-
-        if (res.ok && isMounted) {
-          setIsReady(true);
-          setIsWarmingUp(false);
-          return;
-        }
+        const data = response.ok ? await response.json() : null;
+        if (!disposed) setUnavailable(!response.ok || data?.status !== "ready");
       } catch {
-        // Backend is still spinning up (cold-start)
-        if (isMounted) {
-          setIsWarmingUp(true);
-          if (attempt < 10) {
-            timer = setTimeout(() => pingBackend(attempt + 1), 2000);
-          }
-        }
+        if (!disposed) setUnavailable(true);
+      } finally {
+        clearTimeout(timeout);
+        if (!disposed) timer = setTimeout(check, 60000);
       }
     };
-
-    // Immediate warmup ping upon page load
-    pingBackend();
-
-    // Periodic heartbeat every 3 minutes while browser tab is open to keep Render/Cloud dyno active
-    const heartbeat = setInterval(() => {
-      pingBackend(0);
-    }, 3 * 60 * 1000);
-
-    return () => {
-      isMounted = false;
-      if (timer) clearTimeout(timer);
-      clearInterval(heartbeat);
-    };
+    void check();
+    return () => {disposed = true; clearTimeout(timer); controller?.abort();};
   }, []);
-
-  if (!isWarmingUp || isReady) {
-    return null;
-  }
-
-  return (
-    <div className="fixed bottom-4 left-4 z-50 animate-in fade-in slide-in-from-bottom-2 duration-300 pointer-events-none">
-      <div className="px-3.5 py-2 rounded-xl bg-card/95 border border-sky-500/30 text-text-primary text-xs shadow-xl backdrop-blur-md flex items-center gap-2.5">
-        <RefreshCw className="w-3.5 h-3.5 text-sky-400 animate-spin" />
-        <span className="font-medium text-[11px] text-text-muted">
-          {getApiBaseUrl().includes("localhost") || getApiBaseUrl().includes("127.0.0.1")
-            ? "Connecting to local backend service..."
-            : "Waking up cloud backend service..."}
-        </span>
-      </div>
-    </div>
-  );
+  if (!unavailable) return null;
+  return <div role="status" className="fixed bottom-2 left-2 z-40 max-w-[calc(100vw-1rem)] rounded-lg border border-amber-500/30 bg-card/95 px-3 py-2 text-xs text-muted-foreground shadow-sm pointer-events-none">
+    <span className="flex items-center gap-2"><AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />Backend unavailable. Data may be out of date.</span>
+  </div>;
 }
