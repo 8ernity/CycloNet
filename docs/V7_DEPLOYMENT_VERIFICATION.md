@@ -1,8 +1,10 @@
 # V7 deployment and recovery verification
 
-No V7 commit, push, Blueprint apply, secret update, paid provisioning or deployment was performed. Local main and fetched origin/main matched the audited commit before editing. The existing Render services therefore do not run this uncommitted V7 working tree.
+Local verification completed 2026-11-10 on main, based on checkout `df21c517b1f04b7d45afc3993e17be961eea6af9` plus the current uncommitted changes. This continuation did not commit, push, publish or mutate cloud resources. Remote main was not refreshed during this local-only continuation. The deployed revision and current hosted configuration were not verified in this continuation.
 
 ## Completed locally
+
+- Two actual local production-mode Uvicorn processes pass HTTP/WebSocket origin, role, expiry and forged-token checks, shared quotas and a one-minute six-client exercise. Agency ingestion is disabled and identity is an ephemeral fixture. See `v7-local-network-soak.json`; this does not establish hosted acceptance.
 
 - Both Blueprints validate against Render's public schema.
 - Real PostgreSQL migrations, schema/model comparisons, indexed pagination, preserved history and fencing tests pass in isolated schemas.

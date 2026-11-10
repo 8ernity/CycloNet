@@ -1,7 +1,7 @@
 "use client";
 import { useMounted } from "@/hooks/useBrowserState";
 
-import React, { useEffect, useState, useId } from "react";
+import React, { useId } from "react";
 import { useTheme } from "next-themes";
 
 interface NeonThemeToggleProps {

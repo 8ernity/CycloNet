@@ -1,7 +1,7 @@
 "use client";
 import { useMounted, useMediaQuery } from "@/hooks/useBrowserState";
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { cn } from '@/lib/utils';
 

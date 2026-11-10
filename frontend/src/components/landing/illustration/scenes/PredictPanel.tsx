@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Target, Activity, Wind, Compass, AlertTriangle, Eye } from 'lucide-react';
+import { Wind, Compass, AlertTriangle, Eye } from 'lucide-react';
 import type { CyclePhase } from '@/hooks/useHeroCycle';
 import { useMotionTokens } from '@/lib/motion-tokens';
 

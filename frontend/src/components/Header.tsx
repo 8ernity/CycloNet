@@ -2,7 +2,7 @@
 import { useMounted } from "@/hooks/useBrowserState";
 
 import React from "react";
-import { Menu, Wind } from "lucide-react";
+import { Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { CycloneLogo } from "@/components/CycloneLogo";

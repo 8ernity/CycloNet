@@ -68,7 +68,11 @@ export interface CyclonePdfData {
  * Universal safe invoker for jspdf-autotable across different bundler environments (Next.js/Webpack/Turbopack/ESM)
  */
 function runAutoTable(docInstance: jsPDF, options: UserOptions): void {
-  autoTable(docInstance, options);
+  autoTable(docInstance, {
+    ...options,
+    // Reserve the footer on every automatic continuation page as well.
+    margin: { top: 16, right: 14, bottom: 24, left: 14 },
+  });
 }
 
 function getTableFinalY(docInstance: jsPDF, fallbackY: number): number {

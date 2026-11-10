@@ -1,35 +1,11 @@
 "use client";
-import type { TrackPoint, WeatherSystem as ActiveSystem } from "@/types/api";
+import type { WeatherSystem as ActiveSystem } from "@/types/api";
 
 import React, { useState, useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
-import { 
-  GitCompare, 
-  Wind, 
-  Gauge, 
-  MapPin, 
-  Waves, 
-  ShieldAlert, 
-  ArrowLeftRight,
-  TrendingUp,
-  Activity,
-  Calendar,
-  AlertTriangle,
-  Flame,
-  CheckCircle2,
-  Sparkles
-} from "lucide-react";
-import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip as RechartsTooltip,
-  Legend,
-  CartesianGrid
-} from "recharts";
+import { GitCompare, Wind, Gauge, MapPin, Waves, ShieldAlert, ArrowLeftRight, TrendingUp, Activity, Calendar, AlertTriangle } from "lucide-react";
+import { apiFetch } from "@/lib/api";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip as RechartsTooltip, Legend, CartesianGrid } from "recharts";
 
 const CompareMapComponent = dynamic(
   () => import("@/components/CompareMapComponent"),
@@ -94,69 +70,68 @@ export default function ComparePage() {
   
   const [result1, setSystem1] = useState<ActiveSystem | null>(null);
   const [result2, setSystem2] = useState<ActiveSystem | null>(null);
+  const [failed1, setFailed1] = useState(false);
+  const [failed2, setFailed2] = useState(false);
+  const [retry, setRetry] = useState(0);
   const system1 = result1?.id === selectedId1 ? result1 : null;
   const system2 = result2?.id === selectedId2 ? result2 : null;
 
   // Load list of all historical cyclones
   useEffect(() => {
+    const controller = new AbortController();
     async function fetchList() {
       try {
-        const res = await fetch(`${getApiBaseUrl()}/api/history/search`);
-        if (!res.ok) throw new Error("Source unavailable");
-        if (res.ok) {
-          const data = await res.json();
-          setCyclonesList(data);
-        }
+        const data = await apiFetch<CycloneArchiveItem[]>("/api/history/search", {signal: controller.signal, maxRetries: 0});
+        if (!controller.signal.aborted && Array.isArray(data)) setCyclonesList(data);
       } catch (err) {
-        console.error("Failed to fetch historical cyclone archives", err);
+        if (!controller.signal.aborted) console.error("Failed to fetch historical cyclone archives", err);
       }
     }
     fetchList();
-  }, []);
+    return () => controller.abort();
+  }, [retry]);
 
   // Fetch trajectory data for System 1
   useEffect(() => {
     const controller = new AbortController();
     async function fetchSys1() {
       setSystem1(null);
+      setFailed1(false);
       try {
-        const res = await fetch(`${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${selectedId1}`, {signal: controller.signal});
-        if (!res.ok) throw new Error("Source unavailable");
-        if (res.ok) {
-          const data = await res.json();
-          if (!controller.signal.aborted) setSystem1(data?.[0] ?? null);
-        }
+        const data = await apiFetch<ActiveSystem[]>(`/api/active-systems?simulate=true&cyclone_id=${encodeURIComponent(selectedId1)}`, {signal: controller.signal, maxRetries: 0});
+        if (!Array.isArray(data)) throw new Error("Invalid source response");
+        if (!controller.signal.aborted) setSystem1(data[0] ?? null);
       } catch (err: unknown) {
-        if ((err instanceof Error && err.name === "AbortError") || controller.signal.aborted) return;
+        if (controller.signal.aborted) return;
+        setFailed1(true);
         setSystem1(null);
         console.error("Error fetching system 1 trajectory", err);
       }
     }
     fetchSys1();
     return () => controller.abort();
-  }, [selectedId1]);
+  }, [selectedId1, retry]);
 
   // Fetch trajectory data for System 2
   useEffect(() => {
     const controller = new AbortController();
     async function fetchSys2() {
       setSystem2(null);
+      setFailed2(false);
       try {
-        const res = await fetch(`${getApiBaseUrl()}/api/active-systems?simulate=true&cyclone_id=${selectedId2}`, {signal: controller.signal});
-        if (!res.ok) throw new Error("Source unavailable");
-        if (res.ok) {
-          const data = await res.json();
-          if (!controller.signal.aborted) setSystem2(data?.[0] ?? null);
-        }
+        const data = await apiFetch<ActiveSystem[]>(`/api/active-systems?simulate=true&cyclone_id=${encodeURIComponent(selectedId2)}`, {signal: controller.signal, maxRetries: 0});
+        if (!Array.isArray(data)) throw new Error("Invalid source response");
+        if (!controller.signal.aborted) setSystem2(data[0] ?? null);
       } catch (err: unknown) {
-        if ((err instanceof Error && err.name === "AbortError") || controller.signal.aborted) return;
+        if (controller.signal.aborted) return;
+        setFailed2(true);
         setSystem2(null);
         console.error("Error fetching system 2 trajectory", err);
       }
     }
     fetchSys2();
     return () => controller.abort();
-  }, [selectedId2]);
+  }, [selectedId2, retry]);
 
   const handleSwapStorms = () => {
     const temp = selectedId1;
@@ -198,6 +173,10 @@ export default function ComparePage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-12 w-full">
+      {(failed1 || failed2) && <div role="status" className="glass-card p-4 text-sm">
+        <p>Comparison source unavailable. No measurement can be inferred from the missing result.</p>
+        <button onClick={() => setRetry(value => value + 1)} className="mt-2 rounded-lg bg-primary px-3 py-2 text-primary-foreground">Retry comparison</button>
+      </div>}
       {/* ── Top Header & Historical Presets Card ─────────────────────────── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 glass-card p-6 border-border/80 relative overflow-hidden">
         <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
@@ -208,7 +187,7 @@ export default function ComparePage() {
               <GitCompare className="w-3.5 h-3.5" /> Dual-Track Engine
             </span>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-mono text-muted-foreground bg-secondary/80 border border-border">
-              22 Historical Records Ready
+              {cyclonesList.length} catalog records loaded
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-heading font-black text-foreground tracking-tight">

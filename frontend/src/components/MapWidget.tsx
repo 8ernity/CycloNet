@@ -1,26 +1,11 @@
 "use client";
 import type { TrackPoint } from "@/types/api";
 import React, { useState, useEffect, useRef } from "react";
-import { 
-  MapContainer, 
-  TileLayer, 
-  Polyline, 
-  CircleMarker, 
-  Polygon,
-  Tooltip, 
-  Popup,
-  useMap, 
-  ZoomControl 
-} from "react-leaflet";
+import { MapContainer, TileLayer, Polyline, CircleMarker, Polygon, Tooltip, Popup, useMap, ZoomControl } from "react-leaflet";
 import { Layers, Zap, Navigation, Building2, ShieldAlert, ShieldCheck } from "lucide-react";
 import "leaflet/dist/leaflet.css";
-import L from "leaflet";
-import { 
-  POWER_SUBSTATIONS, 
-  EVACUATION_ROUTES, 
-  MEDICAL_SHELTERS, 
-  COASTAL_INUNDATION_ZONES 
-} from '@/lib/infrastructureData';
+
+import { POWER_SUBSTATIONS, EVACUATION_ROUTES, MEDICAL_SHELTERS, COASTAL_INUNDATION_ZONES } from '@/lib/infrastructureData';
 
 
 
@@ -36,9 +21,9 @@ const MAP_STYLES = {
     attribution: 'Tiles &copy; Esri'
   },
   street: {
-    name: 'IMD Chart (Street/Geo)',
+    name: 'OpenStreetMap streets',
     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; OpenStreetMap contributors &copy; IMD Best-Track'
+    attribution: '&copy; OpenStreetMap contributors'
   },
   dark: {
     name: 'Dark Tactical',
@@ -150,10 +135,10 @@ export default function MapWidget({ points, systemName }: MapWidgetProps) {
       {/* Top Left Badge & Infrastructure Filter Pills */}
       <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2 pointer-events-auto">
         <div className="bg-card/90 backdrop-blur-md px-4 py-2 rounded-xl border border-border shadow-lg flex items-center gap-2.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+          <div className="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0" />
           <div>
             <h4 className="font-heading font-semibold text-xs text-foreground">
-              INSAT-3DR & GEE Live Surveillance
+              {MAP_STYLES[currentStyle].name}
             </h4>
             <p className="text-[10.5px] text-muted-foreground">
               {systemName ? `Tracking: ${systemName}` : "North Indian Ocean Basin"}

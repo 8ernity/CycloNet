@@ -1,15 +1,17 @@
 "use client";
+import { useRouter } from "next/navigation";
 
 import React from "react";
-import { GlassPanel } from "./GlassPanel";
+
 import { MicroLabel } from "./MicroLabel";
 import { PillButton } from "./PillButton";
-import { ArrowRight, Sparkles, Globe2, Eye, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Sparkles, Globe2, Eye } from "lucide-react";
 import { motion } from "framer-motion";
 
 const languages = [{name:"English",code:"EN",status:"Available"}];
 
 export function FeatureSpotlight2() {
+  const router = useRouter();
   return (
     <section className="py-24 bg-bg-base text-text-primary relative overflow-hidden border-t border-surface-border transition-colors duration-300">
       <div className="container max-w-[1250px] mx-auto px-4 relative z-10">
@@ -124,7 +126,7 @@ export function FeatureSpotlight2() {
             <PillButton 
               variant="ghost" 
               icon={ArrowRight}
-              onClick={() => window.location.href = "/classification"}
+              onClick={() => router.push("/classification")}
               className="border-surface-border bg-card text-text-primary hover:bg-card/80 cursor-pointer"
             >
               Inspect experimental classifier

@@ -1,10 +1,11 @@
 "use client";
+import Image from "next/image";
 import { type Classification, type VisionAnalysis } from "@/types/api";
 import React, { useState, useRef, useEffect } from "react";
-import { Upload, ImageIcon, Scan, CheckCircle2, ShieldAlert, Loader2, Activity, Sparkles, Cpu, Compass, Wind, RefreshCw, X } from "lucide-react";
+import { Upload, ImageIcon, Scan, CheckCircle2, ShieldAlert, Loader2, Activity, Sparkles, Cpu, X } from "lucide-react";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
-import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
+import { getApiBaseUrl } from "@/lib/api";
 
 const unavailableClassification = (): Classification => ({
   is_cyclone: null, category: "Classification unavailable", category_short: "UNAVAILABLE",
@@ -20,9 +21,8 @@ const unavailableVision: VisionAnalysis = {
 
 export default function ClassificationPage() {
   const { selectedCycloneId, selectedCycloneName } = useActiveCyclone();
-  const { getSourceBadge, dataSource } = useDataSource();
+  const { getSourceBadge } = useDataSource();
   const sourceBadge = getSourceBadge();
-  const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [geminiLoading, setGeminiLoading] = useState(false);
@@ -35,7 +35,6 @@ export default function ClassificationPage() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const selectedFile = e.target.files[0];
-      setFile(selectedFile);
       setPreviewUrl(URL.createObjectURL(selectedFile));
       setResult(null);
       setGeminiResult(null);
@@ -85,7 +84,6 @@ export default function ClassificationPage() {
       if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
         const pastedFile = e.clipboardData.files[0];
         if (pastedFile.type.startsWith("image/")) {
-          setFile(pastedFile);
           setPreviewUrl(URL.createObjectURL(pastedFile));
           setResult(null);
           setGeminiResult(null);
@@ -96,7 +94,7 @@ export default function ClassificationPage() {
     };
     window.addEventListener("paste", handleGlobalPaste);
     return () => window.removeEventListener("paste", handleGlobalPaste);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleDemoFrameSelect = async (i: number) => {
     analysisController.current?.abort();
@@ -114,7 +112,6 @@ export default function ClassificationPage() {
       const blob = await response.blob();
       if (analysisController.current !== controller) return;
       const sampleFile = new File([blob], `demo_${i}.jpg`, {type:'image/jpeg'});
-      setFile(sampleFile);
       await analyzeImage(sampleFile);
     } catch {
       if (analysisController.current === controller) {
@@ -129,7 +126,6 @@ export default function ClassificationPage() {
     analysisController.current?.abort();
     analysisController.current = null;
     setAnalyzing(false);
-    setFile(null);
     setPreviewUrl(null);
     setSelectedFrame(null);
     setResult(null);
@@ -181,7 +177,7 @@ export default function ClassificationPage() {
             {previewUrl ? (
               <div className="relative w-full h-full flex flex-col items-center justify-center">
                 <div className="relative max-h-[220px] w-full flex items-center justify-center rounded-lg overflow-hidden border border-border/80 bg-black/40">
-                  <img 
+                  <Image width={500} height={500} unoptimized
                     src={previewUrl} 
                     alt="Active Frame" 
                     className="max-h-[200px] w-auto object-contain rounded-md transition-transform group-hover:scale-105 duration-300" 
@@ -241,7 +237,7 @@ export default function ClassificationPage() {
                   onClick={() => handleDemoFrameSelect(i)}
                   className={`min-w-[130px] aspect-square rounded-lg border-2 cursor-pointer transition-all relative overflow-hidden group ${selectedFrame === i ? 'border-primary shadow-lg shadow-primary/30 scale-105 ring-2 ring-primary/40' : 'border-border hover:border-primary/50'}`}
                 >
-                  <img src={`/demo_frames/demo_${i}.jpg`} alt={`Demo Frame ${i}`} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
+                  <Image fill sizes="130px" src={`/demo_frames/demo_${i}.jpg`} alt={`Demo Frame ${i}`} className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                   <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-black/60 text-[9px] text-white/90 font-mono border border-white/10">
                     Sample
@@ -356,7 +352,7 @@ export default function ClassificationPage() {
           {/* Grad-CAM & Satellite Image Viewport (Fix #7) */}
           <div className="h-[240px] bg-secondary/30 rounded-xl border border-border relative overflow-hidden flex items-center justify-center group mb-4">
              {previewUrl ? (
-                <img src={previewUrl} className="absolute inset-0 w-full h-full object-cover opacity-80" alt="Analyzed" />
+                <Image fill unoptimized src={previewUrl} className="absolute inset-0 w-full h-full object-cover opacity-80" alt="Analyzed" />
              ) : (
                 <div className="absolute inset-0 bg-secondary/40 flex items-center justify-center text-muted-foreground text-xs font-mono">
                   Satellite viewport awaiting image input
@@ -370,7 +366,7 @@ export default function ClassificationPage() {
                      <div className="absolute top-3 left-3 z-10 bg-black/60 backdrop-blur px-2.5 py-1 rounded-md border border-white/10 text-[11px] text-white/90">
                        Grad-CAM ResNet-50 Heatmap
                      </div>
-                     <img 
+                     <Image fill unoptimized
                        src={result.gradcam_data_url} 
                        alt="Grad-CAM Layer4 Attribution" 
                        className="absolute inset-0 w-full h-full object-cover mix-blend-screen opacity-85 pointer-events-none" 

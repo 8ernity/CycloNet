@@ -90,16 +90,16 @@ export function useDataSource() {
     if (baseKnots == null || !Number.isFinite(baseKnots)) return null;
     // Display preferences cannot manufacture another agency's measurement.
     return baseKnots;
-  }, [dataSource]);
+  }, []);
 
   const getConvertedKmh = useCallback((baseKnots: number | null | undefined): number | null => {
     const kts = getConvertedKnots(baseKnots);
     return kts == null ? null : Math.round(kts * 1.852);
   }, [getConvertedKnots]);
 
-  const getConvertedGusts = useCallback((_baseKnots: number | null | undefined): number | null => null, []);
+  const getConvertedGusts = useCallback((): number | null => null, []);
 
-  const getConvertedCategory = useCallback((baseKnots: number | null | undefined, fallback?: string): string => {
+  const getConvertedCategory = useCallback((baseKnots: number | null | undefined): string => {
     const kts = getConvertedKnots(baseKnots);
 
     if (kts == null) return "Not available";

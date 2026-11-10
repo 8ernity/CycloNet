@@ -1,13 +1,15 @@
 "use client";
+import { useRouter } from "next/navigation";
 
 import React from "react";
-import { GlassPanel } from "./GlassPanel";
+
 import { MicroLabel } from "./MicroLabel";
 import { PillButton } from "./PillButton";
-import { ArrowRight, Waves, ShieldAlert, CheckCircle2, Cpu } from "lucide-react";
+import { ArrowRight, ShieldAlert, CheckCircle2, Cpu } from "lucide-react";
 import { motion } from "framer-motion";
 
 export function FeatureSpotlight1() {
+  const router = useRouter();
   return (
     <section className="py-24 bg-bg-elevated text-text-primary relative overflow-hidden border-t border-surface-border transition-colors duration-300">
       <div className="container max-w-[1250px] mx-auto px-4 relative z-10">
@@ -50,7 +52,7 @@ export function FeatureSpotlight1() {
             <PillButton 
               variant="ghost" 
               icon={ArrowRight}
-              onClick={() => window.location.href = "/infrastructure"}
+              onClick={() => router.push("/infrastructure")}
               className="border-surface-border bg-card text-text-primary hover:bg-card/80 cursor-pointer"
             >
               Open surge scenarios

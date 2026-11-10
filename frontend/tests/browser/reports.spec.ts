@@ -29,6 +29,7 @@ test('report outage shows retry and never creates an agency bulletin', async ({ 
   await expect(page.getByRole('button', {name:/retry/i})).toBeVisible();
   await expect(page.getByText('INDIA METEOROLOGICAL DEPARTMENT', {exact:true})).toHaveCount(0);
   await expect(page.getByRole('button', {name:/demo/i})).toBeVisible();
+  await expect(page.getByRole('button', {name:/Biparjoy|Mocha|Amphan|Fani|Tauktae|BOB-05/i})).toHaveCount(0);
 });
 test('unavailable wind remains unavailable on the live dashboard', async ({page}) => {
   await page.route('**/api/active-systems*', route => route.fulfill({json:[{id:'NULL-WIND',name:'Fixture storm',basin:'Bay of Bengal',lat:15,lon:85,intensity_knots:null,category:'Not available',track_forecast:[],is_live_telemetry:true}]}));

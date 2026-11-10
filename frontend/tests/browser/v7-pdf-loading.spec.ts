@@ -27,9 +27,13 @@ test('PDF library loads on demand and produces an actual download', async ({ pag
   const contents = await readFile(file!);
   expect(contents.subarray(0, 5).toString()).toBe('%PDF-');
   expect(contents.length).toBeGreaterThan(1000);
-  expect(contents.toString()).toContain('Forecast not available');
-  expect(contents.toString()).toContain('Source fixture category');
-  expect(contents.toString()).not.toContain('Landfall');
+  // jsPDF's uncompressed text operands separate wrapped lines with T*.
+  // Assert the printed words, rather than requiring one raw PDF operand.
+  const printedText = Array.from(contents.toString().matchAll(/\(((?:\\.|[^\\)])*)\)\s*Tj/g),
+    match => match[1].replace(/\\([\\()])/g, '$1')).join(' ');
+  expect(printedText).toContain('Forecast not available');
+  expect(printedText).toContain('Source fixture category');
+  expect(printedText).not.toContain('Landfall');
   if (process.env.V7_PDF_PREVIEW) await download.saveAs(process.env.V7_PDF_PREVIEW);
   await expect(page.getByRole('button', { name: 'Download PDF', exact: true }).first()).toBeEnabled();
 });

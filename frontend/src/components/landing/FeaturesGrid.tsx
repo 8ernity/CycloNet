@@ -1,14 +1,11 @@
 "use client";
 import { useMediaQuery } from "@/hooks/useBrowserState";
 
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef } from "react";
 import { GlassPanel } from "./GlassPanel";
-import {
-  Satellite, Sparkles, Waves, CloudRain,
-  Zap, BellRing, ArrowRight
-} from "lucide-react";
+import { Satellite, Sparkles, Waves, CloudRain, Zap, BellRing, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
-import { useMotionTokens } from "@/lib/motion-tokens";
+
 import { MicroLabel } from "./MicroLabel";
 import Link from "next/link";
 
@@ -104,7 +101,6 @@ function SpotlightCard({ children }: { children: React.ReactNode }) {
 }
 
 export function FeaturesGrid() {
-  const { tier1 } = useMotionTokens();
 
   const container = {
     hidden: { opacity: 0 },

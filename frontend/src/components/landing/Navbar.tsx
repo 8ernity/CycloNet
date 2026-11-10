@@ -1,8 +1,8 @@
 "use client";
-import { useMounted } from "@/hooks/useBrowserState";
 
-import React, { useState, useEffect } from 'react';
-import { motion, useScroll, useTransform, AnimatePresence, useMotionValueEvent } from 'framer-motion';
+
+import React, { useState } from 'react';
+import { motion, useScroll, AnimatePresence, useMotionValueEvent } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
 import Link from 'next/link';
 import { useMotionTokens } from '@/lib/motion-tokens';
@@ -23,7 +23,6 @@ export function Navbar() {
   const [activeItem, setActiveItem] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isScrolledPast, setIsScrolledPast] = useState(false);
-  const mounted = useMounted();
 
 
 

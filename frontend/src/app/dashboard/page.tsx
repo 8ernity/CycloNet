@@ -1,15 +1,16 @@
 "use client";
+import { formatCoordinates } from "@/lib/coordinates";
 import type { WeatherSystem as ActiveSystem } from "@/types/api";
-import { type TrackPoint, type IngestStatus, type CatalogItem } from "@/types/api";
-import React, { useState, useEffect, useRef } from "react";
-import { AlertCircle, CloudRain, MapPin, Navigation, Wind, ShieldCheck, Play, RotateCcw, Activity, Eye, RefreshCw, Radio } from "lucide-react";
+import { type IngestStatus, type CatalogItem } from "@/types/api";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { AlertCircle, CloudRain, MapPin, Navigation, Wind, ShieldCheck, Play, Activity, RefreshCw, Radio } from "lucide-react";
 import dynamic from 'next/dynamic';
 
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
 import { useCycloneWebSocket } from "@/hooks/useCycloneWebSocket";
-import { useLanguage } from "@/context/LanguageContext";
-import { API_BASE_URL, getApiBaseUrl, apiFetch, ApiClientError } from "@/lib/api";
+
+import { apiFetch, ApiClientError } from "@/lib/api";
 
 const MapComponent = dynamic(() => import('@/components/MapComponent'), { 
   ssr: false,
@@ -19,86 +20,18 @@ const MapComponent = dynamic(() => import('@/components/MapComponent'), {
 
 
 const getStormDetails = (sys: ActiveSystem | null) => {
-  if (!sys) {
-    return { 
-      basinName: "RSMC New Delhi Jurisdiction", 
-      landfall: "Not available",
-      landfallLocation: "Awaiting verified source data",
-      landfallStatus: "Unknown",
-      isCompleted: false,
-      surge: "Not available",
-      decay: "Not available",
-      impactSector: "Nil"
-    };
-  }
-
-  const isBoB = sys.basin ? sys.basin.toLowerCase().includes("bengal") : (sys.lon > 78);
-  const defaultBasin = isBoB ? "West-central & Northwest Bay of Bengal" : "East-central Arabian Sea";
-
-  if (sys.landfall_info) {
-    return {
-      basinName: sys.basin || defaultBasin,
-      landfall: sys.landfall_info.landfall_time_utc || (sys.is_landfall_completed ? "Landfall Completed" : "Coastal Approach"),
-      landfallLocation: sys.landfall_info.landfall_location || sys.landfall_info.impact_sector || "Coastal Sector",
-      landfallStatus: sys.landfall_info.status || (sys.is_landfall_completed ? "Landfall Completed" : "Active Tracking"),
-      isCompleted: !!sys.is_landfall_completed,
-      surge: sys.landfall_info.storm_surge_m || "Not available",
-      decay: sys.landfall_info.inland_decay || "Inland dissipation",
-      impactSector: sys.landfall_info.impact_sector || sys.landfall_info.landfall_location || "Coastal Belt"
-    };
-  }
-
-  // Check if track_forecast has any point with is_landfall
-  const landfallPt = sys.track_forecast?.find((p) => p.is_landfall);
-  if (landfallPt) {
-    return {
-      basinName: sys.basin || defaultBasin,
-      landfall: landfallPt.label ? landfallPt.label.split("(")[0].trim() + " UTC" : "Landfall Crossing",
-      landfallLocation: landfallPt.label && landfallPt.label.includes("(") ? landfallPt.label.split("(")[1].replace(")", "").trim() : "Coastal Sector",
-      landfallStatus: "Landfall Crossing",
-      isCompleted: false,
-      surge: "Not available",
-      decay: "Inland dissipation",
-      impactSector: sys.basin || "Coastal Corridor"
-    };
-  }
-
-  // Check if track_forecast has forecast points
-  const forecastPts = sys.track_forecast?.filter((p) => p.is_forecast) || [];
-  if (forecastPts.length > 0) {
-    const nextFix = forecastPts[0];
-    let timing = "+12h Outlook";
-    let location = isBoB ? "Approaching East Coast of India" : "Approaching West Coast of India";
-
-    if (nextFix.label) {
-      const parts = nextFix.label.split("(");
-      const datePart = parts[0].trim();
-      if (datePart) timing = `${datePart.split(",")[0]} UTC (+${nextFix.time_offset_hours || 12}h)`;
-      if (parts.length > 1) location = parts[1].replace(")", "").trim();
-    }
-
-    return {
-      basinName: sys.basin || defaultBasin,
-      landfall: timing,
-      landfallLocation: location,
-      landfallStatus: "Approaching Coast",
-      isCompleted: false,
-      surge: "Not available",
-      decay: "Under observation",
-      impactSector: location
-    };
-  }
-
-  // Fallback for systems without active forecast points
+  const info = sys?.landfall_info;
+  const landfallPoint = sys?.track_forecast?.find(point => point.is_landfall);
+  // Forecast waypoints alone do not establish landfall or coastal impact.
   return {
-    basinName: sys.basin || defaultBasin,
-    landfall: "Not available",
-    landfallLocation: sys.basin ? `Archived • ${sys.basin}` : "Regional Ocean Basin",
-    landfallStatus: "Unknown",
-    isCompleted: false,
-    surge: "Not available",
-    decay: "Not available",
-    impactSector: "Not available"
+    basinName: sys?.basin || "Not available",
+    landfall: info?.landfall_time_utc || landfallPoint?.label || "Not available",
+    landfallLocation: info?.landfall_location || "Not available",
+    landfallStatus: info?.status || (sys?.is_landfall_completed ? "Landfall Completed" : "Unknown"),
+    isCompleted: !!sys?.is_landfall_completed,
+    surge: info?.storm_surge_m ?? "Not available",
+    decay: info?.inland_decay || "Not available",
+    impactSector: info?.impact_sector || info?.landfall_location || "Not available",
   };
 };
 
@@ -113,23 +46,22 @@ function telemetryMode(system: ActiveSystem | null) {
 
 export default function DashboardLiveMonitoringPage() {
   const { selectedCycloneId, selectCyclone, clearSelectedCyclone } = useActiveCyclone();
-  const { dataSource, getConvertedKnots, getConvertedKmh, getConvertedGusts, getConvertedCategory, getSourceBadge } = useDataSource();
+  const { getConvertedKnots, getConvertedKmh, getConvertedGusts, getConvertedCategory, getSourceBadge } = useDataSource();
   const [activeSystem, setActiveSystem] = useState<ActiveSystem | null>(null);
   const [isSimulation, setIsSimulation] = useState(false);
   const activeRequest = useRef(0);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [ingestStatus, setIngestStatus] = useState<IngestStatus | null>(null);
   const [isSyncingIngest, setIsSyncingIngest] = useState(false);
   const [cyclonesList, setCyclonesList] = useState<CatalogItem[]>([]);
 
   const { isConnected: isWsConnected, radarAngle } = useCycloneWebSocket();
-  const { t } = useLanguage();
 
   const sourceBadge = getSourceBadge();
   const displayKnots = activeSystem ? getConvertedKnots(activeSystem.intensity_knots) : 0;
   const displayKmh = activeSystem ? getConvertedKmh(activeSystem.intensity_knots) : 0;
-  const displayGusts = activeSystem ? getConvertedGusts(activeSystem.intensity_knots) : null;
-  const displayCategory = activeSystem ? getConvertedCategory(activeSystem.intensity_knots, activeSystem.category) : "Not available";
+  const displayGusts = activeSystem ? getConvertedGusts() : null;
+  const displayCategory = activeSystem ? getConvertedCategory(activeSystem.intensity_knots) : "Not available";
 
   useEffect(() => {
     apiFetch<ActiveSystem[]>("/api/cyclones")
@@ -166,48 +98,7 @@ export default function DashboardLiveMonitoringPage() {
     }
   };
 
-  const handleTestInject = async () => {
-    setIsSyncingIngest(true);
-    setIngestError(null);
-    try {
-      await apiFetch<{status: string; message?: string}>("/api/ingest/test-inject", {
-        method: "POST"
-      });
-      fetchIngestStatus();
-      fetchActiveSystems(false);
-    } catch (err: unknown) {
-      if (err instanceof ApiClientError && (err.status === 401 || err.status === 403)) {
-        setIngestError("Administrative authorization required to inject test drill systems.");
-      } else {
-        setIngestError((err instanceof Error ? err.message : "Request failed") || "Drill injection error");
-      }
-    } finally {
-      setIsSyncingIngest(false);
-    }
-  };
-
-  const handleClearLiveTest = async () => {
-    setIsSyncingIngest(true);
-    setIngestError(null);
-    try {
-      await apiFetch<{status: string; message?: string}>("/api/ingest/clear-test", {
-        method: "POST"
-      });
-      clearSelectedCyclone();
-      fetchIngestStatus();
-      fetchActiveSystems(false);
-    } catch (err: unknown) {
-      if (err instanceof ApiClientError && (err.status === 401 || err.status === 403)) {
-        setIngestError("Administrative authorization required to clear drill systems.");
-      } else {
-        setIngestError((err instanceof Error ? err.message : "Request failed") || "Clear drill error");
-      }
-    } finally {
-      setIsSyncingIngest(false);
-    }
-  };
-
-  const fetchActiveSystems = async (simulate: boolean = false, cycloneId?: string | null) => {
+  const fetchActiveSystems = useCallback(async (simulate: boolean = false, cycloneId?: string | null) => {
     const requestId = ++activeRequest.current;
     setLoading(true);
     let path = "/api/active-systems";
@@ -233,33 +124,35 @@ export default function DashboardLiveMonitoringPage() {
     } finally {
       if (requestId === activeRequest.current) setLoading(false);
     }
-  };
+  }, [selectedCycloneId]);
 
+  const invalidateActiveRequest = useCallback(() => { activeRequest.current++; }, []);
   useEffect(() => {
     fetchIngestStatus();
     const interval = setInterval(() => {
       fetchIngestStatus();
       fetchActiveSystems(Boolean(selectedCycloneId), selectedCycloneId);
     }, 30000);
-    return () => { clearInterval(interval); activeRequest.current++; };
-  }, [selectedCycloneId]);
+    return () => { clearInterval(interval); invalidateActiveRequest(); };
+  }, [selectedCycloneId, fetchActiveSystems, invalidateActiveRequest]);
 
   useEffect(() => {
-    let targetId = selectedCycloneId;
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const simParam = params.get("simulate");
       if (simParam && simParam !== "true") {
-        targetId = simParam;
         selectCyclone(simParam);
       }
     }
-    if (targetId) {
-      fetchActiveSystems(true, targetId);
+  }, [selectCyclone]);
+
+  useEffect(() => {
+    if (selectedCycloneId) {
+      fetchActiveSystems(true, selectedCycloneId);
     } else {
       fetchActiveSystems(false);
     }
-  }, [selectedCycloneId]);
+  }, [selectedCycloneId, fetchActiveSystems]);
 
   const stormMeta = getStormDetails(activeSystem);
   const mode = telemetryMode(activeSystem);
@@ -291,12 +184,12 @@ export default function DashboardLiveMonitoringPage() {
           basin: meta.basinName,
           lat: activeSystem.lat,
           lon: activeSystem.lon,
-          coordinates: `${activeSystem.lat.toFixed(1)}°N, ${activeSystem.lon.toFixed(1)}°E`,
+          coordinates: formatCoordinates(activeSystem.lat, activeSystem.lon),
           intensity_knots: activeSystem.intensity_knots,
           wind_kmh: (activeSystem.intensity_knots == null ? null : Math.round(activeSystem.intensity_knots * 1.852)),
-          gusting_kmh: (activeSystem.intensity_knots == null ? null : Math.round(activeSystem.intensity_knots * 1.852 * 1.05)),
+          gusting_kmh: activeSystem.gusts_kmh ?? null,
           track_points_count: activeSystem.track_forecast?.length || 0,
-          current_position_label: `${activeSystem.lat.toFixed(1)}°N, ${activeSystem.lon.toFixed(1)}°E`,
+          current_position_label: formatCoordinates(activeSystem.lat, activeSystem.lon),
           landfall: meta.landfall,
           landfallLocation: meta.landfallLocation,
           simulation_active: isSimulation,
@@ -536,7 +429,7 @@ export default function DashboardLiveMonitoringPage() {
               </p>
               <h3 className="text-2xl font-heading font-bold text-foreground mt-1">
                 {activeSystem
-                  ? `${activeSystem.lat.toFixed(1)}°N, ${activeSystem.lon.toFixed(1)}°E`
+                  ? formatCoordinates(activeSystem.lat, activeSystem.lon)
                   : "Arabian Sea & BoB"}
               </h3>
             </div>
@@ -607,11 +500,7 @@ export default function DashboardLiveMonitoringPage() {
             <div className="space-y-4">
               {activeSystem ? (
                 (() => {
-                  const kmh = (activeSystem.intensity_knots == null ? "Not available" : Math.round(activeSystem.intensity_knots * 1.852));
-                  const isSuperOrExtreme = activeSystem.intensity_knots != null && activeSystem.intensity_knots >= 90;
-                  const isSevere = activeSystem.intensity_knots != null && activeSystem.intensity_knots >= 48;
-                  const basinName = activeSystem.basin || "North Indian Ocean";
-                  const isArabian = basinName.toLowerCase().includes("arabian");
+
 
                   const dynamicBulletins = [
                     { time: activeSystem.observation_time_utc ?? "Issue time not available",
@@ -677,7 +566,7 @@ export default function DashboardLiveMonitoringPage() {
                      <span className="text-muted-foreground">0h Center Eye Fix:</span>
                      <span className="font-semibold text-foreground flex items-center gap-1">
                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                       {mode === "SIMULATION" ? "Simulated" : "Source fix"} ({activeSystem.lat.toFixed(1)}°N, {activeSystem.lon.toFixed(1)}°E)
+                       {mode === "SIMULATION" ? "Simulated" : "Source fix"} ({formatCoordinates(activeSystem.lat, activeSystem.lon)})
                      </span>
                    </div>
                    <div className="flex justify-between items-center text-[11px]">

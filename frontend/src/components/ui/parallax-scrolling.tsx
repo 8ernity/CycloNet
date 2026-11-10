@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 
 import React, { useEffect, useRef } from "react";
 import gsap from "gsap";
@@ -110,7 +111,7 @@ export function ParallaxComponent({
                 style={{ transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
               />
             ) : (
-              <img
+              <Image fill sizes="100vw"
                 src={layer1Src}
                 loading="eager"
                 data-parallax-layer="1"
@@ -133,7 +134,7 @@ export function ParallaxComponent({
                 style={{ transform: "translate3d(0,0,0)", backfaceVisibility: "hidden" }}
               />
             ) : (
-              <img
+              <Image fill sizes="100vw"
                 src={layer2Src}
                 loading="eager"
                 data-parallax-layer="2"
@@ -198,7 +199,7 @@ export function ParallaxComponent({
             </div>
 
             {/* Layer 4: Foreground Astronaut & Moon Surface Ridge */}
-            <img
+            <Image fill sizes="100vw"
               src={layer4Src}
               loading="eager"
               data-parallax-layer="4"

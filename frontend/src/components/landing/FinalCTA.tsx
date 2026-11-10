@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 
 import React from 'react';
 import { PillButton } from './PillButton';
@@ -6,6 +7,7 @@ import { ArrowRight, Radar } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export function FinalCTA() {
+  const router = useRouter();
   return (
     <section className="py-32 bg-bg-base relative overflow-hidden" id="final-cta">
       
@@ -39,10 +41,10 @@ export function FinalCTA() {
             Inspect source records, missing data and experimental outputs. Scientific validation and operational authorization remain required.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <PillButton className="w-full sm:w-auto cursor-pointer" icon={ArrowRight} onClick={() => window.location.href = '/dashboard'}>
+            <PillButton className="w-full sm:w-auto cursor-pointer" icon={ArrowRight} onClick={() => router.push('/dashboard')}>
               Launch CycloNet Dashboard
             </PillButton>
-            <PillButton variant="ghost" className="w-full sm:w-auto cursor-pointer" onClick={() => window.location.href = '/forecast'}>
+            <PillButton variant="ghost" className="w-full sm:w-auto cursor-pointer" onClick={() => router.push('/forecast')}>
               Inspect source tracks
             </PillButton>
           </div>

@@ -12,7 +12,9 @@ test('opened assistant accurately describes available educational and source-sta
 test('offline sample image cannot create intensity measurements or operational instructions',async({page})=>{
   await page.route('**/api/**',route=>route.fulfill({status:503,json:{detail:'Unavailable'}}));
   await page.goto('/classification', {waitUntil:'domcontentloaded'});
+  const classificationResponse = page.waitForResponse(response => response.url().includes('/api/classify') && response.request().method() === 'POST');
   await page.getByAltText('Demo Frame 4',{exact:true}).locator('..').click();
+  expect((await classificationResponse).status()).toBe(503);
   await expect(page.getByRole('button',{name:'Export Analysis'})).toBeEnabled();
   await expect(page.locator('body')).not.toContainText(/Calibrated Ref|Enforce total coastal evacuation|Recommended Operational Action|89.3%/);
   const downloadPromise=page.waitForEvent('download');

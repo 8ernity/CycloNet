@@ -1,23 +1,10 @@
 "use client";
+import { useRouter } from "next/navigation";
 import React, { useState, useEffect, useRef } from "react";
-import { 
-  History, 
-  Search, 
-  ShieldAlert, 
-  Scan, 
-  Calendar, 
-  MapPin, 
-  Activity, 
-  Play,
-  SlidersHorizontal,
-  ChevronDown,
-  Check,
-  X,
-  RotateCcw
-} from "lucide-react";
+import { History, Search, ShieldAlert, Scan, Calendar, MapPin, Activity, Play, SlidersHorizontal, ChevronDown, Check, X, RotateCcw } from "lucide-react";
 
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
-import { API_BASE_URL, getApiBaseUrl, apiFetch } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 
 interface CycloneHistory {
   id: string;
@@ -37,6 +24,7 @@ interface AIClassification {
 }
 
 export default function ArchivePage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"cyclones" | "ai">("cyclones");
   const [searchQuery, setSearchQuery] = useState("");
   
@@ -451,7 +439,7 @@ export default function ArchivePage() {
                     key={cyclone.id}
                     onClick={() => handleSelectCyclone(cyclone)}
                     onDoubleClick={() => {
-                      window.location.href = `/forecast?cyclone_id=${encodeURIComponent(cyclone.id)}`;
+                      router.push(`/forecast?cyclone_id=${encodeURIComponent(cyclone.id)}`);
                     }}
                     className={`border rounded-xl p-5 transition-all group cursor-pointer relative select-none ${
                       isSelected
@@ -613,7 +601,7 @@ export default function ArchivePage() {
                   localStorage.setItem("cyclonet_selected_cyclone_id", selectedCyclone.id);
                   localStorage.setItem("cyclonet_selected_cyclone_name", selectedCyclone.name);
                 }
-                window.location.href = `/forecast?cyclone_id=${encodeURIComponent(selectedCyclone.id)}`;
+                router.push(`/forecast?cyclone_id=${encodeURIComponent(selectedCyclone.id)}`);
               }}
               className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary hover:opacity-90 text-primary-foreground font-bold text-xs transition-all shadow-md shadow-primary/20 hover:scale-[1.02] cursor-pointer whitespace-nowrap"
             >
@@ -626,7 +614,7 @@ export default function ArchivePage() {
                   localStorage.setItem("cyclonet_selected_cyclone_id", selectedCyclone.id);
                   localStorage.setItem("cyclonet_selected_cyclone_name", selectedCyclone.name);
                 }
-                window.location.href = `/dashboard?simulate=true&cyclone_id=${encodeURIComponent(selectedCyclone.id)}`;
+                router.push(`/dashboard?simulate=true&cyclone_id=${encodeURIComponent(selectedCyclone.id)}`);
               }}
               className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs transition-all shadow-md shadow-emerald-500/25 hover:scale-[1.02] cursor-pointer whitespace-nowrap"
             >

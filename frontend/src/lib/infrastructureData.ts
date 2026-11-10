@@ -780,7 +780,7 @@ export function simulateShelterScenario(capacity: number, occupancy: number): Sh
   return {mode:"SCENARIO", assumedCapacity:capacity, assumedOccupancy:occupancy, isRecommendedDestination:false};
 }
 export function calculateShelterSuitability(
-  _shelter: MedicalCycloneShelter, _stormKnots = 85, observations?: ShelterOperationalData, now = Date.now()
+  _shelter: MedicalCycloneShelter, _stormKnots?: number, observations?: ShelterOperationalData, now = Date.now()
 ) {
   const count = (field?: VerifiedAttribute<number>) => {
     const value = currentObservation(field, now);

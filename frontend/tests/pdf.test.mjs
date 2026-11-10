@@ -56,3 +56,23 @@ test('nonfinite measurements and out-of-range coordinates remain unavailable in 
   assert.doesNotMatch(output,/Infinity|NaN|95\.00|200\.00/);
   assert.match(output,/Not available/);
 });
+
+test('long district tables reserve footer space on every page',()=>{
+  const rows=[];
+  function Captured(options) {
+    const pdf=new JsPDF(options), original=pdf.text.bind(pdf);
+    pdf.save=()=>{};
+    pdf.text=(text,x,y,...args)=>{
+      if (String(text).includes('Fixture district')) rows.push({y,height:pdf.internal.pageSize.getHeight()});
+      return original(text,x,y,...args);
+    };
+    return pdf;
+  }
+  Captured.API=JsPDF.API;
+  const context={exports:{},console,Date,setTimeout,require:name=>name==='jspdf'?{__esModule:true,default:Captured}:{__esModule:true,...autoTableModule,default:autoTableModule.autoTable}};
+  const code=ts.transpileModule(fs.readFileSync('src/lib/pdfReportGenerator.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
+  vm.runInNewContext(code,context);
+  context.exports.generateCyclonePdfReport({system:{name:'Fixture',intensity_knots:80},affectedDistricts:Array.from({length:60},(_,i)=>({district:`Fixture district ${i+1}`}))});
+  assert.equal(rows.length,60);
+  assert.ok(rows.every(row=>row.y<=row.height-24),'A district row intrudes into reserved footer space');
+});

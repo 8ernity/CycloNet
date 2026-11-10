@@ -2,28 +2,10 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { 
-  X, 
-  Send, 
-  Minimize2, 
-  Maximize2, 
-  RotateCcw, 
-  Sparkles, 
-  Cloud,
-  Satellite,
-  BarChart3,
-  ShieldCheck,
-  ChevronRight,
-  Mic,
-  MicOff,
-  MoreHorizontal,
-  Copy, 
-  Check, 
-  GripHorizontal
-} from "lucide-react";
+import { X, Send, Minimize2, Maximize2, RotateCcw, Sparkles, Cloud, Satellite, ShieldCheck, ChevronRight, Mic, MicOff, MoreHorizontal, Copy, Check, GripHorizontal } from "lucide-react";
 import { useLiquidGlass } from "@/hooks/useLiquidGlass";
 import { CycloneLogo } from "@/components/CycloneLogo";
-import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
+import { getApiBaseUrl } from "@/lib/api";
 import { readChatReply } from "@/lib/chatResponse";
 
 interface Message {
@@ -83,7 +65,6 @@ export function ChatbotWidget() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [screenContext, setScreenContext] = useState<Record<string, unknown> | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -147,19 +128,6 @@ export function ChatbotWidget() {
     }
   };
 
-  // Sync live UI telemetry from window.__cyclonet_current_context
-  useEffect(() => {
-    if (!isOpen) return;
-    const updateContext = () => {
-      if (typeof window !== "undefined") {
-        setScreenContext(window.__cyclonet_current_context || null);
-      }
-    };
-    updateContext();
-    const interval = setInterval(updateContext, 1000);
-    return () => clearInterval(interval);
-  }, [isOpen]);
-
   // Liquid Glass Background hook from nebula-map
   const glassRef = useLiquidGlass<HTMLDivElement>(isOpen);
 
@@ -189,7 +157,7 @@ export function ChatbotWidget() {
             initialWidth = fitDimension(parsed.width, 380, window.innerWidth - 32);
             initialHeight = fitDimension(parsed.height, 400, window.innerHeight - 60);
           }
-        } catch (_) {}
+        } catch {}
       }
       setSize({ width: initialWidth, height: initialHeight });
 
@@ -206,7 +174,7 @@ export function ChatbotWidget() {
             });
             return;
           }
-        } catch (_) {}
+        } catch {}
       }
       setPos({
         x: Math.max(SAFE_MARGIN, window.innerWidth - initialWidth - 24),
@@ -372,15 +340,11 @@ export function ChatbotWidget() {
     openerRef.current?.focus();
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: reduceMotion ? "instant" : "smooth" });
-  };
-
   useEffect(() => {
     if (isOpen && !isMinimized && messages.length > 0) {
-      scrollToBottom();
+      messagesEndRef.current?.scrollIntoView({ behavior: reduceMotion ? "instant" : "smooth" });
     }
-  }, [messages, isOpen, isMinimized, loading]);
+  }, [messages, isOpen, isMinimized, loading, reduceMotion]);
 
   const handleSend = async (textToSend?: string) => {
     const text = (textToSend || input).trim();
@@ -435,7 +399,7 @@ export function ChatbotWidget() {
         timestamp: data.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, assistantMessage]);
-    } catch (err: unknown) {
+    } catch {
       if (pendingRequest.current !== controller) return;
       setMessages(prev => [
         ...prev,

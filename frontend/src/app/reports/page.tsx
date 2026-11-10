@@ -1,24 +1,13 @@
 "use client";
+import { formatCoordinates } from "@/lib/coordinates";
 import type { WeatherSystem as ActiveSystem } from "@/types/api";
 import { type DispatchReceipt, type CatalogItem } from "@/types/api";
-import React, { useState, useEffect, useMemo } from "react";
-import { 
-  FileText, Bell, AlertOctagon, AlertTriangle, Info, Download, Filter, 
-  Radio, ShieldAlert, Waves, Wind, CloudRain, Anchor, MapPin, CheckCircle2, 
-  Printer, Copy, Send, RefreshCw, Layers, ExternalLink, Siren, PhoneCall,
-  Search, ShieldCheck, ChevronRight, Zap, Building2, Landmark, Coins, TrendingDown,
-  Navigation, DollarSign, Activity, Lock
-} from "lucide-react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { FileText, Bell, AlertOctagon, AlertTriangle, Info, Download, Radio, ShieldAlert, Waves, Wind, CloudRain, Anchor, MapPin, CheckCircle2, Copy, Send, RefreshCw, Layers, Siren, PhoneCall, Search, ShieldCheck, Building2 } from "lucide-react";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
-import { API_BASE_URL, getApiBaseUrl, apiFetch } from "@/lib/api";
-import { 
-  POWER_SUBSTATIONS, 
-  EVACUATION_ROUTES, 
-  MEDICAL_SHELTERS, 
-  PARAMETRIC_INSURANCE_TRIGGERS, 
-  COASTAL_INUNDATION_ZONES 
-} from "@/lib/infrastructureData";
+import { apiFetch } from "@/lib/api";
+import { POWER_SUBSTATIONS, EVACUATION_ROUTES, MEDICAL_SHELTERS, PARAMETRIC_INSURANCE_TRIGGERS, COASTAL_INUNDATION_ZONES } from "@/lib/infrastructureData";
 
 
 
@@ -54,29 +43,24 @@ interface PortSignal {
   meaning: string;
 }
 
-const PRESET_STORMS = [
-  { id: "BOB05-2026", name: "Deep Depression (BOB-05)", basin: "Bay of Bengal", category: "Deep Depression", knots: 35 },
-  { id: "ARB01-2023", name: "Cyclone Biparjoy", basin: "Arabian Sea", category: "Extremely Severe Cyclonic Storm", knots: 90 },
-  { id: "BOB01-2023", name: "Cyclone Mocha", basin: "Bay of Bengal", category: "Super Cyclonic Storm", knots: 130 },
-  { id: "BOB02-2020", name: "Cyclone Amphan", basin: "Bay of Bengal", category: "Super Cyclonic Storm", knots: 140 },
-  { id: "BOB02-2019", name: "Cyclone Fani", basin: "Bay of Bengal", category: "Extremely Severe Cyclonic Storm", knots: 115 },
-  { id: "ARB01-2021", name: "Cyclone Tauktae", basin: "Arabian Sea", category: "Extremely Severe Cyclonic Storm", knots: 100 },
-];
+interface ReportCatalogItem {
+  id: string;
+  name: string;
+  category: string;
+}
 
 export default function ReportsPage() {
-  const { selectedCycloneId, selectedCycloneName, selectCyclone } = useActiveCyclone();
+  const { selectedCycloneId, selectCyclone } = useActiveCyclone();
   const {
-    dataSource,
     getConvertedKnots,
     getConvertedKmh,
-    getConvertedGusts,
     getConvertedCategory,
     getSourceBadge,
   } = useDataSource();
 
   const sourceBadge = getSourceBadge();
   const [system, setSystem] = useState<ActiveSystem | null>(null);
-  const [cyclonesList, setCyclonesList] = useState<Array<Omit<typeof PRESET_STORMS[number], "knots"> & {knots: number | null}>>(PRESET_STORMS);
+  const [cyclonesList, setCyclonesList] = useState<ReportCatalogItem[]>([]);
   const [bulletins, setBulletins] = useState<Bulletin[]>([]);
   const [affectedDistricts, setAffectedDistricts] = useState<AffectedDistrict[]>([]);
   const [portSignals, setPortSignals] = useState<PortSignal[]>([]);
@@ -93,13 +77,8 @@ export default function ReportsPage() {
   const [alertType, setAlertType] = useState<string>("EVACUATION_WARNING");
   const [selectedChannels, setSelectedChannels] = useState<string[]>(["sms", "siren", "vhf", "sachet"]);
   const [dispatchStatus, setDispatchStatus] = useState<"idle" | "dispatching" | "completed">("idle");
-  const [dispatchStep, setDispatchStep] = useState<number>(0);
+  const pendingDispatch = useRef<AbortController | null>(null);
   const [dispatchReceipt, setDispatchReceipt] = useState<DispatchReceipt | null>(null);
-
-  // Parametric insurance simulator state
-  const [insuranceSimulationTier, setInsuranceSimulationTier] = useState<number>(0);
-  const [isSimulatingPayout, setIsSimulatingPayout] = useState(false);
-  const [payoutSuccess, setPayoutSuccess] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -107,36 +86,43 @@ export default function ReportsPage() {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
     async function fetchAllCyclones() {
       try {
-        const res = await fetch(`${getApiBaseUrl()}/api/history/search`);
-        if (res.ok) {
-          const data = await res.json();
+        const data = await apiFetch<CatalogItem[]>("/api/history/search", {signal: controller.signal, maxRetries: 0});
+        if (!controller.signal.aborted) {
           if (Array.isArray(data) && data.length > 0) {
             setCyclonesList(data.map((c: CatalogItem) => ({
               id: c.id,
               name: c.name.startsWith("Cyclone ") || c.name.startsWith("Deep Depression") || c.name.startsWith("Depression") || c.name.startsWith("Super Cyclone") || c.name.includes("Cyclone") ? c.name : `Cyclone ${c.name}`,
-              basin: c.basin || "Not available",
               category: c.max_category || c.maxCategory || c.category || "Not available",
-              knots: c.knots ?? null,
             })));
           }
         }
       } catch (err) {
-        console.error("Failed to load full cyclone list in reports", err);
+        if (!controller.signal.aborted) console.error("Failed to load full cyclone list in reports", err);
       }
     }
     fetchAllCyclones();
+    return () => controller.abort();
   }, []);
 
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportMode, setReportMode] = useState("EXPERIMENTAL_ANALYSIS");
-  const fetchReportData = async (demo = false, signal?: AbortSignal) => {
+  const pendingReport = useRef<AbortController | null>(null);
+  const fetchReportData = useCallback(async (demo = false, lifecycleSignal?: AbortSignal) => {
+    pendingReport.current?.abort();
+    const controller = new AbortController();
+    pendingReport.current = controller;
+    const signal = lifecycleSignal ? AbortSignal.any([lifecycleSignal, controller.signal]) : controller.signal;
     await Promise.resolve();
     if (signal?.aborted) return;
     setLoading(true);
     setReportError(null);
     setSystem(null);
+    pendingDispatch.current?.abort();
+    setDispatchReceipt(null);
+    setDispatchStatus("idle");
     setBulletins([]);
     setSelectedBulletin(null);
     setCapXml("");
@@ -146,9 +132,9 @@ export default function ReportsPage() {
       const params = new URLSearchParams();
       if (demo) params.set("simulate", "true");
       else if (selectedCycloneId) params.set("cyclone_id", selectedCycloneId);
-      const res = await fetch(`${getApiBaseUrl()}/api/reports/bulletins?${params}`, { signal });
-      if (!res.ok) throw new Error("Report unavailable");
-      const data = await res.json();
+      const data = await apiFetch<{system: ActiveSystem; mode: string; bulletins: Bulletin[];
+        cap_xml?: string; port_signals?: PortSignal[]; affected_districts?: AffectedDistrict[]}>(
+        `/api/reports/bulletins?${params}`, { signal, maxRetries: 0 });
       if (signal?.aborted) return;
       if (!data.system || !Array.isArray(data.bulletins)) throw new Error("Report unavailable");
       setSystem(data.system);
@@ -164,13 +150,13 @@ export default function ReportsPage() {
     } finally {
       if (!signal?.aborted) setLoading(false);
     }
-  };
+  }, [selectedCycloneId]);
 
   useEffect(() => {
     const controller = new AbortController();
     const task = window.setTimeout(() => void fetchReportData(false, controller.signal), 0);
-    return () => { window.clearTimeout(task); controller.abort(); };
-  }, [selectedCycloneId]);
+    return () => { window.clearTimeout(task); controller.abort(); pendingReport.current?.abort(); pendingDispatch.current?.abort(); };
+  }, [fetchReportData]);
 
   // Alert Badge Details
   const alertInfo = useMemo(() => {
@@ -273,48 +259,31 @@ export default function ReportsPage() {
     showToast("Experimental Analysis Copied to Clipboard!");
   };
 
-  // Simulate Multi-Channel Broadcast Dispatch
+  // Generate an exercise document; no provider or hardware delivery is performed.
   const handleDispatchSimulation = async () => {
     if (dispatchStatus === "dispatching") return;
+    pendingDispatch.current?.abort();
+    const controller = new AbortController();
+    pendingDispatch.current = controller;
     setDispatchStatus("dispatching");
-    setDispatchStep(1);
-
-    setTimeout(() => setDispatchStep(2), 700);
-    setTimeout(() => setDispatchStep(3), 1500);
-    setTimeout(() => setDispatchStep(4), 2200);
-
+    setDispatchReceipt(null);
     try {
       const data = await apiFetch<DispatchReceipt>("/api/alerts/broadcast-test", {
-        method: "POST",
+        method: "POST", signal: controller.signal,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system_id: system?.id || selectedCycloneId,
-          alert_type: alertType,
-          channels: selectedChannels
-        })
+        body: JSON.stringify({system_id: system?.id || selectedCycloneId, alert_type: alertType, channels: selectedChannels})
       });
-      {
-        setTimeout(() => {
-          setDispatchReceipt(data);
-          setDispatchStatus("completed");
-          showToast("Exercise generated. No real broadcast was sent.");
-        }, 2800);
-      }
+      if (controller.signal.aborted) return;
+      if (typeof data?.dispatch_id !== "string" || typeof data.message_payload !== "string") throw new Error("Invalid draft response");
+      setDispatchReceipt(data);
+      setDispatchStatus("completed");
+      showToast("Exercise generated. No real broadcast was sent.");
     } catch {
+      if (controller.signal.aborted) return;
       setDispatchStatus("idle");
       setDispatchReceipt(null);
       showToast("Exercise request failed. No broadcast was sent.");
     }
-  };
-
-  const handleSimulateParametricPayout = () => {
-    setIsSimulatingPayout(true);
-    setPayoutSuccess(false);
-    setTimeout(() => {
-      setIsSimulatingPayout(false);
-      setPayoutSuccess(true);
-      showToast(`[SANDBOX SIMULATION] Parametric Liquidity Trigger Evaluated: Simulated disbursement of ${PARAMETRIC_INSURANCE_TRIGGERS[insuranceSimulationTier].hypotheticalPool}. (No live funds transferred)`);
-    }, 1800);
   };
 
   const toggleChannel = (ch: string) => {
@@ -331,7 +300,7 @@ export default function ReportsPage() {
     return (
       <div className="flex flex-col items-center justify-center h-full min-h-[500px] gap-4">
         <div className="w-10 h-10 rounded-full border-3 border-primary/20 border-t-primary animate-spin" />
-        <p className="text-sm font-medium text-muted-foreground animate-pulse">Compiling real-time meteorological bulletins and multi-hazard directives...</p>
+        <p className="text-sm font-medium text-muted-foreground animate-pulse">Loading source reports...</p>
       </div>
     );
   }
@@ -363,7 +332,7 @@ export default function ReportsPage() {
   const knots = getConvertedKnots(rawKnots);
   const kmh = getConvertedKmh(rawKnots);
   const gusts = system.gusts_kmh ?? null;
-  const displayCategory = getConvertedCategory(rawKnots, system.category);
+  const displayCategory = getConvertedCategory(rawKnots);
   const surgeM = null;
   const waveM = null;
   const pressureHpa = system.central_pressure_hpa ?? "Not available";
@@ -388,7 +357,7 @@ export default function ReportsPage() {
               {alertInfo.level} — EXPERIMENTAL ACTIVE
             </span>
             <span className="text-xs text-muted-foreground font-mono">
-              Fix: {system.lat.toFixed(1)}°N, {system.lon.toFixed(1)}°E • {system.basin}
+              Fix: {formatCoordinates(system.lat, system.lon)} • {system.basin}
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-heading font-black text-foreground tracking-tight">
@@ -403,6 +372,7 @@ export default function ReportsPage() {
         <div className="flex flex-wrap items-center gap-2 z-10">
           {/* Storm Switcher Dropdown */}
           <select
+            aria-label="Select report storm"
             value={selectedCycloneId || system.id}
             onChange={(e) => {
               const storm = cyclonesList.find(s => s.id === e.target.value);
@@ -942,7 +912,7 @@ export default function ReportsPage() {
                   Local exercise draft generator
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Test and verify emergency alert propagation across multi-channel public warning infrastructure.
+                  Create a local exercise document. No public warning, transmission, gateway handshake or hardware activation occurs.
                 </p>
               </div>
               <span className="text-xs font-mono text-muted-foreground bg-secondary px-2.5 py-1 rounded">
@@ -1021,11 +991,11 @@ export default function ReportsPage() {
                 >
                   {dispatchStatus === "dispatching" ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin" /> Dispatching Broadcast Pipeline...
+                      <RefreshCw className="w-4 h-4 animate-spin" /> Generating exercise draft...
                     </>
                   ) : (
                     <>
-                      <Radio className="w-4 h-4 animate-pulse" /> Dispatch Multi-Channel Emergency Alert
+                      <Radio className="w-4 h-4 animate-pulse" /> Generate exercise draft
                     </>
                   )}
                 </button>
@@ -1034,35 +1004,19 @@ export default function ReportsPage() {
               {/* Live Pipeline Animation & Receipt */}
               <div className="p-5 rounded-xl bg-zinc-950/80 border border-border flex flex-col justify-between space-y-4">
                 <div className="space-y-3">
-                  <p className="text-xs font-mono font-bold text-primary uppercase">Broadcast Pipeline Telemetry</p>
+                  <p className="text-xs font-mono font-bold text-primary uppercase">Exercise draft status</p>
                   
-                  <div className="space-y-2 text-xs font-mono">
-                    <div className={`p-2 rounded flex items-center gap-2 ${dispatchStep >= 1 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "text-muted-foreground"}`}>
-                      {dispatchStep >= 1 ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <div className="w-3.5 h-3.5 rounded-full border border-current shrink-0" />}
-                      <span>1. OASIS CAP-CP v1.2 XML Payload Encoded</span>
-                    </div>
-
-                    <div className={`p-2 rounded flex items-center gap-2 ${dispatchStep >= 2 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "text-muted-foreground"}`}>
-                      {dispatchStep >= 2 ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <div className="w-3.5 h-3.5 rounded-full border border-current shrink-0" />}
-                      <span>2. Cellular Tower Gateway Handshake (14 Marine Corridors)</span>
-                    </div>
-
-                    <div className={`p-2 rounded flex items-center gap-2 ${dispatchStep >= 3 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "text-muted-foreground"}`}>
-                      {dispatchStep >= 3 ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <div className="w-3.5 h-3.5 rounded-full border border-current shrink-0" />}
-                      <span>3. Coastal Acoustic Siren Trigger Synchronized</span>
-                    </div>
-
-                    <div className={`p-2 rounded flex items-center gap-2 ${dispatchStep >= 4 ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "text-muted-foreground"}`}>
-                      {dispatchStep >= 4 ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> : <div className="w-3.5 h-3.5 rounded-full border border-current shrink-0" />}
-                      <span>4. Final Delivery Confirmation & Acknowledgement Logged</span>
-                    </div>
+                  <div role="status" className="text-xs text-muted-foreground">
+                    {dispatchStatus === "dispatching" ? "Requesting a local exercise document. Nothing has been transmitted."
+                      : dispatchStatus === "completed" ? "Draft received. No transmission or hardware activation occurred."
+                      : "No exercise document has been generated for this request."}
                   </div>
                 </div>
 
                 {dispatchReceipt && (
                   <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs space-y-1 font-mono">
                     <p className="font-bold flex items-center gap-1.5 text-emerald-400">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Dispatch Receipt: {dispatchReceipt.dispatch_id}
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Exercise draft receipt: {dispatchReceipt.dispatch_id}
                     </p>
                     <p className="text-[11px] text-muted-foreground">
                       Time: {dispatchReceipt.timestamp}

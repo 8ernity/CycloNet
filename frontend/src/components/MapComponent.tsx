@@ -1,34 +1,11 @@
-import type {TrackPoint, WeatherSystem as ActiveSystem} from "@/types/api";
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  MapContainer, 
-  TileLayer, 
-  CircleMarker, 
-  Popup, 
-  Polyline, 
-  Polygon, 
-  Tooltip, 
-  useMap,
-  ZoomControl 
-} from 'react-leaflet';
-import { 
-  Layers, 
-  Tag, 
-  ShieldAlert, 
-  Compass, 
-  Zap, 
-  Navigation, 
-  Building2, 
-  ShieldCheck 
-} from 'lucide-react';
+import { formatCoordinates } from "@/lib/coordinates";
+import type { TrackPoint, WeatherSystem as ActiveSystem } from "@/types/api";
+import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, Polygon, Tooltip, useMap, ZoomControl } from 'react-leaflet';
+import { Layers, Tag, ShieldAlert, Compass, Zap, Navigation, Building2, ShieldCheck } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { 
-  POWER_SUBSTATIONS, 
-  EVACUATION_ROUTES, 
-  MEDICAL_SHELTERS, 
-  COASTAL_INUNDATION_ZONES 
-} from '@/lib/infrastructureData';
+import { POWER_SUBSTATIONS, EVACUATION_ROUTES, MEDICAL_SHELTERS, COASTAL_INUNDATION_ZONES } from '@/lib/infrastructureData';
 
 function ChangeView({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
@@ -63,9 +40,9 @@ const getGibsDate = () => {
 
 const MAP_STYLES = {
   satellite: {
-    name: '🗺️ Esri High-Res Multispectral Satellite',
+    name: '🗺️ Esri World Imagery basemap',
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles &copy; Esri, USGS, NOAA &mdash; Multispectral Feed'
+    attribution: 'Tiles &copy; Esri'
   },
   nasa_viirs: {
     name: '🛰️ NASA VIIRS daily imagery (prior date)',
@@ -78,9 +55,9 @@ const MAP_STYLES = {
     attribution: '&copy; CARTO &copy; OpenStreetMap contributors'
   },
   street: {
-    name: '🧭 IMD Operational Nautical Chart',
+    name: '🧭 OpenStreetMap streets',
     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; OpenStreetMap contributors &copy; IMD RSMC Best-Track'
+    attribution: '&copy; OpenStreetMap contributors'
   }
 };
 
@@ -132,34 +109,6 @@ export default function MapComponent({ activeSystem }: MapProps) {
   const points = activeSystem?.track_forecast || [];
 
   // Split points into observed past points and future forecast points
-  const { observedPoints, forecastPoints, currentPoint } = useMemo(() => {
-    if (!points || points.length === 0) {
-      return { observedPoints: [], forecastPoints: [], currentPoint: null };
-    }
-
-    const past = points.filter(p => !p.is_forecast);
-    const future = points.filter(p => p.is_forecast);
-    
-    const curr = past.length > 0 
-      ? past[past.length - 1] 
-      : { 
-          lat: activeSystem!.lat, 
-          lon: activeSystem!.lon, 
-          intensity_knots: activeSystem!.intensity_knots, 
-          category: activeSystem!.category, 
-          time_offset_hours: 0, 
-          is_forecast: false,
-          is_landfall: false,
-          label: `${activeSystem!.intensity_knots ?? "Not available"}KT,${getCategoryAbbr(activeSystem!.category, activeSystem!.intensity_knots)}`
-        };
-
-    return {
-      observedPoints: past,
-      forecastPoints: future,
-      currentPoint: curr
-    };
-  }, [points, activeSystem]);
-
   const getPointLabel = (pt: TrackPoint) => {
     const raw = pt.label || "";
     const isLandfallPt = pt.is_landfall || (raw && raw.toLowerCase().includes("landfall"));
@@ -172,16 +121,11 @@ export default function MapComponent({ activeSystem }: MapProps) {
       }
       return codePart;
     }
-    const offsetH = pt.time_offset_hours || 0;
-    const now = new Date();
-    const synopticH = Math.floor(now.getUTCHours() / 6) * 6;
-    const baseDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), synopticH, 0, 0));
-    const ptDate = new Date(baseDate.getTime() + offsetH * 3600 * 1000);
-    const day = ptDate.getUTCDate();
-    const hr = ptDate.getUTCHours();
+    const offset = pt.time_offset_hours;
+    const timeLabel = offset == null ? "Time unavailable" : `${offset >= 0 ? "+" : ""}${offset}h from source reference`;
     const abbr = getCategoryAbbr(pt.category, pt.intensity_knots);
     const suffix = isLandfallPt ? " • Landfall" : "";
-    return `${String(day).padStart(2, '0')}/${String(hr).padStart(2, '0')} • ${pt.intensity_knots ?? "Not available"}KT • ${abbr}${suffix}`;
+    return `${timeLabel} • ${pt.intensity_knots ?? "Not available"}KT • ${abbr}${suffix}`;
   };
 
   return (
@@ -190,13 +134,13 @@ export default function MapComponent({ activeSystem }: MapProps) {
       {/* ── Top Left Live Surveillance Badge & Infrastructure Layer Filter ─────── */}
       <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-2 pointer-events-auto">
         <div className="bg-card/95 backdrop-blur-md px-3.5 py-2 rounded-xl border border-border shadow-lg flex items-center gap-2.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+          <div className="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0" />
           <div>
             <h4 className="font-heading font-semibold text-xs text-foreground">
-              INSAT-3DR Satellite Live Surveillance
+              {MAP_STYLES[currentStyle].name}
             </h4>
             <p className="text-[10.5px] text-muted-foreground">
-              {activeSystem ? `Tracking: ${activeSystem.name}` : "North Indian Ocean Basin • Current status unverified"}
+              {activeSystem ? `${activeSystem.name} • ${activeSystem.provenance || "Source unverified"}${activeSystem.is_stale ? " • Stale" : ""}` : "North Indian Ocean Basin • Current status unverified"}
             </p>
           </div>
         </div>
@@ -671,7 +615,7 @@ export default function MapComponent({ activeSystem }: MapProps) {
                       <div className="p-1 space-y-1 text-xs">
                         <p className="font-bold text-foreground">{pt.category}</p>
                         <p className="text-muted-foreground">Wind: <strong className="text-foreground">{pt.intensity_knots ?? "Not available"} KT ({(pt.intensity_knots == null ? null : Math.round(pt.intensity_knots * 1.852))} km/h)</strong></p>
-                        <p className="text-muted-foreground">Fix: {pt.lat.toFixed(1)}°N, {pt.lon.toFixed(1)}°E</p>
+                        <p className="text-muted-foreground">Fix: {formatCoordinates(pt.lat, pt.lon)}</p>
                         {isLandfallPt && (
                           <p className="font-bold text-red-500 bg-red-500/10 p-1 rounded border border-red-500/20">
                             🎯 Landfall Coastal Crossing Fix

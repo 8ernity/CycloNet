@@ -14,9 +14,9 @@ function UnifiedAuthPage() {
 
   useEffect(() => {
     if (isLoaded && userId) {
-      window.location.href = '/dashboard';
+      router.replace('/dashboard');
     }
-  }, [isLoaded, userId]);
+  }, [isLoaded, userId, router]);
 
   const isSignUp = initialMode;
   const [resetKey, setResetKey] = useState(0);
@@ -114,7 +114,7 @@ function UnifiedAuthPage() {
               <div className="w-full max-w-[320px] pt-4 pb-2 border-t border-white/10 mt-2 text-center">
                 <button
                   type="button"
-                  onClick={() => { window.location.href = '/dashboard'; }}
+                  onClick={() => { router.replace('/dashboard'); }}
                   className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-sky-500/20 to-blue-600/20 hover:from-sky-500/30 hover:to-blue-600/30 border border-sky-500/40 hover:border-sky-400 text-sky-300 font-semibold text-xs tracking-wide uppercase transition-all duration-200 shadow-md shadow-sky-950/40 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <span>⚡ 1-Click Guest & Judge Demo</span>

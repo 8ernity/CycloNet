@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 
 import React, { MouseEvent } from 'react';
 import { motion, useScroll, useTransform, useMotionValue, useSpring } from 'framer-motion';
@@ -8,6 +9,7 @@ import { useMotionTokens } from '@/lib/motion-tokens';
 import { IllustrationStage } from './illustration/IllustrationStage';
 
 export function Hero() {
+  const router = useRouter();
   const { shouldReduceMotion } = useMotionTokens();
   const { scrollY } = useScroll();
   
@@ -150,7 +152,7 @@ export function Hero() {
                 }}
               />
               <button
-                onClick={() => window.location.href = '/'}
+                onClick={() => router.push('/dashboard')}
                 className="relative inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#0090FF] to-[#0066FF] px-8 py-4 text-sm font-bold text-white shadow-xl hover:shadow-[0_0_30px_rgba(0,144,255,0.6)] transition-all border border-sky-400/40 cursor-pointer"
               >
                 Launch CycloNet Dashboard

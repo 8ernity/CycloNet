@@ -57,7 +57,7 @@ let memoryToken: string | null = null;
 let tokenProvider: (() => Promise<string | null>) | null = null;
 export function setAuthTokenProvider(provider: (() => Promise<string | null>) | null) { tokenProvider = provider; }
 export function getStoredAuthToken(): string | null { return memoryToken; }
-export function setStoredAuthToken(token: string, _persistent = false): void {
+export function setStoredAuthToken(token: string): void {
   memoryToken = token;
   if (typeof window !== "undefined") {
     localStorage.removeItem("cyclonet_auth_token");
@@ -93,6 +93,22 @@ export function isTrustedOrigin(url: string): boolean {
   }
 }
 
+function retryDelay(milliseconds: number, signal?: AbortSignal | null): Promise<void> {
+  signal?.throwIfAborted();
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      reject(signal?.reason);
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, milliseconds);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
 /**
  * Robust fetch wrapper with timeout, exponential backoff retries with jitter,
  * authentication header attachment, and Retry-After handling (UI-01, SEC-05, SEC-06, FIX-04).
@@ -108,6 +124,8 @@ export async function apiFetch<T = unknown>(
     ...fetchOptions
   } = options;
 
+  fetchOptions.signal?.throwIfAborted();
+
   const baseUrl = getApiBaseUrl();
   const url = endpoint.startsWith("http") ? endpoint : `${baseUrl}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
   const method = (fetchOptions.method || "GET").toUpperCase();
@@ -115,6 +133,7 @@ export async function apiFetch<T = unknown>(
 
   const headers = new Headers(fetchOptions.headers || {});
   const authToken = isTrustedOrigin(url) ? (token || await tokenProvider?.() || getStoredAuthToken()) : null;
+  fetchOptions.signal?.throwIfAborted();
 
   // FIX 04: Centralized origin check on Authorization headers
   if (headers.has("Authorization")) {
@@ -138,6 +157,7 @@ export async function apiFetch<T = unknown>(
   let lastError: unknown = null;
 
   while (attempt <= (isIdempotent ? maxRetries : 0)) {
+    fetchOptions.signal?.throwIfAborted();
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -148,7 +168,6 @@ export async function apiFetch<T = unknown>(
         signal: fetchOptions.signal ? AbortSignal.any([fetchOptions.signal, controller.signal]) : controller.signal,
         redirect: "error",
       });
-      clearTimeout(timeoutId);
 
       if (response.status === 429) {
         const retryHeader = response.headers.get("Retry-After");
@@ -156,7 +175,7 @@ export async function apiFetch<T = unknown>(
         let detail = "Too Many Requests (Rate limit reached)";
         try {
           const body = await response.json();
-          if (body?.detail) detail = body.detail;
+          if (typeof body?.detail === "string") detail = body.detail;
         } catch {
           // ignore json parse error
         }
@@ -174,29 +193,27 @@ export async function apiFetch<T = unknown>(
 
         // Retry on server errors if idempotent
         if (isIdempotent && [502, 503, 504].includes(response.status) && attempt < maxRetries) {
-          attempt++;
-          const jitter = Math.random() * 300;
-          await new Promise((r) => setTimeout(r, 800 * Math.pow(2, attempt) + jitter));
-          continue;
+          lastError = new ApiClientError(detail, response.status);
+        } else {
+          throw new ApiClientError(detail, response.status, undefined, detail);
         }
-
-        throw new ApiClientError(detail, response.status, undefined, detail);
+      } else {
+        return (await response.json()) as T;
       }
-
-      return (await response.json()) as T;
     } catch (err: unknown) {
-      clearTimeout(timeoutId);
+      fetchOptions.signal?.throwIfAborted();
       if (err instanceof ApiClientError) {
         throw err;
       }
       lastError = err;
-      if (isIdempotent && attempt < maxRetries) {
-        attempt++;
-        const jitter = Math.random() * 300;
-        await new Promise((r) => setTimeout(r, 800 * Math.pow(2, attempt) + jitter));
-      } else {
-        break;
-      }
+    } finally {
+      clearTimeout(timeoutId);
+    }
+    if (isIdempotent && attempt < maxRetries) {
+      attempt++;
+      await retryDelay(800 * Math.pow(2, attempt) + Math.random() * 300, fetchOptions.signal);
+    } else {
+      break;
     }
   }
 
@@ -208,13 +225,14 @@ export async function fetchWithTimeout(
   options: RequestInit = {},
   timeoutMs: number = 15000
 ): Promise<Response> {
+  options.signal?.throwIfAborted();
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(url, {
       ...options,
-      signal: options.signal || controller.signal,
+      signal: options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal,
     });
     clearTimeout(id);
     return response;
@@ -236,6 +254,7 @@ export async function fetchWithRetry(
 
   let lastError: unknown = null;
   for (let attempt = 0; attempt <= actualRetries; attempt++) {
+    options.signal?.throwIfAborted();
     try {
       const res = await fetchWithTimeout(url, options, timeoutMs);
       if (res.ok || (res.status < 500 && res.status !== 429)) {
@@ -245,10 +264,11 @@ export async function fetchWithRetry(
         return res;
       }
     } catch (err) {
+      options.signal?.throwIfAborted();
       lastError = err;
       if (attempt < actualRetries) {
         const jitter = Math.random() * 200;
-        await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt) + jitter));
+        await retryDelay(1000 * Math.pow(2, attempt) + jitter, options.signal);
       }
     }
   }

@@ -26,8 +26,8 @@ export function useMotionTokens() {
   };
 
   // Variants-safe versions
-  const { stagger: _s1, ...tier1Variants } = tier1Config;
-  const { stagger: _s2, ...tier2Variants } = tier2Config;
+  const tier1Variants = { initial: tier1Config.initial, animate: tier1Config.animate, transition: tier1Config.transition };
+  const tier2Variants = { initial: tier2Config.initial, animate: tier2Config.animate, transition: tier2Config.transition };
 
   return {
     tier1: tier1Config,

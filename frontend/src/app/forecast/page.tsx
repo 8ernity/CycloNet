@@ -1,17 +1,13 @@
 "use client";
-import type { TrackPoint, WeatherSystem as ActiveSystem } from "@/types/api";
+import type { WeatherSystem as ActiveSystem } from "@/types/api";
 import { type ChartPoint } from "@/types/api";
-import React, { useState, useEffect, useMemo, useRef } from "react";
-import { 
-  Wind, Clock, MapPin, Compass, AlertTriangle, ArrowRight, 
-  TrendingUp, Zap, BarChart3, Info, Activity, Gauge, 
-  Flame, CheckCircle2, ShieldAlert
-} from "lucide-react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { Wind, Clock, Compass, AlertTriangle, TrendingUp, BarChart3, Activity } from "lucide-react";
 import dynamic from "next/dynamic";
 
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
-import { API_BASE_URL, getApiBaseUrl } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 
 const MapWidget = dynamic(() => import("@/components/MapWidget"), {
   ssr: false,
@@ -48,9 +44,9 @@ const getCategoryBadgeClass = (knots: number | null) => {
 };
 
 export default function ForecastPage() {
-  const { selectedCycloneId, selectCyclone } = useActiveCyclone();
-  const { dataSource, getConvertedKnots, getConvertedKmh, getConvertedGusts, getConvertedCategory, getSourceBadge } = useDataSource();
-  const [selectedId, setSelectedId] = useState<string>(selectedCycloneId || "");
+  const { selectedCycloneId, selectCyclone, clearSelectedCyclone } = useActiveCyclone();
+  const { getConvertedKnots, getConvertedKmh, getConvertedCategory, getSourceBadge } = useDataSource();
+  const selectedId = selectedCycloneId ?? "";
   const [cyclonesList, setCyclonesList] = useState<CycloneCatalogItem[]>(FALLBACK_CYCLONES);
   const [system, setSystem] = useState<ActiveSystem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,7 +57,7 @@ export default function ForecastPage() {
 
   const pendingRequest = useRef<AbortController | null>(null);
   useEffect(() => () => pendingRequest.current?.abort(), []);
-  const fetchSystem = async (cycloneId: string) => {
+  const fetchSystem = useCallback(async (cycloneId: string) => {
     pendingRequest.current?.abort();
     const controller = new AbortController();
     pendingRequest.current = controller;
@@ -69,18 +65,11 @@ export default function ForecastPage() {
     setSystem(null);
     setSourceError(false);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/active-systems${cycloneId ? `?cyclone_id=${encodeURIComponent(cycloneId)}` : ""}`, {signal: controller.signal});
-      if (!res.ok) throw new Error("Forecast unavailable");
-      if (res.ok) {
-        const data = await res.json();
-        if (controller.signal.aborted) return;
-        setSelectedId(cycloneId);
-        if (data && data.length > 0) {
-          setSystem(data[0]);
-        } else {
-          setSystem(null);
-        }
-      }
+      const data = await apiFetch<ActiveSystem[]>(`/api/active-systems${cycloneId ? `?cyclone_id=${encodeURIComponent(cycloneId)}` : ""}`,
+        {signal: controller.signal, maxRetries: 0});
+      if (controller.signal.aborted) return;
+      if (!Array.isArray(data)) throw new Error("Invalid track response");
+      setSystem(data[0] ?? null);
     } catch (err) {
       if (controller.signal.aborted) return;
       console.error("Failed to fetch system:", err);
@@ -89,72 +78,49 @@ export default function ForecastPage() {
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }
-  };
+  }, []);
 
-  // Sync with global hook when selectedCycloneId changes from other tabs
+  // The shared selection is the single source of truth, including clearing it.
   useEffect(() => {
-    if (selectedCycloneId && selectedCycloneId !== selectedId) {
-      const task = window.setTimeout(() => void fetchSystem(selectedCycloneId), 0);
-      return () => window.clearTimeout(task);
-    }
-  }, [selectedCycloneId]);
+    const task = window.setTimeout(() => void fetchSystem(selectedId), 0);
+    return () => { window.clearTimeout(task); pendingRequest.current?.abort(); };
+  }, [selectedId, fetchSystem]);
 
   useEffect(() => {
-    const init = async () => {
-      let initialId = selectedCycloneId || "";
+    const requested = new URLSearchParams(window.location.search).get("cyclone_id");
+    if (requested) selectCyclone(requested);
+  }, [selectCyclone]);
 
-      // 1. Check URL parameters
-      if (typeof window !== "undefined") {
-        const params = new URLSearchParams(window.location.search);
-        const paramId = params.get("cyclone_id");
-        if (paramId) {
-          initialId = paramId;
-        }
-      }
-
-      // 2. Fetch full catalog from backend
+  useEffect(() => {
+    const controller = new AbortController();
+    async function fetchCatalog() {
       try {
-        const res = await fetch(`${getApiBaseUrl()}/api/history/search`);
-        if (res.ok) {
-          const list = await res.json();
-          if (Array.isArray(list) && list.length > 0) {
-            setCyclonesList(list);
-            const match = list.find((c: CycloneCatalogItem) => c.id === initialId || c.name.toLowerCase() === initialId.toLowerCase());
-            if (match) {
-              initialId = match.id;
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Error loading historical catalogue:", err);
+        const list = await apiFetch<CycloneCatalogItem[]>("/api/history/search", {signal: controller.signal, maxRetries: 0});
+        if (!controller.signal.aborted && Array.isArray(list) && list.length) setCyclonesList(list);
+      } catch (error) {
+        if (!controller.signal.aborted) console.error("Error loading historical catalogue:", error);
       }
-
-      setSelectedId(initialId);
-      selectCyclone(initialId);
-      fetchSystem(initialId);
-    };
-
-    init();
+    }
+    void fetchCatalog();
+    return () => controller.abort();
   }, []);
 
   const handleSelectCyclone = (cId: string) => {
-    setSelectedId(cId);
     const match = cyclonesList.find(c => c.id === cId);
-    selectCyclone(cId, match?.name);
+    if (cId) selectCyclone(cId, match?.name); else clearSelectedCyclone();
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
-      url.searchParams.set("cyclone_id", cId);
+      if (cId) url.searchParams.set("cyclone_id", cId); else url.searchParams.delete("cyclone_id");
       window.history.replaceState({}, "", url.toString());
     }
-    fetchSystem(cId);
   };
 
   // Synchronize AI assistant context with active forecast system
   useEffect(() => {
-    if (typeof window !== "undefined" && system) {
+    if (typeof window !== "undefined") {
       window.__cyclonet_current_context = {
         page: "Track Forecast",
-        activeSystem: {
+        activeSystem: system ? {
           id: system.id,
           name: system.name,
           basin: system.basin,
@@ -162,7 +128,7 @@ export default function ForecastPage() {
           intensity_knots: system.intensity_knots,
           lat: system.lat,
           lon: system.lon,
-        }
+        } : null
       };
     }
   }, [system]);
@@ -173,10 +139,10 @@ export default function ForecastPage() {
     return system.track_forecast.map((pt) => {
       const convKnots = getConvertedKnots(pt.intensity_knots);
       const convKmh = getConvertedKmh(pt.intensity_knots);
-      const convCat = getConvertedCategory(pt.intensity_knots, pt.category);
+      const convCat = getConvertedCategory(pt.intensity_knots);
       return {
         timeOffset: pt.time_offset_hours,
-        label: pt.time_offset_hours === 0 ? "0h (Now)" : `${pt.time_offset_hours > 0 ? "+" : ""}${pt.time_offset_hours}h`,
+        label: pt.time_offset_hours === 0 ? "0h (Source reference)" : `${pt.time_offset_hours > 0 ? "+" : ""}${pt.time_offset_hours}h`,
         intensity: convKnots,
         kmh: convKmh,
         category: convCat,
@@ -197,7 +163,7 @@ export default function ForecastPage() {
     return relevantPoints.map(pt => {
       const convKnots = getConvertedKnots(pt.intensity_knots);
       const convKmh = getConvertedKmh(pt.intensity_knots);
-      const convCat = getConvertedCategory(pt.intensity_knots, pt.category);
+      const convCat = getConvertedCategory(pt.intensity_knots);
       const uncertaintyKm = null;
       const gustKnots: number | null = null;
       return {
@@ -289,10 +255,13 @@ export default function ForecastPage() {
           <div className="flex items-center gap-2 bg-secondary/50 border border-border px-3 py-1.5 rounded-xl shadow-xs backdrop-blur-md">
             <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">Select Storm:</span>
             <select
+              aria-label="Select storm"
               value={selectedId}
               onChange={(e) => handleSelectCyclone(e.target.value)}
               className="bg-transparent text-xs font-semibold text-foreground focus:outline-none cursor-pointer max-w-[240px]"
             >
+              <option value="">Current source observations</option>
+              {selectedId && !cyclonesList.some(c => c.id === selectedId) && <option value={selectedId}>{selectedId}</option>}
               {cyclonesList.map((c) => (
                 <option key={c.id} value={c.id} className="bg-card text-foreground">
                   {"Archive: "}
@@ -309,7 +278,7 @@ export default function ForecastPage() {
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 whitespace-nowrap">
             <AlertTriangle className="w-4 h-4 text-red-500" />
             <span className="text-xs font-bold text-red-500 uppercase tracking-wider">
-              {system ? getConvertedCategory(system.intensity_knots, system.category) : "Storm"}
+              {system ? getConvertedCategory(system.intensity_knots) : "Storm"}
             </span>
           </div>
         </div>

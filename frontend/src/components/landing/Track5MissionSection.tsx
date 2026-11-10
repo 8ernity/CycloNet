@@ -2,15 +2,11 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  ShieldCheck, Sparkles, Waves, Satellite, 
-  ArrowRight, Zap, CheckCircle2, ShieldAlert,
-  Clock, MapPin, Globe2, FileText, Wind, Compass
-} from "lucide-react";
+import { ShieldCheck, Sparkles, Waves, Satellite, ArrowRight, Zap, CheckCircle2, Clock, Globe2, Wind, Compass } from "lucide-react";
 import Link from "next/link";
 import { MicroLabel } from "./MicroLabel";
 import { PillButton } from "./PillButton";
-import { IllustrationStage } from "./illustration/IllustrationStage";
+
 
 const IMPACT_METRICS = [
   {icon:Clock,value:"Not validated",label:"Forecast accuracy",desc:"Independent evaluation pending"},

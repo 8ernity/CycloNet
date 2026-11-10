@@ -1,7 +1,7 @@
 "use client";
 import { useStoredValue } from "@/hooks/useBrowserState";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext } from "react";
 
 export type SupportedLanguage = "en" | "hi" | "or" | "bn" | "te" | "ta";
 

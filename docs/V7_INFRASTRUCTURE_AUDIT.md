@@ -1,5 +1,7 @@
 # V7 infrastructure audit
 
+Follow-up: PostgreSQL URL connection options now survive the enforced statement timeout; the schema-selection regression is covered. Both deployment locks install a real WebSocket transport and hash every distribution. Public API startup defers optional PyTorch imports, while explicit validated-model startup remains gated. Two actual local production-mode servers pass HTTP, WebSocket access and shared-quota checks with isolated PostgreSQL/Redis and fixture RSA identities. See [follow-up scope](V7_LOCAL_FOLLOWUP.md) and [network measurements](v7-local-network-soak.json); these are not hosted acceptance results.
+
 Date: 2026-11-09. Read-only Render inspection was authorized for My Workspace. No resources, environment values, live data, deployments, or billing settings were changed.
 
 ## Observed deployment

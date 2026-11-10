@@ -33,7 +33,7 @@
       c.width = c.height = 4;
       c.getContext("2d").getImageData(0, 0, 1, 1);
       return true;
-    } catch (_) {
+    } catch {
       return false;
     }
   })();

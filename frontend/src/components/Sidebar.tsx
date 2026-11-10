@@ -1,4 +1,6 @@
 "use client";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 import React from "react";
 import Link from "next/link";
@@ -28,6 +30,7 @@ export const navItems = [
 ];
 
 export function Sidebar() {
+  const router = useRouter();
   const pathname = usePathname();
   const { user: clerkUser, isLoaded } = useUser();
   const { signOut } = useClerk();
@@ -48,7 +51,7 @@ export function Sidebar() {
       if (clerkUser) {
         await signOut({ redirectUrl: "/" });
       } else {
-        window.location.href = "/";
+        router.push("/");
       }
     }
   };
@@ -100,7 +103,7 @@ export function Sidebar() {
         <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/[0.03] dark:bg-white/[0.03] hover:bg-slate-900/[0.06] dark:hover:bg-white/[0.06] transition-colors">
           <div className="flex items-center gap-3 min-w-0">
             {avatarUrl ? (
-              <img
+              <Image width={36} height={36} unoptimized
                 src={avatarUrl}
                 alt={displayName}
                 className="w-9 h-9 rounded-full object-cover shadow-xs shrink-0 ring-2 ring-indigo-500/20"

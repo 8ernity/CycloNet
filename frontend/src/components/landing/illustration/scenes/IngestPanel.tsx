@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Satellite, Radio, Activity, Server, Waves, Wind } from 'lucide-react';
+import { Satellite, Radio, Activity, Server, Waves } from 'lucide-react';
 import type { CyclePhase } from '@/hooks/useHeroCycle';
 import { useMotionTokens } from '@/lib/motion-tokens';
 

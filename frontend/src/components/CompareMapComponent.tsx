@@ -1,17 +1,9 @@
 "use client";
+import { formatCoordinates } from "@/lib/coordinates";
 import type { TrackPoint } from "@/types/api";
 
 import React, { useState } from 'react';
-import { 
-  MapContainer, 
-  TileLayer, 
-  CircleMarker, 
-  Popup, 
-  Polyline, 
-  Tooltip, 
-  useMap,
-  ZoomControl 
-} from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup, Polyline, Tooltip, useMap, ZoomControl } from 'react-leaflet';
 import { Layers, Compass, Tag } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -58,7 +50,7 @@ const getGibsDate = () => {
 
 const MAP_STYLES = {
   satellite: {
-    name: '🗺️ Esri High-Res Multispectral Satellite',
+    name: '🗺️ Esri World Imagery basemap',
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     attribution: 'Tiles &copy; Esri, USGS, NOAA'
   },
@@ -73,7 +65,7 @@ const MAP_STYLES = {
     attribution: '&copy; CARTO &copy; OpenStreetMap contributors'
   },
   street: {
-    name: '🧭 IMD Operational Geo Chart',
+    name: '🧭 OpenStreetMap streets',
     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     attribution: '&copy; OpenStreetMap contributors'
   }
@@ -86,8 +78,8 @@ export default function CompareMapComponent({ system1, system2 }: CompareMapProp
   const [isLayerMenuOpen, setIsLayerMenuOpen] = useState(false);
   const [showLabels, setShowLabels] = useState(true);
 
-  const pts1 = system1?.track_forecast || [];
-  const pts2 = system2?.track_forecast || [];
+  const pts1 = React.useMemo(() => system1?.track_forecast ?? [], [system1?.track_forecast]);
+  const pts2 = React.useMemo(() => system2?.track_forecast ?? [], [system2?.track_forecast]);
 
   // Find max intensity indices for milestone labeling
   const maxIdx1 = React.useMemo(() => {
@@ -304,7 +296,7 @@ export default function CompareMapComponent({ system1, system2 }: CompareMapProp
                     <div className="p-1.5 space-y-1 text-xs">
                       <p className="font-bold text-cyan-400">{system1.name} — {pt.category}</p>
                       <p className="text-muted-foreground">Wind: <strong className="text-white">{pt.intensity_knots ?? "Not available"} KT ({(pt.intensity_knots == null ? null : Math.round(pt.intensity_knots * 1.852))} km/h)</strong></p>
-                      <p className="text-muted-foreground">Fix: {pt.lat.toFixed(1)}°N, {pt.lon.toFixed(1)}°E</p>
+                      <p className="text-muted-foreground">Fix: {formatCoordinates(pt.lat, pt.lon)}</p>
                       {isLandfall && (
                         <p className="font-bold text-red-400 bg-red-950/50 p-1 rounded border border-red-500/30">
                           🎯 Landfall Coastal Crossing
@@ -379,7 +371,7 @@ export default function CompareMapComponent({ system1, system2 }: CompareMapProp
                     <div className="p-1.5 space-y-1 text-xs">
                       <p className="font-bold text-amber-400">{system2.name} — {pt.category}</p>
                       <p className="text-muted-foreground">Wind: <strong className="text-white">{pt.intensity_knots ?? "Not available"} KT ({(pt.intensity_knots == null ? null : Math.round(pt.intensity_knots * 1.852))} km/h)</strong></p>
-                      <p className="text-muted-foreground">Fix: {pt.lat.toFixed(1)}°N, {pt.lon.toFixed(1)}°E</p>
+                      <p className="text-muted-foreground">Fix: {formatCoordinates(pt.lat, pt.lon)}</p>
                       {isLandfall && (
                         <p className="font-bold text-red-400 bg-red-950/50 p-1 rounded border border-red-500/30">
                           🎯 Landfall Coastal Crossing

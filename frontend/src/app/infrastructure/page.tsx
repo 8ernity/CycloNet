@@ -3,34 +3,15 @@ import type { WeatherSystem as ActiveSystem } from "@/types/api";
 import { type SurgeCalculation, type SurgeSector, type RainfallPathway, type Briefing, type DispatchResult, type CatalogItem } from "@/types/api";
 import { ObservationValue } from "@/components/ObservationValue";
 import React, { useState, useEffect, useSyncExternalStore } from "react";
-import {
-  Building2, Zap, Navigation, Coins, Landmark, ShieldCheck,
-  Waves, RefreshCw, CheckCircle2, Download, Filter, MapPin,
-  AlertTriangle, Radio, Activity, ExternalLink, Siren, PhoneCall,
-  Search, ShieldAlert, Sparkles, CloudRain, Layers, Cpu, Compass,
-  FileText, CheckCircle, Clock, X, Globe, Send, Copy, ArrowRight,
-  Shield, Check, AlertOctagon, Terminal
-} from "lucide-react";
+import { Building2, Zap, Navigation, Coins, Waves, RefreshCw, CheckCircle2, Radio, Siren, Search, ShieldAlert, Sparkles, CloudRain, Layers, Cpu, CheckCircle, X, Send, Copy, ArrowRight, Check, AlertOctagon, Terminal } from "lucide-react";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
-import { API_BASE_URL, getApiBaseUrl, apiFetch } from "@/lib/api";
-import {
-  POWER_SUBSTATIONS as SCENARIO_POWER_SUBSTATIONS,
-  EVACUATION_ROUTES as SCENARIO_EVACUATION_ROUTES,
-  MEDICAL_SHELTERS as SCENARIO_MEDICAL_SHELTERS,
-  PARAMETRIC_INSURANCE_TRIGGERS as SCENARIO_PARAMETRIC_INSURANCE_TRIGGERS,
-  COASTAL_INUNDATION_ZONES as SCENARIO_COASTAL_INUNDATION_ZONES,
-  PowerSubstation,
-  MedicalCycloneShelter,
-  EvacuationRoute,
-  calculateSubstationVulnerability,
-  calculateRouteVulnerability,
-  calculateShelterSuitability
-} from "@/lib/infrastructureData";
+import { apiFetch } from "@/lib/api";
+import { POWER_SUBSTATIONS as SCENARIO_POWER_SUBSTATIONS, EVACUATION_ROUTES as SCENARIO_EVACUATION_ROUTES, MEDICAL_SHELTERS as SCENARIO_MEDICAL_SHELTERS, PARAMETRIC_INSURANCE_TRIGGERS as SCENARIO_PARAMETRIC_INSURANCE_TRIGGERS, calculateSubstationVulnerability, calculateRouteVulnerability, calculateShelterSuitability } from "@/lib/infrastructureData";
 
 
 
-import {catalogObservation} from '@/lib/catalogObservation';
+import { catalogObservation } from '@/lib/catalogObservation';
 const PRESET_STORMS: {id:string;name:string;basin:string;category:string;knots:number|null}[] = [];
 
 function subscribeLocation(notify: () => void) { window.addEventListener("popstate", notify); return () => window.removeEventListener("popstate", notify); }
@@ -38,16 +19,17 @@ function readTab() { const tab = new URLSearchParams(window.location.search).get
 export default function InfrastructurePage() {
   const [scenarioMode, setScenarioMode] = useState(false);
   const PARAMETRIC_INSURANCE_TRIGGERS = scenarioMode ? SCENARIO_PARAMETRIC_INSURANCE_TRIGGERS : [];
-  const COASTAL_INUNDATION_ZONES = scenarioMode ? SCENARIO_COASTAL_INUNDATION_ZONES : [];
   const POWER_SUBSTATIONS = scenarioMode ? SCENARIO_POWER_SUBSTATIONS : [];
   const MEDICAL_SHELTERS = scenarioMode ? SCENARIO_MEDICAL_SHELTERS : [];
   const EVACUATION_ROUTES = scenarioMode ? SCENARIO_EVACUATION_ROUTES : [];
   const { selectedCycloneId, selectCyclone } = useActiveCyclone();
-  const { getConvertedKnots, getConvertedKmh, getConvertedGusts, getConvertedCategory, getSourceBadge } = useDataSource();
+  const { getConvertedKnots, getConvertedKmh, getConvertedCategory, getSourceBadge } = useDataSource();
 
   const sourceBadge = getSourceBadge();
   const [system, setSystem] = useState<ActiveSystem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sourceError, setSourceError] = useState(false);
+  const [sourceRetry, setSourceRetry] = useState(0);
   const [cyclonesList, setCyclonesList] = useState(PRESET_STORMS);
   const queryTab = useSyncExternalStore(subscribeLocation, readTab, () => "grid");
   const [tabOverride, setActiveTab] = useState<string | null>(null);
@@ -61,33 +43,34 @@ export default function InfrastructurePage() {
   const [simPressureHpa, setSimPressureHpa] = useState<number>(945);
   const [simWindKts, setSimWindKts] = useState<number>(115);
   const [simTideM, setSimTideM] = useState<number>(1.8);
-  const [simForwardSpeed, setSimForwardSpeed] = useState<number>(18);
+  const simForwardSpeed = 18;
   const [simAngleDeg, setSimAngleDeg] = useState<number>(75);
-  const [simRainMm, setSimRainMm] = useState<number>(240);
+  const simRainMm = 240;
   const [surgeCalcData, setSurgeCalcData] = useState<SurgeCalculation | null>(null);
   const [surgeSectors, setSurgeSectors] = useState<SurgeSector[]>([]);
   const [rainfallPathways, setRainfallPathways] = useState<RainfallPathway[]>([]);
-  const [geeLayers, setGeeLayers] = useState<Record<string, unknown>[]>([]);
+  const [scenarioError, setScenarioError] = useState(false);
+  const [scenarioRetry, setScenarioRetry] = useState(0);
 
   // Deterministic source and scenario briefing state
   const [briefingModalOpen, setBriefingModalOpen] = useState(false);
   const [briefingLoading, setBriefingLoading] = useState(false);
   const [briefingData, setBriefingData] = useState<Briefing | null>(null);
-  const [briefingLanguage, setBriefingLanguage] = useState<string>("en");
+  const briefingLanguage = "en";
 
   // Automated Multi-Channel Warning Dispatcher State
   const [dispatchRegion, setDispatchRegion] = useState<string>("Sundarbans & Odisha Coastal Corridor");
   const [dispatchRiskLevel, setDispatchRiskLevel] = useState<string>("CRITICAL");
   const [dispatchChannels, setDispatchChannels] = useState<string[]>(["CAP", "SMS", "SACHET", "SIREN", "VHF"]);
   const [dispatchLoading, setDispatchLoading] = useState<boolean>(false);
-  const [dispatchStep, setDispatchStep] = useState<number>(0);
+  const [, setDispatchStep] = useState<number>(0);
   const [dispatchResult, setDispatchResult] = useState<DispatchResult | null>(null);
   const [dispatchViewerTab, setDispatchViewerTab] = useState<"cap" | "sms" | "sachet" | "siren" | "vhf" | "directives">("cap");
 
   // Parametric insurance simulation state
   const [insuranceSimulationTier, setInsuranceSimulationTier] = useState<number>(0);
   const [isSimulatingPayout, setIsSimulatingPayout] = useState(false);
-  const [payoutSuccess, setPayoutSuccess] = useState(false);
+  const [, setPayoutSuccess] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -95,11 +78,11 @@ export default function InfrastructurePage() {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
     async function fetchAllCyclones() {
       try {
-        const res = await fetch(`${getApiBaseUrl()}/api/history/search`);
-        if (res.ok) {
-          const data = await res.json();
+        const data = await apiFetch<CatalogItem[]>("/api/history/search", {signal: controller.signal, maxRetries: 0});
+        if (!controller.signal.aborted) {
           if (Array.isArray(data) && data.length > 0) {
             setCyclonesList(data.map((c: CatalogItem) => ({
               ...catalogObservation(c),
@@ -108,80 +91,74 @@ export default function InfrastructurePage() {
           }
         }
       } catch (err) {
-        console.error("Failed to load full cyclone list", err);
+        if (!controller.signal.aborted) console.error("Failed to load full cyclone list", err);
       }
     }
     fetchAllCyclones();
-  }, []);
+    return () => controller.abort();
+  }, [sourceRetry]);
 
   useEffect(() => {
     const controller = new AbortController();
     const fetchSystem = async () => {
       setLoading(true);
+      setSourceError(false);
       setSystem(null);
       try {
         const query = selectedCycloneId ? `?cyclone_id=${encodeURIComponent(selectedCycloneId)}` : "";
-        const res = await fetch(`${getApiBaseUrl()}/api/active-systems${query}`, {signal:controller.signal});
-        if (!res.ok) throw new Error("Source unavailable");
-        const data = await res.json();
-        if (!controller.signal.aborted) setSystem(data?.[0] ?? null);
+        const data = await apiFetch<ActiveSystem[]>(`/api/active-systems${query}`, {signal: controller.signal, maxRetries: 0});
+        if (!Array.isArray(data)) throw new Error("Invalid source response");
+        if (!controller.signal.aborted) setSystem(data[0] ?? null);
       } catch {
-        if (!controller.signal.aborted) setToast("Source unavailable. Operational conditions are not verified.");
+        if (!controller.signal.aborted) setSourceError(true);
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
     };
     void fetchSystem();
     return () => controller.abort();
-  }, [selectedCycloneId]);
+  }, [selectedCycloneId, sourceRetry]);
 
   const rawKnots = scenarioMode ? simWindKts : system?.intensity_knots ?? null;
   const knots = getConvertedKnots(rawKnots);
   const kmh = getConvertedKmh(rawKnots);
-  const gusts = getConvertedGusts(rawKnots);
-  const displayCategory = getConvertedCategory(rawKnots, system?.category);
+  const displayCategory = getConvertedCategory(rawKnots);
   const surgeM = scenarioMode ? surgeCalcData?.peak_surge_height_m ?? null : null;
 
   // Explicit scenario calculations; changes cancel and clear older results.
   useEffect(() => {
     const controller = new AbortController();
     async function fetchSurgeAndGee() {
-      setSurgeCalcData(null); setSurgeSectors([]); setRainfallPathways([]); setGeeLayers([]);
+      setSurgeCalcData(null); setSurgeSectors([]); setRainfallPathways([]); setScenarioError(false);
       if (!scenarioMode) return;
       try {
-        const lat = system?.lat || 18.2;
-        const lon = system?.lon || 84.8;
+        const lat = system?.lat ?? 18.2;
+        const lon = system?.lon ?? 84.8;
         const basin = system?.basin || "Bay of Bengal";
 
-        const [surgeRes, secRes, pathRes, layerRes] = await Promise.all([
-          fetch(`${getApiBaseUrl()}/api/surge/calculate?knots=${simWindKts}&pressure_hpa=${simPressureHpa}&forward_speed=${simForwardSpeed}&angle_deg=${simAngleDeg}&tide_m=${simTideM}&basin=${encodeURIComponent(basin)}`, {signal:controller.signal}),
-          fetch(`${getApiBaseUrl()}/api/surge/profile?name=${encodeURIComponent(system?.name || "Cyclone")}&lat=${lat}&lon=${lon}&knots=${simWindKts}`, {signal:controller.signal}),
-          fetch(`${getApiBaseUrl()}/api/gee/rainfall-pathways?lat=${lat}&lon=${lon}&rain_mm=${simRainMm}`, {signal:controller.signal}),
-          fetch(`${getApiBaseUrl()}/api/gee/layers`, {signal:controller.signal})
+        const options = {signal: controller.signal, maxRetries: 0};
+        const [surge, sectors, pathways] = await Promise.all([
+          apiFetch<SurgeCalculation>(`/api/surge/calculate?knots=${simWindKts}&pressure_hpa=${simPressureHpa}&forward_speed=${simForwardSpeed}&angle_deg=${simAngleDeg}&tide_m=${simTideM}&basin=${encodeURIComponent(basin)}`, options),
+          apiFetch<{sectors: SurgeSector[]}>(`/api/surge/profile?name=${encodeURIComponent(system?.name || "Cyclone")}&lat=${lat}&lon=${lon}&knots=${simWindKts}`, options),
+          apiFetch<{pathways: RainfallPathway[]}>(`/api/gee/rainfall-pathways?lat=${lat}&lon=${lon}&rain_mm=${simRainMm}`, options),
         ]);
 
         if (controller.signal.aborted) return;
-        if (![surgeRes,secRes,pathRes,layerRes].every(res => res.ok)) throw new Error("Scenario unavailable");
-        if (surgeRes.ok) setSurgeCalcData(await surgeRes.json());
-        if (secRes.ok) {
-          const d = await secRes.json();
-          setSurgeSectors(d.sectors || []);
-        }
-        if (pathRes.ok) {
-          const d = await pathRes.json();
-          setRainfallPathways(d.pathways || []);
-        }
-        if (layerRes.ok) {
-          const d = await layerRes.json();
-          setGeeLayers(d.layers || []);
-        }
+        if (!surge || !Number.isFinite(surge.peak_surge_height_m) || !Array.isArray(sectors?.sectors) || !Array.isArray(pathways?.pathways)) throw new Error("Invalid scenario response");
+        // Publish only a complete calculation for the current inputs.
+        setSurgeCalcData(surge);
+        setSurgeSectors(sectors.sectors);
+        setRainfallPathways(pathways.pathways);
       } catch (err) {
-        console.error("Error fetching surge & GEE telemetry", err);
+        if (controller.signal.aborted) return;
+        setScenarioError(true);
+        controller.abort();
+        console.error("Scenario calculation unavailable", err);
       }
     }
     const debounce = window.setTimeout(() => void fetchSurgeAndGee(), 350);
     return () => { controller.abort(); window.clearTimeout(debounce); };
-  }, [scenarioMode, system, simWindKts, simPressureHpa, simTideM, simForwardSpeed, simAngleDeg, simRainMm]);
+  }, [scenarioMode, system, simWindKts, simPressureHpa, simTideM, simForwardSpeed, simAngleDeg, simRainMm, scenarioRetry]);
 
   // Handle Multi-Channel Early Warning Dispatch
   const handleExecuteDispatch = async () => {
@@ -383,6 +360,14 @@ export default function InfrastructurePage() {
       </div>
 
       {/* Toast Notification */}
+      {sourceError && <div role="status" className="glass-card p-4 text-sm">
+        <p>Source unavailable. Operational conditions are not verified.</p>
+        <button onClick={() => setSourceRetry(value => value + 1)} className="mt-2 rounded-lg bg-primary px-3 py-2 text-primary-foreground">Retry source</button>
+      </div>}
+      {scenarioMode && scenarioError && <div role="status" className="glass-card p-4 text-sm">
+        <p>Scenario calculation unavailable. No complete result was received.</p>
+        <button onClick={() => setScenarioRetry(value => value + 1)} className="mt-2 rounded-lg bg-primary px-3 py-2 text-primary-foreground">Retry scenario</button>
+      </div>}
       {toast && (
         <div className="fixed bottom-6 right-6 bg-zinc-900 text-white border border-primary/40 px-4 py-3 rounded-xl shadow-2xl shadow-primary/20 animate-in slide-in-from-bottom-3 z-50 flex items-center gap-2.5 text-sm font-medium">
           <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
