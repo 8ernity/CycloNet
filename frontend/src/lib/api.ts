@@ -109,6 +109,29 @@ function retryDelay(milliseconds: number, signal?: AbortSignal | null): Promise<
   });
 }
 
+async function resolveAuthToken(timeoutMs: number, callerSignal?: AbortSignal | null): Promise<string | null> {
+  if (!tokenProvider) return getStoredAuthToken();
+  callerSignal?.throwIfAborted();
+  const controller = new AbortController();
+  const signal = callerSignal ? AbortSignal.any([callerSignal, controller.signal]) : controller.signal;
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let onAbort: () => void = () => {};
+  try {
+    // The identity SDK has no cancellation API. Stop waiting and ignore its late
+    // result while keeping a rejection handler attached to its pending promise.
+    return await new Promise<string | null>((resolve, reject) => {
+      onAbort = () => reject(signal.reason);
+      signal.addEventListener("abort", onAbort, { once: true });
+      Promise.resolve().then(() => tokenProvider?.()).then(
+        value => resolve(value || getStoredAuthToken()), reject
+      );
+    });
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", onAbort);
+  }
+}
+
 /**
  * Robust fetch wrapper with timeout, exponential backoff retries with jitter,
  * authentication header attachment, and Retry-After handling (UI-01, SEC-05, SEC-06, FIX-04).
@@ -132,7 +155,7 @@ export async function apiFetch<T = unknown>(
   const isIdempotent = ["GET", "HEAD", "OPTIONS"].includes(method);
 
   const headers = new Headers(fetchOptions.headers || {});
-  const authToken = isTrustedOrigin(url) ? (token || await tokenProvider?.() || getStoredAuthToken()) : null;
+  const authToken = isTrustedOrigin(url) ? (token || await resolveAuthToken(timeoutMs, fetchOptions.signal)) : null;
   fetchOptions.signal?.throwIfAborted();
 
   // FIX 04: Centralized origin check on Authorization headers

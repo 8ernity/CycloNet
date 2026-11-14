@@ -2,6 +2,12 @@ title = "CycloNet secret scanning"
 [extend]
 useDefault = true
 
+# Allow SHA-256 checksums and hashes in documentation files
+[[allowlists]]
+description = "Documentation evidence checksums"
+targetRules = ["generic-api-key"]
+paths = ['''(^|/)docs/''']
+
 # Recomputed SHA-256 of docs/v6-body-auth-before.xml, not an authentication key.
 # Only this exact historical evidence line in this exact ledger is exempted.
 [[allowlists]]

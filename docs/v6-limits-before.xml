@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="4" time="10.681" timestamp="2026-11-08T09:40:49.449538+05:30" hostname="DESKTOP-FHF8V0M"><testcase classname="tests.test_v6_limits" name="test_oversized_chat_rejected_before_inference" time="1.329" /><testcase classname="tests.test_v6_limits" name="test_excessive_json_body_rejected_before_parsing" time="0.015"><failure message="assert 422 == 413&#10; +  where 422 = &lt;Response [422 Unprocessable Entity]&gt;.status_code">tests\test_v6_limits.py:14: in test_excessive_json_body_rejected_before_parsing
-    assert response.status_code==413
-E   assert 422 == 413
-E    +  where 422 = &lt;Response [422 Unprocessable Entity]&gt;.status_code</failure></testcase><testcase classname="tests.test_v6_limits" name="test_deep_json_rejected_before_inference" time="0.012"><failure message="assert 422 == 400&#10; +  where 422 = &lt;Response [422 Unprocessable Entity]&gt;.status_code">tests\test_v6_limits.py:18: in test_deep_json_rejected_before_inference
-    assert response.status_code==400
-E   assert 422 == 400
-E    +  where 422 = &lt;Response [422 Unprocessable Entity]&gt;.status_code</failure></testcase><testcase classname="tests.test_v6_limits" name="test_client_cannot_submit_observation_values" time="0.022" /></testsuite></testsuites>

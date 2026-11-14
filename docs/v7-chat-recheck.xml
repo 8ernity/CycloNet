@@ -1,6 +1,0 @@
-<testsuites id="" name="" tests="1" failures="0" skipped="0" errors="0" time="34.538776">
-<testsuite name="chat-reliability.spec.ts" timestamp="2026-11-09T10:16:17.928Z" hostname="" tests="1" failures="0" skipped="0" time="23.181" errors="0">
-<testcase name="new conversation cancels the old request and can send immediately" classname="chat-reliability.spec.ts" time="23.181">
-</testcase>
-</testsuite>
-</testsuites>

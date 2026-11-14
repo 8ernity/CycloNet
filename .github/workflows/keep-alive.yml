@@ -2,7 +2,8 @@
 name: CycloNet readiness monitoring
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    # Daily check at 06:00 UTC (avoids exhausting Render free hours and GitHub Actions runner minutes)
+    - cron: '0 6 * * *'
   workflow_dispatch:
 permissions:
   contents: read

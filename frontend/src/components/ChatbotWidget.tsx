@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { X, Send, Minimize2, Maximize2, RotateCcw, Sparkles, Cloud, Satellite, ShieldCheck, ChevronRight, Mic, MicOff, MoreHorizontal, Copy, Check, GripHorizontal } from "lucide-react";
 import { useLiquidGlass } from "@/hooks/useLiquidGlass";
+import { useClipboard } from "@/hooks/useClipboard";
 import { CycloneLogo } from "@/components/CycloneLogo";
 import { getApiBaseUrl } from "@/lib/api";
 import { readChatReply } from "@/lib/chatResponse";
@@ -64,7 +65,7 @@ export function ChatbotWidget() {
   const [isMinimized, setIsMinimized] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const {copyText, copyStatus, copiedId, resetCopy} = useClipboard();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -419,18 +420,12 @@ export function ChatbotWidget() {
     }
   };
 
-  const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
   const handleClear = () => {
     pendingRequest.current?.abort();
     pendingRequest.current = null;
     setLoading(false);
     setMessages([]);
-    setCopiedId(null);
+    resetCopy();
     setIsMenuOpen(false);
   };
 
@@ -637,6 +632,7 @@ export function ChatbotWidget() {
                 
                 {/* Scrollable Container (Hero OR Messages) */}
                 <div className="flex-1 p-5 overflow-y-auto space-y-4 scrollbar-thin bg-transparent">
+                  <div role="status" aria-live="polite" aria-atomic="true" className={copyStatus ? "text-xs text-foreground" : "sr-only"}>{copyStatus}</div>
                   
                   {/* Hero Initial Screen when no messages */}
                   {messages.length === 0 ? (
@@ -722,7 +718,7 @@ export function ChatbotWidget() {
                               <div className="mt-2 pt-2 border-t border-border flex items-center justify-between text-[10px] text-muted-foreground">
                                 <span className="font-mono">{msg.timestamp}</span>
                                 <button
-                                  onClick={() => handleCopy(msg.content, msg.id)}
+                                  onClick={() => void copyText(msg.content, msg.id)}
                                   className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer"
                                 >
                                   {copiedId === msg.id ? (

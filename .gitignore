@@ -95,6 +95,5 @@ backend/data/images/
 # ── Generated Test Reports & Audit Outputs ─────────────────────────────
 docs/*.xml
 docs/*.txt
-docs/*-audit.json
-docs/*-results.json
-docs/*-soak.json
+docs/*.json
+!docs/*.md

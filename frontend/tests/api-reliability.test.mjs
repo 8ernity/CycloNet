@@ -19,6 +19,40 @@ const abortable = signal => new Promise((_,reject)=>{
   else signal.addEventListener('abort',()=>reject(signal.reason),{once:true});
 });
 
+test('stalled token lookup times out without sending a request or accepting a late token',async()=>{
+  let fetched=0,resolveToken;
+  const h=harness(async()=>{fetched++;return {ok:true,status:200,json:async()=>({})};});
+  h.api.setAuthTokenProvider(()=>new Promise(resolve=>{resolveToken=resolve;}));
+  const pending=h.api.apiFetch('/api/test',{maxRetries:0});
+  const rejected=assert.rejects(pending,{name:'AbortError'});
+  await settle();
+  assert.equal(h.timers.size,1,'token lookup must have a deadline');
+  h.fire();await rejected;
+  resolveToken('late-fixture');await settle();
+  assert.equal(fetched,0);assert.equal(h.timers.size,0);
+});
+
+test('caller cancellation interrupts a stalled token lookup',async()=>{
+  let fetched=0,completed=false;
+  const h=harness(async()=>{fetched++;return {ok:true,status:200,json:async()=>({})};});
+  h.api.setAuthTokenProvider(()=>new Promise(()=>{}));
+  const controller=new AbortController();
+  const pending=h.api.apiFetch('/api/test',{signal:controller.signal});
+  const rejected=assert.rejects(pending,{name:'AbortError'});
+  void rejected.then(()=>{completed=true;});
+  await settle();controller.abort();await settle();
+  assert.equal(completed,true,'cancellation must not wait for the identity provider');
+  await rejected;assert.equal(fetched,0);assert.equal(h.timers.size,0);
+});
+
+test('successful token lookup authenticates only the trusted request and cleans up its deadline',async()=>{
+  let authorization;
+  const h=harness(async(_,options)=>{authorization=options.headers.get('Authorization');return {ok:true,status:200,json:async()=>({ok:true})};});
+  h.api.setAuthTokenProvider(async()=>'fixture-token');
+  assert.deepEqual(await h.api.apiFetch('/api/test'),{ok:true});
+  assert.equal(authorization,'Bearer fixture-token');assert.equal(h.timers.size,0);
+});
+
 test('JSON body consumption remains inside the request timeout',async()=>{
   const h=harness(async(_,options)=>({ok:true,status:200,json:()=>abortable(options.signal)}));
   const pending=h.api.apiFetch('/api/test',{maxRetries:0});

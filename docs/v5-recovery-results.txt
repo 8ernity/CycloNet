@@ -1,9 +1,0 @@
-Local test project: cyclonet-verification
-PostgreSQL 17, dedicated cyclonet_test database
-Alembic upgrade head: PASS
-pg_dump -Fc -> /tmp/cyclonet-v5-recovery.dump: PASS
-createdb cyclonet_restore_v5 and pg_restore --exit-on-error: PASS
-Restored revision: 20261107_fenced_state
-Restored archive: v5-recovery-probe / Recovery verification
-Restored fencing_generation: 0
-No production database was contacted. Managed recovery/failover remains unverified.

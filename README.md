@@ -26,7 +26,7 @@
 > **Experimental software, not an authorized emergency warning or evacuation system.** Follow official local advisories and instructions from responsible authorities. No scientifically validated cyclone model or satellite flood detector is bundled. Scenario outputs cannot establish safe routes, shelter availability, utility-switching instructions or emergency readiness.
 
 > [!NOTE]
-> **Current assessment: `ENGINEERING_READY_DEPLOYMENT_BLOCKED`.** V7 evidence describes the local working tree, not a verified hosted deployment. Managed staging, real authentication, recovery and operational acceptance remain incomplete. See [readiness](docs/V7_PRODUCTION_READINESS.md) and [remaining blockers](docs/V7_REMAINING_BLOCKERS.md). Badges identify technologies, not certifications or passing hosted checks.
+> **Current assessment: `ENGINEERING_READY_DEPLOYMENT_BLOCKED`.** Evidence describes the local working tree, not a verified hosted deployment. Managed staging, real authentication, recovery and operational acceptance remain incomplete. See [readiness](docs/PRODUCTION_READINESS.md). Badges identify technologies, not certifications or passing hosted checks.
 
 ---
 
@@ -161,7 +161,7 @@ flowchart LR
     style Artifact fill:#064e3b,stroke:#34d399,color:#ecfdf5
 ```
 
-The recorded NOAA inventory contains **12,275 observations across 363 storms**, with frozen storm-disjoint partitions. The HURSAT sample review covers **98 frames**, but **zero are independently approved for training**. See [scientific validation](docs/V7_SCIENTIFIC_VALIDATION.md) and [source acquisition evidence](docs/SCIENTIFIC_DATA_AND_STAGING.md).
+The recorded NOAA inventory contains **12,275 observations across 363 storms**, with frozen storm-disjoint partitions. The HURSAT sample review covers **98 frames**, but **zero are independently approved for training**. See [scientific validation](docs/SCIENTIFIC_VALIDATION.md) and [source acquisition evidence](docs/SCIENTIFIC_DATA_AND_STAGING.md).
 
 Checkpoint loading verifies metadata, class mapping and weight checksums. No random-weight fallback is accepted as a trained model. Evaluation code supports calibration, abstention and OOD analysis; unit tests are not model-performance results. `scientifically_validated=false` remains in force until independent validation passes.
 
@@ -336,20 +336,20 @@ npm run test:e2e
 
 Browser checks use the production build at port **3100**. They cover unavailable-data behavior, desktop/tablet/mobile layouts, keyboard interactions and automated accessibility across both themes. Automated checks complement manual assistive-technology review; they do not certify universal accessibility.
 
-[CI](.github/workflows/ci.yml) also runs dependency and secret checks. Hosted frontend checks need Actions secrets for the matching Clerk test instance. See the [recovery runbook](docs/V7_DEPLOYMENT_VERIFICATION.md) and [SQLite migration rehearsal](docs/V7_SQLITE_MIGRATION_REHEARSAL.md). Local fixture restores are not production recovery evidence.
+[CI](.github/workflows/ci.yml) also runs dependency and secret checks. Hosted frontend checks need Actions secrets for the matching Clerk test instance. See the [deployment guide](docs/DEPLOYMENT_GUIDE.md) and [architecture](docs/ARCHITECTURE.md). Local fixture restores are not production recovery evidence.
 
-## Evidence and release status
+## Technical Documentation
 
-V7 reports describe current local remediation. V6 reports preserve the safeguards introduced earlier. Historical design documents may contain superseded language and do not certify the current release.
+Core documentation for architecture, operations, scientific validation, and machine learning models:
 
-| Review | Evidence |
+| Documentation | Description |
 |:---|:---|
-| **Release** | [Readiness](docs/V7_PRODUCTION_READINESS.md) · [Blockers](docs/V7_REMAINING_BLOCKERS.md) |
-| **Engineering ledger** | [Issue-by-issue progress](docs/V7_ENGINEERING_PROGRESS.json) |
-| **Security & infrastructure** | [Security audit](docs/V7_SECURITY_AUDIT.md) · [Infrastructure audit](docs/V7_INFRASTRUCTURE_AUDIT.md) |
-| **Tests & recovery** | [Test results](docs/V7_TEST_RESULTS.md) · [Deployment verification](docs/V7_DEPLOYMENT_VERIFICATION.md) |
-| **Science** | [Validation status](docs/V7_SCIENTIFIC_VALIDATION.md) · [Data provenance](docs/SCIENTIFIC_DATA_AND_STAGING.md) |
-| **V6 safeguards** | [Security](docs/V6_SECURITY_REVIEW.md) · [Data integrity](docs/V6_SAFETY_AND_DATA_INTEGRITY.md) · [Tests](docs/V6_TEST_RESULTS.md) |
+| **Architecture** | [System Architecture & Data Flow](docs/ARCHITECTURE.md) |
+| **Deployment** | [Deployment & Setup Guide](docs/DEPLOYMENT_GUIDE.md) |
+| **Production Readiness** | [Production Controls & Security Checklist](docs/PRODUCTION_READINESS.md) |
+| **Scientific Validation** | [Meteorological Standards & Validation](docs/SCIENTIFIC_VALIDATION.md) |
+| **Scientific Data** | [Data Provenance & Staging](docs/SCIENTIFIC_DATA_AND_STAGING.md) |
+| **Model Evaluation** | [ML Model Architecture & Metrics](docs/MODEL_EVALUATION.md) |
 
 ```mermaid
 flowchart LR

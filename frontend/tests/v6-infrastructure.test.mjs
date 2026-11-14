@@ -10,6 +10,26 @@ const context={exports:{}};
 vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/infrastructureData.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,context);
 const infra=context.exports;
 
+test('illustrative trigger requires both thresholds and includes exact boundaries',()=>{
+  const rule=infra.PARAMETRIC_INSURANCE_TRIGGERS[0];
+  assert.equal(infra.evaluateIllustrativeTrigger(rule,90,3.5),'MET');
+  assert.equal(infra.evaluateIllustrativeTrigger(rule,89,3.5),'NOT_MET');
+  assert.equal(infra.evaluateIllustrativeTrigger(rule,90,3.49),'NOT_MET');
+  assert.equal(infra.evaluateIllustrativeTrigger(rule,0,0),'NOT_MET');
+});
+test('missing and invalid scenario inputs never evaluate an illustrative trigger',()=>{
+  const rule=infra.PARAMETRIC_INSURANCE_TRIGGERS[0];
+  for(const value of [null,undefined,NaN,Infinity,-1,'100']) {
+    assert.equal(infra.evaluateIllustrativeTrigger(rule,value,4),'UNAVAILABLE');
+    assert.equal(infra.evaluateIllustrativeTrigger(rule,100,value),'UNAVAILABLE');
+  }
+});
+test('invalid illustrative thresholds cannot produce a successful evaluation',()=>{
+  const rule=infra.PARAMETRIC_INSURANCE_TRIGGERS[0];
+  assert.equal(infra.evaluateIllustrativeTrigger({...rule,windThresholdKnots:NaN},100,5),'UNAVAILABLE');
+  assert.equal(infra.evaluateIllustrativeTrigger({...rule,surgeThresholdMeters:-1},100,5),'UNAVAILABLE');
+});
+
 test('V6-001 missing field observations cannot become shelter readiness',()=>{
   const result=infra.calculateShelterSuitability(infra.MEDICAL_SHELTERS[0],100);
   assert.equal(result.currentOccupancy,null);

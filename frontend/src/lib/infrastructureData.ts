@@ -46,6 +46,15 @@ export interface ParametricInsuranceTrigger {
   hypotheticalPool: string;
 }
 
+/** Educational AND rule only; never determines policy eligibility or a payout. */
+export function evaluateIllustrativeTrigger(
+  rule: ParametricInsuranceTrigger, windKnots: number | null | undefined, surgeMeters: number | null | undefined
+): "UNAVAILABLE" | "MET" | "NOT_MET" {
+  const valid = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value >= 0;
+  if (!valid(windKnots) || !valid(surgeMeters) || !valid(rule.windThresholdKnots) || !valid(rule.surgeThresholdMeters)) return "UNAVAILABLE";
+  return windKnots >= rule.windThresholdKnots && surgeMeters >= rule.surgeThresholdMeters ? "MET" : "NOT_MET";
+}
+
 // ── Illustrative Coastal Infrastructure Dataset (NIO / BoB / Arabian Sea) ──
 // Metadata documentation addressing #50 (Static Asset Inventories) & #51 (Unverified Field Statuses)
 export const INFRASTRUCTURE_METADATA = {

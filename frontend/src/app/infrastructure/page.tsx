@@ -2,21 +2,24 @@
 import type { WeatherSystem as ActiveSystem } from "@/types/api";
 import { type SurgeCalculation, type SurgeSector, type RainfallPathway, type Briefing, type DispatchResult, type CatalogItem } from "@/types/api";
 import { ObservationValue } from "@/components/ObservationValue";
-import React, { useState, useEffect, useSyncExternalStore } from "react";
+import React, { useState, useEffect, useRef, useCallback, useSyncExternalStore } from "react";
 import { Building2, Zap, Navigation, Coins, Waves, RefreshCw, CheckCircle2, Radio, Siren, Search, ShieldAlert, Sparkles, CloudRain, Layers, Cpu, CheckCircle, X, Send, Copy, ArrowRight, Check, AlertOctagon, Terminal } from "lucide-react";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
+import { useClipboard } from "@/hooks/useClipboard";
 import { apiFetch } from "@/lib/api";
 import { POWER_SUBSTATIONS as SCENARIO_POWER_SUBSTATIONS, EVACUATION_ROUTES as SCENARIO_EVACUATION_ROUTES, MEDICAL_SHELTERS as SCENARIO_MEDICAL_SHELTERS, PARAMETRIC_INSURANCE_TRIGGERS as SCENARIO_PARAMETRIC_INSURANCE_TRIGGERS, calculateSubstationVulnerability, calculateRouteVulnerability, calculateShelterSuitability } from "@/lib/infrastructureData";
 
 
 
 import { catalogObservation } from '@/lib/catalogObservation';
+import { evaluateIllustrativeTrigger } from '@/lib/infrastructureData';
 const PRESET_STORMS: {id:string;name:string;basin:string;category:string;knots:number|null}[] = [];
 
 function subscribeLocation(notify: () => void) { window.addEventListener("popstate", notify); return () => window.removeEventListener("popstate", notify); }
 function readTab() { const tab = new URLSearchParams(window.location.search).get("tab"); return tab === "surge" ? "surge_rain" : tab ?? "grid"; }
 export default function InfrastructurePage() {
+  const {copyText, copyStatus} = useClipboard();
   const [scenarioMode, setScenarioMode] = useState(false);
   const PARAMETRIC_INSURANCE_TRIGGERS = scenarioMode ? SCENARIO_PARAMETRIC_INSURANCE_TRIGGERS : [];
   const POWER_SUBSTATIONS = scenarioMode ? SCENARIO_POWER_SUBSTATIONS : [];
@@ -46,9 +49,12 @@ export default function InfrastructurePage() {
   const simForwardSpeed = 18;
   const [simAngleDeg, setSimAngleDeg] = useState<number>(75);
   const simRainMm = 240;
-  const [surgeCalcData, setSurgeCalcData] = useState<SurgeCalculation | null>(null);
-  const [surgeSectors, setSurgeSectors] = useState<SurgeSector[]>([]);
-  const [rainfallPathways, setRainfallPathways] = useState<RainfallPathway[]>([]);
+  const scenarioKey = JSON.stringify([scenarioMode, selectedCycloneId, system, simWindKts, simPressureHpa, simTideM, simAngleDeg]);
+  const [scenarioResult, setScenarioResult] = useState<{key:string; surge:SurgeCalculation; sectors:SurgeSector[]; pathways:RainfallPathway[]} | null>(null);
+  const currentScenario = scenarioMode && scenarioResult?.key === scenarioKey ? scenarioResult : null;
+  const surgeCalcData = currentScenario?.surge ?? null;
+  const surgeSectors = currentScenario?.sectors ?? [];
+  const rainfallPathways = currentScenario?.pathways ?? [];
   const [scenarioError, setScenarioError] = useState(false);
   const [scenarioRetry, setScenarioRetry] = useState(0);
 
@@ -56,6 +62,10 @@ export default function InfrastructurePage() {
   const [briefingModalOpen, setBriefingModalOpen] = useState(false);
   const [briefingLoading, setBriefingLoading] = useState(false);
   const [briefingData, setBriefingData] = useState<Briefing | null>(null);
+  const pendingBriefing = useRef<AbortController | null>(null);
+  const briefingDialog = useRef<HTMLDivElement | null>(null);
+  const briefingOpener = useRef<HTMLElement | null>(null);
+  const [briefingError, setBriefingError] = useState(false);
   const briefingLanguage = "en";
 
   // Automated Multi-Channel Warning Dispatcher State
@@ -63,19 +73,64 @@ export default function InfrastructurePage() {
   const [dispatchRiskLevel, setDispatchRiskLevel] = useState<string>("CRITICAL");
   const [dispatchChannels, setDispatchChannels] = useState<string[]>(["CAP", "SMS", "SACHET", "SIREN", "VHF"]);
   const [dispatchLoading, setDispatchLoading] = useState<boolean>(false);
-  const [, setDispatchStep] = useState<number>(0);
   const [dispatchResult, setDispatchResult] = useState<DispatchResult | null>(null);
+  const pendingDispatch = useRef<AbortController | null>(null);
   const [dispatchViewerTab, setDispatchViewerTab] = useState<"cap" | "sms" | "sachet" | "siren" | "vhf" | "directives">("cap");
 
   // Parametric insurance simulation state
   const [insuranceSimulationTier, setInsuranceSimulationTier] = useState<number>(0);
-  const [isSimulatingPayout, setIsSimulatingPayout] = useState(false);
-  const [, setPayoutSuccess] = useState(false);
+  const [thresholdResult, setThresholdResult] = useState<{key:string; value:ReturnType<typeof evaluateIllustrativeTrigger>} | null>(null);
+  const thresholdKey = JSON.stringify([scenarioKey, insuranceSimulationTier, surgeCalcData?.peak_surge_height_m]);
+  const currentThresholdResult = scenarioMode && surgeCalcData && thresholdResult?.key === thresholdKey ? thresholdResult.value : null;
+
+  const changeScenarioMode = (enabled: boolean) => {
+    setScenarioMode(enabled);
+    setThresholdResult(null);
+  };
 
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
   };
+
+  useEffect(() => {
+    const reset = window.setTimeout(() => {
+      setDispatchResult(null); setDispatchLoading(false);
+    }, 0);
+    return () => { window.clearTimeout(reset); pendingDispatch.current?.abort(); };
+  }, [scenarioKey, dispatchRegion, dispatchRiskLevel, dispatchChannels]);
+
+  useEffect(() => {
+    const reset = window.setTimeout(() => {
+      setBriefingData(null); setBriefingLoading(false); setBriefingModalOpen(false); setBriefingError(false);
+    }, 0);
+    return () => { window.clearTimeout(reset); pendingBriefing.current?.abort(); };
+  }, [scenarioKey]);
+
+  const closeBriefing = useCallback(() => {
+    pendingBriefing.current?.abort();
+    setBriefingModalOpen(false); setBriefingLoading(false); setBriefingData(null);
+  }, [setBriefingModalOpen, setBriefingLoading, setBriefingData]);
+
+  useEffect(() => {
+    if (!briefingModalOpen) return;
+    const previous = briefingOpener.current;
+    const dialog = briefingDialog.current;
+    dialog?.querySelector<HTMLButtonElement>("button")?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); closeBriefing(); }
+      if (event.key !== "Tab" || !dialog) return;
+      const controls = Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]'));
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    dialog?.addEventListener("keydown", onKey);
+    return () => {
+      dialog?.removeEventListener("keydown", onKey);
+      if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+    };
+  }, [briefingModalOpen, closeBriefing]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -129,7 +184,7 @@ export default function InfrastructurePage() {
   useEffect(() => {
     const controller = new AbortController();
     async function fetchSurgeAndGee() {
-      setSurgeCalcData(null); setSurgeSectors([]); setRainfallPathways([]); setScenarioError(false);
+      setScenarioResult(null); setScenarioError(false);
       if (!scenarioMode) return;
       try {
         const lat = system?.lat ?? 18.2;
@@ -146,9 +201,7 @@ export default function InfrastructurePage() {
         if (controller.signal.aborted) return;
         if (!surge || !Number.isFinite(surge.peak_surge_height_m) || !Array.isArray(sectors?.sectors) || !Array.isArray(pathways?.pathways)) throw new Error("Invalid scenario response");
         // Publish only a complete calculation for the current inputs.
-        setSurgeCalcData(surge);
-        setSurgeSectors(sectors.sectors);
-        setRainfallPathways(pathways.pathways);
+        setScenarioResult({key:scenarioKey, surge, sectors:sectors.sectors, pathways:pathways.pathways});
       } catch (err) {
         if (controller.signal.aborted) return;
         setScenarioError(true);
@@ -158,50 +211,56 @@ export default function InfrastructurePage() {
     }
     const debounce = window.setTimeout(() => void fetchSurgeAndGee(), 350);
     return () => { controller.abort(); window.clearTimeout(debounce); };
-  }, [scenarioMode, system, simWindKts, simPressureHpa, simTideM, simForwardSpeed, simAngleDeg, simRainMm, scenarioRetry]);
+  }, [scenarioMode, system, simWindKts, simPressureHpa, simTideM, simForwardSpeed, simAngleDeg, simRainMm, scenarioRetry, scenarioKey]);
 
   // Handle Multi-Channel Early Warning Dispatch
   const handleExecuteDispatch = async () => {
     if (dispatchLoading || !scenarioMode) return;
     if (!surgeCalcData) { showToast("Scenario calculation unavailable. Retry before generating a draft."); return; }
+    pendingDispatch.current?.abort();
+    const controller = new AbortController();
+    pendingDispatch.current = controller;
     setDispatchLoading(true);
-    setDispatchStep(1);
-
-
-
+    setDispatchResult(null);
     try {
       const payload = {
         region: dispatchRegion,
         risk_level: dispatchRiskLevel,
-        surge: surgeCalcData?.peak_surge_height_m || surgeM,
+        surge: surgeCalcData.peak_surge_height_m,
         wind: simWindKts,
         channels: dispatchChannels,
         cyclone_name: system?.name || "Exercise cyclone"
       };
       const data = await apiFetch<DispatchResult>("/api/alerts/dispatch", {
-        method: "POST",
+        method: "POST", signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
-      {
-        setTimeout(() => {
-          setDispatchResult(data);
-          setDispatchLoading(false);
-          setDispatchStep(5);
-          showToast(`Exercise generated. No real broadcast was sent.`);
-        }, 2600);
-      }
+      if (controller.signal.aborted) return;
+      if (typeof data?.dispatch_id !== "string" || typeof data.cap_xml !== "string" ||
+          !data.sms_payload || typeof data.sms_payload !== "object" || Array.isArray(data.sms_payload) ||
+          !Object.values(data.sms_payload).every(value => value === null || typeof value === "string") ||
+          typeof data.vhf_payload !== "string" || !Array.isArray(data.municipal_briefing) ||
+          !data.municipal_briefing.every(value => typeof value === "string")) throw new Error("Invalid exercise draft");
+      setDispatchResult(data);
+      showToast("Exercise generated. No real broadcast was sent.");
     } catch {
+      if (controller.signal.aborted) return;
       setDispatchResult(null);
-      setDispatchLoading(false);
-      setDispatchStep(0);
       showToast("Exercise request failed. No broadcast was sent.");
+    } finally {
+      if (!controller.signal.aborted) setDispatchLoading(false);
     }
   };
 
   const handleGenerateBriefing = async (lang = briefingLanguage) => {
-    if (!scenarioMode) return;
+    if (!scenarioMode || !surgeCalcData) return;
+    if (!briefingModalOpen && document.activeElement instanceof HTMLElement) briefingOpener.current = document.activeElement;
+    pendingBriefing.current?.abort();
+    const controller = new AbortController();
+    pendingBriefing.current = controller;
     setBriefingData(null);
+    setBriefingError(false);
     setBriefingModalOpen(true);
     setBriefingLoading(true);
     try {
@@ -210,37 +269,37 @@ export default function InfrastructurePage() {
         category: displayCategory,
         intensity_knots: knots,
         wind_kmh: kmh,
-        surge_m: surgeCalcData?.peak_surge_height_m || surgeM,
+        surge_m: surgeCalcData.peak_surge_height_m,
         basin: system?.basin || "Bay of Bengal"
       };
       const data = await apiFetch<{briefing: Briefing}>("/api/ai/pre-landfall-briefing", {
-        method: "POST",
+        method: "POST", signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode: "SCENARIO", storm_data: stormPayload, language: lang })
       });
+      if (controller.signal.aborted) return;
+      if (typeof data?.briefing?.executive_summary !== "string" || !Array.isArray(data.briefing.action_checklist) ||
+          !data.briefing.action_checklist.every(item => typeof item === "string")) throw new Error("Invalid scenario summary");
       setBriefingData(data.briefing);
     } catch (err) {
+      if (controller.signal.aborted) return;
+      setBriefingError(true);
       console.error("Failed to generate briefing", err);
     } finally {
-      setBriefingLoading(false);
+      if (!controller.signal.aborted) setBriefingLoading(false);
     }
-  };
-
-  const handleCopyText = (txt: string) => {
-    navigator.clipboard.writeText(txt);
-    showToast("Copied to clipboard!");
   };
 
   // Filtered Substations with IVF Scores
   const analyzedSubstations = POWER_SUBSTATIONS.map(sub => ({
     ...sub,
-    ivf: calculateSubstationVulnerability(sub, simWindKts, surgeCalcData?.peak_surge_height_m ?? surgeM ?? undefined, simRainMm)
+    ivf: surgeCalcData ? calculateSubstationVulnerability(sub, simWindKts, surgeCalcData.peak_surge_height_m, simRainMm) : null
   }));
 
   const filteredSubstations = analyzedSubstations.filter(sub => {
     const matchesCriticality = infraFilter === "all" ||
-      (infraFilter === "critical" && sub.ivf.riskCategory === "CRITICAL") ||
-      (infraFilter === "high" && (sub.ivf.riskCategory === "CRITICAL" || sub.ivf.riskCategory === "HIGH"));
+      (infraFilter === "critical" && sub.ivf?.riskCategory === "CRITICAL") ||
+      (infraFilter === "high" && (sub.ivf?.riskCategory === "CRITICAL" || sub.ivf?.riskCategory === "HIGH"));
     const matchesRegion = regionFilter === "ALL" || sub.region.toLowerCase().includes(regionFilter.toLowerCase());
     const matchesSearch = !searchFilter || sub.name.toLowerCase().includes(searchFilter.toLowerCase()) || sub.type.toLowerCase().includes(searchFilter.toLowerCase());
     return matchesCriticality && matchesRegion && matchesSearch;
@@ -249,7 +308,7 @@ export default function InfrastructurePage() {
   // Filtered Routes with Vulnerability
   const analyzedRoutes = EVACUATION_ROUTES.map(r => ({
     ...r,
-    vuln: calculateRouteVulnerability(r, simWindKts, surgeCalcData?.peak_surge_height_m ?? surgeM ?? undefined, simRainMm)
+    vuln: surgeCalcData ? calculateRouteVulnerability(r, simWindKts, surgeCalcData.peak_surge_height_m, simRainMm) : null
   }));
 
   // Filtered Shelters with Suitability
@@ -267,7 +326,7 @@ export default function InfrastructurePage() {
   const totalShelterCapacity = MEDICAL_SHELTERS.reduce((acc, s) => acc + s.capacityPersons, 0);
   const totalMedicalBeds = MEDICAL_SHELTERS.reduce((acc, s) => acc + s.medicalBeds, 0);
   const totalGridCapacity = POWER_SUBSTATIONS.reduce((acc, s) => acc + s.capacityMVA, 0);
-  const criticalSubstationsCount = analyzedSubstations.filter(s => s.ivf.riskCategory === "CRITICAL").length;
+  const criticalSubstationsCount = surgeCalcData ? analyzedSubstations.filter(s => s.ivf?.riskCategory === "CRITICAL").length : null;
 
   if (loading) {
     return (
@@ -283,7 +342,7 @@ export default function InfrastructurePage() {
       <div className="glass-card p-4 border-border" role="status">
         <p>{scenarioMode ? "ILLUSTRATIVE SCENARIO — asset names, coordinates, capacities and risk calculations are unverified examples." : "Operational status not verified. No authorized infrastructure observations are connected."}</p>
         {system && <p>Source: {system.source ?? "Unavailable"} · Observation: {system.observation_time_utc ?? "Unavailable"} · {system.is_stale ? "STALE" : "Check source freshness"}</p>}
-        <label><input type="checkbox" checked={scenarioMode} onChange={e => setScenarioMode(e.target.checked)} /> Show illustrative scenario assets</label>
+        <label><input type="checkbox" checked={scenarioMode} onChange={e => changeScenarioMode(e.target.checked)} /> Show illustrative scenario assets</label>
       </div>
       {/* ── Top Header Bar ─────────────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-card p-6 border-border/80 relative overflow-hidden">
@@ -343,6 +402,7 @@ export default function InfrastructurePage() {
 
           <button
             onClick={() => handleGenerateBriefing(briefingLanguage)}
+            disabled={!surgeCalcData || briefingLoading}
             className="px-3.5 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-primary/20 cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5 animate-pulse" />
@@ -368,6 +428,7 @@ export default function InfrastructurePage() {
         <p>Scenario calculation unavailable. No complete result was received.</p>
         <button onClick={() => setScenarioRetry(value => value + 1)} className="mt-2 rounded-lg bg-primary px-3 py-2 text-primary-foreground">Retry scenario</button>
       </div>}
+      <div role="status" aria-live="polite" aria-atomic="true" className={copyStatus ? "glass-card p-3 text-sm" : "sr-only"}>{copyStatus}</div>
       {toast && (
         <div className="fixed bottom-6 right-6 bg-zinc-900 text-white border border-primary/40 px-4 py-3 rounded-xl shadow-2xl shadow-primary/20 animate-in slide-in-from-bottom-3 z-50 flex items-center gap-2.5 text-sm font-medium">
           <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
@@ -383,7 +444,7 @@ export default function InfrastructurePage() {
               <Zap className="w-5 h-5" />
             </span>
             <span className="text-xs font-mono font-bold text-red-400 bg-red-500/10 px-2 py-0.5 rounded">
-              {scenarioMode ? `${criticalSubstationsCount} scenario nodes` : "Unverified inventory"}
+              {scenarioMode ? criticalSubstationsCount === null ? "Exposure unavailable" : `${criticalSubstationsCount} critical scenario nodes` : "Unverified inventory"}
             </span>
           </div>
           <p className="text-xs text-muted-foreground font-medium">Power Transmission Grid IVF</p>
@@ -565,6 +626,10 @@ export default function InfrastructurePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredSubstations.map((sub, i) => {
               const ivf = sub.ivf;
+              if (!ivf) return <div key={sub.id} className="glass-card p-5 border-border space-y-2">
+                <h4 className="text-sm font-bold">{sub.name}</h4>
+                <p className="text-xs text-muted-foreground">Grid exposure unavailable: a complete current scenario calculation is required.</p>
+              </div>;
               return (
                 <div key={i} className="glass-card p-5 border-border space-y-3 relative overflow-hidden flex flex-col justify-between">
                   <div className="space-y-2">
@@ -578,7 +643,7 @@ export default function InfrastructurePage() {
                         ivf.riskCategory === "HIGH" ? "bg-amber-500/20 text-amber-400 border border-amber-500/40" :
                         "bg-blue-500/20 text-blue-400 border border-blue-500/40"
                       }`}>
-                        {ivf.riskScore}% {ivf.riskCategory}
+                        {ivf.riskScore}/100 illustrative {ivf.riskCategory}
                       </span>
                     </div>
 
@@ -596,13 +661,13 @@ export default function InfrastructurePage() {
                     {/* Telemetry Breakdown Grid */}
                     <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-1">
                       <div className="p-2 rounded bg-secondary/30 border border-border/40">
-                        <span className="text-[10px] text-muted-foreground block">Flood Depth:</span>
+                        <span className="text-[10px] text-muted-foreground block">Illustrative flood depth:</span>
                         <span className={`font-bold ${ivf.floodDepthM >= 1.5 ? "text-red-400" : "text-foreground"}`}>
                           {ivf.floodDepthM}m
                         </span>
                       </div>
                       <div className="p-2 rounded bg-secondary/30 border border-border/40">
-                        <span className="text-[10px] text-muted-foreground block">Wind Gust:</span>
+                        <span className="text-[10px] text-muted-foreground block">Illustrative wind exposure:</span>
                         <span className="font-bold text-foreground">{ivf.windExposureKts} kt</span>
                       </div>
                       <div className="p-2 rounded bg-secondary/30 border border-border/40">
@@ -614,8 +679,8 @@ export default function InfrastructurePage() {
                         <span className="font-bold text-foreground">{sub.coastalDistanceKm} km</span>
                       </div>
                       <div className="p-2 rounded bg-secondary/30 border border-border/40 col-span-2">
-                        <span className="text-[10px] text-muted-foreground block">DG Battery Backup:</span>
-                        <span className="font-bold text-emerald-400">{ivf.backupCapacityHrs} Hours Isolated Runtime</span>
+                        <span className="text-[10px] text-muted-foreground block">Assumed backup duration:</span>
+                        <span className="font-bold text-muted-foreground">{ivf.backupCapacityHrs} hours (unverified)</span>
                       </div>
                     </div>
                   </div>
@@ -649,15 +714,17 @@ export default function InfrastructurePage() {
               </p>
             </div>
             <div className="flex items-center gap-3 text-xs font-mono shrink-0">
-              <span className="flex items-center gap-1 text-sky-400">🔵 SAFE</span>
-              <span className="flex items-center gap-1 text-orange-400">🟠 RISKY</span>
-              <span className="flex items-center gap-1 text-red-400">🔴 INUNDATED</span>
+              <span className="text-muted-foreground">Illustrative exposure only · Road status unknown</span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {analyzedRoutes.map((route, i) => {
               const v = route.vuln;
+              if (!v) return <div key={route.id} className="glass-card p-5 border-border space-y-2">
+                <h4 className="text-sm font-bold">{route.name}</h4>
+                <p className="text-xs text-muted-foreground">Road exposure unavailable: a complete current scenario calculation is required.</p>
+              </div>;
               return (
                 <div key={i} className="glass-card p-5 border-border space-y-4 flex flex-col justify-between">
                   <div className="space-y-3">
@@ -674,11 +741,11 @@ export default function InfrastructurePage() {
 
                     <div className="space-y-2 text-xs font-mono pt-1">
                       <div className="flex justify-between py-1 border-b border-border/40">
-                        <span className="text-muted-foreground">Predicted Flood Depth:</span>
+                        <span className="text-muted-foreground">Illustrative flood depth:</span>
                         <strong className="text-foreground">{v.floodDepthM}m</strong>
                       </div>
                       <div className="flex justify-between py-1 border-b border-border/40">
-                        <span className="text-muted-foreground">ETA to Inundation:</span>
+                        <span className="text-muted-foreground">Assumed scenario inundation lag:</span>
                         <strong className="text-amber-400">{v.etaToInundationHrs} Hours</strong>
                       </div>
                       <div className="flex justify-between py-1 border-b border-border/40">
@@ -838,6 +905,7 @@ export default function InfrastructurePage() {
 
             <button
               onClick={() => handleGenerateBriefing(briefingLanguage)}
+              disabled={!surgeCalcData || briefingLoading}
               className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-bold transition-all flex items-center gap-2 shrink-0 shadow-lg shadow-primary/20 cursor-pointer"
             >
               <Sparkles className="w-4 h-4 animate-pulse" />
@@ -854,7 +922,7 @@ export default function InfrastructurePage() {
               </p>
               <p className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
                 <CheckCircle className="w-3 h-3" />
-                {surgeCalcData?.severity_level ?? "SEVERE_SURGE"}
+                {surgeCalcData?.severity_level ?? "Severity unavailable"}
               </p>
             </div>
 
@@ -906,6 +974,7 @@ export default function InfrastructurePage() {
                   </div>
                   <input
                     type="range"
+                    aria-label="Scenario sustained wind in knots"
                     min="35"
                     max="155"
                     step="5"
@@ -922,6 +991,7 @@ export default function InfrastructurePage() {
                   </div>
                   <input
                     type="range"
+                    aria-label="Scenario central pressure in hectopascals"
                     min="900"
                     max="1000"
                     step="1"
@@ -938,6 +1008,7 @@ export default function InfrastructurePage() {
                   </div>
                   <input
                     type="range"
+                    aria-label="Scenario tide height in meters"
                     min="0.2"
                     max="3.0"
                     step="0.1"
@@ -954,6 +1025,7 @@ export default function InfrastructurePage() {
                   </div>
                   <input
                     type="range"
+                    aria-label="Scenario approach angle in degrees"
                     min="30"
                     max="90"
                     step="5"
@@ -1096,7 +1168,7 @@ export default function InfrastructurePage() {
                   CycloNet local exercise templates
                 </span>
                 <h3 className="text-xl font-bold text-foreground">
-                  Automated Multi-Channel Early Warning Advisory Dispatcher
+                  Local multi-channel exercise drafts
                 </h3>
                 <p className="text-xs text-muted-foreground max-w-3xl">
                   Creates local draft templates for training. No message is transmitted, no agency is represented, and no hardware is activated.
@@ -1106,7 +1178,7 @@ export default function InfrastructurePage() {
 
             <button
               onClick={handleExecuteDispatch}
-              disabled={dispatchLoading}
+              disabled={dispatchLoading || !surgeCalcData}
               className={`px-6 py-3.5 rounded-xl font-bold text-sm tracking-wide uppercase transition-all flex items-center gap-2.5 shrink-0 cursor-pointer shadow-xl ${
                 dispatchLoading
                   ? "bg-secondary text-muted-foreground cursor-not-allowed"
@@ -1116,12 +1188,12 @@ export default function InfrastructurePage() {
               {dispatchLoading ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>Transmitting...</span>
+                  <span>Generating exercise draft...</span>
                 </>
               ) : (
                 <>
                   <Send className="w-4 h-4" />
-                  <span>🚨 Dispatch Multi-Channel Advisory</span>
+                  <span>Generate exercise draft</span>
                 </>
               )}
             </button>
@@ -1139,6 +1211,7 @@ export default function InfrastructurePage() {
                   <label className="text-muted-foreground block mb-1">Target Coastal Region:</label>
                   <input
                     type="text"
+                    aria-label="Target coastal region"
                     value={dispatchRegion}
                     onChange={(e) => setDispatchRegion(e.target.value)}
                     className="w-full px-3 py-2 bg-secondary/50 border border-border rounded-lg text-foreground font-semibold focus:outline-none focus:ring-1 focus:ring-primary"
@@ -1266,7 +1339,7 @@ export default function InfrastructurePage() {
                   <div className="flex justify-between items-center text-xs text-muted-foreground">
                     <span>OASIS CAP-CP v1.2 Standard Emergency XML Document:</span>
                     <button
-                      onClick={() => handleCopyText(dispatchResult.cap_xml)}
+                      onClick={() => void copyText(dispatchResult.cap_xml)}
                       className="px-2.5 py-1 rounded bg-secondary hover:bg-secondary/80 text-foreground font-mono flex items-center gap-1 text-xs cursor-pointer"
                     >
                       <Copy className="w-3 h-3" /> Copy XML
@@ -1284,7 +1357,7 @@ export default function InfrastructurePage() {
                     <div key={lang} className="p-4 rounded-xl bg-secondary/30 border border-border space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-xs font-bold uppercase tracking-wider text-primary">{lang} Broadcast</span>
-                        <button onClick={() => handleCopyText(txt ?? "Translation unavailable")} className="text-xs text-muted-foreground hover:text-foreground">
+                        <button aria-label={`Copy ${lang} exercise text`} onClick={() => void copyText(txt ?? "Translation unavailable")} className="text-xs text-muted-foreground hover:text-foreground">
                           <Copy className="w-3 h-3" />
                         </button>
                       </div>
@@ -1343,10 +1416,13 @@ export default function InfrastructurePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {PARAMETRIC_INSURANCE_TRIGGERS.map((trigger, i) => (
-              <div
+              <button
+                type="button"
+                aria-label={`Select ${trigger.tier}`}
+                aria-pressed={insuranceSimulationTier === i}
                 key={i}
-                onClick={() => setInsuranceSimulationTier(i)}
-                className={`glass-card p-5 border cursor-pointer transition-all space-y-3 ${
+                onClick={() => { setInsuranceSimulationTier(i); setThresholdResult(null); }}
+                className={`glass-card text-left p-5 border cursor-pointer transition-all space-y-3 ${
                   insuranceSimulationTier === i
                     ? "border-primary ring-1 ring-primary bg-primary/5"
                     : "border-border hover:border-primary/50"
@@ -1357,7 +1433,7 @@ export default function InfrastructurePage() {
                     {trigger.tier}
                   </span>
                   <span className="text-xs font-black text-emerald-400 font-mono">
-                    {trigger.payoutPercentage}% Payout
+                    {trigger.payoutPercentage}% illustrative share
                   </span>
                 </div>
 
@@ -1366,33 +1442,36 @@ export default function InfrastructurePage() {
                 <div className="space-y-1.5 text-xs text-muted-foreground font-mono pt-1 border-t border-border/40">
                   <p>Wind Trigger: <strong className="text-foreground">&ge; {trigger.windThresholdKnots} kt</strong></p>
                   <p>Surge Trigger: <strong className="text-foreground">&ge; {trigger.surgeThresholdMeters}m</strong></p>
-                  <p>Window: <strong className="text-primary">{trigger.disbursementWindow}</strong></p>
+                  <p>Assumed example window: <strong className="text-primary">{trigger.disbursementWindow}</strong></p>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
 
           <div className="glass-card p-6 border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <h4 className="font-bold text-sm text-foreground">Digital Parametric Liquidity Disbursement (Simulation)</h4>
+                <h4 className="font-bold text-sm text-foreground">Illustrative threshold comparison</h4>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 font-mono">SANDBOX DRILL</span>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">Illustrative simulation of anticipatory funding release. No actual financial transactions or bank transfers are executed.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">This educational rule requires both the wind and surge thresholds. No policy eligibility, payout or transfer is established. All pools and timing windows are hypothetical.</p>
+              <p role="status" aria-live="polite" className="mt-2 text-sm">
+                {!surgeCalcData ? "Evaluation unavailable: a complete current scenario calculation is required."
+                  : currentThresholdResult === "MET" ? "Illustrative thresholds met."
+                  : currentThresholdResult === "NOT_MET" ? "Illustrative thresholds not met."
+                  : currentThresholdResult === "UNAVAILABLE" ? "Evaluation unavailable: invalid inputs."
+                  : "Not evaluated for the current inputs."}
+              </p>
             </div>
             <button
               onClick={() => {
-                setIsSimulatingPayout(true);
-                setTimeout(() => {
-                  setIsSimulatingPayout(false);
-                  setPayoutSuccess(true);
-                  showToast(`[SANDBOX SIMULATION] Parametric Liquidity Trigger Evaluated for ${PARAMETRIC_INSURANCE_TRIGGERS[insuranceSimulationTier].hypotheticalPool}. (No live funds disbursed)`);
-                }, 1400);
+                if (!surgeCalcData) return;
+                setThresholdResult({key:thresholdKey, value:evaluateIllustrativeTrigger(SCENARIO_PARAMETRIC_INSURANCE_TRIGGERS[insuranceSimulationTier], simWindKts, surgeCalcData.peak_surge_height_m)});
               }}
-              disabled={isSimulatingPayout}
+              disabled={!surgeCalcData}
               className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all cursor-pointer shadow-lg shadow-emerald-600/20 whitespace-nowrap"
             >
-              {isSimulatingPayout ? "Evaluating Trigger Criteria..." : "Simulate Sandbox Payout Trigger"}
+              Evaluate illustrative thresholds
             </button>
           </div>
         </div>
@@ -1401,15 +1480,15 @@ export default function InfrastructurePage() {
       {/* ── Source and scenario briefing modal ─────────────────── */}
       {briefingModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="glass-card w-full max-w-3xl border-primary/40 p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+          <div ref={briefingDialog} role="dialog" aria-modal="true" aria-labelledby="scenario-summary-title" className="glass-card w-full max-w-3xl border-primary/40 p-6 space-y-4 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-primary animate-pulse" />
-                <h3 className="text-lg font-bold text-foreground">
+                <h3 id="scenario-summary-title" className="text-lg font-bold text-foreground">
                   Deterministic scenario summary
                 </h3>
               </div>
-              <button onClick={() => setBriefingModalOpen(false)} className="text-muted-foreground hover:text-foreground cursor-pointer">
+              <button aria-label="Close scenario summary" onClick={closeBriefing} className="text-muted-foreground hover:text-foreground cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1417,7 +1496,7 @@ export default function InfrastructurePage() {
             {briefingLoading ? (
               <div className="py-12 flex flex-col items-center justify-center gap-3">
                 <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                <p className="text-xs text-muted-foreground font-mono">Synthesizing multimodal satellite imagery & infrastructure exposure...</p>
+                <p className="text-xs text-muted-foreground font-mono">Preparing a summary of the selected scenario inputs. No satellite observations are being analyzed.</p>
               </div>
             ) : briefingData ? (
               <div className="space-y-4 text-xs">
@@ -1427,7 +1506,7 @@ export default function InfrastructurePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <h4 className="font-bold text-foreground uppercase tracking-wider text-xs">Direct Magistrate Action Directives</h4>
+                  <h4 className="font-bold text-foreground uppercase tracking-wider text-xs">Scenario review checklist</h4>
                   <ul className="space-y-1.5 list-disc list-inside text-muted-foreground">
                     {briefingData.action_checklist?.map((act: string, idx: number) => (
                       <li key={idx} className="text-foreground">{act}</li>
@@ -1436,7 +1515,10 @@ export default function InfrastructurePage() {
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">Click Generate to initialize Gemini briefing.</p>
+              <div role="status" className="text-xs text-muted-foreground">
+                <p>{briefingError ? "Scenario summary unavailable. No complete result was received." : "No scenario summary has been generated."}</p>
+                <button onClick={() => handleGenerateBriefing()} className="mt-3 rounded-lg bg-primary px-3 py-2 text-primary-foreground">Retry scenario summary</button>
+              </div>
             )}
           </div>
         </div>

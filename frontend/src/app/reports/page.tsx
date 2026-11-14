@@ -6,6 +6,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { FileText, Bell, AlertOctagon, AlertTriangle, Info, Download, Radio, ShieldAlert, Waves, Wind, CloudRain, Anchor, MapPin, CheckCircle2, Copy, Send, RefreshCw, Layers, Siren, PhoneCall, Search, ShieldCheck, Building2 } from "lucide-react";
 import { useActiveCyclone } from "@/hooks/useActiveCyclone";
 import { useDataSource } from "@/hooks/useDataSource";
+import { useClipboard } from "@/hooks/useClipboard";
 import { apiFetch } from "@/lib/api";
 import { POWER_SUBSTATIONS, EVACUATION_ROUTES, MEDICAL_SHELTERS, PARAMETRIC_INSURANCE_TRIGGERS, COASTAL_INUNDATION_ZONES } from "@/lib/infrastructureData";
 
@@ -50,6 +51,7 @@ interface ReportCatalogItem {
 }
 
 export default function ReportsPage() {
+  const {copyText, copyStatus} = useClipboard();
   const { selectedCycloneId, selectCyclone } = useActiveCyclone();
   const {
     getConvertedKnots,
@@ -254,11 +256,6 @@ export default function ReportsPage() {
     showToast("Downloaded Complete JSON Meteorological Report");
   };
 
-  const handleCopyBulletin = (text: string) => {
-    navigator.clipboard.writeText(text);
-    showToast("Experimental Analysis Copied to Clipboard!");
-  };
-
   // Generate an exercise document; no provider or hardware delivery is performed.
   const handleDispatchSimulation = async () => {
     if (dispatchStatus === "dispatching") return;
@@ -419,6 +416,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Toast Notification */}
+      <div role="status" aria-live="polite" aria-atomic="true" className={copyStatus ? "glass-card p-3 text-sm" : "sr-only"}>{copyStatus}</div>
       {toast && (
         <div className="fixed bottom-6 right-6 bg-zinc-900 text-white border border-primary/40 px-4 py-3 rounded-xl shadow-2xl shadow-primary/20 animate-in slide-in-from-bottom-3 z-50 flex items-center gap-2.5 text-sm font-medium">
           <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
@@ -749,10 +747,13 @@ export default function ReportsPage() {
             {/* List of Bulletins */}
             <div className="space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
               {filteredBulletins.map((b) => (
-                <div
+                <button
+                  type="button"
+                  aria-label={`Select bulletin ${b.number}`}
+                  aria-pressed={selectedBulletin?.id === b.id}
                   key={b.id}
                   onClick={() => setSelectedBulletin(b)}
-                  className={`p-4 rounded-xl border transition-all cursor-pointer ${
+                  className={`w-full text-left p-4 rounded-xl border transition-all cursor-pointer ${
                     selectedBulletin?.id === b.id
                       ? "bg-primary/10 border-primary shadow-md ring-1 ring-primary/30"
                       : "bg-secondary/20 hover:bg-secondary/40 border-border"
@@ -773,7 +774,7 @@ export default function ReportsPage() {
                       {b.alert_level}
                     </span>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -799,7 +800,7 @@ export default function ReportsPage() {
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleCopyBulletin(selectedBulletin.full_text)}
+                      onClick={() => void copyText(selectedBulletin.full_text)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary/80 hover:bg-secondary border border-border text-xs font-medium text-foreground transition-colors"
                     >
                       <Copy className="w-3.5 h-3.5" /> Copy
