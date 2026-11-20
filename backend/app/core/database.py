@@ -8,6 +8,10 @@ from app.core.runtime import runtime_environment
 logger = logging.getLogger(__name__)
 
 raw_db_url = os.getenv("DATABASE_URL", "sqlite:///./cyclone_tracker.db")
+if raw_db_url.startswith("sqlite:///./") or raw_db_url == "sqlite:///cyclone_tracker.db":
+    canonical_db = os.path.normpath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "cyclone_tracker.db"))
+    raw_db_url = f"sqlite:///{canonical_db.replace(os.sep, '/')}"
+
 if runtime_environment() == 'production' and not raw_db_url.startswith(('postgres://', 'postgresql://', 'postgresql+psycopg2://')):
     raise RuntimeError("Production requires PostgreSQL; SQLite fallback is forbidden")
 

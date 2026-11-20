@@ -371,12 +371,36 @@ export function ChatbotWidget() {
       
       let uiContext: Record<string, unknown> | null = null;
       if (typeof window !== "undefined") {
-        uiContext = {page:window.location.pathname.slice(0,80)};
+        let storedId: string | null = null;
+        let storedName: string | null = null;
+        try {
+          storedId = window.localStorage.getItem("cyclonet_selected_cyclone_id");
+          storedName = window.localStorage.getItem("cyclonet_selected_cyclone_name");
+        } catch {
+          // ignore storage access errors
+        }
+        uiContext = {
+          page: window.location.pathname.slice(0, 80),
+          selectedCycloneId: storedId,
+          selectedCycloneName: storedName
+        };
+      }
+
+      let fetchSignal: AbortSignal = controller.signal;
+      let requestTimeout: ReturnType<typeof setTimeout> | undefined;
+      if (typeof AbortSignal !== "undefined" && typeof AbortSignal.any === "function" && typeof AbortSignal.timeout === "function") {
+        try {
+          fetchSignal = AbortSignal.any([controller.signal, AbortSignal.timeout(65000)]);
+        } catch {
+          fetchSignal = controller.signal;
+        }
+      } else {
+        requestTimeout = setTimeout(() => controller.abort(), 65000);
       }
 
       const res = await fetch(`${getApiBaseUrl()}/api/chat`, {
         method: "POST",
-        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(65000)]),
+        signal: fetchSignal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: text,
@@ -384,6 +408,7 @@ export function ChatbotWidget() {
           ui_context: uiContext
         })
       });
+      if (requestTimeout) clearTimeout(requestTimeout);
 
       if (!res.ok) {
         throw new Error(`Server returned ${res.status}`);
@@ -400,7 +425,8 @@ export function ChatbotWidget() {
         timestamp: data.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, assistantMessage]);
-    } catch {
+    } catch (err) {
+      console.error("[ChatbotWidget Error]", err);
       if (pendingRequest.current !== controller) return;
       setMessages(prev => [
         ...prev,

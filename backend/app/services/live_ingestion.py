@@ -212,6 +212,13 @@ class LiveIngestionService:
 
             systems, retired = reconcile(self.live_systems, results)
             for system in systems:
+                if (system.get("name") and re.match(r"^Cyclone \d+[AB]$", system["name"])) or not system.get("name"):
+                    try:
+                        news_name = await self._fetch_meteorological_news_alerts()
+                        if news_name:
+                            system["name"] = f"Cyclone {news_name}"
+                    except Exception:
+                        pass
                 self._calibrate_system_telemetry(system)
             self.live_systems = systems
             healthy_count = sum(r.status in (FeedStatus.HEALTHY, FeedStatus.NO_ACTIVE_STORMS) for r in results)
@@ -257,8 +264,10 @@ class LiveIngestionService:
         Fixes Problem #11 (hardcoded scraper coordinates).
         """
         patterns = [
+            r"latitude\s*(\d{1,2}(?:\.\d+)?)\s*°?\s*N\s*(?:and|,|\s+)\s*longitude\s*(\d{2,3}(?:\.\d+)?)\s*°?\s*E",
             r"(?:near\s+)?lat(?:itude)?\.?\s*(\d{1,2}(?:\.\d+)?)\s*°?\s*N[^\d\n\r]{1,40}lon(?:g(?:itude)?)?\.?\s*(\d{2,3}(?:\.\d+)?)\s*°?\s*E",
-            r"(\d{1,2}(?:\.\d+)?)\s*°?\s*N\s*(?:and|,|\/)\s*(\d{2,3}(?:\.\d+)?)\s*°?\s*E",
+            r"(?:near|posit:?|position:?|at)?\s*(\d{1,2}(?:\.\d+)?)\s*°?\s*N[\s,/and]+\s*(\d{2,3}(?:\.\d+)?)\s*°?\s*E",
+            r"(\d{1,2}(?:\.\d+)?)\s*°?\s*N\s*(?:and|,|\/|\s)\s*(\d{2,3}(?:\.\d+)?)\s*°?\s*E",
             r"center\s+at\s+(\d{1,2}(?:\.\d+)?)\s*N[,\s]+(\d{2,3}(?:\.\d+)?)\s*E",
             r"position\s+near\s+(\d{1,2}(?:\.\d+)?)\s*N\s+(\d{2,3}(?:\.\d+)?)\s*E",
         ]
@@ -332,17 +341,6 @@ class LiveIngestionService:
                     soup = BeautifulSoup(resp.text, "html.parser")
                     text_content = soup.get_text()
 
-                    # This adapter supports one dated advisory only. A landing page
-                    # containing multiple systems/positions is not an observation.
-                    # Document headings describe the bulletin, not a storm named BULLETIN.
-                    advisory_body = re.sub(r"CYCLONIC STORM BULLETIN\s+NO\.\s*\d+", "", text_content, flags=re.IGNORECASE)
-                    names = set(n.upper() for n in re.findall(r"Cyclonic Storm\s+['\"]?([A-Za-z0-9-]+)", advisory_body, re.IGNORECASE))
-                    positions = set(re.findall(r"(\d{1,2}(?:\.\d+)?)\s*°?\s*N.*?(\d{2,3}(?:\.\d+)?)\s*°?\s*E", text_content, re.IGNORECASE))
-                    dates = set(re.findall(r"20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|\+00:00)", text_content))
-                    if len(names) > 1 or len(positions) > 1 or len(dates) != 1:
-                        return assess_feed(source="IMD_RSMC", status=FeedStatus.DEGRADED,
-                            systems=[], error="Unsupported or ambiguous advisory scope", source_url=url)
-
                     bulletin_indicators = [
                         r"TROPICAL CYCLONE ADVISORY NO\.",
                         r"CYCLONIC STORM BULLETIN NO\.",
@@ -351,24 +349,34 @@ class LiveIngestionService:
                     ]
                     has_active_bulletin = any(re.search(ind, text_content, re.IGNORECASE) for ind in bulletin_indicators)
 
-                    keywords = [
-                        r"Super Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
-                        r"Extremely Severe Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
-                        r"Very Severe Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
-                        r"Severe Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
-                        r"Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
-                        r"Deep Depression\s+over\s+([A-Za-z0-9\/\-\s]+)"
-                    ]
-
-                    doc_id = None
-                    doc_match = re.search(r"((?:TROPICAL CYCLONE ADVISORY|CYCLONIC STORM BULLETIN|SPECIAL MESSAGE)\s+NO\.\s*\d+)", text_content, re.IGNORECASE)
-                    if doc_match:
-                        doc_id = doc_match.group(1).strip()
-
-                    date_match = re.search(r"\b(20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|\+00:00))", text_content)
-                    obs_time_dt = parse_time(date_match.group(1)) if date_match else None
-
                     if has_active_bulletin:
+                        # This adapter supports one dated advisory only. A landing page
+                        # containing multiple systems/positions is not an observation.
+                        advisory_body = re.sub(r"CYCLONIC STORM BULLETIN\s+NO\.\s*\d+", "", text_content, flags=re.IGNORECASE)
+                        names = set(n.upper() for n in re.findall(r"Cyclonic Storm\s+['\"]?([A-Za-z0-9-]+)", advisory_body, re.IGNORECASE))
+                        positions = set(re.findall(r"(\d{1,2}(?:\.\d+)?)\s*°?\s*N.*?(\d{2,3}(?:\.\d+)?)\s*°?\s*E", text_content, re.IGNORECASE))
+                        dates = set(re.findall(r"20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|\+00:00)", text_content))
+                        if len(names) > 1 or len(positions) > 1 or len(dates) != 1:
+                            return assess_feed(source="IMD_RSMC", status=FeedStatus.DEGRADED,
+                                systems=[], error="Unsupported or ambiguous advisory scope", source_url=url)
+
+                        keywords = [
+                            r"Super Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
+                            r"Extremely Severe Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
+                            r"Very Severe Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
+                            r"Severe Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
+                            r"Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
+                            r"Deep Depression\s+over\s+([A-Za-z0-9\/\-\s]+)"
+                        ]
+
+                        doc_id = None
+                        doc_match = re.search(r"((?:TROPICAL CYCLONE ADVISORY|CYCLONIC STORM BULLETIN|SPECIAL MESSAGE)\s+NO\.\s*\d+)", text_content, re.IGNORECASE)
+                        if doc_match:
+                            doc_id = doc_match.group(1).strip()
+
+                        date_match = re.search(r"\b(20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|\+00:00))", text_content)
+                        obs_time_dt = parse_time(date_match.group(1)) if date_match else None
+
                         for kw in keywords:
                             match = re.search(kw, advisory_body, re.IGNORECASE)
                             if match:
@@ -394,7 +402,6 @@ class LiveIngestionService:
                                 pressure_val = int(p_match.group(1)) if p_match else None
 
                                 speed_matches = re.findall(r"(?:MOVEMENT\s+SPEED|MOVED|MOVING\s+AT)\s*(\d{1,3}(?:\.\d+)?)\s*(KMPH|KM/H|KNOTS|KT)\b", text_content, re.IGNORECASE)
-                                # More than one speed could refer to wind/another fix.
                                 speed_raw, speed_unit = (float(speed_matches[0][0]), speed_matches[0][1].upper()) if len(speed_matches) == 1 else (None, None)
                                 speed_val = speed_raw * (1.852 if speed_unit in ("KT", "KNOTS") else 1) if speed_raw is not None else None
 
@@ -438,35 +445,137 @@ class LiveIngestionService:
                         if systems:
                             self.sources_status["IMD_RSMC"] = "HEALTHY"
                             self.last_successful_sync["IMD_RSMC"] = datetime.datetime.utcnow()
-                            return assess_feed(
-                                source="IMD_RSMC",
-                                status=FeedStatus.HEALTHY,
-                                systems=systems,
-                                observed_at=obs_time_dt,
-                                document_id=doc_id,
-                                source_url=url
-                            )
+                            return assess_feed(source="IMD_RSMC", status=FeedStatus.HEALTHY, systems=systems,
+                                               observed_at=obs_time_dt, document_id=doc_id, source_url=url)
                         else:
                             self.sources_status["IMD_RSMC"] = "NO_ACTIVE_STORMS"
                             self.last_successful_sync["IMD_RSMC"] = datetime.datetime.utcnow()
-                            return assess_feed(
-                                source="IMD_RSMC",
-                                status=FeedStatus.NO_ACTIVE_STORMS,
-                                systems=[],
-                                observed_at=obs_time_dt,
-                                document_id=doc_id,
-                                source_url=url
-                            )
-                    else:
-                        self.sources_status["IMD_RSMC"] = "NO_ACTIVE_STORMS"
-                        self.last_successful_sync["IMD_RSMC"] = datetime.datetime.utcnow()
-                        return assess_feed(
-                            source="IMD_RSMC",
-                            status=FeedStatus.NO_ACTIVE_STORMS,
-                            systems=[],
-                            observed_at=obs_time_dt,
-                            source_url=url
-                        )
+                            return assess_feed(source="IMD_RSMC", status=FeedStatus.NO_ACTIVE_STORMS, systems=[],
+                                               observed_at=obs_time_dt, document_id=doc_id, source_url=url)
+
+                    # Real portal landing page parsing: Check for active bulletin link or banners
+                    tip = soup.find("dd", class_="tipMid")
+                    tip_text = tip.get_text() if tip else ""
+                    marquee_text = " ".join(m.get_text() for m in soup.find_all("marquee"))
+                    combined_banner = f"{tip_text} {marquee_text}".strip()
+
+                    # Find archive PDF bulletin if linked
+                    pdf_link = None
+                    if tip:
+                        a_elem = tip.find("a")
+                        if a_elem and a_elem.get("href"):
+                            pdf_link = a_elem.get("href")
+                    if not pdf_link:
+                        for a_elem in soup.find_all("a"):
+                            href = a_elem.get("href", "")
+                            if "uploads/archive" in href and href.endswith(".pdf"):
+                                pdf_link = href
+                                break
+
+                    if pdf_link:
+                        from urllib.parse import urljoin
+                        pdf_url = urljoin(url, pdf_link)
+                        try:
+                            pdf_resp = await client.get(pdf_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+                            if pdf_resp.status_code == 200:
+                                try:
+                                    import io, pdfplumber
+                                    with pdfplumber.open(io.BytesIO(pdf_resp.content)) as pdf:
+                                        p_text = pdf.pages[0].extract_text() or ""
+                                        doc_m = re.search(r"((?:NATIONAL BULLETIN|TROPICAL CYCLONE ADVISORY|CYCLONIC STORM BULLETIN|SPECIAL MESSAGE)\s+NO\.\s*\d+(?:\s*\([^)]+\))?)", p_text, re.IGNORECASE)
+                                        p_doc_id = doc_m.group(1).strip() if doc_m else "NATIONAL BULLETIN"
+
+                                        name_m = re.search(r'(?:Cyclonic Storm|Cyclone)\s*[“"\'\‘]([A-Za-z]{3,15})[”"\'\’]', p_text, re.IGNORECASE)
+                                        if not name_m:
+                                            name_m = re.search(r'[“"\'\‘]([A-Za-z]{3,15})[”"\'\’]', p_text)
+                                        p_name = name_m.group(1).capitalize() if name_m else None
+
+                                        p_cat = "Depression"
+                                        for c in ["Super Cyclonic Storm", "Extremely Severe Cyclonic Storm", "Very Severe Cyclonic Storm", "Severe Cyclonic Storm", "Cyclonic Storm", "Deep Depression", "Depression"]:
+                                            if re.search(r'\b' + c + r'\b', p_text, re.IGNORECASE):
+                                                p_cat = c
+                                                break
+
+                                        p_coords = self._extract_coordinates_from_bulletin(p_text)
+                                        if not p_coords:
+                                            table_m = re.search(r'(\d{1,2}\.\d+)\/(\d{2,3}\.\d+)', p_text)
+                                            if table_m:
+                                                p_coords = (float(table_m.group(1)), float(table_m.group(2)))
+
+                                        p_speed_kmph = None
+                                        s_m = re.search(r'(?:speed\s+of|moved\s+at)\s*(\d{1,2})\s*kmph', p_text, re.IGNORECASE)
+                                        if s_m:
+                                            p_speed_kmph = float(s_m.group(1))
+
+                                        p_dir = None
+                                        d_m = re.search(r'moved\s+(northwards|southwards|eastwards|westwards|north-northwestward|northwestwards|northeastwards)', p_text, re.IGNORECASE)
+                                        if d_m:
+                                            dir_map = {'northwards':'N', 'southwards':'S', 'eastwards':'E', 'westwards':'W', 'northwestwards':'NW', 'northeastwards':'NE', 'north-northwestward':'NNW'}
+                                            p_dir = dir_map.get(d_m.group(1).lower())
+
+                                        p_knots = None
+                                        w_m = re.search(r'(\d{2,3})(?:-(\d{2,3}))?\s*gusting\s+to\s+(\d{2,3})', p_text, re.IGNORECASE)
+                                        if w_m:
+                                            p_kmph = float(w_m.group(2) or w_m.group(1))
+                                            p_knots = int(p_kmph / 1.852)
+
+                                        p_obs_dt = None
+                                        t_m = re.search(r'centered\s+at\s+(\d{4})\s*hours\s+IST\s+of\s+today,?\s*the\s+(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+),?\s*(\d{4})', p_text, re.IGNORECASE)
+                                        if t_m:
+                                            hhmm, day, month_str, yr = t_m.groups()
+                                            hh, mm = int(hhmm[:2]), int(hhmm[2:])
+                                            try:
+                                                m_num = datetime.datetime.strptime(month_str.capitalize(), '%B').month
+                                                ist_dt = datetime.datetime(int(yr), m_num, int(day), hh, mm, tzinfo=datetime.timezone.utc)
+                                                p_obs_dt = ist_dt - datetime.timedelta(hours=5, minutes=30)
+                                            except Exception:
+                                                p_obs_dt = None
+
+                                        if p_coords:
+                                            sys_name = f"Cyclone {p_name}" if p_name else "Deep Depression (IMD Fix)"
+                                            sys_id = f"LIVE-IMD-{p_name.upper()}" if p_name else f"LIVE-IMD-{datetime.datetime.utcnow().strftime('%Y%m%d%H')}"
+                                            systems.append({
+                                                "id": sys_id,
+                                                "name": sys_name,
+                                                "basin": "Bay of Bengal" if "bay" in p_text.lower() or "bob" in p_doc_id.lower() or p_coords[1] > 78 else "Arabian Sea",
+                                                "source": "IMD RSMC New Delhi (Official National Bulletin)",
+                                                "is_live_telemetry": True,
+                                                "category": p_cat,
+                                                "intensity_knots": p_knots,
+                                                "lat": p_coords[0],
+                                                "lon": p_coords[1],
+                                                "central_pressure_hpa": None,
+                                                "movement_speed_kmph": p_speed_kmph,
+                                                "movement_direction": p_dir,
+                                                "wind_convention": "3_MIN_SUSTAINED" if p_knots is not None else "UNAVAILABLE",
+                                                "data_quality": {
+                                                    "central_pressure": "UNAVAILABLE",
+                                                    "movement_speed": "OBSERVED" if p_speed_kmph is not None else "UNAVAILABLE",
+                                                    "movement_direction": "OBSERVED" if p_dir else "UNAVAILABLE",
+                                                    "wind_intensity": "OBSERVED" if p_knots is not None else "UNAVAILABLE",
+                                                    "center_fix": "OBSERVED"
+                                                },
+                                                "observation_time_utc": p_obs_dt.isoformat() if p_obs_dt else None
+                                            })
+                                            self.sources_status["IMD_RSMC"] = "HEALTHY"
+                                            self.last_successful_sync["IMD_RSMC"] = datetime.datetime.utcnow()
+                                            return assess_feed(source="IMD_RSMC", status=FeedStatus.HEALTHY, systems=systems,
+                                                               observed_at=p_obs_dt, document_id=p_doc_id, source_url=url)
+                                except Exception as pdf_err:
+                                    event_logger.warning(f"IMD PDF extraction error: {pdf_err}")
+                        except Exception:
+                            pass
+
+                    # If no valid active bulletin was extracted, check if dated calm is verified
+                    # Generic pages and undated text cannot verify calm (LIVE-05, FIX-001)
+                    self.sources_status["IMD_RSMC"] = "DEGRADED"
+                    return assess_feed(
+                        source="IMD_RSMC",
+                        status=FeedStatus.DEGRADED,
+                        systems=[],
+                        error="No dated authoritative evidence of basin-wide calm",
+                        source_url=url
+                    )
                 else:
                     self.sources_status["IMD_RSMC"] = f"FAILED (HTTP {resp.status_code})"
                     return assess_feed(
@@ -497,10 +606,21 @@ class LiveIngestionService:
         url = "https://www.gdacs.org/xml/rss.xml"
         try:
             async with FeedClient(timeout=8.0, follow_redirects=True) as client:
-                resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+                resp = await client.get(url, headers={"User-Agent": "CycloneTracker/1.0 (Cyclone Research and Monitoring; +https://github.com/8ernity/CycloneNet)"})
                 if resp.status_code == 200:
+                    content_type = resp.headers.get("content-type", "").lower()
+                    if "html" in content_type or b"<title>Request Rejected</title>" in resp.content:
+                        self.sources_status["GDACS_UN"] = "UNAVAILABLE (WAF Challenge)"
+                        return assess_feed(
+                            source="GDACS_UN",
+                            status=FeedStatus.UNAVAILABLE,
+                            systems=[],
+                            error="GDACS WAF challenge page returned",
+                            source_url=url
+                        )
                     try:
-                        root = ET.fromstring(resp.content)
+                        xml_str = resp.content.decode("utf-8-sig", errors="ignore").strip()
+                        root = ET.fromstring(xml_str)
                     except Exception as parse_err:
                         self.sources_status["GDACS_UN"] = f"FAILED (XML Parse Error: {type(parse_err).__name__})"
                         return assess_feed(
@@ -548,12 +668,13 @@ class LiveIngestionService:
                                             knots = None
                                             cat = "Cyclonic Disturbance (Unclassified Wind)"
                                         
-                                        name_match = re.search(r"cyclone\s+([A-Za-z0-9\-]+)", title, re.IGNORECASE)
+                                        name_match = re.search(r"(?:tropical cyclone|cyclone)\s+([A-Za-z0-9\-]+)", title, re.IGNORECASE)
                                         raw_name = name_match.group(1).strip() if name_match else "BOB-05"
+                                        clean_name = re.sub(r"-\d+$", "", raw_name).strip()
                                         
                                         systems.append({
-                                            "id": f"LIVE-GDACS-{raw_name.upper()}",
-                                            "name": "Deep Depression (BOB-05)" if "one" in raw_name.lower() or "bob" in raw_name.lower() else f"Cyclone {raw_name.capitalize()}",
+                                            "id": f"LIVE-GDACS-{clean_name.upper()}",
+                                            "name": "Deep Depression (BOB-05)" if "one" in clean_name.lower() or "bob" in clean_name.lower() else f"Cyclone {clean_name.capitalize()}",
                                             "basin": basin,
                                             "source": "GDACS (United Nations / EC Real-Time Satellite Feed)",
                                             "is_live_telemetry": True,
@@ -624,7 +745,7 @@ class LiveIngestionService:
         url = "https://www.metoc.navy.mil/jtwc/rss/jtwc.rss"
 
         try:
-            async with FeedClient(timeout=6.0, follow_redirects=True) as client:
+            async with FeedClient(timeout=8.0, follow_redirects=True) as client:
                 resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
                 if resp.status_code == 200:
                     text_content = resp.text
@@ -658,30 +779,62 @@ class LiveIngestionService:
                         item_body = match.group(3)
                         basin = "Bay of Bengal" if storm_code.endswith("B") else "Arabian Sea"
 
-                        coords = self._extract_coordinates_from_bulletin(item_body)
+                        target_text = item_body
+                        link_m = re.search(r"href=['\"]([^'\"]*?(?:io|sh|wp)\d+web\.txt)['\"]", item_body, re.IGNORECASE)
+                        if link_m:
+                            w_url = link_m.group(1)
+                            if not w_url.startswith("http"):
+                                w_url = "https://www.metoc.navy.mil/jtwc/products/" + w_url.split("/")[-1]
+                            try:
+                                resp_w = await client.get(w_url, headers={"User-Agent": "Mozilla/5.0"})
+                                if resp_w.status_code == 200:
+                                    target_text = resp_w.text
+                            except Exception:
+                                pass
+
+                        coords = self._extract_coordinates_from_bulletin(target_text)
                         if not coords:
                             continue
 
                         lat_val, lon_val = coords
 
-                        w_match = re.search(r"(?:MAX(?:IMUM)?\s+SUSTAINED\s+WINDS?|WINDS?)\s+(\d{2,3})\s*KT", item_body, re.IGNORECASE)
+                        # Extract storm name
+                        name_m = re.search(r'TROPICAL CYCLONE\s+\d+[AB]\s*(?:\(([^)]+)\))?', target_text, re.IGNORECASE)
+                        named = name_m.group(1).strip() if (name_m and name_m.group(1)) else None
+                        if not named:
+                            name_m2 = re.search(r'Tropical Cyclone\s+\d+[AB]\s*\(([^)]+)\)', item_body, re.IGNORECASE)
+                            named = name_m2.group(1).strip() if name_m2 else None
+                        storm_name = f"Cyclone {named.capitalize()}" if named else f"Cyclone {storm_code}"
+
+                        w_match = re.search(r"(?:MAX(?:IMUM)?\s+SUSTAINED\s+WINDS?|WINDS?)\s*(?:-|IS)?\s*(\d{2,3})\s*KT", target_text, re.IGNORECASE)
                         knots_val = int(w_match.group(1)) if w_match else None
 
-                        adv_match = re.search(r"WARNING\s+(?:NR|NO\.?)\s*(\d+)", item_body, re.IGNORECASE)
+                        adv_match = re.search(r"WARNING\s+(?:NR|NO\.?)\s*(\d+)", target_text, re.IGNORECASE)
                         advisory_no = adv_match.group(1) if adv_match else None
 
-                        p_match = re.search(r"(?:ESTIMATED\s+)?CENTRAL\s+PRESSURE\s+(\d{3,4})\s*(?:MB|HPA)", item_body, re.IGNORECASE)
+                        p_match = re.search(r"(?:ESTIMATED\s+)?CENTRAL\s+PRESSURE(?:\s+AT\s+\S+)?\s+(?:IS\s+)?(\d{3,4})\s*(?:MB|HPA)", target_text, re.IGNORECASE)
                         pressure_val = int(p_match.group(1)) if p_match else None
 
-                        m_match = re.search(r"PRESENT\s+MOVEMENT\s+(?:TOWARD\s+)?([A-Z0-9\s°]+?)\s+AT\s+(\d{1,2})\s*KT", item_body, re.IGNORECASE)
+                        m_match = re.search(r"(?:PRESENT\s+MOVEMENT|MOVEMENT\s+PAST\s+\w+\s+HOURS)\s*(?:-|TOWARD\s+)?\s*([A-Z0-9\s°]+?)\s+AT\s+(\d{1,2})\s*KTS?", target_text, re.IGNORECASE)
                         motion_dir = m_match.group(1).strip() if m_match else None
                         motion_speed_kmph = int(float(m_match.group(2)) * 1.852) if m_match else None
+
+                        # Extract observation timestamp
+                        obs_time_str = None
+                        pos_m = re.search(r"WARNING POSITION:\s*(\d{6}Z)", target_text, re.IGNORECASE)
+                        if pos_m:
+                            obs_time_str = pos_m.group(1)
+                        if not obs_time_str:
+                            issued_m = re.search(r"Issued at\s+(\d{1,2}/\d{4}Z)", item_body, re.IGNORECASE)
+                            if issued_m:
+                                obs_time_str = issued_m.group(1)
+                        obs_dt = parse_time(obs_time_str) if obs_time_str else (parse_time(issue) if issue else datetime.datetime.now(datetime.timezone.utc))
 
                         cat = "Deep Depression" if (knots_val and knots_val < 40) else ("Cyclonic Storm" if (knots_val and knots_val < 55) else "Severe Cyclonic Storm") if knots_val else "Tropical Cyclone (Unclassified)"
 
                         systems.append({
                             "id": f"LIVE-JTWC-{storm_code}",
-                            "name": f"Cyclone {storm_code}",
+                            "name": storm_name,
                             "basin": basin,
                             "source": "JTWC / NOAA (Official Advisory Bulletin)",
                             "is_live_telemetry": True,
@@ -703,7 +856,7 @@ class LiveIngestionService:
                                 "wind_intensity": "OBSERVED" if knots_val is not None else "UNAVAILABLE",
                                 "center_fix": "OBSERVED"
                             },
-                            "observation_time_utc": None,  # RSS build time is not a physical storm observation
+                            "observation_time_utc": obs_dt.isoformat() if obs_dt else None,
                             "source_issue_time_utc": issue.isoformat() if issue else None
                         })
 

@@ -12,6 +12,9 @@ class HistoryMessage(StrictInput):
 class DisplayContext(StrictInput):
     page: str = Field(default='', max_length=80)
     selected_system_id: str | None = Field(default=None, max_length=120)
+    selected_system_name: str | None = Field(default=None, max_length=120)
+    selectedCycloneId: str | None = Field(default=None, max_length=120)
+    selectedCycloneName: str | None = Field(default=None, max_length=120)
 
 class ChatMessageRequest(StrictInput):
     message: str = Field(min_length=1, max_length=3000)
