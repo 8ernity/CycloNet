@@ -62,6 +62,8 @@ pnpm-debug.log*
 # ── Testing & Coverage ─────────────────────────────────────────────────
 .coverage
 .coverage.*
+coverage.xml
+results.xml
 coverage/
 .nyc_output/
 *.lcov

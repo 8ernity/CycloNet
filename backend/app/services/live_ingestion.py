@@ -21,7 +21,6 @@ from app.services.ingestion.fixtures import (
     calibrate_system_telemetry,
     get_default_active_bob_system,
 )
-from app.services.ingestion.parsers import determine_imd_category_from_text, extract_coordinates_from_bulletin
 from app.services.ingestion.state_store import read_live_systems, write_live_systems
 
 __all__ = ["LiveIngestionService", "get_default_active_bob_system", "live_ingestion_service"]
@@ -38,7 +37,6 @@ class LiveIngestionService:
         self.is_syncing: bool = False
         self.last_error: Optional[str] = None
         self.basin_status: str = "STATUS_UNCERTAIN"
-        self.retired_systems: List[Dict[str, Any]] = []
         self.sources_status: Dict[str, str] = {
             "IMD_RSMC": "UNAVAILABLE",
             "JTWC_NOAA": "UNAVAILABLE",
@@ -52,7 +50,6 @@ class LiveIngestionService:
             "ISRO_MOSDAC": None,
         }
         self._in_memory_systems: List[Dict[str, Any]] = []
-        self._background_task: Optional[asyncio.Task[Any]] = None
         self._sync_generation: Optional[int] = None
 
     @property
@@ -95,7 +92,7 @@ class LiveIngestionService:
                 elif result.error:
                     self.last_error = f"{result.source}: {result.error}"
 
-            systems, retired = reconcile(self.live_systems, results)
+            systems, _retired = reconcile(self.live_systems, results)
             for system in systems:
                 if (system.get("name") and re.match(r"^Cyclone \d+[AB]$", system["name"])) or not system.get("name"):
                     news_name = await self._fetch_meteorological_news_alerts()
@@ -116,7 +113,6 @@ class LiveIngestionService:
             else:
                 self.basin_status = "STATUS_UNCERTAIN"
 
-            self.retired_systems = retired
             self.last_sync = datetime.datetime.utcnow()
             self.last_sync_outcome = status_label
 
@@ -154,9 +150,6 @@ class LiveIngestionService:
                 )
             )
 
-    def _extract_coordinates_from_bulletin(self, text: str) -> Optional[tuple[float, float]]:
-        return extract_coordinates_from_bulletin(text)
-
     async def _fetch_meteorological_news_alerts(self) -> Optional[str]:
         return await fetch_meteorological_news_alerts()
 
@@ -178,9 +171,6 @@ class LiveIngestionService:
             set_status=lambda status: self.sources_status.__setitem__("JTWC_NOAA", status),
             mark_success=lambda: self.last_successful_sync.__setitem__("JTWC_NOAA", datetime.datetime.utcnow()),
         )
-
-    def _determine_imd_category_from_text(self, text: str) -> str:
-        return determine_imd_category_from_text(text)
 
     def _calibrate_system_telemetry(self, system: Dict[str, Any]) -> None:
         calibrate_system_telemetry(system)

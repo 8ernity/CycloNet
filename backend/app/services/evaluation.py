@@ -56,30 +56,30 @@ class ClassificationMetrics:
             predicted = int(self.confusion[:, i].sum())
             precision = tp / predicted if predicted else 0.0
             recall = tp / support if support else 0.0
-            rows.append(dict(class_id=i, class_name=name, support=support,
-                predicted_count=predicted, precision=precision, recall=recall,
-                f1=2*tp/(support+predicted) if support+predicted else 0.0))
+            rows.append({'class_id': i, 'class_name': name, 'support': support,
+                'predicted_count': predicted, 'precision': precision, 'recall': recall,
+                'f1': 2*tp/(support+predicted) if support+predicted else 0.0})
         bins = []
         ece = 0.0
         for i, count in enumerate(self.bin_count):
             confidence = float(self.bin_confidence[i]/count) if count else None
             accuracy = float(self.bin_correct[i]/count) if count else None
-            if count:
+            if count and confidence is not None and accuracy is not None:
                 ece += int(count)/self.count * abs(confidence-accuracy)
-            bins.append(dict(lower=i/self.bins, upper=(i+1)/self.bins,
-                count=int(count), mean_confidence=confidence, accuracy=accuracy))
+            bins.append({'lower': i/self.bins, 'upper': (i+1)/self.bins,
+                'count': int(count), 'mean_confidence': confidence, 'accuracy': accuracy})
         selective_accuracy = self.accepted_correct/self.accepted if self.accepted else None
-        return dict(count=self.count, accuracy=float(np.trace(self.confusion)/self.count),
-            confusion_matrix=self.confusion.tolist(), per_class=rows,
-            macro_f1=sum(row['f1'] for row in rows)/len(rows),
-            zero_division_policy='0; inspect support and predicted_count',
-            calibration=dict(status='DIAGNOSTIC_ONLY_NOT_CALIBRATED',
-                expected_calibration_error=ece, bins=bins,
-                bin_policy='equal width, lower inclusive; final bin includes 1',
-                multiclass_brier_score=self.brier/self.count,
-                negative_log_likelihood=self.nll/self.count),
-            abstention=dict(status='FIXED_UNCALIBRATED_SERVING_HEURISTIC',
-                minimum_probability=.60, maximum_normalized_entropy=.65, minimum_margin=.15,
-                accepted=self.accepted, abstained=self.count-self.accepted,
-                coverage=self.accepted/self.count, selective_accuracy=selective_accuracy,
-                selective_risk=1-selective_accuracy if selective_accuracy is not None else None))
+        return {'count': self.count, 'accuracy': float(np.trace(self.confusion)/self.count),
+            'confusion_matrix': self.confusion.tolist(), 'per_class': rows,
+            'macro_f1': sum(row['f1'] for row in rows)/len(rows),
+            'zero_division_policy': '0; inspect support and predicted_count',
+            'calibration': {'status': 'DIAGNOSTIC_ONLY_NOT_CALIBRATED',
+                'expected_calibration_error': ece, 'bins': bins,
+                'bin_policy': 'equal width, lower inclusive; final bin includes 1',
+                'multiclass_brier_score': self.brier/self.count,
+                'negative_log_likelihood': self.nll/self.count},
+            'abstention': {'status': 'FIXED_UNCALIBRATED_SERVING_HEURISTIC',
+                'minimum_probability': .60, 'maximum_normalized_entropy': .65, 'minimum_margin': .15,
+                'accepted': self.accepted, 'abstained': self.count-self.accepted,
+                'coverage': self.accepted/self.count, 'selective_accuracy': selective_accuracy,
+                'selective_risk': 1-selective_accuracy if selective_accuracy is not None else None}}

@@ -5,7 +5,6 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.api.schemas import SystemResponse
@@ -14,14 +13,19 @@ from app.core.database import get_db
 from app.core.inference_budget import run_inference
 from app.core.rate_limit import enforce_rate_limit
 from app.data.historical_tracks import REAL_CYCLONE_TRACKS
-from app.models.domain import ClassificationHistory, CycloneArchive
+from app.models.domain import (
+    ClassificationHistory,
+    CycloneArchive,
+    find_archive_cyclone,
+    find_default_exercise_cyclone,
+)
 from app.services.best_tracks import get_cyclone_trajectory
-from app.services.image_validation import validate_image_payload
+from app.services.image_validation import MAX_IMAGE_SIZE_BYTES, read_validated_image_upload
 from app.services.live_ingestion import live_ingestion_service
 from app.services.ml_runtime import ml_service
 
 logger = logging.getLogger(__name__)
-MAX_IMAGE_SIZE_BYTES = 15 * 1024 * 1024
+_ = MAX_IMAGE_SIZE_BYTES
 
 router = APIRouter()
 
@@ -43,20 +47,14 @@ async def get_active_systems(
         for sys_item in live_ingestion_service.live_systems:
             if sys_item.get("id") == cyclone_id or sys_item.get("name", "").lower() == cyclone_id.lower():
                 return [sys_item]
-        target = (
-            db.query(CycloneArchive)
-            .filter((CycloneArchive.id == cyclone_id) | (func.lower(CycloneArchive.name) == cyclone_id.lower()))
-            .first()
-        )
+        target = find_archive_cyclone(db, cyclone_id)
         if not target:
             raise HTTPException(
                 status_code=404,
                 detail=f"Cyclone '{cyclone_id}' not found in active telemetry or historical archives.",
             )
     elif simulate:
-        target = db.query(CycloneArchive).filter_by(id="BOB05-2026").first()
-        if not target:
-            target = db.query(CycloneArchive).filter_by(id="ARB01-2023").first()
+        target = find_default_exercise_cyclone(db)
 
     name = (target.name or "Biparjoy") if target else "Biparjoy"
     c_id = target.id if target else "ARB01-2023"
@@ -128,17 +126,7 @@ async def classify_image(
 ):
     """Classify an uploaded satellite frame using ML and persist user-scoped history."""
     enforce_rate_limit(req, endpoint_type="classify", user=current_user, response=response)
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="File must be an image")
-
-    image_bytes = await file.read(MAX_IMAGE_SIZE_BYTES + 1)
-    if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
-        raise HTTPException(status_code=413, detail="File size exceeds maximum allowable limit (15 MB).")
-
-    try:
-        validate_image_payload(image_bytes)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    image_bytes = await read_validated_image_upload(file, content_type_error="File must be an image")
 
     try:
         result = await run_inference(req, current_user, ml_service.predict, image_bytes)

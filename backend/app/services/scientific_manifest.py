@@ -86,28 +86,28 @@ def _parse_ibtracs_row(
     if raw["NATURE"] != "TS":
         status = "NON_TROPICAL_OR_UNKNOWN_NATURE"
 
-    return dict(
-        event_id=raw["SID"],
-        timestamp=timestamp,
-        season=year,
-        name=raw["NAME"],
-        basin=raw["BASIN"],
-        latitude=raw["LAT"],
-        longitude=raw["LON"],
-        wind_knots=raw["NEWDELHI_WIND"],
-        wind_agency="NEWDELHI",
-        wind_averaging_minutes=3,
-        agency_interpolation_flag=flag,
-        class_id=label,
-        label_status=status,
-        split=storm_split(raw["SID"]),
-        hursat_archive_url=archives.get(raw["SID"], ""),
-        image_status="NOT_RETRIEVED",
-        path="",
-        sha256="",
-        training_eligible="false",
-        source_row=line,
-    )
+    return {
+        "event_id": raw["SID"],
+        "timestamp": timestamp,
+        "season": year,
+        "name": raw["NAME"],
+        "basin": raw["BASIN"],
+        "latitude": raw["LAT"],
+        "longitude": raw["LON"],
+        "wind_knots": raw["NEWDELHI_WIND"],
+        "wind_agency": "NEWDELHI",
+        "wind_averaging_minutes": 3,
+        "agency_interpolation_flag": flag,
+        "class_id": label,
+        "label_status": status,
+        "split": storm_split(raw["SID"]),
+        "hursat_archive_url": archives.get(raw["SID"], ""),
+        "image_status": "NOT_RETRIEVED",
+        "path": "",
+        "sha256": "",
+        "training_eligible": "false",
+        "source_row": line,
+    }
 
 
 def build_manifest(
@@ -143,33 +143,33 @@ def build_manifest(
         writer.writerows(rows)
 
     events = {row["event_id"] for row in rows}
-    report = dict(
-        dataset_version=VERSION,
-        generated_at=datetime.now(timezone.utc).isoformat(),
-        source_url=source_url,
-        source_sha256=sha256_file(source),
-        source_bytes=source.stat().st_size,
-        manifest_sha256=sha256_file(output),
-        hursat_version="v06",
-        hursat_archive_root=HURSAT_URL,
-        label_policy="NEWDELHI 3-minute knots; CS [34,48), SCS [48,64), VSCS [64,90), ESCS [90,120)",
-        interpolation_policy="Only O/V NewDelhi flags eligible; no interpolated labels used for training",
-        split_policy="SHA256(cyclonet_ni_scientific_v1:storm-split-v1: + SID), 70/15/15 thresholds",
-        observations=len(rows),
-        storms=len(events),
-        split_storms=dict(Counter(storm_split(event) for event in sorted(events))),
-        split_observations=dict(Counter(row["split"] for row in rows)),
-        label_statuses=dict(Counter(row["label_status"] for row in rows)),
-        verified_archive_link_observations=sum(bool(row["hursat_archive_url"]) for row in rows),
-        source_exclusions=dict(exclusions),
-        training_eligible_observations=0,
-        training_ready=False,
-        blockers=[
+    report = {
+        "dataset_version": VERSION,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "source_url": source_url,
+        "source_sha256": sha256_file(source),
+        "source_bytes": source.stat().st_size,
+        "manifest_sha256": sha256_file(output),
+        "hursat_version": "v06",
+        "hursat_archive_root": HURSAT_URL,
+        "label_policy": "NEWDELHI 3-minute knots; CS [34,48), SCS [48,64), VSCS [64,90), ESCS [90,120)",
+        "interpolation_policy": "Only O/V NewDelhi flags eligible; no interpolated labels used for training",
+        "split_policy": "SHA256(cyclonet_ni_scientific_v1:storm-split-v1: + SID), 70/15/15 thresholds",
+        "observations": len(rows),
+        "storms": len(events),
+        "split_storms": dict(Counter(storm_split(event) for event in sorted(events))),
+        "split_observations": dict(Counter(row["split"] for row in rows)),
+        "label_statuses": dict(Counter(row["label_status"] for row in rows)),
+        "verified_archive_link_observations": sum(bool(row["hursat_archive_url"]) for row in rows),
+        "source_exclusions": dict(exclusions),
+        "training_eligible_observations": 0,
+        "training_ready": False,
+        "blockers": [
             "HURSAT frame retrieval, v03r09 to v04r01 storm identity reconciliation, timestamp join and pixel preprocessing/QC required",
             "Independent non-cyclone imagery is absent; storm records below 34 kt are not negative examples",
             "Independent scientific evaluation, calibration and operational validation remain required",
         ],
-    )
+    }
     output.with_suffix(".provenance.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8", newline="\n")
     return report
 
@@ -211,16 +211,16 @@ def load_training_csv(path: str | Path) -> Dict[str, Any]:
             ):
                 raise ValueError("Invalid or interpolated scientific label")
             samples.append(
-                dict(
-                    path=row["path"],
-                    class_id=label,
-                    event_id=row["event_id"],
-                    sha256=row["sha256"],
-                    split=row["split"],
-                    timestamp=row["timestamp"],
-                )
+                {
+                    "path": row["path"],
+                    "class_id": label,
+                    "event_id": row["event_id"],
+                    "sha256": row["sha256"],
+                    "split": row["split"],
+                    "timestamp": row["timestamp"],
+                }
             )
-    return dict(dataset_version=metadata["dataset_version"], synthetic=False, samples=samples)
+    return {"dataset_version": metadata["dataset_version"], "synthetic": False, "samples": samples}
 
 
 if __name__ == "__main__":

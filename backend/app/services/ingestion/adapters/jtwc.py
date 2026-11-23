@@ -2,7 +2,6 @@
 
 import datetime
 import re
-import xml.etree.ElementTree as ET
 from typing import Any, Callable, Dict, List, Optional
 
 from app.core.observability import logger as event_logger
@@ -10,7 +9,10 @@ from app.models.feed_result import FeedResult, FeedStatus
 from app.services.cyclone_classification import classify_imd_category_from_knots
 from app.services.feed_http import FeedClient
 from app.services.feed_policy import assess_feed, parse_time
-from app.services.ingestion.parsers import extract_coordinates_from_bulletin
+from app.services.ingestion.parsers import (
+    extract_coordinates_from_bulletin,
+    parse_safe_xml,
+)
 
 JTWC_URL = "https://www.metoc.navy.mil/jtwc/rss/jtwc.rss"
 NEWS_RSS_URL = (
@@ -40,7 +42,7 @@ async def fetch_meteorological_news_alerts() -> Optional[str]:
             resp = await client.get(NEWS_RSS_URL, headers={"User-Agent": "Mozilla/5.0"})
             if resp.status_code != 200:
                 return None
-            root = ET.fromstring(resp.content)
+            root = parse_safe_xml(resp.content)
             for item in root.findall(".//item"):
                 full_txt = f"{item.findtext('title') or ''} {item.findtext('description') or ''}"
                 if any(term in full_txt.lower() for term in _STALE_LIFECYCLE_WORDS):
@@ -139,7 +141,7 @@ def _parse_jtwc_envelope(resp_content: bytes, text_content: str) -> tuple[bool, 
     is_valid_xml = False
     channel = None
     try:
-        xml_root = ET.fromstring(resp_content)
+        xml_root = parse_safe_xml(resp_content)
         channel = xml_root.find("channel")
         is_valid_xml = (
             xml_root.tag == "rss"

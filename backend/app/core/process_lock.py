@@ -132,8 +132,8 @@ def acquire_worker_leader_lock() -> bool:
             logger.warning("[WorkerLock] Redis lock attempt failed (%s).", e)
             try:
                 _redis_client.eval(RELEASE_LOCK_LUA, 1, LOCK_KEY, WORKER_TOKEN)
-            except Exception:
-                pass  # The TTL remains the fallback when Redis itself is unreachable.
+            except Exception as cleanup_exc:
+                logger.debug("[WorkerLock] Redis release cleanup skipped: %s", type(cleanup_exc).__name__)
             if ENVIRONMENT == "production":
                 logger.error("[WorkerLock] In production, filesystem lock is forbidden as multi-instance coordination. Ingestion worker disabled.")
                 _is_leader = False
@@ -149,7 +149,7 @@ def acquire_worker_leader_lock() -> bool:
     try:
         if os.path.exists(LOCK_FILE):
             try:
-                with open(LOCK_FILE, "r") as f:
+                with open(LOCK_FILE) as f:
                     data = json.load(f)
                     locked_pid = data.get("pid")
                     last_heartbeat = data.get("heartbeat", 0)
@@ -158,8 +158,8 @@ def acquire_worker_leader_lock() -> bool:
                     logger.info("[WorkerLock] Process %s is running as leader. Worker %s will serve web traffic only.", locked_pid, current_pid)
                     _is_leader = False
                     return False
-            except Exception:
-                pass  # Stale or corrupt lock file
+            except Exception as lock_exc:
+                logger.debug("[WorkerLock] Ignoring stale or unreadable local lock file: %s", type(lock_exc).__name__)
 
         with open(LOCK_FILE, "w") as f:
             json.dump({"pid": current_pid, "token": WORKER_TOKEN, "heartbeat": time.time(), "acquired_at": time.time()}, f)
@@ -282,9 +282,9 @@ def release_worker_leader_lock():
 
     try:
         if os.path.exists(LOCK_FILE):
-            with open(LOCK_FILE, "r") as f:
+            with open(LOCK_FILE) as f:
                 data = json.load(f)
             if data.get("token") == WORKER_TOKEN or data.get("pid") == current_pid:
                 os.remove(LOCK_FILE)
-    except Exception:
-        pass
+    except Exception as remove_exc:
+        logger.debug("[WorkerLock] Local lock file cleanup skipped: %s", type(remove_exc).__name__)

@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { CatalogItem, DispatchReceipt, WeatherSystem } from "@/types/api";
 import { apiFetch } from "@/lib/api";
+import { formatCatalogStormName } from "@/lib/catalogObservation";
+import { useToastMessage } from "@/hooks/useToastMessage";
 import type { AffectedDistrict, Bulletin, PortSignal, ReportCatalogItem } from "../types";
 
 export function useReportsData(selectedCycloneId: string | null) {
@@ -14,7 +16,7 @@ export function useReportsData(selectedCycloneId: string | null) {
   const [capXml, setCapXml] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [selectedBulletin, setSelectedBulletin] = useState<Bulletin | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, showToast } = useToastMessage();
   const [reportError, setReportError] = useState<string | null>(null);
   const [reportMode, setReportMode] = useState("EXPERIMENTAL_ANALYSIS");
 
@@ -23,20 +25,9 @@ export function useReportsData(selectedCycloneId: string | null) {
 
   const pendingReport = useRef<AbortController | null>(null);
   const pendingDispatch = useRef<AbortController | null>(null);
-  const toastTimer = useRef<number | null>(null);
-
-  const showToast = useCallback((msg: string) => {
-    setToast(msg);
-    if (toastTimer.current != null) window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => {
-      setToast(null);
-      toastTimer.current = null;
-    }, 3000);
-  }, []);
 
   useEffect(
     () => () => {
-      if (toastTimer.current != null) window.clearTimeout(toastTimer.current);
       pendingReport.current?.abort();
       pendingDispatch.current?.abort();
     },
@@ -55,14 +46,7 @@ export function useReportsData(selectedCycloneId: string | null) {
           setCyclonesList(
             data.map((c: CatalogItem) => ({
               id: c.id,
-              name:
-                c.name.startsWith("Cyclone ") ||
-                c.name.startsWith("Deep Depression") ||
-                c.name.startsWith("Depression") ||
-                c.name.startsWith("Super Cyclone") ||
-                c.name.includes("Cyclone")
-                  ? c.name
-                  : `Cyclone ${c.name}`,
+              name: formatCatalogStormName(c.name),
               category: c.max_category || c.maxCategory || c.category || "Not available",
             }))
           );

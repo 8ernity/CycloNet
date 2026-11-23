@@ -186,7 +186,7 @@ def run_training(
     for epoch in range(epochs):
         train_loss = _train_one_epoch(head, feature_extractor, loaders[0], optimizer, criterion)
         val_metrics = _evaluate_loader(head, feature_extractor, loaders[1], criterion, CLASSES)
-        history.append(dict(epoch=epoch + 1, train_loss=train_loss, validation=val_metrics))
+        history.append({"epoch": epoch + 1, "train_loss": train_loss, "validation": val_metrics})
         if val_metrics["loss"] < best_loss:
             best_loss, bad_epochs = val_metrics["loss"], 0
             selected = copy.deepcopy(head.state_dict())
@@ -221,32 +221,32 @@ def run_training(
     out_path.mkdir(parents=True, exist_ok=True)
     checkpoint = out_path / f"{metadata.model_version}.pth"
     torch.save(
-        dict(
-            metadata=metadata.model_dump(),
-            state_dict=states["head"],
-            backbone_state_dict=states["backbone"],
-            classes=CLASSES,
-            class_names=CLASS_NAMES,
-            num_classes=len(CLASSES),
-            uncalibrated_demo=demo,
-            model_status=metadata.model_status,
-        ),
+        {
+            "metadata": metadata.model_dump(),
+            "state_dict": states["head"],
+            "backbone_state_dict": states["backbone"],
+            "classes": CLASSES,
+            "class_names": CLASS_NAMES,
+            "num_classes": len(CLASSES),
+            "uncalibrated_demo": demo,
+            "model_status": metadata.model_status,
+        },
         checkpoint,
     )
-    metrics = dict(
-        seed=seed,
-        pretrained=pretrained,
-        history=history,
-        test=test_metrics,
-        image_content_review=content_review,
-        ood_evaluation=dict(
-            status="NOT_EVALUATED",
-            reason="A separate independently reviewed OOD image benchmark is required; class 0 test accuracy is not an OOD evaluation",
-        ),
-        parameters_changed=changed,
-        checkpoint=str(checkpoint.resolve()),
-        metadata=metadata.model_dump(),
-        splits={name: [asdict(s) for s in split] for name, split in zip(["train", "validation", "test"], splits, strict=True)},
-    )
+    metrics = {
+        "seed": seed,
+        "pretrained": pretrained,
+        "history": history,
+        "test": test_metrics,
+        "image_content_review": content_review,
+        "ood_evaluation": {
+            "status": "NOT_EVALUATED",
+            "reason": "A separate independently reviewed OOD image benchmark is required; class 0 test accuracy is not an OOD evaluation",
+        },
+        "parameters_changed": changed,
+        "checkpoint": str(checkpoint.resolve()),
+        "metadata": metadata.model_dump(),
+        "splits": {name: [asdict(s) for s in split] for name, split in zip(["train", "validation", "test"], splits, strict=True)},
+    }
     (out_path / "metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
     return metrics

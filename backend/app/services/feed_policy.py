@@ -2,71 +2,63 @@
 import re
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
+from typing import Optional
 
 from app.models.feed_result import FeedResult, FeedStatus
 
-BASINS = ['Bay of Bengal', 'Arabian Sea']
+_SYNOPTIC_DATE_RE = re.compile(r"^(\d{1,2})[-/]?([A-Za-z]{3})[-/]?(\d{2,4})\s+(\d{2})(\d{2})Z?$", re.IGNORECASE)
+_SYNOPTIC_DAY_TIME_RE = re.compile(r"^(\d{1,2})/(\d{2})(\d{2})Z?$", re.IGNORECASE)
+_SYNOPTIC_COMPACT_RE = re.compile(r"^(\d{2})(\d{2})(\d{2})Z$", re.IGNORECASE)
 
-def parse_time(value):
+
+def _resolve_day_time(day: int, hour: int, minute: int) -> Optional[datetime]:
+    now = datetime.now(timezone.utc)
+    year = now.year
+    month = now.month
+    if day > now.day and (day - now.day) > 15:
+        month = month - 1 or 12
+        if month == 12:
+            year -= 1
+    try:
+        return datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def parse_time(value: object) -> Optional[datetime]:
     if not value:
         return None
     if isinstance(value, datetime):
-        dt = value
+        dt: Optional[datetime] = value
     elif isinstance(value, str):
         val = value.strip()
         try:
-            dt = datetime.fromisoformat(val.replace('Z', '+00:00'))
+            dt = datetime.fromisoformat(val.replace("Z", "+00:00"))
         except (ValueError, TypeError):
             try:
                 dt = parsedate_to_datetime(val)
             except (ValueError, TypeError):
-                # Synoptic formats: DDMonYY HHMMZ e.g. 19NOV26 1800Z
-                m1 = re.match(r"^(\d{1,2})[-/]?([A-Za-z]{3})[-/]?(\d{2,4})\s+(\d{2})(\d{2})Z?$", val, re.IGNORECASE)
-                if m1:
-                    d, m_str, y, hh, mm = m1.groups()
-                    year = int(y) + 2000 if len(y) == 2 else int(y)
-                    try:
-                        month = datetime.strptime(m_str.capitalize(), "%b").month
-                        dt = datetime(year, month, int(d), int(hh), int(mm), tzinfo=timezone.utc)
-                    except ValueError:
-                        return None
-                else:
-                    # Synoptic format: DDHHMMZ e.g. 191800Z
-                    m2 = re.match(r"^(\d{2})(\d{2})(\d{2})Z$", val, re.IGNORECASE)
-                    if m2:
-                        d, hh, mm = map(int, m2.groups())
-                        now = datetime.now(timezone.utc)
-                        year = now.year
-                        month = now.month
-                        if d > now.day and (d - now.day) > 15:
-                            month = month - 1 or 12
-                            if month == 12:
-                                year -= 1
-                        try:
-                            dt = datetime(year, month, d, hh, mm, tzinfo=timezone.utc)
-                        except ValueError:
-                            return None
-                    else:
-                        # Synoptic format: DD/HHMMZ e.g. 19/2100Z
-                        m3 = re.match(r"^(\d{1,2})/(\d{2})(\d{2})Z?$", val, re.IGNORECASE)
-                        if m3:
-                            d, hh, mm = map(int, m3.groups())
-                            now = datetime.now(timezone.utc)
-                            year = now.year
-                            month = now.month
-                            if d > now.day and (d - now.day) > 15:
-                                month = month - 1 or 12
-                                if month == 12:
-                                    year -= 1
-                            try:
-                                dt = datetime(year, month, d, hh, mm, tzinfo=timezone.utc)
-                            except ValueError:
-                                return None
-                        else:
-                            return None
+                dt = _parse_synoptic_time(val)
     else:
         return None
+    if dt is None:
+        return None
     return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
+
+
+def _parse_synoptic_time(val: str) -> Optional[datetime]:
+    if m1 := _SYNOPTIC_DATE_RE.match(val):
+        d, m_str, y, hh, mm = m1.groups()
+        year = int(y) + 2000 if len(y) == 2 else int(y)
+        try:
+            month = datetime.strptime(m_str.capitalize(), "%b").month
+            return datetime(year, month, int(d), int(hh), int(mm), tzinfo=timezone.utc)
+        except ValueError:
+            return None
+    if m2 := (_SYNOPTIC_COMPACT_RE.match(val) or _SYNOPTIC_DAY_TIME_RE.match(val)):
+        day, hour, minute = map(int, m2.groups())
+        return _resolve_day_time(day, hour, minute)
+    return None
 
 def fresh(value, now=None):
     dt = parse_time(value)

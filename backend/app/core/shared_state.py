@@ -1,8 +1,9 @@
 """Database fencing is the final authority for every production state write."""
 import json
 from datetime import datetime
+from typing import Any, cast
 
-from sqlalchemy import update
+from sqlalchemy import CursorResult, update
 
 from app.core.database import SessionLocal
 from app.models.domain import ActiveCycloneState
@@ -21,10 +22,17 @@ def generation_floor():
 
 def claim_generation(generation, token):
     with SessionLocal.begin() as db:
-        result = db.execute(update(ActiveCycloneState).where(
-            ActiveCycloneState.id == STATE_ID,
-            ActiveCycloneState.fencing_generation < generation
-        ).values(fencing_generation=generation, leader_token=token))
+        result = cast(
+            CursorResult[Any],
+            db.execute(
+                update(ActiveCycloneState)
+                .where(
+                    ActiveCycloneState.id == STATE_ID,
+                    ActiveCycloneState.fencing_generation < generation,
+                )
+                .values(fencing_generation=generation, leader_token=token)
+            ),
+        )
         if result.rowcount != 1:
             raise StaleLeaderError('Generation was already claimed or superseded')
 

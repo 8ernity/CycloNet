@@ -2,7 +2,7 @@
 
 import React from "react";
 
-export function renderFormattedInline(str: string, isUser: boolean = false) {
+function renderFormattedInline(str: string, isUser: boolean = false) {
   const parts = str.split(/(\*\*.*?\*\*)/g);
   return parts.map((part, pIdx) => {
     if (part.startsWith("**") && part.endsWith("**")) {

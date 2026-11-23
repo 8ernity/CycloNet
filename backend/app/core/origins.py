@@ -28,7 +28,7 @@ def normalize_origin(value: str, *, configuration: bool = False):
 
 def configured_origins():
     production = os.getenv('ENVIRONMENT', 'production').lower() == 'production'
-    raw = os.getenv('ALLOWED_ORIGINS') or os.getenv('CORS_ORIGINS', '')
+    raw = os.getenv('ALLOWED_ORIGINS') or os.getenv('CORS_ORIGINS') or ''
     candidates = raw.split(',') if raw.strip() else ['https://cyclonet-frontend.onrender.com']
     if not raw.strip() and not production:
         candidates += ['http://localhost:3000', 'http://127.0.0.1:3000']
@@ -41,7 +41,7 @@ def configured_origins():
         origin = normalize_origin(candidate, configuration=True)
         if origin is None:
             continue
-        host = urlsplit(origin).hostname
+        host = urlsplit(origin).hostname or ''
         try:
             local = ipaddress.ip_address(host).is_loopback
         except ValueError:

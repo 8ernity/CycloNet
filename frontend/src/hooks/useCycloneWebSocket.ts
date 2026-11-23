@@ -15,12 +15,6 @@ export interface TelemetryPayload {
   connected_clients: number;
 }
 
-export interface EmergencyAlertPush {
-  type: string;
-  alert: Record<string, unknown>;
-  timestamp: string;
-}
-
 export function useCycloneWebSocket() {
   const [isConnected, setIsConnected] = useState(false);
   const [radarAngle, setRadarAngle] = useState(0);

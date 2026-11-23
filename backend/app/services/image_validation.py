@@ -1,6 +1,29 @@
 import io
 
+from fastapi import HTTPException, UploadFile
 from PIL import Image
+
+MAX_IMAGE_SIZE_BYTES = 15 * 1024 * 1024
+
+
+async def read_validated_image_upload(
+    file: UploadFile,
+    *,
+    content_type_error: str = "File must be an image",
+) -> bytes:
+    """Validate content type, enforce bounded upload read, and verify magic bytes/dimensions."""
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail=content_type_error)
+
+    image_bytes = await file.read(MAX_IMAGE_SIZE_BYTES + 1)
+    if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
+        raise HTTPException(status_code=413, detail="File size exceeds maximum allowable limit (15 MB).")
+
+    try:
+        validate_image_payload(image_bytes)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return image_bytes
 
 
 def validate_image_payload(image_bytes: bytes) -> str:

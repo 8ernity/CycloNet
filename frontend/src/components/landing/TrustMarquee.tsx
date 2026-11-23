@@ -26,9 +26,9 @@ export function TrustMarquee() {
           {marqueeItems.map((agency, index) => (
             <div
               key={`${agency.name}-${index}`}
-              className="flex-shrink-0 flex items-center justify-center opacity-70 hover:opacity-100 transition-all duration-300 group/logo cursor-pointer"
+              className="flex-shrink-0 flex items-center justify-center opacity-95 hover:opacity-100 transition-all duration-300 group/logo cursor-pointer"
             >
-              <span className="text-base md:text-lg font-bold font-heading text-text-muted tracking-tight whitespace-nowrap transition-all duration-300 group-hover/logo:text-sky-500 dark:group-hover/logo:text-sky-400 group-hover/logo:drop-shadow-[0_0_15px_rgba(56,189,248,0.5)]">
+              <span className="text-base md:text-lg font-bold font-heading text-slate-600 dark:text-slate-300 tracking-tight whitespace-nowrap transition-all duration-300 group-hover/logo:text-sky-500 dark:group-hover/logo:text-sky-400 group-hover/logo:drop-shadow-[0_0_15px_rgba(56,189,248,0.5)]">
                 {agency.name}
               </span>
             </div>

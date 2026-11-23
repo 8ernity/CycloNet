@@ -1,10 +1,10 @@
 """Regression tests for audit remediations: tracks, intensity scale, readiness, parsers, and LLM fallback."""
 
-from contextlib import contextmanager
-from datetime import date
 import email.message
 import json
 import sys
+from contextlib import contextmanager
+from datetime import date
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 from urllib.error import HTTPError
@@ -14,7 +14,6 @@ import pytest
 
 from app.core.archive_dates import archive_start_date
 from app.core.origins import configured_origins, normalize_origin
-
 from app.services.best_tracks import _lookup_track, get_cyclone_trajectory
 from app.services.chat_service import MeteorologicalChatService
 from app.services.cyclone_classification import classify_imd_category_from_knots, derive_empirical_dvorak_t
@@ -88,7 +87,7 @@ def test_chat_service_retries_candidate_models_on_transient_errors(monkeypatch):
     called_urls = []
 
     @contextmanager
-    def fake_stream(method, url, **kwargs):
+    def fake_stream(method, url, **_kwargs):
         called_urls.append(url)
         resp = MagicMock()
         if len(called_urls) == 1:

@@ -30,7 +30,7 @@ _background_tasks: list[asyncio.Task[object]] = []
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     from app.core.auth import validate_production_auth
     from app.core.database import validate_schema
     validate_production_auth()

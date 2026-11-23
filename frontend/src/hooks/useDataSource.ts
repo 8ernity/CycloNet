@@ -4,11 +4,11 @@ import { classifyImdCategory, classifyJtwcCategory, knotsToKmh } from "@/lib/cyc
 
 export type DataSourceType = "IMD" | "JTWC" | "CUSTOM";
 
-export const STORAGE_KEY_SOURCE = "cyclonet_data_source";
-export const STORAGE_KEY_CUSTOM_URL = "cyclonet_custom_api_url";
-export const CYCLONET_SOURCE_EVENT = "cyclonet:data-source-changed";
+const STORAGE_KEY_SOURCE = "cyclonet_data_source";
+const STORAGE_KEY_CUSTOM_URL = "cyclonet_custom_api_url";
+const CYCLONET_SOURCE_EVENT = "cyclonet:data-source-changed";
 
-export interface DataSourceBadge {
+interface DataSourceBadge {
   type: DataSourceType;
   label: string;
   shortLabel: string;

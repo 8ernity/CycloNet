@@ -289,29 +289,33 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
     ["Forecast", "Not available", "Not available", "Not available", "Not available", "Forecast not available: no verified forecast supplied to this export"],
   ];
 
-  runAutoTable(doc, {
-    startY: y,
-    head: [["Record", "Source time", "Coordinates", "Sustained Winds", "Source Category", "Availability"]],
-    body: forecastRows,
-    theme: "striped",
+  const baseTableStyles = {
+    theme: "striped" as const,
     headStyles: {
-      fillColor: [30, 41, 59],
-      textColor: [255, 255, 255],
+      fillColor: [30, 41, 59] as [number, number, number],
+      textColor: [255, 255, 255] as [number, number, number],
       fontSize: 7.2,
-      fontStyle: "bold",
+      fontStyle: "bold" as const,
       cellPadding: 1.8,
     },
     styles: {
       fontSize: 7.2,
       cellPadding: 1.6,
-      textColor: [30, 41, 59],
-      lineColor: [226, 232, 240],
+      textColor: [30, 41, 59] as [number, number, number],
+      lineColor: [226, 232, 240] as [number, number, number],
       lineWidth: 0.1,
     },
     alternateRowStyles: {
-      fillColor: [248, 250, 252],
+      fillColor: [248, 250, 252] as [number, number, number],
     },
     margin: { left: margin, right: margin },
+  };
+
+  runAutoTable(doc, {
+    ...baseTableStyles,
+    startY: y,
+    head: [["Record", "Source time", "Coordinates", "Sustained Winds", "Source Category", "Availability"]],
+    body: forecastRows,
   });
 
   y = getTableFinalY(doc, y);
@@ -332,31 +336,13 @@ export function generateCyclonePdfReport(data: CyclonePdfData): void {
   ]);
 
   runAutoTable(doc, {
+    ...baseTableStyles,
     startY: y,
     head: [["District / Jurisdiction", "State", "Hazard Rating", "Shelter Facilities", "Advisory Status"]],
     body: districtRows.length > 0 ? districtRows : [["Not available", "Not available", "Not available", "Not available", "No district conditions established"]],
-    theme: "striped",
-    headStyles: {
-      fillColor: [30, 41, 59],
-      textColor: [255, 255, 255],
-      fontSize: 7.2,
-      fontStyle: "bold",
-      cellPadding: 1.8,
-    },
-    styles: {
-      fontSize: 7.2,
-      cellPadding: 1.6,
-      textColor: [30, 41, 59],
-      lineColor: [226, 232, 240],
-      lineWidth: 0.1,
-    },
     columnStyles: {
       4: { fontStyle: "bold" },
     },
-    alternateRowStyles: {
-      fillColor: [248, 250, 252],
-    },
-    margin: { left: margin, right: margin },
   });
 
   y = getTableFinalY(doc, y);

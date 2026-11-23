@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { motion, HTMLMotionProps } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
 
-export interface PillButtonProps extends HTMLMotionProps<"button"> {
+interface PillButtonProps extends HTMLMotionProps<"button"> {
   children: React.ReactNode;
   variant?: 'primary' | 'ghost';
   icon?: LucideIcon;

@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import time
+from contextlib import suppress
 from typing import Any, Dict, Optional, Set
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, status
@@ -108,10 +109,8 @@ class SecureWebSocketManager:
             if websocket in self.active_connections:
                 self.active_connections.remove(websocket)
         self.expires.pop(websocket, None)
-        try:
+        with suppress(Exception):
             await websocket.close()
-        except Exception:
-            pass
 
     async def _safe_send(self, ws: WebSocket, data: Dict[str, Any]) -> Optional[WebSocket]:
         """Sends data with timeout; returns ws if dead/timed out so it can be evicted."""
@@ -210,7 +209,7 @@ operator_manager = SecureWebSocketManager(operator_only=True)
 async def serve_socket(websocket, manager):
     if not await manager.connect(websocket):
         return
-    messages = []
+    messages: list[float] = []
     try:
         while True:
             remaining = manager.expires.get(websocket, time.time()+60) - time.time()
@@ -234,7 +233,7 @@ async def serve_socket(websocket, manager):
             except (ValueError, RecursionError):
                 await websocket.close(code=1008, reason="Malformed message")
                 break
-    except (WebSocketDisconnect, asyncio.TimeoutError):
+    except (WebSocketDisconnect, TimeoutError):
         pass
     finally:
         await manager.disconnect(websocket)

@@ -35,9 +35,8 @@ class SatelliteFloodDetectionService:
         if not (math.isfinite(center_lat) and math.isfinite(center_lon)
                 and -90 <= center_lat <= 90 and -180 <= center_lon <= 180):
             raise ValueError("Invalid geographic coordinates")
-        if start_date is not None and end_date is not None:
-            if datetime.fromisoformat(start_date) >= datetime.fromisoformat(end_date):
-                raise ValueError("Observation start must precede end")
+        if start_date is not None and end_date is not None and datetime.fromisoformat(start_date) >= datetime.fromisoformat(end_date):
+            raise ValueError("Observation start must precede end")
         return {"type": "FeatureCollection", "status": "SATELLITE_DATA_UNAVAILABLE",
                 "capability_status": "DISABLED", "is_satellite_measured": False,
                 "reason": "Satellite flood detection is disabled pending a validated SAR pipeline and independent reference data",
@@ -316,7 +315,7 @@ class GoogleEarthEngineService:
 
     @property
     def gee_project_id(self) -> str:
-        return self.satellite_service.gee_project_id
+        return self.satellite_service.gee_project_id or ""
 
     @property
     def is_live_gee(self) -> bool:
@@ -351,3 +350,12 @@ class GoogleEarthEngineService:
 satellite_flood_service = SatelliteFloodDetectionService()
 flood_simulation_service = ExperimentalFloodSimulationService()
 gee_service = GoogleEarthEngineService()
+
+__all__ = [
+    "ExperimentalFloodSimulationService",
+    "GoogleEarthEngineService",
+    "SatelliteFloodDetectionService",
+    "flood_simulation_service",
+    "gee_service",
+    "satellite_flood_service",
+]

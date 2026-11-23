@@ -109,6 +109,7 @@ class HydrodynamicSurgeService:
         Generates coastal sector vulnerability breakdown along the coastline.
         Accurately labelled as illustrative scenario without claiming field telemetry (GEO-05).
         """
+        _ = (cyclone_name, lat)
         pres = max(910, 1010 - int(intensity_knots * 0.75))
         surge_calc = self.calculate_surge(intensity_knots, pres, basin="Bay of Bengal" if lon > 80 else "Arabian Sea")
         peak = surge_calc["peak_surge_height_m"]

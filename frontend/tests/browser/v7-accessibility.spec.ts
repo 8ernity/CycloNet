@@ -28,20 +28,73 @@ test('chatbot assistant opens via header button and closes on Escape', async ({ 
 });
 
 test('mobile viewport renders core routes without horizontal overflow or axe violations', async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 812 });
   await page.route('**/api/**', route => route.fulfill({ status: 503, json: { detail: 'Fixture outage' } }));
   await page.route('**/health**', route => route.fulfill({ status: 503, json: { status: 'unready' } }));
-  for (const routePath of ['/dashboard', '/forecast', '/reports', '/infrastructure']) {
+  for (const width of [320, 375]) {
+    await page.setViewportSize({ width, height: 812 });
+    for (const routePath of ['/dashboard', '/forecast', '/reports', '/infrastructure']) {
+      await page.goto(routePath, { waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('main')).toBeVisible();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+      expect(overflow, `${routePath} exceeded ${width}px viewport width`).toBe(false);
+      await page.addScriptTag({ path: path.resolve('node_modules/axe-core/axe.min.js') });
+      const result = await page.evaluate(async () => {
+        const axe = (window as unknown as { axe: { run: (options: unknown) => Promise<AxeResults> } }).axe;
+        return axe.run({ runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] } });
+      });
+      expect(result.violations, `${routePath} ${width}px axe violations`).toEqual([]);
+    }
+  }
+});
+
+test('populated fixture states pass WCAG accessibility checks on desktop', async ({ page }) => {
+  test.setTimeout(180000);
+  const sampleSystem = {
+    id: 'BOB03-2020',
+    name: 'Amphan',
+    basin: 'Bay of Bengal',
+    lat: 16.5,
+    lon: 87.2,
+    category: 'Very Severe Cyclonic Storm',
+    intensity_knots: 85,
+    provenance: 'HISTORICAL_BEST_TRACK',
+    telemetry_type: 'HISTORICAL_BEST_TRACK',
+    source: 'IMD / IBTrACS fixture',
+    is_stale: true,
+    is_simulation: true,
+    track_forecast: [
+      { lat: 14.2, lon: 86.4, time_offset_hours: -12, intensity_knots: 70, category: 'Very Severe Cyclonic Storm', is_forecast: false, is_observed: true },
+      { lat: 16.5, lon: 87.2, time_offset_hours: 0, intensity_knots: 85, category: 'Very Severe Cyclonic Storm', is_forecast: false, is_observed: true },
+      { lat: 19.1, lon: 88.0, time_offset_hours: 12, intensity_knots: 65, category: 'Very Severe Cyclonic Storm', is_forecast: true, is_observed: false },
+    ],
+  };
+  await page.route('**/api/history/search*', route => route.fulfill({ json: [
+    { id: 'BOB03-2020', name: 'Amphan', year: '2020', maxCategory: 'Super Cyclonic Storm', basin: 'Bay of Bengal', dates: 'May 16-21' },
+    { id: 'BOB02-2019', name: 'Fani', year: '2019', maxCategory: 'Extremely Severe Cyclonic Storm', basin: 'Bay of Bengal', dates: 'Apr 26-May 04' },
+  ] }));
+  await page.route('**/api/active-systems*', route => route.fulfill({ json: [sampleSystem] }));
+  await page.route('**/api/cyclones*', route => route.fulfill({ json: [sampleSystem] }));
+  await page.route('**/api/ingest/status*', route => route.fulfill({ json: { status: 'degraded', basin_status: 'STATUS_UNCERTAIN', active_systems_count: 0, sources_status: { IMD_RSMC: 'UNAVAILABLE' }, last_sync: null, is_syncing: false } }));
+  await page.route('**/api/reports/bulletins*', route => route.fulfill({ json: {
+    mode: 'HISTORICAL_REPLAY',
+    system: sampleSystem,
+    bulletins: [{ id: 'EX-1', number: 1, title: 'Experimental Summary', full_text: 'Sample content', category: 'Very Severe Cyclonic Storm', alert_level: 'ORANGE', timestamp_ist: 'Not available', is_latest: true }],
+    affected_districts: [],
+    port_signals: [],
+    cap_xml: '<alert />',
+  } }));
+  await page.route('**/api/surge/*', route => route.fulfill({ json: { peak_surge_height_m: 1.8, inland_penetration_km: 3.2, sectors: [] } }));
+  await page.route('**/api/gee/*', route => route.fulfill({ json: { pathways: [], layers: [] } }));
+
+  for (const routePath of ['/', '/dashboard', '/forecast', '/archive', '/compare', '/reports', '/infrastructure']) {
     await page.goto(routePath, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('main')).toBeVisible();
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
-    expect(overflow, `${routePath} exceeded 375px viewport width`).toBe(false);
     await page.addScriptTag({ path: path.resolve('node_modules/axe-core/axe.min.js') });
     const result = await page.evaluate(async () => {
       const axe = (window as unknown as { axe: { run: (options: unknown) => Promise<AxeResults> } }).axe;
-      return axe.run({ runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } });
+      return axe.run({ runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] } });
     });
-    expect(result.violations, `${routePath} mobile axe violations`).toEqual([]);
+    expect(result.violations, `Populated ${routePath} axe violations`).toEqual([]);
   }
 });
 

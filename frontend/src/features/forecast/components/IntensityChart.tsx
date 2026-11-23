@@ -107,7 +107,7 @@ export function IntensityChart({ chartData }: IntensityChartProps) {
 
       <div className="relative w-full overflow-x-auto" onMouseLeave={() => setHoveredPoint(null)}>
         <svg
-          role="img"
+          role="group"
           aria-label="Cyclone wind intensity over time chart"
           viewBox={`0 0 ${chartW} ${chartH}`}
           className="w-full h-auto min-w-[700px] select-none"

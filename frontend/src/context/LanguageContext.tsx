@@ -3,24 +3,9 @@ import { useStoredValue } from "@/hooks/useBrowserState";
 
 import React, { createContext, useContext, useEffect } from "react";
 
-export type SupportedLanguage = "en" | "hi" | "or" | "bn" | "te" | "ta";
+type SupportedLanguage = "en" | "hi" | "or" | "bn" | "te" | "ta";
 
-export interface LanguageOption {
-  code: SupportedLanguage;
-  name: string;
-  nativeName: string;
-}
-
-export const SUPPORTED_LANGUAGES: LanguageOption[] = [
-  { code: "en", name: "English", nativeName: "English" },
-  { code: "hi", name: "Hindi", nativeName: "हिन्दी" },
-  { code: "or", name: "Odia", nativeName: "ଓଡ଼ିଆ" },
-  { code: "bn", name: "Bengali", nativeName: "বাংলা" },
-  { code: "te", name: "Telugu", nativeName: "తెలుగు" },
-  { code: "ta", name: "Tamil", nativeName: "தமிழ்" },
-];
-
-export const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
+const TRANSLATIONS: Record<SupportedLanguage, Record<string, string>> = {
   en: {
     // Navigation
     live_monitoring: "Live Monitoring",

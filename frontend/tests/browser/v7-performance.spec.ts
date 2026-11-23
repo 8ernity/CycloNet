@@ -5,7 +5,7 @@ test('record local reports and settings JavaScript delivery within regression bu
   await page.route('**/api/**', route => route.fulfill({ status: 503, json: { detail: 'Fixture provider outage' } }));
   await page.route('**/health**', route => route.fulfill({ status: 503, json: { status: 'unready' } }));
   const measurements = [];
-  for (const path of ['/reports', '/settings']) {
+  for (const path of ['/', '/dashboard', '/forecast', '/archive', '/compare', '/classification', '/reports', '/infrastructure', '/settings']) {
     await page.goto(path, { waitUntil: 'load' });
     await expect(page.getByRole('main')).toBeVisible();
     const result = await page.evaluate(() => {
@@ -18,8 +18,8 @@ test('record local reports and settings JavaScript delivery within regression bu
       };
     });
     expect(result.decodedJavascriptBytes).toBeGreaterThan(0);
-    // Keep client JS payload bounded across refactors (generous ceiling for Next + Clerk runtime).
-    expect(result.decodedJavascriptBytes).toBeLessThan(8_000_000);
+    // Keep per-route client JS payload bounded across refactors based on measured local production bundles (~0.89–1.46 MB).
+    expect(result.decodedJavascriptBytes, `${path} exceeded 2.2 MB decoded JS budget`).toBeLessThan(2_200_000);
     measurements.push({ path, ...result });
   }
   const label = process.env.V7_PROFILE_LABEL === 'before' ? 'before' : 'after';

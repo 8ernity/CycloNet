@@ -2,7 +2,22 @@
 
 import datetime
 import re
+import xml.etree.ElementTree as ET
 from typing import Optional, Tuple
+
+_MAX_XML_BYTES = 2 * 1024 * 1024
+_DISALLOWED_XML_MARKERS = ("<!doctype", "<!entity", "<?xml-stylesheet")
+
+
+def parse_safe_xml(payload: bytes | str) -> ET.Element:
+    """Parse XML after rejecting DTD/ENTITY declarations and oversized payloads to mitigate XXE."""
+    text = payload.decode("utf-8-sig", errors="ignore") if isinstance(payload, bytes) else payload
+    if len(text.encode("utf-8")) > _MAX_XML_BYTES:
+        raise ValueError("XML payload exceeds maximum allowed size")
+    head_lower = text[:4096].lower()
+    if any(marker in head_lower for marker in _DISALLOWED_XML_MARKERS):
+        raise ValueError("XML DTD and entity declarations are forbidden")
+    return ET.fromstring(text.strip())  # noqa: S314 - DTD/ENTITY declarations and size bounded above
 
 _COMPASS_DIRECTIONS: dict[str, str] = {
     "NORTH": "N",

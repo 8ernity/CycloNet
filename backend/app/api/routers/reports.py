@@ -4,14 +4,13 @@ import logging
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.api.schemas import AlertDispatchRequest, BroadcastRequest, SystemResponse
 from app.core.auth import require_operator_user
 from app.core.database import get_db
 from app.core.rate_limit import enforce_rate_limit
-from app.models.domain import CycloneArchive
+from app.models.domain import find_archive_cyclone, find_default_exercise_cyclone
 from app.services.best_tracks import get_cyclone_trajectory
 from app.services.live_ingestion import live_ingestion_service
 from app.services.report_service import report_service
@@ -38,11 +37,7 @@ async def get_cyclone_bulletins(
         system = dict(DEMO_SYSTEM)
         mode = "DEMO_REPORT"
     elif system is None and cyclone_id:
-        target = (
-            db.query(CycloneArchive)
-            .filter((CycloneArchive.id == cyclone_id) | (func.lower(CycloneArchive.name) == cyclone_id.lower()))
-            .first()
-        )
+        target = find_archive_cyclone(db, cyclone_id)
         if not target:
             raise HTTPException(404, "Cyclone not found")
         system = get_cyclone_trajectory(
@@ -116,13 +111,7 @@ async def broadcast_emergency_alert(
     enforce_rate_limit(request, endpoint_type="admin", user=current_user, response=response)
     target = None
     if req.system_id:
-        target = (
-            db.query(CycloneArchive)
-            .filter(
-                (CycloneArchive.id == req.system_id) | (func.lower(CycloneArchive.name) == req.system_id.lower())
-            )
-            .first()
-        )
+        target = find_archive_cyclone(db, req.system_id)
         if not target:
             raise HTTPException(
                 status_code=404,
@@ -130,9 +119,7 @@ async def broadcast_emergency_alert(
             )
 
     if not target:
-        target = db.query(CycloneArchive).filter_by(id="BOB05-2026").first()
-        if not target:
-            target = db.query(CycloneArchive).filter_by(id="ARB01-2023").first()
+        target = find_default_exercise_cyclone(db)
 
     sys_dict = {
         "name": target.name if target else "Biparjoy",

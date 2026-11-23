@@ -10,7 +10,7 @@ export interface ChatMessage {
   timestamp: string;
 }
 
-export interface ChatFeatureCard {
+interface ChatFeatureCard {
   title: string;
   desc: string;
   icon: LucideIcon;

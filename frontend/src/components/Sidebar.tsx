@@ -6,15 +6,10 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Activity, UploadCloud, History, FileText, Settings, Wind, LogOut, GitCompare, Building2 } from "lucide-react";
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
 import { CycloneLogo } from "@/components/CycloneLogo";
+import { cn } from "@/lib/utils";
 
 import { useUser, useClerk } from "@clerk/nextjs";
-
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
 
 import { useLanguage } from "@/context/LanguageContext";
 

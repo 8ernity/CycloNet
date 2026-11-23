@@ -125,14 +125,17 @@ class CycloneIntensityService:
     def _extract_features(self, t: torch.Tensor) -> torch.Tensor:
         """Forward pass through ResNet-50 up to layer4."""
         self._ensure_initialized()
-        x = self.backbone.conv1(t)
-        x = self.backbone.bn1(x)
-        x = self.backbone.relu(x)
-        x = self.backbone.maxpool(x)
-        x = self.backbone.layer1(x)
-        x = self.backbone.layer2(x)
-        x = self.backbone.layer3(x)
-        x = self.backbone.layer4(x)
+        backbone = self.backbone
+        if backbone is None:
+            raise RuntimeError("Model backbone is not initialized")
+        x = backbone.conv1(t)
+        x = backbone.bn1(x)
+        x = backbone.relu(x)
+        x = backbone.maxpool(x)
+        x = backbone.layer1(x)
+        x = backbone.layer2(x)
+        x = backbone.layer3(x)
+        x = backbone.layer4(x)
         return x
 
     def _compute_gradcam(self, features: torch.Tensor, pred_idx: int) -> Optional[str]:
@@ -141,12 +144,16 @@ class CycloneIntensityService:
         Returns a base64-encoded PNG data URL.
         """
         try:
+            backbone = self.backbone
+            head = self.head
+            if backbone is None or head is None:
+                return None
             feat_var = features.clone().detach().requires_grad_(True)
-            pooled = self.backbone.avgpool(feat_var).flatten(1)
-            logits = self.head(pooled)
+            pooled = backbone.avgpool(feat_var).flatten(1)
+            logits = head(pooled)
             score = logits[0, pred_idx]
 
-            self.head.zero_grad()
+            head.zero_grad()
             score.backward()
 
             grads = feat_var.grad
@@ -159,10 +166,7 @@ class CycloneIntensityService:
             cam = torch.clamp(cam, min=0)
             cam_np = cam.detach().cpu().numpy()
             max_val = np.max(cam_np)
-            if max_val > 0:
-                cam_np = cam_np / max_val
-            else:
-                cam_np = np.zeros_like(cam_np)
+            cam_np = cam_np / max_val if max_val > 0 else np.zeros_like(cam_np)
 
             # Upscale 7x7 to 224x224 using bilinear interpolation
             cam_img = Image.fromarray((cam_np * 255).astype(np.uint8)).resize((224, 224), Image.Resampling.BILINEAR)
@@ -184,6 +188,55 @@ class CycloneIntensityService:
         except Exception as e:
             logger.warning("Grad-CAM generation failed: %s", type(e).__name__)
             return None
+
+    def _base_prediction_payload(
+        self,
+        *,
+        conf: float,
+        msp: float,
+        margin: float,
+        entropy: float,
+        normalized_entropy: float,
+        energy_score: float,
+        probs: np.ndarray,
+        disclaimer: str,
+    ) -> dict[str, object]:
+        return {
+            'operational_status': 'EXPERIMENTAL',
+            'model_type': 'DEMO' if self.demo_model else 'RESEARCH',
+            'scientifically_validated': self.scientifically_validated,
+            'checkpoint_loaded': self.checkpoint_loaded,
+            'confidence': round(conf, 2),
+            'msp': round(msp, 4),
+            'margin': round(margin, 4),
+            'entropy': round(entropy, 4),
+            'normalized_entropy': round(normalized_entropy, 3),
+            'energy_score': round(energy_score, 3),
+            'predictive_uncertainty_heuristic': {
+                'normalized_entropy': round(normalized_entropy, 3),
+                'max_softmax_probability': round(msp, 3),
+                'margin': round(margin, 3),
+                'energy_score': round(energy_score, 3),
+                'heuristic_method': 'Normalized Shannon Entropy + MSP Floor + Free Energy Score',
+                'scientific_status': 'UNCALIBRATED_HEURISTIC_SCREENING',
+                'disclaimer': disclaimer,
+            },
+            'dvorak_t': None,
+            'dvorak_estimate_available': False,
+            'wind_speed_knots': None,
+            'wind_speed_estimate_available': False,
+            'intensity_notice': 'Operational quantitative wind speeds and Dvorak T-numbers require calibrated objective thermal infrared (TIR) analysis. Category classification alone does not substitute for numerical wind retrieval (ML-06).',
+            'checkpoint_status': 'DEMO_CHECKPOINT_LOADED' if self.demo_model else 'RESEARCH_CHECKPOINT_LOADED',
+            'is_trained_weights': bool(self.metadata and self.metadata.training_complete),
+            'is_uncalibrated_demo': self.demo_model,
+            'model_architecture': 'ResNet-50 + Custom Classifier Head (PyTorch)',
+            'domain_transfer_status': 'RGB_SURROGATE_SURFACE',
+            'domain_notice': 'Transfer learning backbone (ResNet-50) is pretrained on ImageNet optical natural images. Operational cyclone categorization requires fine-tuning on calibrated INSAT-3DR / Meteosat-9 infrared brightness temperature grids (TIR1/TIR2/WV).',
+            'overlay_url': None,
+            'probabilities': {
+                self.classes[i]: round(float(probs[i]) * 100.0, 2) for i in range(len(self.classes))
+            },
+        }
 
     def predict(self, image_bytes: bytes):
         """Runs genuine PyTorch forward pass inference with softmax confidence scores in <50ms."""
@@ -229,10 +282,15 @@ class CycloneIntensityService:
                 }
             }
 
+        backbone = self.backbone
+        head = self.head
+        if backbone is None or head is None:
+            raise RuntimeError("Model is not initialized")
+
         with torch.no_grad():
             feat = self._extract_features(t)
-            pooled = self.backbone.avgpool(feat).flatten(1)
-            logits = self.head(pooled)
+            pooled = backbone.avgpool(feat).flatten(1)
+            logits = head(pooled)
             probs = torch.softmax(logits, dim=1).squeeze().cpu().numpy()
             pred_idx = int(np.argmax(probs))
             msp = float(probs[pred_idx])
@@ -272,52 +330,28 @@ class CycloneIntensityService:
 
         if is_abstained:
             return {
+                **self._base_prediction_payload(
+                    conf=conf,
+                    msp=msp,
+                    margin=margin,
+                    entropy=entropy,
+                    normalized_entropy=normalized_entropy,
+                    energy_score=energy_score,
+                    probs=probs,
+                    disclaimer='Entropy, margin, and free energy scores provide empirical predictive uncertainty screening. Operational certification requires validation against independent multi-sensor OOD benchmark datasets (FIX-006).',
+                ),
                 'status': 'INSUFFICIENT_CONFIDENCE',
                 'confidence_status': 'INSUFFICIENT_CONFIDENCE',
                 'is_reliable': False,
-                'operational_status': 'EXPERIMENTAL',
-                'model_type': 'DEMO' if self.demo_model else 'RESEARCH',
-                'scientifically_validated': self.scientifically_validated,
-                'checkpoint_loaded': self.checkpoint_loaded,
                 'is_cyclone': False,
                 'is_abstained': True,
                 'uncertainty_flag': 'UNCERTAIN_PREDICTION',
                 'category': 'Insufficient Confidence (Abstained)',
                 'category_short': 'ABSTAINED',
-                'confidence': round(conf, 2),
-                'msp': round(msp, 4),
-                'margin': round(margin, 4),
-                'entropy': round(entropy, 4),
-                'normalized_entropy': round(normalized_entropy, 3),
-                'energy_score': round(energy_score, 3),
-                'predictive_uncertainty_heuristic': {
-                    'normalized_entropy': round(normalized_entropy, 3),
-                    'max_softmax_probability': round(msp, 3),
-                    'margin': round(margin, 3),
-                    'energy_score': round(energy_score, 3),
-                    'heuristic_method': 'Normalized Shannon Entropy + MSP Floor + Free Energy Score',
-                    'scientific_status': 'UNCALIBRATED_HEURISTIC_SCREENING',
-                    'disclaimer': 'Entropy, margin, and free energy scores provide empirical predictive uncertainty screening. Operational certification requires validation against independent multi-sensor OOD benchmark datasets (FIX-006).'
-                },
                 'abstention_reason': f'Input image shows high predictive uncertainty (normalized entropy: {normalized_entropy:.2f}, MSP: {msp:.2f}, margin: {margin:.2f}). The classifier abstains from forced prediction on ambiguous or out-of-distribution patterns (FIX-006).',
                 'recommendation': 'Input exhibits high diagnostic ambiguity. Human meteorological inspection required before considering operational advisories.',
-                'dvorak_t': None,
-                'dvorak_estimate_available': False,
-                'wind_speed_knots': None,
-                'wind_speed_estimate_available': False,
-                'intensity_notice': 'Operational quantitative wind speeds and Dvorak T-numbers require calibrated objective thermal infrared (TIR) analysis. Category classification alone does not substitute for numerical wind retrieval (ML-06).',
-                'checkpoint_status': 'DEMO_CHECKPOINT_LOADED' if self.demo_model else 'RESEARCH_CHECKPOINT_LOADED',
-                'is_trained_weights': bool(self.metadata and self.metadata.training_complete),
-                'is_uncalibrated_demo': self.demo_model,
                 'warning': 'Predictive uncertainty exceeded confidence threshold; prediction abstained to prevent false hazard alerts.',
-                'model_architecture': 'ResNet-50 + Custom Classifier Head (PyTorch)',
-                'domain_transfer_status': 'RGB_SURROGATE_SURFACE',
-                'domain_notice': 'Transfer learning backbone (ResNet-50) is pretrained on ImageNet optical natural images. Operational cyclone categorization requires fine-tuning on calibrated INSAT-3DR / Meteosat-9 infrared brightness temperature grids (TIR1/TIR2/WV).',
-                'overlay_url': None,
                 'gradcam_data_url': None,
-                'probabilities': {
-                    self.classes[i]: round(float(probs[i]) * 100.0, 2) for i in range(len(self.classes))
-                }
             }
 
         pred_class = self.classes[pred_idx]
@@ -328,51 +362,27 @@ class CycloneIntensityService:
         gradcam_url = self._compute_gradcam(feat, pred_idx) if is_cyclone else None
 
         return {
+            **self._base_prediction_payload(
+                conf=conf,
+                msp=msp,
+                margin=margin,
+                entropy=entropy,
+                normalized_entropy=normalized_entropy,
+                energy_score=energy_score,
+                probs=probs,
+                disclaimer='Entropy, margin, and free energy scores provide empirical predictive uncertainty screening.',
+            ),
             'status': 'SUCCESS',
             'confidence_status': confidence_status,
             'is_reliable': is_reliable,
-            'operational_status': 'EXPERIMENTAL',
-                'model_type': 'DEMO' if self.demo_model else 'RESEARCH',
-                'scientifically_validated': self.scientifically_validated,
-                'checkpoint_loaded': self.checkpoint_loaded,
             'is_cyclone': is_cyclone,
             'is_abstained': False,
             'uncertainty_flag': uncertainty_flag,
             'category': pred_name,
             'category_short': pred_class if is_cyclone else 'NOT A CYCLONE',
-            'confidence': round(conf, 2),
-            'msp': round(msp, 4),
-            'margin': round(margin, 4),
-            'entropy': round(entropy, 4),
-            'normalized_entropy': round(normalized_entropy, 3),
-            'energy_score': round(energy_score, 3),
-            'predictive_uncertainty_heuristic': {
-                'normalized_entropy': round(normalized_entropy, 3),
-                'max_softmax_probability': round(msp, 3),
-                'margin': round(margin, 3),
-                'energy_score': round(energy_score, 3),
-                'heuristic_method': 'Normalized Shannon Entropy + MSP Floor + Free Energy Score',
-                'scientific_status': 'UNCALIBRATED_HEURISTIC_SCREENING',
-                'disclaimer': 'Entropy, margin, and free energy scores provide empirical predictive uncertainty screening.'
-            },
             'recommendation': 'Experimental decision support output only. Consult official IMD / RSMC bulletins for operational advisories.',
-            'dvorak_t': None,
-            'dvorak_estimate_available': False,
-            'wind_speed_knots': None,
-            'wind_speed_estimate_available': False,
-            'intensity_notice': 'Operational quantitative wind speeds and Dvorak T-numbers require calibrated objective thermal infrared (TIR) analysis. Category classification alone does not substitute for numerical wind retrieval (ML-06).',
-            'checkpoint_status': 'DEMO_CHECKPOINT_LOADED' if self.demo_model else 'RESEARCH_CHECKPOINT_LOADED',
-            'is_trained_weights': bool(self.metadata and self.metadata.training_complete),
-            'is_uncalibrated_demo': self.demo_model,
             'warning': None if self.scientifically_validated else "Experimental model: not independently validated for operational decisions.",
-            'model_architecture': 'ResNet-50 + Custom Classifier Head (PyTorch)',
-            'domain_transfer_status': 'RGB_SURROGATE_SURFACE',
-            'domain_notice': 'Transfer learning backbone (ResNet-50) is pretrained on ImageNet optical natural images. Operational cyclone categorization requires fine-tuning on calibrated INSAT-3DR / Meteosat-9 infrared brightness temperature grids (TIR1/TIR2/WV).',
-            'overlay_url': None,
             'gradcam_data_url': gradcam_url,
-            'probabilities': {
-                self.classes[i]: round(float(probs[i]) * 100.0, 2) for i in range(len(self.classes))
-            }
         }
 
 ml_service = CycloneIntensityService()

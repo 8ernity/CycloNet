@@ -44,7 +44,7 @@ class RequestLimitsMiddleware:
         while True:
             try:
                 message = await asyncio.wait_for(receive(), timeout=max(0.001, deadline - asyncio.get_running_loop().time()))
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 return await reject(408, "Request body timed out")
             if message['type'] == 'http.disconnect':
                 return

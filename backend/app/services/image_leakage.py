@@ -18,8 +18,8 @@ MAX_CHANNEL_MAE = 2.0  # 8-bit channel levels; fixed before split evaluation
 def verify_image_content_splits(splits):
     from app.services.dataset_errors import InsufficientDatasetError
     from train_classifier import DataLeakageError
-    exact = {}
-    buckets = defaultdict(list)
+    exact: dict[str, tuple[str, object]] = {}
+    buckets: dict[tuple[int, ...], list[tuple[str, object, np.ndarray]]] = defaultdict(list)
     comparisons = checked = 0
     for split_name, samples in zip(('train', 'validation', 'test'), splits, strict=True):
         for sample in samples:
@@ -47,7 +47,7 @@ def verify_image_content_splits(splits):
             exact.setdefault(digest, (split_name, sample.path))
             buckets[bucket].append((split_name, sample.path, thumbnail))
             checked += 1
-    return dict(status='PASSED_AUTOMATED_SCREEN', images_checked=checked,
-        candidate_comparisons=comparisons, thumbnail_size=list(THUMBNAIL_SIZE),
-        maximum_channel_mae=MAX_CHANNEL_MAE,
-        limitation='Crops, rotations, shared scenes and semantic overlap still require independent review')
+    return {'status': 'PASSED_AUTOMATED_SCREEN', 'images_checked': checked,
+        'candidate_comparisons': comparisons, 'thumbnail_size': list(THUMBNAIL_SIZE),
+        'maximum_channel_mae': MAX_CHANNEL_MAE,
+        'limitation': 'Crops, rotations, shared scenes and semantic overlap still require independent review'}

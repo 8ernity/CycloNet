@@ -7,7 +7,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Lenis from "@studio-freight/lenis";
 import { motion, useReducedMotion } from "framer-motion";
 
-export interface ParallaxComponentProps {
+interface ParallaxComponentProps {
   title?: string;
   pretitle?: string;
   subtitle?: string;
@@ -233,5 +233,3 @@ export function ParallaxComponent({
     </div>
   );
 }
-
-export default ParallaxComponent;

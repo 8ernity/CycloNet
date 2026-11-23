@@ -1,7 +1,7 @@
 import hashlib
 import uuid
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 
@@ -36,42 +36,6 @@ class MeteorologicalReportService:
         _ = (intensity_knots, is_bay_of_bengal)
         return []
 
-    def get_affected_districts(self, basin: str, lat: float, lon: float) -> List[Dict[str, str]]:
-        """Identifies vulnerable coastal districts based on active coordinates and basin (DATA-08, ALERT-04)."""
-        is_bob = "bengal" in basin.lower() or lon > 77.0
-        if is_bob:
-            if lat >= 19.5:
-                return [
-                    {"district": "Puri, Odisha", "risk": "Extremely High", "state": "Odisha", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
-                    {"district": "Jagatsinghpur, Odisha", "risk": "Extremely High", "state": "Odisha", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
-                    {"district": "Kendrapara & Bhadrak", "risk": "High", "state": "Odisha", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
-                    {"district": "South 24 Parganas, WB", "risk": "High", "state": "West Bengal", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
-                    {"district": "East Midnapore, WB", "risk": "Moderate", "state": "West Bengal", "shelters": "Data unverified (consult DDMA)", "advisory": "Moderate Hazard Zone"}
-                ]
-            elif lat >= 16.0:
-                return [
-                    {"district": "Srikakulam, AP", "risk": "Extremely High", "state": "Andhra Pradesh", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
-                    {"district": "Visakhapatnam, AP", "risk": "Extremely High", "state": "Andhra Pradesh", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
-                    {"district": "Vizianagaram, AP", "risk": "High", "state": "Andhra Pradesh", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
-                    {"district": "Ganjam, Odisha", "risk": "High", "state": "Odisha", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
-                    {"district": "Kakinada, AP", "risk": "Moderate", "state": "Andhra Pradesh", "shelters": "Data unverified (consult DDMA)", "advisory": "Moderate Hazard Zone"}
-                ]
-            else:
-                return [
-                    {"district": "Chennai Coastal Zone", "risk": "High", "state": "Tamil Nadu", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
-                    {"district": "Nellore, AP", "risk": "High", "state": "Andhra Pradesh", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
-                    {"district": "Nagapattinam, TN", "risk": "Moderate", "state": "Tamil Nadu", "shelters": "Data unverified (consult DDMA)", "advisory": "Moderate Hazard Zone"},
-                    {"district": "Cuddalore, TN", "risk": "Moderate", "state": "Tamil Nadu", "shelters": "Data unverified (consult DDMA)", "advisory": "Moderate Hazard Zone"}
-                ]
-        else:
-            return [
-                {"district": "Kutch & Dwarka, GJ", "risk": "Extremely High", "state": "Gujarat", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
-                {"district": "Porbandar, GJ", "risk": "Extremely High", "state": "Gujarat", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
-                {"district": "Gir Somnath & Junagadh", "risk": "High", "state": "Gujarat", "shelters": "Data unverified (consult DDMA)", "advisory": "High Hazard Zone (Refer to DDMA Directives)"},
-                {"district": "Mumbai Suburban, MH", "risk": "Moderate", "state": "Maharashtra", "shelters": "Data unverified (consult DDMA)", "advisory": "Moderate Hazard Zone"},
-                {"district": "Raigad & Ratnagiri, MH", "risk": "Moderate", "state": "Maharashtra", "shelters": "Data unverified (consult DDMA)", "advisory": "Moderate Hazard Zone"}
-            ]
-
     def generate_experimental_analysis(self, system: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Describe supplied telemetry only. Never impersonate an agency bulletin."""
         knots = system.get("intensity_knots")
@@ -101,7 +65,8 @@ class MeteorologicalReportService:
         root = ET.Element("alert", xmlns="urn:oasis:names:tc:emergency:cap:1.2")
         for key, value in {
             "identifier": f"CYCLONET-EXERCISE-{uuid.uuid4().hex}",
-            "sender": "cyclonet-simulation-engine@cyclonet.invalid", "sent": datetime.utcnow().isoformat() + "+00:00",
+            "sender": "cyclonet-simulation-engine@cyclonet.invalid",
+            "sent": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "+00:00",
             "status": "Exercise", "msgType": "Alert", "scope": "Public"
         }.items():
             ET.SubElement(root, key).text = value
@@ -130,7 +95,7 @@ class MeteorologicalReportService:
         return {
             "dispatch_id": f"CYCLONET-EXERCISE-{uuid.uuid4().hex}",
             "mode": "SANDBOX_SIMULATION", "system_name": system.get("name", "Unknown"),
-            "alert_type": alert_type, "timestamp": datetime.utcnow().isoformat()+"Z",
+            "alert_type": alert_type, "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
             "target_districts": [], "channels_used": channels,
             "channel_metrics": {ch.lower(): {"channel_name": f"{ch.upper()} exercise template",
                 "status":"DRAFT_ONLY", "recipients_targeted":None, "delivered":None,
@@ -149,7 +114,8 @@ class MeteorologicalReportService:
         return {
             "status":"EXERCISE_DRAFT_CREATED", "mode":"SANDBOX_SIMULATION",
             "production_dispatch_ready":False, "dispatch_authorization_status":"EXERCISE_ONLY_NO_DELIVERY_ADAPTER",
-            "dispatch_id":f"CYCLONET-EXERCISE-{uuid.uuid4().hex}", "timestamp":datetime.utcnow().isoformat()+"Z",
+            "dispatch_id": f"CYCLONET-EXERCISE-{uuid.uuid4().hex}",
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
             "region":region, "risk_level":risk_level, "storm_surge_m":surge,
             "wind_speed_kts":wind, "wind_speed_kmh":round(wind*1.852,2),
             "channels_requested":channels, "channels_delivered":{},

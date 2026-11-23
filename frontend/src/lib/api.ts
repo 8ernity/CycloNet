@@ -19,7 +19,7 @@ let cleaned = rawUrl.replace(/\/+$/, "").replace(/\/api$/, "");
 if (cleaned && !cleaned.startsWith("http://") && !cleaned.startsWith("https://")) {
   cleaned = `https://${cleaned}`;
 }
-export const API_BASE_URL = cleaned;
+const API_BASE_URL = cleaned;
 
 /**
  * Dynamic API Base URL resolver that respects user-configured CUSTOM data source in Settings (Fix #37, UI-07).
@@ -263,37 +263,4 @@ export async function fetchWithTimeout(
     clearTimeout(id);
     throw error;
   }
-}
-
-export async function fetchWithRetry(
-  url: string,
-  options: RequestInit = {},
-  maxRetries: number = 2,
-  timeoutMs: number = 12000
-): Promise<Response> {
-  const method = (options.method || "GET").toUpperCase();
-  const isIdempotent = ["GET", "HEAD"].includes(method);
-  const actualRetries = isIdempotent ? maxRetries : 0;
-
-  let lastError: unknown = null;
-  for (let attempt = 0; attempt <= actualRetries; attempt++) {
-    options.signal?.throwIfAborted();
-    try {
-      const res = await fetchWithTimeout(url, options, timeoutMs);
-      if (res.ok || (res.status < 500 && res.status !== 429)) {
-        return res;
-      }
-      if (res.status === 429) {
-        return res;
-      }
-    } catch (err) {
-      options.signal?.throwIfAborted();
-      lastError = err;
-      if (attempt < actualRetries) {
-        const jitter = Math.random() * 200;
-        await retryDelay(1000 * Math.pow(2, attempt) + jitter, options.signal);
-      }
-    }
-  }
-  throw lastError || new Error(`Failed to fetch ${url} after ${actualRetries} retries`);
 }

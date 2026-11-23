@@ -1,11 +1,11 @@
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 
-class FeedStatus(str, Enum):
+class FeedStatus(StrEnum):
     HEALTHY = "HEALTHY"
     NO_ACTIVE_STORMS = "NO_ACTIVE_STORMS"
     STALE = "STALE"

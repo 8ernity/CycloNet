@@ -96,16 +96,8 @@ def seed_historical_data(db: Session):
     # Purge any duplicate/legacy LIVE-IMD-BOB05 record
     try:
         db.query(CycloneArchive).filter(CycloneArchive.id == "LIVE-IMD-BOB05").delete()
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("Unable to purge legacy LIVE-IMD-BOB05 record: %s", exc)
 
     db.commit()
     logger.info("Database seeded: %d historical cyclones in catalog.", len(historical_systems))
-
-def fetch_mosdac_latest_frame():
-    """
-    Mock function simulating a download of the latest INSAT-3D IR frame
-    from MOSDAC API (ISRO).
-    """
-    logger.debug("MOSDAC IR frame polling is disabled without configured credentials.")
-    return True

@@ -5,7 +5,6 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile
 from sqlalchemy.orm import Session
 
-from app.api.routers.cyclones import MAX_IMAGE_SIZE_BYTES
 from app.api.schemas import ChatMessageResponse
 from app.core.auth import get_current_user
 from app.core.database import get_db
@@ -13,7 +12,7 @@ from app.core.inference_budget import run_inference
 from app.core.rate_limit import enforce_rate_limit
 from app.models.ai_requests import BriefingRequest, ChatMessageRequest
 from app.services.chat_service import chat_service
-from app.services.image_validation import validate_image_payload
+from app.services.image_validation import read_validated_image_upload
 
 router = APIRouter()
 
@@ -52,17 +51,10 @@ async def analyze_multimodal_satellite(
 ):
     """Return disabled meteorological vision capability pending scientific validation."""
     enforce_rate_limit(req, endpoint_type="multimodal", user=current_user, response=response)
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Uploaded file must be a satellite/radar image")
-
-    image_bytes = await file.read(MAX_IMAGE_SIZE_BYTES + 1)
-    if len(image_bytes) > MAX_IMAGE_SIZE_BYTES:
-        raise HTTPException(status_code=413, detail="File size exceeds maximum allowable limit (15 MB).")
-
-    try:
-        validate_image_payload(image_bytes)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    image_bytes = await read_validated_image_upload(
+        file,
+        content_type_error="Uploaded file must be a satellite/radar image",
+    )
 
     analysis = await run_inference(
         req,

@@ -56,14 +56,6 @@ export function evaluateIllustrativeTrigger(
 }
 
 // ── Illustrative Coastal Infrastructure Dataset (NIO / BoB / Arabian Sea) ──
-// Metadata documentation addressing #50 (Static Asset Inventories) & #51 (Unverified Field Statuses)
-export const INFRASTRUCTURE_METADATA = {
-  inventoryType: "Illustrative scenario inventory; no verified asset source",
-  lastTopologicalSurvey: null,
-  fieldVerificationRequired: true,
-  operationalNotice: "All asset fields are unverified scenario assumptions. No surveyed inventory, current readiness or funded insurance facility is connected."
-};
-
 export const POWER_SUBSTATIONS: PowerSubstation[] = [
   {
     id: "SUB-AP-01",
@@ -811,13 +803,3 @@ export function calculateShelterSuitability(
     decisionNote: isRecommendedDestination ? "Current authorized destination approval recorded; confirm with the issuing authority before travel." : "Operational status not verified",
     is_heuristic_simulation:false};
 }
-
-// Per-field provenance travels separately from illustrative numeric inputs.
-export const INFRASTRUCTURE_FIELD_PROVENANCE = Object.fromEntries(
-  [...POWER_SUBSTATIONS, ...EVACUATION_ROUTES, ...MEDICAL_SHELTERS].map(asset => [asset.id,
-    Object.fromEntries(Object.keys(asset).map(field => [field, {
-      source: "Illustrative scenario assumption", verified_at:null, expires_at:null,
-      verification_status:"SIMULATED", authorized:false
-    }]))
-  ])
-);

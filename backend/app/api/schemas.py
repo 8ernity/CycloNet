@@ -1,13 +1,13 @@
 """Shared Pydantic request/response contracts and provenance enums for API routes."""
 
 import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
 
-class Provenance(str, Enum):
+class Provenance(StrEnum):
     LIVE_OBSERVATION = "LIVE_OBSERVATION"
     OFFICIAL_FORECAST = "OFFICIAL_FORECAST"
     HISTORICAL_ARCHIVE = "HISTORICAL_ARCHIVE"

@@ -92,6 +92,6 @@ async def run_inference(request, user, function, *args, **kwargs):
     task.add_done_callback(lambda done: done.exception() if not done.cancelled() else None)
     try:
         return await asyncio.wait_for(asyncio.shield(task), timeout=60)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.warning('inference_timeout')
         raise HTTPException(504, 'Inference timed out') from None

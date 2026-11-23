@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import type { CatalogItem, WeatherSystem } from "@/types/api";
 import { apiFetch } from "@/lib/api";
-import { catalogObservation } from "@/lib/catalogObservation";
+import { catalogObservation, formatCatalogStormName } from "@/lib/catalogObservation";
+import { useToastMessage } from "@/hooks/useToastMessage";
 import type { InfrastructureStormPreset } from "../types";
 
 export function useInfrastructureData(selectedCycloneId: string | null) {
@@ -12,24 +13,7 @@ export function useInfrastructureData(selectedCycloneId: string | null) {
   const [sourceError, setSourceError] = useState(false);
   const [sourceRetry, setSourceRetry] = useState(0);
   const [cyclonesList, setCyclonesList] = useState<InfrastructureStormPreset[]>([]);
-  const [toast, setToast] = useState<string | null>(null);
-  const toastTimer = useRef<number | null>(null);
-
-  const showToast = useCallback((msg: string) => {
-    setToast(msg);
-    if (toastTimer.current != null) window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => {
-      setToast(null);
-      toastTimer.current = null;
-    }, 3000);
-  }, []);
-
-  useEffect(
-    () => () => {
-      if (toastTimer.current != null) window.clearTimeout(toastTimer.current);
-    },
-    []
-  );
+  const { toast, showToast } = useToastMessage();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -43,14 +27,7 @@ export function useInfrastructureData(selectedCycloneId: string | null) {
           setCyclonesList(
             data.map((c: CatalogItem) => ({
               ...catalogObservation(c),
-              name:
-                c.name.startsWith("Cyclone ") ||
-                c.name.startsWith("Deep Depression") ||
-                c.name.startsWith("Depression") ||
-                c.name.startsWith("Super Cyclone") ||
-                c.name.includes("Cyclone")
-                  ? c.name
-                  : `Cyclone ${c.name}`,
+              name: formatCatalogStormName(c.name),
             }))
           );
         }

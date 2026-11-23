@@ -3,8 +3,8 @@
 from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import BigInteger, Date, DateTime, Float, Index, Integer, String, event, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import BigInteger, Date, DateTime, Float, Index, Integer, String, event, func, text
+from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from app.core.database import Base
 
@@ -55,3 +55,20 @@ def normalize_archive_date(_mapper, _connection, target):
     from app.core.archive_dates import archive_start_date
 
     target.start_date = archive_start_date(target.year, target.dates)
+
+
+def find_archive_cyclone(db: Session, cyclone_id: str) -> Optional[CycloneArchive]:
+    """Look up an archived cyclone record by exact ID or case-insensitive storm name."""
+    return (
+        db.query(CycloneArchive)
+        .filter((CycloneArchive.id == cyclone_id) | (func.lower(CycloneArchive.name) == cyclone_id.lower()))
+        .first()
+    )
+
+
+def find_default_exercise_cyclone(db: Session) -> Optional[CycloneArchive]:
+    """Return the canonical fallback archive record for explicit drill/simulation playback."""
+    return (
+        db.query(CycloneArchive).filter_by(id="BOB05-2026").first()
+        or db.query(CycloneArchive).filter_by(id="ARB01-2023").first()
+    )

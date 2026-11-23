@@ -4,7 +4,28 @@ line-length = 120
 exclude = ["app/data/historical_tracks.py", "alembic/versions/*"]
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "W", "I", "B"]
+select = [
+  "E4",
+  "E7",
+  "E9",
+  "F",
+  "W",
+  "I",
+  "B",
+  "C4",
+  "ARG",
+  "SIM",
+  "S110",
+  "S301",
+  "S314",
+  "S506",
+  "S602",
+  "S603",
+  "UP012",
+  "UP015",
+  "UP041",
+  "UP042",
+]
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = [
@@ -20,7 +41,7 @@ extend-immutable-calls = [
 python_version = "3.11"
 explicit_package_bases = true
 ignore_missing_imports = true
-check_untyped_defs = false
+check_untyped_defs = true
 warn_unused_ignores = true
 
 [tool.coverage.run]

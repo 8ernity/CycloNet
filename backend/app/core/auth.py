@@ -3,7 +3,7 @@ import logging
 import os
 import secrets
 import time
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Dict, Optional, cast
 from urllib.parse import urlsplit
 
@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 # Security configuration - SEC-01, SEC-02, SEC-03
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "")
-CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY", "")
 CLERK_PEM_PUBLIC_KEY = os.getenv("CLERK_PEM_PUBLIC_KEY", "")
 CLERK_JWKS_URL = os.getenv("CLERK_JWKS_URL", "")
 CLERK_ISSUER = os.getenv("CLERK_ISSUER", "")
@@ -67,7 +66,7 @@ security_bearer = HTTPBearer(auto_error=False)
 _jwks_client: Optional[PyJWKClient] = None
 
 # SEC-02: Role Enumeration and Hierarchy
-class Role(str, Enum):
+class Role(StrEnum):
     PUBLIC_VIEWER = "public_viewer"
     AUTHENTICATED_ANALYST = "authenticated_analyst"
     AUTHORIZED_OPERATOR = "authorized_operator"
@@ -174,6 +173,91 @@ def parse_role_from_claims(claims: Dict[str, Any], token_type: Optional[str] = N
             return highest
         return Role.PUBLIC_VIEWER
 
+def _decode_clerk_with_key(token: str, key: Any, options: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    decoded = jwt.decode(
+        token,
+        key,
+        algorithms=["RS256"],
+        issuer=CLERK_ISSUER or None,
+        audience=CLERK_AUDIENCE or None,
+        options=cast(Any, options),
+    )
+    if not clerk_claims_allowed(decoded):
+        return None
+    decoded["_token_type"] = "clerk"
+    return decoded
+
+
+def _decode_rs256_token(token: str, options: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    try:
+        validate_production_auth()
+    except RuntimeError:
+        return None
+    rs_options = {**options, "verify_aud": bool(CLERK_AUDIENCE)}
+    if CLERK_PEM_PUBLIC_KEY and CLERK_PEM_PUBLIC_KEY.strip():
+        try:
+            pem = CLERK_PEM_PUBLIC_KEY.strip()
+            if not pem.startswith("-----BEGIN"):
+                pem = f"-----BEGIN PUBLIC KEY-----\n{pem}\n-----END PUBLIC KEY-----"
+            return _decode_clerk_with_key(token, pem, rs_options)
+        except jwt.ExpiredSignatureError:
+            logger.info("[Auth] Token signature has expired.")
+            return None
+        except jwt.InvalidTokenError as e:
+            logger.debug("[Auth] RS256 PEM token verification failed: %s", e)
+            return None
+
+    jwks = get_jwks_client()
+    if jwks:
+        try:
+            signing_key = jwks.get_signing_key_from_jwt(token)
+            return _decode_clerk_with_key(token, signing_key.key, rs_options)
+        except jwt.ExpiredSignatureError:
+            logger.info("[Auth] JWKS token signature has expired.")
+            return None
+        except Exception as e:
+            logger.debug("[Auth] JWKS token verification failed: %s", e)
+            return None
+
+    logger.warning("[Auth] RS256 token received but no Clerk public key/JWKS configured; rejecting.")
+    return None
+
+
+def _decode_hs256_token(token: str) -> Optional[Dict[str, Any]]:
+    if ENVIRONMENT == "production" and os.getenv("ALLOW_INTERNAL_TOKENS", "false").lower() != "true":
+        return None
+    hmac_secret = (JWT_SECRET_KEY or os.getenv("JWT_SECRET_KEY", "")).strip()
+    if not hmac_secret:
+        logger.debug("[Auth] No cryptographic verification secret configured; failing closed.")
+        return None
+    if len(hmac_secret) < 32 and ENVIRONMENT == "production":
+        logger.error("[Auth] In production, JWT_SECRET_KEY must be at least 32 characters; failing closed.")
+        return None
+
+    try:
+        decoded = jwt.decode(
+            token,
+            hmac_secret,
+            algorithms=["HS256"],
+            issuer="cyclonet-internal" if ENVIRONMENT == "production" else None,
+            audience="cyclonet-api" if ENVIRONMENT == "production" else None,
+            options={
+                "verify_signature": True,
+                "require": ["exp", "sub"],
+                "verify_exp": True,
+                "verify_aud": ENVIRONMENT == "production",
+            },
+        )
+        decoded["_token_type"] = "internal"
+        return decoded
+    except jwt.ExpiredSignatureError:
+        logger.info("[Auth] HS256 token signature has expired.")
+        return None
+    except jwt.InvalidTokenError as e:
+        logger.debug("[Auth] HS256 token verification failed: %s", e)
+        return None
+
+
 def decode_token_payload(token: str) -> Optional[Dict[str, Any]]:
     """
     SEC-01, SEC-03, FIX-03: Cryptographically verifies JWT signatures.
@@ -184,7 +268,6 @@ def decode_token_payload(token: str) -> Optional[Dict[str, Any]]:
     if not token or not token.strip():
         return None
 
-    # Inspect algorithm without verifying signature first to select correct verification path
     try:
         header = jwt.get_unverified_header(token)
     except Exception:
@@ -195,113 +278,16 @@ def decode_token_payload(token: str) -> Optional[Dict[str, Any]]:
         logger.warning("[Auth] Rejected token with disallowed algorithm '%s'", alg)
         return None
 
-    options = {
+    options: Dict[str, Any] = {
         "verify_signature": True,
         "require": ["exp"],
         "verify_exp": True,
         "verify_nbf": True,
         "verify_iat": True,
+        "verify_iss": bool(CLERK_ISSUER),
+        "verify_aud": bool(CLERK_AUDIENCE),
     }
-    if CLERK_ISSUER:
-        options["verify_iss"] = True
-    if CLERK_AUDIENCE:
-        options["verify_aud"] = True
-
-    # 1. Clerk RS256 Verification Path
-    if alg == "RS256":
-        try:
-            validate_production_auth()
-        except RuntimeError:
-            return None
-        options["verify_aud"] = bool(CLERK_AUDIENCE)
-        # 1a. Verify with Clerk PEM Public Key
-        if CLERK_PEM_PUBLIC_KEY and CLERK_PEM_PUBLIC_KEY.strip():
-            try:
-                pem = CLERK_PEM_PUBLIC_KEY.strip()
-                if not pem.startswith("-----BEGIN"):
-                    pem = f"-----BEGIN PUBLIC KEY-----\n{pem}\n-----END PUBLIC KEY-----"
-                decoded = jwt.decode(
-                    token,
-                    pem,
-                    algorithms=["RS256"],
-                    issuer=CLERK_ISSUER or None,
-                    audience=CLERK_AUDIENCE or None,
-                    options=cast(Any, options)
-                )
-                if not clerk_claims_allowed(decoded):
-                    return None
-                decoded["_token_type"] = "clerk"
-                return decoded
-            except jwt.ExpiredSignatureError:
-                logger.info("[Auth] Token signature has expired.")
-                return None
-            except jwt.InvalidTokenError as e:
-                logger.debug("[Auth] RS256 PEM token verification failed: %s", e)
-                return None
-
-        # 1b. Verify via Clerk JWKS Client (RS256 with key rotation and kid match)
-        jwks = get_jwks_client()
-        if jwks:
-            try:
-                signing_key = jwks.get_signing_key_from_jwt(token)
-                decoded = jwt.decode(
-                    token,
-                    signing_key.key,
-                    algorithms=["RS256"],
-                    issuer=CLERK_ISSUER or None,
-                    audience=CLERK_AUDIENCE or None,
-                    options=cast(Any, options)
-                )
-                if not clerk_claims_allowed(decoded):
-                    return None
-                decoded["_token_type"] = "clerk"
-                return decoded
-            except jwt.ExpiredSignatureError:
-                logger.info("[Auth] JWKS token signature has expired.")
-                return None
-            except Exception as e:
-                logger.debug("[Auth] JWKS token verification failed: %s", e)
-                return None
-
-        # If RS256 token but no Clerk public keys configured, reject
-        logger.warning("[Auth] RS256 token received but no Clerk public key/JWKS configured; rejecting.")
-        return None
-
-    # 2. Internal HS256 Verification Path
-    if alg == "HS256":
-        if ENVIRONMENT == "production" and os.getenv("ALLOW_INTERNAL_TOKENS", "false").lower() != "true":
-            return None
-        hmac_secret = (JWT_SECRET_KEY or os.getenv("JWT_SECRET_KEY", "")).strip()
-
-        # Fail closed if no secret configured
-        if not hmac_secret:
-            logger.debug("[Auth] No cryptographic verification secret configured; failing closed.")
-            return None
-
-        if len(hmac_secret) < 32 and ENVIRONMENT == "production":
-            logger.error("[Auth] In production, JWT_SECRET_KEY must be at least 32 characters; failing closed.")
-            return None
-
-        try:
-            decoded = jwt.decode(
-                token,
-                hmac_secret,
-                algorithms=["HS256"],
-                issuer="cyclonet-internal" if ENVIRONMENT == "production" else None,
-                audience="cyclonet-api" if ENVIRONMENT == "production" else None,
-                options={"verify_signature": True, "require": ["exp", "sub"], "verify_exp": True,
-                         "verify_aud": ENVIRONMENT == "production"}
-            )
-            decoded["_token_type"] = "internal"
-            return decoded
-        except jwt.ExpiredSignatureError:
-            logger.info("[Auth] HS256 token signature has expired.")
-            return None
-        except jwt.InvalidTokenError as e:
-            logger.debug("[Auth] HS256 token verification failed: %s", e)
-            return None
-
-    return None
+    return _decode_rs256_token(token, options) if alg == "RS256" else _decode_hs256_token(token)
 
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Security(security_bearer),

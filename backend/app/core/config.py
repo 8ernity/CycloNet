@@ -2,14 +2,26 @@
 
 import logging
 import os
+import re
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger(__name__)
+_ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
-def load_local_env() -> Optional[Path]:
-    """Load key=value pairs from the first existing .env file without overriding set env vars."""
+def _parse_env_value(raw_value: str) -> str:
+    value = raw_value.strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
+        return value[1:-1]
+    if " #" in value:
+        value = value.split(" #", 1)[0].rstrip()
+    return value
+
+
+def load_local_env() -> Path | None:
+    """Load key=value pairs from the first valid local .env file outside production."""
+    if os.getenv("ENVIRONMENT", "").lower() == "production":
+        return None
     backend_dir = Path(__file__).resolve().parents[2]
     repo_root = backend_dir.parent
     search_paths = [
@@ -22,17 +34,20 @@ def load_local_env() -> Optional[Path]:
             continue
         try:
             content = env_path.read_text(encoding="utf-8")
-        except OSError as exc:
+        except (OSError, UnicodeDecodeError) as exc:
             logger.warning("Unable to read environment file %s: %s", env_path, exc)
             continue
         for raw_line in content.splitlines():
             line = raw_line.strip()
             if not line or line.startswith("#") or "=" not in line:
                 continue
-            key, value = line.split("=", 1)
+            if line.startswith("export "):
+                line = line[7:].lstrip()
+            key, raw_value = line.split("=", 1)
             key = key.strip()
-            value = value.strip().strip("'\"")
-            if key and key not in os.environ:
-                os.environ[key] = value
+            if not _ENV_KEY_RE.match(key):
+                continue
+            if key not in os.environ:
+                os.environ[key] = _parse_env_value(raw_value)
         return env_path
     return None

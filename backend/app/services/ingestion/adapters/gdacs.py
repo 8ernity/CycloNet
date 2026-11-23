@@ -8,6 +8,7 @@ from app.models.feed_result import FeedResult, FeedStatus
 from app.services.cyclone_classification import classify_imd_category_from_knots
 from app.services.feed_http import FeedClient
 from app.services.feed_policy import assess_feed
+from app.services.ingestion.parsers import parse_safe_xml
 
 GDACS_URL = "https://www.gdacs.org/xml/rss.xml"
 GDACS_HEADERS = {
@@ -123,8 +124,7 @@ async def fetch_gdacs_active_systems(
         )
 
     try:
-        xml_str = resp.content.decode("utf-8-sig", errors="ignore").strip()
-        root = ET.fromstring(xml_str)
+        root = parse_safe_xml(resp.content)
     except Exception as parse_err:
         set_status(f"FAILED (XML Parse Error: {type(parse_err).__name__})")
         return assess_feed(

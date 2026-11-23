@@ -1,4 +1,4 @@
-export type Provenance = "LIVE_OBSERVATION" | "OFFICIAL_FORECAST" | "HISTORICAL_ARCHIVE" | "EXPERIMENTAL_FORECAST" | "DEMO_SIMULATION" | "UNKNOWN";
+type Provenance = "LIVE_OBSERVATION" | "OFFICIAL_FORECAST" | "HISTORICAL_ARCHIVE" | "EXPERIMENTAL_FORECAST" | "DEMO_SIMULATION" | "UNKNOWN";
 export interface TrackPoint {
   provenance?: Provenance;
   lat: number; lon: number; time_offset_hours: number; category: string;
@@ -59,8 +59,6 @@ export interface ChartPoint {
   category: string; lat: number; lon: number; isForecast: boolean; isLandfall?: boolean;
   lowerBound: number | null; upperBound: number | null; label?: string;
 }
-export function errorMessage(value: unknown): string { return value instanceof Error ? value.message : 'Request failed'; }
-
 export interface WeatherSystem {
   id:string; name:string; basin:string; lat:number; lon:number; category:string;
   intensity_knots:number|null; track_forecast:TrackPoint[];

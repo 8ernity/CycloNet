@@ -3,7 +3,7 @@ import { GlassPanel } from './GlassPanel';
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export interface StatTileProps {
+interface StatTileProps {
   icon: LucideIcon;
   value: React.ReactNode;
   label: string;

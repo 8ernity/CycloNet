@@ -109,15 +109,15 @@ def read_frame(data):
         event_id = text(file.attrs['TC_serial_number'])
         if file['sid'][()].tobytes().decode('ascii').strip('\x00 ') != event_id:
             raise ValueError('Conflicting storm identifiers')
-        return dict(event_id=event_id, nominal_time=timestamp(nominal.isoformat()), nominal_days_since_epoch=nominal_days,
-            acquisition_start=timestamp(text(file.attrs['time_coverage_start'])),
-            acquisition_end=timestamp(text(file.attrs['time_coverage_end'])),
-            satellite=text(file.attrs['Satellite_Name']), embedded_track_version=text(file.attrs['IBTrACS_Version']),
-            center_latitude=float(scalar(file['CentLat'][()])), center_longitude=float(scalar(file['CentLon'][()])),
-            embedded_wind_knots=float(scalar(file['WindSpd'][()])), embedded_wind_averaging_minutes=None,
-            ir_valid_pixels=int(valid.sum()), ir_total_pixels=int(raw.size),
-            ir_min_kelvin=float(kelvin.min()) if kelvin.size else None,
-            ir_max_kelvin=float(kelvin.max()) if kelvin.size else None)
+        return {'event_id': event_id, 'nominal_time': timestamp(nominal.isoformat()), 'nominal_days_since_epoch': nominal_days,
+            'acquisition_start': timestamp(text(file.attrs['time_coverage_start'])),
+            'acquisition_end': timestamp(text(file.attrs['time_coverage_end'])),
+            'satellite': text(file.attrs['Satellite_Name']), 'embedded_track_version': text(file.attrs['IBTrACS_Version']),
+            'center_latitude': float(scalar(file['CentLat'][()])), 'center_longitude': float(scalar(file['CentLon'][()])),
+            'embedded_wind_knots': float(scalar(file['WindSpd'][()])), 'embedded_wind_averaging_minutes': None,
+            'ir_valid_pixels': int(valid.sum()), 'ir_total_pixels': int(raw.size),
+            'ir_min_kelvin': float(kelvin.min()) if kelvin.size else None,
+            'ir_max_kelvin': float(kelvin.max()) if kelvin.size else None}
 
 
 def review_archive(archive, manifest, integrity):
@@ -138,7 +138,10 @@ def review_archive(archive, manifest, integrity):
             if not member.isfile() or member.name not in expected or member.name in seen or member.size > 16*1024*1024:
                 raise ValueError('Unexpected, duplicate, or excessive archive member')
             seen.add(member.name)
-            data = stream.extractfile(member).read(16*1024*1024+1)
+            extracted = stream.extractfile(member)
+            if extracted is None:
+                raise ValueError('Unreadable archive member')
+            data = extracted.read(16*1024*1024+1)
             digest = hashlib.sha256(data).hexdigest()
             if len(data) != expected[member.name]['bytes'] or digest != expected[member.name]['sha256']:
                 raise ValueError('Frame checksum differs from recorded acquisition')
@@ -148,9 +151,9 @@ def review_archive(archive, manifest, integrity):
             frames.append(match_frame(dict(member=member.name, sha256=digest, **frame), labels))
     if seen != expected.keys():
         raise ValueError('Missing archive members')
-    return dict(schema_version=1, source_url=integrity['source_url'], archive_sha256=archive_sha,
-        manifest_sha256=sha(manifest), frame_count=len(frames),
-        exact_nominal_label_matches=sum(f['label'] is not None for f in frames),
-        training_eligible_count=0, scientifically_validated=False,
-        method='Exact SID and nominal UTC time after removing <1ms CF day-fraction noise; raw days, acquisition offsets and version/center differences retained for review. No interpolation, wind-convention conversion, or training approval.',
-        frames=frames)
+    return {'schema_version': 1, 'source_url': integrity['source_url'], 'archive_sha256': archive_sha,
+        'manifest_sha256': sha(manifest), 'frame_count': len(frames),
+        'exact_nominal_label_matches': sum(f['label'] is not None for f in frames),
+        'training_eligible_count': 0, 'scientifically_validated': False,
+        'method': 'Exact SID and nominal UTC time after removing <1ms CF day-fraction noise; raw days, acquisition offsets and version/center differences retained for review. No interpolation, wind-convention conversion, or training approval.',
+        'frames': frames}

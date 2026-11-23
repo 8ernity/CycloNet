@@ -11,6 +11,7 @@ import { useDataSource } from "@/hooks/useDataSource";
 import { useCycloneWebSocket } from "@/hooks/useCycloneWebSocket";
 
 import { apiFetch, ApiClientError } from "@/lib/api";
+import { formatCatalogStormName } from "@/lib/catalogObservation";
 
 const MapComponent = dynamic(() => import('@/components/MapComponent'), { 
   ssr: false,
@@ -206,7 +207,7 @@ export default function DashboardLiveMonitoringPage() {
       {ingestError && (
         <div className="p-3 px-4 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs flex items-center justify-between shadow-xs">
           <span className="font-medium">⚠️ {ingestError}</span>
-          <button onClick={() => setIngestError(null)} className="text-xs font-semibold hover:underline cursor-pointer ml-4">Dismiss</button>
+          <button type="button" onClick={() => setIngestError(null)} className="text-xs font-semibold hover:underline cursor-pointer ml-4">Dismiss</button>
         </div>
       )}
 
@@ -270,9 +271,7 @@ export default function DashboardLiveMonitoringPage() {
               {mode === "LIVE" ? `Current source: ${activeSystem?.name}` : "Live ingestion: check source status"}
             </option>
             {cyclonesList.map((c) => {
-              const displayName = c.name.startsWith("Cyclone") || c.name.startsWith("Deep") || c.name.startsWith("Super") 
-                ? c.name 
-                : `Cyclone ${c.name}`;
+              const displayName = formatCatalogStormName(c.name);
               const isDrill = c.is_simulation;
               return (
                 <option key={c.id} value={c.id}>
@@ -288,6 +287,7 @@ export default function DashboardLiveMonitoringPage() {
           </span>
 
           <button
+            type="button"
             onClick={handleSyncFeeds}
             disabled={isSyncingIngest}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-600 dark:text-blue-400 text-xs font-semibold transition-all disabled:opacity-50 cursor-pointer hover:scale-105 active:scale-95 shadow-xs"
@@ -336,16 +336,18 @@ export default function DashboardLiveMonitoringPage() {
 
           <div className="flex items-center gap-2 flex-wrap shrink-0">
             <button
+              type="button"
               onClick={() => {
                 selectCyclone("BOB03-2020");
                 fetchActiveSystems(true, "BOB03-2020");
               }}
               className="px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-xs"
             >
-              <Play className="w-3 h-3 fill-current" />
+              <Play className="w-3 h-3 fill-current" aria-hidden="true" />
               Load Super Cyclone Amphan
             </button>
             <button
+              type="button"
               onClick={() => {
                 selectCyclone("ARB01-2023");
                 fetchActiveSystems(true, "ARB01-2023");

@@ -154,21 +154,6 @@ class MeteorologicalChatService:
             f"*(Note: For real-time active storm safety and civil advisories, always consult official bulletins from the India Meteorological Department (IMD) or RSMC).* "
         )
 
-    def _clean_response(self, text: str) -> str:
-        """Removes any unintentional meta-review, self-evaluation, or planning artifacts."""
-        if not text:
-            return ""
-        patterns = [
-            r"(?i)\n*(\*\*|###)?\s*Review against Persona.*$",
-            r"(?i)\n*(\*\*|###)?\s*Self-Review.*$",
-            r"(?i)\n*(\*\*|###)?\s*Persona & Formatting Verification.*$",
-            r"(?i)\n*(\*\*|###)?\s*Checklist against.*$"
-        ]
-        cleaned = text
-        for p in patterns:
-            cleaned = re.sub(p, "", cleaned)
-        return cleaned.strip()
-
     def _call_gemini(self, query: str, history: Optional[List[Dict[str, str]]] = None, db_context: Optional[str] = None, ui_context: Optional[Dict] = None) -> Optional[str]:
         """Select a bounded topic using configured candidate models; never display provider-generated prose."""
         _ = (db_context, ui_context)
@@ -247,6 +232,7 @@ class MeteorologicalChatService:
 
     def _expert_reasoning(self, query: str, ui_context: Optional[Dict] = None) -> Tuple[str, str, List[str]]:
         """Fixed educational text; scientifically grounded meteorological intelligence."""
+        _ = ui_context
         q = query.lower()
         if any(p in q for p in ('current storm status', 'current status', 'live status', 'can i return home', 'all clear', 'is it safe to sail', 'evacuation order')):
             return source_status_text(basin_snapshot()), 'source_status', []
