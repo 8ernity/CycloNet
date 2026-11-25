@@ -1,9 +1,20 @@
-import os
 import logging
+import os
+from typing import TYPE_CHECKING
+
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import declarative_base, sessionmaker
+
 from app.core.runtime import runtime_environment
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import DeclarativeBase
+
+    class Base(DeclarativeBase):
+        pass
+else:
+    Base = declarative_base()
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +57,6 @@ else:
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base = declarative_base()
-
 def get_db():
     db = SessionLocal()
     try:
@@ -64,7 +73,9 @@ def init_db():
         validate_schema()
         return
     from pathlib import Path
+
     from alembic.config import Config
+
     from alembic import command
     backend = Path(__file__).resolve().parents[2]
     config = Config(str(backend / 'alembic.ini'))
@@ -77,10 +88,11 @@ def init_db():
 
 def validate_schema():
     """Read-only in every environment. Initialization is a separate operation."""
-    from sqlalchemy import inspect, text
     from pathlib import Path
+
     from alembic.config import Config
     from alembic.script import ScriptDirectory
+    from sqlalchemy import inspect, text
     backend = Path(__file__).resolve().parents[2]
     config = Config(str(backend / 'alembic.ini'))
     config.set_main_option('script_location', str(backend / 'alembic'))
@@ -91,7 +103,8 @@ def validate_schema():
         revisions = set(conn.execute(text('SELECT version_num FROM alembic_version')).scalars())
     if revisions != expected:
         raise RuntimeError('Database migration required before startup')
-    from app.models import domain  # Register every required application table.
+    import importlib
+    importlib.import_module('app.models.domain')  # Register every required application table.
     inspector = inspect(engine)
     actual_tables = set(inspector.get_table_names())
     for table in Base.metadata.sorted_tables:

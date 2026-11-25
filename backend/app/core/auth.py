@@ -1,14 +1,15 @@
-import os
-import time
 import datetime
-import secrets
 import logging
-from urllib.parse import urlsplit
+import os
+import secrets
+import time
 from enum import Enum
-from typing import Optional, Dict, Any, List
-from fastapi import Header, HTTPException, Depends, Request, Security
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from typing import Any, Dict, Optional, cast
+from urllib.parse import urlsplit
+
 import jwt
+from fastapi import Depends, Header, HTTPException, Security
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import PyJWKClient
 
 logger = logging.getLogger(__name__)
@@ -49,8 +50,8 @@ def validate_production_auth():
         raise RuntimeError('Invalid Clerk authorized party HTTPS origin')
     if CLERK_PEM_PUBLIC_KEY:
         try:
-            from cryptography.hazmat.primitives.serialization import load_pem_public_key
             from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
+            from cryptography.hazmat.primitives.serialization import load_pem_public_key
             key = load_pem_public_key(CLERK_PEM_PUBLIC_KEY.encode())
             if not isinstance(key, RSAPublicKey) or key.key_size < 2048:
                 raise ValueError('Unsupported key')
@@ -225,7 +226,7 @@ def decode_token_payload(token: str) -> Optional[Dict[str, Any]]:
                     algorithms=["RS256"],
                     issuer=CLERK_ISSUER or None,
                     audience=CLERK_AUDIENCE or None,
-                    options=options
+                    options=cast(Any, options)
                 )
                 if not clerk_claims_allowed(decoded):
                     return None
@@ -249,7 +250,7 @@ def decode_token_payload(token: str) -> Optional[Dict[str, Any]]:
                     algorithms=["RS256"],
                     issuer=CLERK_ISSUER or None,
                     audience=CLERK_AUDIENCE or None,
-                    options=options
+                    options=cast(Any, options)
                 )
                 if not clerk_claims_allowed(decoded):
                     return None
@@ -402,14 +403,19 @@ def require_role(minimum_role: Role):
         return current_user
     return role_dependency
 
+_require_operator = require_role(Role.AUTHORIZED_OPERATOR)
+_require_admin = require_role(Role.ADMINISTRATOR)
+
+
 async def require_operator_user(
-    current_user: Dict[str, Any] = Depends(require_role(Role.AUTHORIZED_OPERATOR))
+    current_user: Dict[str, Any] = Depends(_require_operator)
 ) -> Dict[str, Any]:
     """SEC-04: Enforces Authorized Operator or higher privileges."""
     return current_user
 
+
 async def require_admin_user(
-    current_user: Dict[str, Any] = Depends(require_role(Role.ADMINISTRATOR))
+    current_user: Dict[str, Any] = Depends(_require_admin)
 ) -> Dict[str, Any]:
     """SEC-04: Enforces Administrator privileges."""
     return current_user

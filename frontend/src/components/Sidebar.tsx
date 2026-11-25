@@ -69,7 +69,7 @@ export function Sidebar() {
         </Link>
       </div>
 
-      <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto scrollbar-hide">
+      <nav aria-label="Primary navigation" className="flex-1 px-4 py-2 space-y-1 overflow-y-auto scrollbar-hide">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -78,6 +78,7 @@ export function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden",
                 isActive
@@ -91,7 +92,7 @@ export function Sidebar() {
               {isActive && (
                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-slate-900 dark:bg-white rounded-r-full" />
               )}
-              <Icon className={cn("w-5 h-5 transition-colors", isActive ? "text-slate-900 dark:text-white" : "text-slate-500 group-hover:text-slate-900 dark:text-zinc-400 dark:group-hover:text-white")} />
+              <Icon aria-hidden="true" className={cn("w-5 h-5 transition-colors", isActive ? "text-slate-900 dark:text-white" : "text-slate-500 group-hover:text-slate-900 dark:text-zinc-400 dark:group-hover:text-white")} />
               <span>{translatedName}</span>
             </Link>
           );
@@ -134,6 +135,7 @@ export function Sidebar() {
             </Link>
             
             <button
+              type="button"
               onClick={handleLogout}
               className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 dark:text-zinc-400 dark:hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
               title="Sign Out to Landing Page"

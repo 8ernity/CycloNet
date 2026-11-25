@@ -1,21 +1,27 @@
+import logging
+from typing import Any, Dict, List
+
 from sqlalchemy.orm import Session
+
 from app.models.domain import CycloneArchive
+
+logger = logging.getLogger(__name__)
 
 def seed_historical_data(db: Session):
     """
     Seeds the local development database with historical catalog records
     across Bay of Bengal and Arabian Sea basins (1999–2024).
     """
-    historical_systems = [
+    historical_systems: List[Dict[str, Any]] = [
         # 2026 Baseline Simulation & Operational Drill Record (LIVE-10)
         {"id": "BOB05-2026", "name": "Deep Depression (BOB-05)", "year": 2026, "basin": "Bay of Bengal", "max_category": "Deep Depression", "dates": "23 Sep - 26 Sep 2026 (Operational Drill)"},
-        
+
         # 2024 Season
         {"id": "BOB09-2024", "name": "Fengal", "year": 2024, "basin": "Bay of Bengal", "max_category": "Cyclonic Storm", "dates": "27 Nov - 01 Dec 2024"},
         {"id": "BOB04-2024", "name": "Dana", "year": 2024, "basin": "Bay of Bengal", "max_category": "Severe Cyclonic Storm", "dates": "22 Oct - 26 Oct 2024"},
         {"id": "ARB01-2024", "name": "Asna", "year": 2024, "basin": "Arabian Sea", "max_category": "Cyclonic Storm", "dates": "25 Aug - 02 Sep 2024"},
         {"id": "BOB01-2024", "name": "Remal", "year": 2024, "basin": "Bay of Bengal", "max_category": "Severe Cyclonic Storm", "dates": "24 May - 28 May 2024"},
-        
+
         # 2023 Season
         {"id": "BOB06-2023", "name": "Michaung", "year": 2023, "basin": "Bay of Bengal", "max_category": "Severe Cyclonic Storm", "dates": "01 Dec - 06 Dec 2023"},
         {"id": "BOB07-2023", "name": "Midhili", "year": 2023, "basin": "Bay of Bengal", "max_category": "Cyclonic Storm", "dates": "15 Nov - 18 Nov 2023"},
@@ -23,25 +29,25 @@ def seed_historical_data(db: Session):
         {"id": "ARB02-2023", "name": "Tej", "year": 2023, "basin": "Arabian Sea", "max_category": "Extremely Severe Cyclonic Storm", "dates": "20 Oct - 24 Oct 2023"},
         {"id": "ARB01-2023", "name": "Biparjoy", "year": 2023, "basin": "Arabian Sea", "max_category": "Extremely Severe Cyclonic Storm", "dates": "06 Jun - 19 Jun 2023"},
         {"id": "BOB02-2023", "name": "Mocha", "year": 2023, "basin": "Bay of Bengal", "max_category": "Extremely Severe Cyclonic Storm", "dates": "09 May - 15 May 2023"},
-        
+
         # 2022 Season
         {"id": "BOB09-2022", "name": "Mandous", "year": 2022, "basin": "Bay of Bengal", "max_category": "Severe Cyclonic Storm", "dates": "06 Dec - 10 Dec 2022"},
         {"id": "BOB05-2022", "name": "Sitrang", "year": 2022, "basin": "Bay of Bengal", "max_category": "Cyclonic Storm", "dates": "22 Oct - 25 Oct 2022"},
         {"id": "BOB01-2022", "name": "Asani", "year": 2022, "basin": "Bay of Bengal", "max_category": "Severe Cyclonic Storm", "dates": "07 May - 12 May 2022"},
-        
+
         # 2021 Season
         {"id": "BOB05-2021", "name": "Jawad", "year": 2021, "basin": "Bay of Bengal", "max_category": "Cyclonic Storm", "dates": "02 Dec - 06 Dec 2021"},
         {"id": "ARB02-2021", "name": "Shaheen", "year": 2021, "basin": "Arabian Sea", "max_category": "Severe Cyclonic Storm", "dates": "29 Sep - 04 Oct 2021"},
         {"id": "BOB04-2021", "name": "Gulab", "year": 2021, "basin": "Bay of Bengal", "max_category": "Cyclonic Storm", "dates": "24 Sep - 28 Sep 2021"},
         {"id": "BOB01-2021", "name": "Yaas", "year": 2021, "basin": "Bay of Bengal", "max_category": "Very Severe Cyclonic Storm", "dates": "23 May - 28 May 2021"},
         {"id": "ARB01-2021", "name": "Tauktae", "year": 2021, "basin": "Arabian Sea", "max_category": "Extremely Severe Cyclonic Storm", "dates": "14 May - 19 May 2021"},
-        
+
         # 2020 Season
         {"id": "BOB05-2020", "name": "Burevi", "year": 2020, "basin": "Bay of Bengal", "max_category": "Cyclonic Storm", "dates": "30 Nov - 05 Dec 2020"},
         {"id": "BOB04-2020", "name": "Nivar", "year": 2020, "basin": "Bay of Bengal", "max_category": "Very Severe Cyclonic Storm", "dates": "23 Nov - 27 Nov 2020"},
         {"id": "ARB02-2020", "name": "Nisarga", "year": 2020, "basin": "Arabian Sea", "max_category": "Severe Cyclonic Storm", "dates": "01 Jun - 04 Jun 2020"},
         {"id": "BOB03-2020", "name": "Amphan", "year": 2020, "basin": "Bay of Bengal", "max_category": "Super Cyclonic Storm", "dates": "16 May - 21 May 2020"},
-        
+
         # 2019 Season
         {"id": "BOB04-2019", "name": "Bulbul", "year": 2019, "basin": "Bay of Bengal", "max_category": "Very Severe Cyclonic Storm", "dates": "05 Nov - 11 Nov 2019"},
         {"id": "ARB04-2019", "name": "Maha", "year": 2019, "basin": "Arabian Sea", "max_category": "Extremely Severe Cyclonic Storm", "dates": "30 Oct - 07 Nov 2019"},
@@ -50,14 +56,14 @@ def seed_historical_data(db: Session):
         {"id": "ARB01-2019", "name": "Vayu", "year": 2019, "basin": "Arabian Sea", "max_category": "Very Severe Cyclonic Storm", "dates": "10 Jun - 17 Jun 2019"},
         {"id": "BOB02-2019", "name": "Fani", "year": 2019, "basin": "Bay of Bengal", "max_category": "Extremely Severe Cyclonic Storm", "dates": "26 Apr - 04 May 2019"},
         {"id": "BOB01-2019", "name": "Pabuk", "year": 2019, "basin": "Bay of Bengal", "max_category": "Cyclonic Storm", "dates": "04 Jan - 08 Jan 2019"},
-        
+
         # 2018 Season
         {"id": "BOB07-2018", "name": "Gaja", "year": 2018, "basin": "Bay of Bengal", "max_category": "Very Severe Cyclonic Storm", "dates": "10 Nov - 19 Nov 2018"},
         {"id": "BOB08-2018", "name": "Titli", "year": 2018, "basin": "Bay of Bengal", "max_category": "Very Severe Cyclonic Storm", "dates": "08 Oct - 12 Oct 2018"},
         {"id": "ARB04-2018", "name": "Luban", "year": 2018, "basin": "Arabian Sea", "max_category": "Very Severe Cyclonic Storm", "dates": "06 Oct - 15 Oct 2018"},
         {"id": "ARB01-2018", "name": "Sagar", "year": 2018, "basin": "Arabian Sea", "max_category": "Cyclonic Storm", "dates": "16 May - 20 May 2018"},
         {"id": "ARB02-2018", "name": "Mekunu", "year": 2018, "basin": "Arabian Sea", "max_category": "Extremely Severe Cyclonic Storm", "dates": "21 May - 27 May 2018"},
-        
+
         # Historic Landmarks (2007–2017)
         {"id": "ARB05-2017", "name": "Ockhi", "year": 2017, "basin": "Arabian Sea", "max_category": "Very Severe Cyclonic Storm", "dates": "29 Nov - 06 Dec 2017"},
         {"id": "BOB02-2017", "name": "Mora", "year": 2017, "basin": "Bay of Bengal", "max_category": "Very Severe Cyclonic Storm", "dates": "28 May - 31 May 2017"},
@@ -74,7 +80,7 @@ def seed_historical_data(db: Session):
         {"id": "BOB04-2007", "name": "Sidr", "year": 2007, "basin": "Bay of Bengal", "max_category": "Super Cyclonic Storm", "dates": "11 Nov - 16 Nov 2007"},
         {"id": "BOB06-1999", "name": "Odisha Super Cyclone", "year": 1999, "basin": "Bay of Bengal", "max_category": "Super Cyclonic Storm", "dates": "25 Oct - 04 Nov 1999"},
     ]
-    
+
     for item in historical_systems:
         existing = db.query(CycloneArchive).filter_by(id=item["id"]).first()
         if not existing:
@@ -82,11 +88,11 @@ def seed_historical_data(db: Session):
         else:
             # Update fields including dates if already present
             existing.dates = item.get("dates")
-            existing.name = item.get("name")
-            existing.basin = item.get("basin")
-            existing.max_category = item.get("max_category")
-            existing.year = item.get("year")
-    
+            existing.name = item["name"]
+            existing.basin = item["basin"]
+            existing.max_category = item["max_category"]
+            existing.year = item["year"]
+
     # Purge any duplicate/legacy LIVE-IMD-BOB05 record
     try:
         db.query(CycloneArchive).filter(CycloneArchive.id == "LIVE-IMD-BOB05").delete()
@@ -94,12 +100,12 @@ def seed_historical_data(db: Session):
         pass
 
     db.commit()
-    print(f"Database seeded: {len(historical_systems)} historical cyclones in catalog.")
+    logger.info("Database seeded: %d historical cyclones in catalog.", len(historical_systems))
 
 def fetch_mosdac_latest_frame():
     """
     Mock function simulating a download of the latest INSAT-3D IR frame
     from MOSDAC API (ISRO).
     """
-    print("Fetching latest IR frame from MOSDAC...")
+    logger.debug("MOSDAC IR frame polling is disabled without configured credentials.")
     return True

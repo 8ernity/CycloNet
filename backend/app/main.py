@@ -1,34 +1,38 @@
-import os
 import asyncio
 import logging
-from app.core.runtime import runtime_environment
+import os
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+from starlette.requests import Request
+
 from app.api.routes import router
-from app.api.websocket import ws_router, ws_manager
-from app.core.database import engine, Base, SessionLocal
-from app.models import domain
+from app.api.websocket import ws_manager, ws_router
+from app.core.database import SessionLocal
+from app.core.observability import RequestObservabilityMiddleware
+from app.core.origins import configured_origins
 from app.core.process_lock import (
     acquire_worker_leader_lock,
-    release_worker_leader_lock,
-    run_worker_heartbeat_task,
-    run_continuous_leader_election,
     get_leader_generation,
-    is_leader
+    is_leader,
+    release_worker_leader_lock,
+    run_continuous_leader_election,
 )
+from app.core.request_limits import RequestLimitsMiddleware
+from app.core.runtime import runtime_environment
 from app.services.live_ingestion import live_ingestion_service
 from app.services.ml_runtime import ml_service
 
 # Background task handles for graceful shutdown (DB-04)
-_background_tasks = []
+_background_tasks: list[asyncio.Task[object]] = []
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from app.core.database import validate_schema
     from app.core.auth import validate_production_auth
+    from app.core.database import validate_schema
     validate_production_auth()
     if runtime_environment() == 'development':
         from app.core.database import init_db
@@ -71,14 +75,14 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         # Graceful shutdown: cancel all scheduled tasks and release leader lease
-        print(f"[Lifespan] Cancelling {len(_background_tasks)} background worker tasks...")
+        logger.info("[Lifespan] Cancelling %d background worker tasks...", len(_background_tasks))
         for task in _background_tasks:
             task.cancel()
         if _background_tasks:
             await asyncio.gather(*_background_tasks, return_exceptions=True)
         _background_tasks.clear()
         release_worker_leader_lock()
-        print("[Lifespan] Worker shutdown and lock release complete.")
+        logger.info("[Lifespan] Worker shutdown and lock release complete.")
 
 app = FastAPI(
     title="CycloNet Prediction API",
@@ -88,7 +92,6 @@ app = FastAPI(
 )
 
 # HTTP and WebSocket clients use the same explicit origin configuration.
-from app.core.origins import configured_origins
 allowed_origins = configured_origins()
 
 # Restrict CORS to configured frontend origins
@@ -100,13 +103,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from app.core.request_limits import RequestLimitsMiddleware
 app.add_middleware(RequestLimitsMiddleware)
-from app.core.observability import RequestObservabilityMiddleware
 app.add_middleware(RequestObservabilityMiddleware)
 
 # SEC-10: Security Headers Middleware
-from starlette.requests import Request
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):

@@ -5,13 +5,15 @@ import logging
 import threading
 import time
 import uuid
+
 from fastapi import HTTPException
+
 from app.core import rate_limit
 
 logger = logging.getLogger(__name__)
 _local = threading.BoundedSemaphore(4)
 _production_local = threading.BoundedSemaphore(8)
-_users = {}
+_users: dict[tuple[bool, str], int] = {}
 _lock = threading.Lock()
 KEY_PREFIX = "cyclonet:inference"
 ACQUIRE = """
@@ -67,7 +69,7 @@ def acquire(request, user):
             raise
         except Exception:
             release_local()
-            raise HTTPException(503, 'Inference budget service unavailable')
+            raise HTTPException(503, 'Inference budget service unavailable') from None
         def release():
             try:
                 for key in keys:
@@ -92,4 +94,4 @@ async def run_inference(request, user, function, *args, **kwargs):
         return await asyncio.wait_for(asyncio.shield(task), timeout=60)
     except asyncio.TimeoutError:
         logger.warning('inference_timeout')
-        raise HTTPException(504, 'Inference timed out')
+        raise HTTPException(504, 'Inference timed out') from None

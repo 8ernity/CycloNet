@@ -44,11 +44,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/cyclone-logo.svg", type: "image/svg+xml" },
-      { url: "/logo.svg", type: "image/svg+xml" }
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-256.png", type: "image/png" },
     ],
-    shortcut: "/cyclone-logo.svg",
-    apple: "/cyclone-logo.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
   },
 };
 

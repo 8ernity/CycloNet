@@ -1,11 +1,13 @@
+import logging
+import math
 import os
 import time
-import math
-import logging
 import uuid
 from collections import OrderedDict
-from typing import Optional, Dict, Any, Tuple
-from fastapi import Request, Response, HTTPException
+from typing import Any, Dict, Optional, Tuple
+
+from fastapi import HTTPException, Response
+from starlette.requests import HTTPConnection
 
 logger = logging.getLogger(__name__)
 
@@ -207,7 +209,7 @@ def check_redis_rate_limit(
         return None
 
 def enforce_rate_limit(
-    request: Request,
+    request: HTTPConnection,
     endpoint_type: str = "chat",
     user: Optional[Dict[str, Any]] = None,
     response: Optional[Response] = None
@@ -217,8 +219,9 @@ def enforce_rate_limit(
     Returns consistent HTTP 429 responses and Retry-After headers.
     """
     client_ip = request.client.host if request.client else "unknown"
-    is_authenticated = bool(user and user.get("id"))
-    client_id = f"user_{user['id']}" if is_authenticated else f"ip_{client_ip}"
+    user_id = user.get("id") if user else None
+    is_authenticated = bool(user_id)
+    client_id = f"user_{user_id}" if user_id else f"ip_{client_ip}"
 
     quota_cfg = DEFAULT_QUOTAS.get(endpoint_type, DEFAULT_QUOTAS["chat"])
     min_limit = quota_cfg["min_auth"] if is_authenticated else quota_cfg["min_anon"]

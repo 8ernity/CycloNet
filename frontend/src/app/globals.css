@@ -494,6 +494,45 @@ html, body, * {
   background: transparent !important;
 }
 
+.leaflet-control-zoom {
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  border-radius: 0.75rem !important;
+  overflow: hidden !important;
+  background: rgba(9, 9, 11, 0.88) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55) !important;
+  margin-top: 4.5rem !important;
+  margin-right: 1rem !important;
+}
+
+.leaflet-control-zoom a {
+  background: transparent !important;
+  color: #f4f4f5 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+  transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+
+.leaflet-control-zoom a:last-child {
+  border-bottom: none !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+}
+
+.hide-imd-labels .compare-milestone-label {
+  display: none !important;
+}
+
+.compare-milestone-label {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
 /* ═══════════════════════════════════════════
    AeroGuard Auth UI - Obsidian Black Theme
    ═══════════════════════════════════════════ */

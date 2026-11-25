@@ -1,13 +1,21 @@
-import io
-import os
 import base64
+import io
+import logging
+import os
+from typing import Optional
+
 import numpy as np
 import torch
 import torch.nn as nn
-from torchvision import transforms
-from torchvision.models import resnet50, ResNet50_Weights
 from PIL import Image
+from torchvision import transforms
+from torchvision.models import resnet50
+
 from app.models.checkpoint import CheckpointMetadata, weights_checksum
+from app.services.image_validation import validate_image_payload
+
+logger = logging.getLogger(__name__)
+
 
 class CycloneClassifierHead(nn.Module):
     def __init__(self, in_features=2048, num_classes=5):
@@ -26,8 +34,6 @@ class CycloneClassifierHead(nn.Module):
 
     def forward(self, x):
         return self.net(x)
-
-from app.services.image_validation import validate_image_payload
 
 class CycloneIntensityService:
     def __init__(self):
@@ -55,7 +61,7 @@ class CycloneIntensityService:
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
-        
+
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         default_ckpt = os.path.normpath(os.path.join(base_dir, "models", "cyclone_classifier.pth"))
         self.checkpoint_path = os.getenv("MODEL_CHECKPOINT_PATH", default_ckpt)
@@ -129,7 +135,7 @@ class CycloneIntensityService:
         x = self.backbone.layer4(x)
         return x
 
-    def _compute_gradcam(self, features: torch.Tensor, pred_idx: int) -> str:
+    def _compute_gradcam(self, features: torch.Tensor, pred_idx: int) -> Optional[str]:
         """
         Fix #7: Computes genuine Grad-CAM class activation heatmap from ResNet layer4 feature maps.
         Returns a base64-encoded PNG data URL.
@@ -139,17 +145,17 @@ class CycloneIntensityService:
             pooled = self.backbone.avgpool(feat_var).flatten(1)
             logits = self.head(pooled)
             score = logits[0, pred_idx]
-            
+
             self.head.zero_grad()
             score.backward()
-            
+
             grads = feat_var.grad
             if grads is not None:
                 weights = torch.mean(grads, dim=(2, 3), keepdim=True)
                 cam = torch.sum(weights * feat_var, dim=1).squeeze(0)
             else:
                 cam = torch.mean(feat_var, dim=1).squeeze(0)
-                
+
             cam = torch.clamp(cam, min=0)
             cam_np = cam.detach().cpu().numpy()
             max_val = np.max(cam_np)
@@ -159,7 +165,7 @@ class CycloneIntensityService:
                 cam_np = np.zeros_like(cam_np)
 
             # Upscale 7x7 to 224x224 using bilinear interpolation
-            cam_img = Image.fromarray((cam_np * 255).astype(np.uint8)).resize((224, 224), Image.BILINEAR)
+            cam_img = Image.fromarray((cam_np * 255).astype(np.uint8)).resize((224, 224), Image.Resampling.BILINEAR)
             cam_upscaled = np.array(cam_img, dtype=np.float32) / 255.0
 
             # Jet colormap mapping: blue -> cyan -> yellow -> red
@@ -176,7 +182,7 @@ class CycloneIntensityService:
             b64_str = base64.b64encode(buf.getvalue()).decode("utf-8")
             return f"data:image/png;base64,{b64_str}"
         except Exception as e:
-            print(f"[Grad-CAM error] {e}")
+            logger.warning("Grad-CAM generation failed: %s", type(e).__name__)
             return None
 
     def predict(self, image_bytes: bytes):
@@ -184,7 +190,7 @@ class CycloneIntensityService:
         validate_image_payload(image_bytes)
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         t = self.transform(img).unsqueeze(0).to(self.device)
-        
+
         if not self.has_model:
             return {
                 'status': 'CHECKPOINT_NOT_LOADED',
@@ -235,7 +241,7 @@ class CycloneIntensityService:
             # Top-1 vs Top-2 Margin
             sorted_probs = np.sort(probs)[::-1]
             margin = float(sorted_probs[0] - sorted_probs[1]) if len(sorted_probs) > 1 else float(sorted_probs[0])
-            
+
             # Shannon Entropy
             eps = 1e-12
             probs_safe = np.clip(probs, eps, 1.0)
@@ -250,7 +256,7 @@ class CycloneIntensityService:
             # FIX-006: Calibrated uncertainty thresholds
             # MSP < 0.60 or normalized_entropy > 0.65 or margin < 0.15 triggers abstention
             is_abstained = (msp < 0.60) or (normalized_entropy > 0.65) or (margin < 0.15)
-            
+
             if is_abstained:
                 confidence_status = "INSUFFICIENT_CONFIDENCE"
                 is_reliable = False
@@ -263,7 +269,7 @@ class CycloneIntensityService:
                 confidence_status = "MODERATE_CONFIDENCE"
                 is_reliable = bool(self.scientifically_validated and not self.demo_model)
                 uncertainty_flag = "NORMAL"
-            
+
         if is_abstained:
             return {
                 'status': 'INSUFFICIENT_CONFIDENCE',
@@ -317,7 +323,7 @@ class CycloneIntensityService:
         pred_class = self.classes[pred_idx]
         pred_name = self.class_names[pred_idx]
         is_cyclone = (pred_class != 'NOT_A_CYCLONE')
-        
+
         # Calculate genuine Grad-CAM activation heatmap
         gradcam_url = self._compute_gradcam(feat, pred_idx) if is_cyclone else None
 

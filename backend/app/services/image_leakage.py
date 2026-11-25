@@ -6,6 +6,7 @@ arbitrary crops/rotations/scene overlap, which need independent dataset review.
 import hashlib
 from collections import defaultdict
 from itertools import product
+
 import numpy as np
 from PIL import Image
 
@@ -15,12 +16,12 @@ MAX_CHANNEL_MAE = 2.0  # 8-bit channel levels; fixed before split evaluation
 
 
 def verify_image_content_splits(splits):
-    from train_classifier import DataLeakageError
     from app.services.dataset_errors import InsufficientDatasetError
+    from train_classifier import DataLeakageError
     exact = {}
     buckets = defaultdict(list)
     comparisons = checked = 0
-    for split_name, samples in zip(('train', 'validation', 'test'), splits):
+    for split_name, samples in zip(('train', 'validation', 'test'), splits, strict=True):
         for sample in samples:
             with Image.open(sample.path) as image:
                 rgb = image.convert('RGB')
@@ -34,7 +35,7 @@ def verify_image_content_splits(splits):
             # Mean differences cannot exceed channel MAE. Adjacent buckets cover
             # all pairs within this screen's threshold, without an NxN matrix.
             for offset in product((-1, 0, 1), repeat=3):
-                key = tuple(v+o for v, o in zip(bucket, offset))
+                key = tuple(v+o for v, o in zip(bucket, offset, strict=True))
                 for other_split, other_path, other in buckets.get(key, ()):
                     if other_split == split_name:
                         continue

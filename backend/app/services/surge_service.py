@@ -1,6 +1,7 @@
 import math
-from typing import Dict, List, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, List
+
 
 class HydrodynamicSurgeService:
     """
@@ -43,7 +44,7 @@ class HydrodynamicSurgeService:
         is_bob = "bengal" in basin.lower()
         shelf_width_m = 165000.0 if is_bob else 75000.0
         avg_shelf_depth_m = 35.0 if is_bob else 55.0
-        
+
         # Angle of approach attenuation: maximum surge occurs when onshore wind aligns normal to coast
         approach_rad = math.radians(max(15.0, min(90.0, approach_angle_deg)))
         angle_factor = math.sin(approach_rad)
@@ -69,19 +70,15 @@ class HydrodynamicSurgeService:
         if total_peak_surge_m >= 4.5:
             severity = "CATASTROPHIC_INUNDATION"
             color = "#ef4444"
-            warning = "Potential inundation of coastal barrier islands and embankment breach across coastal belt."
         elif total_peak_surge_m >= 3.0:
             severity = "SEVERE_SURGE"
             color = "#f97316"
-            warning = "Risk of overtopping saline embankments and flooding of low-lying coastal feeder roads."
         elif total_peak_surge_m >= 1.5:
             severity = "MODERATE_SURGE"
             color = "#eab308"
-            warning = "Localized coastal flooding in low-lying tidal creeks, estuaries, and beachfront settlements."
         else:
             severity = "MINOR_SURGE"
             color = "#10b981"
-            warning = "Water levels within or near astronomical high-water mark; minimal structural threat."
 
         return {
             "total_storm_tide_m": total_peak_surge_m,

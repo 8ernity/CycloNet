@@ -12,7 +12,6 @@ function render(name) {
     if(dep==='react') return React;
     if(dep==='lucide-react') return new Proxy({},{get:()=>()=>null});
     if(dep==='framer-motion') return {motion:new Proxy({},{get:()=>({children})=>React.createElement('div',null,children)})};
-    if(dep.includes('useCountUp')) return {useCountUp:value=>({count:value,ref:null})};
     if(dep.includes('motion-tokens')) return {useMotionTokens:()=>({tier1:{},tier1Variants:{}})};
     if(dep.includes('StatTile')) return {StatTile:props=>React.createElement('div',null,props.value,props.label)};
     if(dep.includes('MicroLabel')) return {MicroLabel:props=>React.createElement('div',null,props.children)};

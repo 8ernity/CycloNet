@@ -1,6 +1,8 @@
 """Bounded user input; no client field can certify an observation."""
-from typing import Literal, Annotated
+from typing import Annotated, Literal
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
 
 class StrictInput(BaseModel):
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True, allow_inf_nan=False)

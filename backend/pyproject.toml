@@ -1,0 +1,29 @@
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+exclude = ["app/data/historical_tracks.py", "alembic/versions/*"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "W", "I", "B"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+  "app.core.auth.require_role",
+  "fastapi.Depends",
+  "fastapi.File",
+  "fastapi.Header",
+  "fastapi.Query",
+  "fastapi.Security",
+]
+
+[tool.mypy]
+python_version = "3.11"
+explicit_package_bases = true
+ignore_missing_imports = true
+check_untyped_defs = false
+warn_unused_ignores = true
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+omit = ["app/data/historical_tracks.py"]

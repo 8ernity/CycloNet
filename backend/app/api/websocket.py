@@ -1,14 +1,16 @@
-import os
-import time
-import json
 import asyncio
 import datetime
+import json
 import logging
-from typing import List, Dict, Any, Set, Optional
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status, HTTPException
-from app.core.auth import decode_token_payload, parse_role_from_claims, Role
-from app.core.rate_limit import enforce_rate_limit
+import os
+import time
+from typing import Any, Dict, Optional, Set
 
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, status
+
+from app.core.auth import Role, decode_token_payload, parse_role_from_claims
+from app.core.origins import configured_origins, normalize_origin
+from app.core.rate_limit import enforce_rate_limit
 from app.services.live_ingestion import live_ingestion_service
 
 logger = logging.getLogger(__name__)
@@ -18,8 +20,6 @@ ws_router = APIRouter()
 MAX_WEBSOCKET_CONNECTIONS = int(os.getenv("MAX_WS_CONNECTIONS", "100"))
 MAX_WS_MESSAGE_BYTES = 4096  # 4 KB limit for client-to-server WebSocket messages
 CLIENT_SEND_TIMEOUT_SECONDS = 1.5
-
-from app.core.origins import configured_origins, normalize_origin
 
 
 def is_origin_allowed(origin: Optional[str]) -> bool:
@@ -37,10 +37,10 @@ class SecureWebSocketManager:
     SEC-07: Hardened WebSocket connection manager with allowed-origin verification,
     concurrency limits, timeout backpressure, and public/privileged event isolation.
     """
-    def __init__(self, max_connections: int = MAX_WEBSOCKET_CONNECTIONS, operator_only=False):
+    def __init__(self, max_connections: int = MAX_WEBSOCKET_CONNECTIONS, operator_only: bool = False):
         self.operator_only = operator_only
-        self.expires = {}
-        self.pending = set()
+        self.expires: Dict[WebSocket, float] = {}
+        self.pending: Set[WebSocket] = set()
         self.active_connections: Set[WebSocket] = set()
         self.max_connections = max_connections
         self.radar_angle: float = 0.0

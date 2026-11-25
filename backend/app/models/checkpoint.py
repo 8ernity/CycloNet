@@ -1,6 +1,7 @@
 """Versioned artifact contract; validation is an explicit, checksum-bound decision."""
 import hashlib
 from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 

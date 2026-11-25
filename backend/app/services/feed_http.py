@@ -1,5 +1,6 @@
 """Bound agency downloads before XML/HTML parsing, including decompressed bytes."""
 import asyncio
+
 import httpx
 
 MAX_FEED_BYTES = 4 * 1024 * 1024

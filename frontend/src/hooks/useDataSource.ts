@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { classifyImdCategory, classifyJtwcCategory, knotsToKmh } from "@/lib/cycloneIntensity";
 
 export type DataSourceType = "IMD" | "JTWC" | "CUSTOM";
 
@@ -93,35 +94,15 @@ export function useDataSource() {
   }, []);
 
   const getConvertedKmh = useCallback((baseKnots: number | null | undefined): number | null => {
-    const kts = getConvertedKnots(baseKnots);
-    return kts == null ? null : Math.round(kts * 1.852);
+    return knotsToKmh(getConvertedKnots(baseKnots));
   }, [getConvertedKnots]);
 
   const getConvertedGusts = useCallback((): number | null => null, []);
 
   const getConvertedCategory = useCallback((baseKnots: number | null | undefined): string => {
     const kts = getConvertedKnots(baseKnots);
-
     if (kts == null) return "Not available";
-    if (dataSource === "JTWC") {
-      if (kts < 34) return "Tropical Depression";
-      if (kts < 64) return "Tropical Storm";
-      if (kts < 83) return "Category 1 Cyclone";
-      if (kts < 96) return "Category 2 Cyclone";
-      if (kts < 113) return "Category 3 Major Cyclone";
-      if (kts < 137) return "Category 4 Major Cyclone";
-      return "Category 5 Super Cyclone";
-    }
-
-    // Default IMD Standard
-    if (kts < 17) return "Low Pressure Area";
-    if (kts < 28) return "Depression";
-    if (kts < 34) return "Deep Depression";
-    if (kts < 48) return "Cyclonic Storm";
-    if (kts < 64) return "Severe Cyclonic Storm";
-    if (kts < 90) return "Very Severe Cyclonic Storm";
-    if (kts < 120) return "Extremely Severe Cyclonic Storm";
-    return "Super Cyclonic Storm";
+    return dataSource === "JTWC" ? classifyJtwcCategory(kts) : classifyImdCategory(kts);
   }, [dataSource, getConvertedKnots]);
 
   const getSourceBadge = useCallback((): DataSourceBadge => {

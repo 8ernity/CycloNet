@@ -1,6 +1,8 @@
 """Explicit demo training; never overwrites the configured production artifact."""
 import argparse
+
 from app.services.training_pipeline import run_training
+
 
 def train_demo(manifest_path, output_dir="artifacts/demo", **kwargs):
     return run_training(manifest_path, output_dir, demo=True, **kwargs)

@@ -6,11 +6,11 @@ Architectural Standards:
 - Cryptographic provenance and methodology tags on all simulated geospatial features
 """
 
-import os
-import json
 import math
-from typing import Dict, List, Any, Optional
+import os
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 
 class SatelliteFloodDetectionService:
     """
@@ -61,7 +61,7 @@ class ExperimentalFloodSimulationService:
         angle_rad = math.radians(angle_deg)
         cos_a = math.cos(angle_rad)
         sin_a = math.sin(angle_rad)
-        
+
         km_per_lat = 111.32
         km_per_lon = 111.32 * math.cos(math.radians(lat))
         if km_per_lon == 0:
@@ -71,14 +71,14 @@ class ExperimentalFloodSimulationService:
             theta = (2 * math.pi * i) / num_points
             dx_km = radius_km_x * math.cos(theta)
             dy_km = radius_km_y * math.sin(theta)
-            
+
             rot_dx = dx_km * cos_a - dy_km * sin_a
             rot_dy = dx_km * sin_a + dy_km * cos_a
-            
+
             p_lat = max(-90.0, min(90.0, lat + (rot_dy / km_per_lat)))
             p_lon = max(-180.0, min(180.0, lon + (rot_dx / km_per_lon)))
             coords.append([round(p_lon, 4), round(p_lat, 4)])
-            
+
         # Strictly close GeoJSON polygon ring (first point == last point)
         coords.append(coords[0])
         return coords
@@ -98,12 +98,12 @@ class ExperimentalFloodSimulationService:
         kt = float(max(20, intensity_knots))
         core_depth_m = round(max(1.2, 0.8 + 0.032 * (kt - 30)), 2)
         outer_depth_m = round(max(0.6, 0.4 + 0.016 * (kt - 30)), 2)
-        
+
         sar_backscatter_core_db = round(-24.0 + 0.04 * min(kt, 110.0), 1)
         sar_backscatter_outer_db = round(-18.5 + 0.03 * min(kt, 110.0), 1)
-        
+
         features = []
-        
+
         # Outer High Surge Zone
         outer_coords = self._generate_ellipse_polygon(
             center_lat, center_lon, surge_radius_km * 0.9, surge_radius_km * 0.7, angle_deg=45
@@ -189,39 +189,39 @@ class ExperimentalFloodSimulationService:
         if center_lat >= 21.0:
             basin_primary = "Hooghly - Sundarbans Estuary Basin"
             slope_deg = 0.6
-            raw_choke_points = [
-                {"name": "Diamond Harbour Sluice Complex", "lat": 22.18, "lon": 88.20},
-                {"name": "Kakdwip Drainage Outfall", "lat": 21.87, "lon": 88.18},
-                {"name": "Sagar Island Southern Embankment", "lat": 21.65, "lon": 88.07}
+            raw_choke_points: List[tuple[str, float, float]] = [
+                ("Diamond Harbour Sluice Complex", 22.18, 88.20),
+                ("Kakdwip Drainage Outfall", 21.87, 88.18),
+                ("Sagar Island Southern Embankment", 21.65, 88.07),
             ]
         elif center_lat >= 19.0:
             basin_primary = "Mahanadi - Baitarani Coastal Catchment"
             slope_deg = 0.9
             raw_choke_points = [
-                {"name": "Dhamra River Estuary Choke Point", "lat": 20.81, "lon": 86.95},
-                {"name": "Paradip Tidal Canal Gate 4", "lat": 20.31, "lon": 86.61},
-                {"name": "Astaranga Coastal Drainage Neck", "lat": 19.98, "lon": 86.26}
+                ("Dhamra River Estuary Choke Point", 20.81, 86.95),
+                ("Paradip Tidal Canal Gate 4", 20.31, 86.61),
+                ("Astaranga Coastal Drainage Neck", 19.98, 86.26),
             ]
         else:
             basin_primary = "Godavari - Krishna Coastal Delta"
             slope_deg = 0.8
             raw_choke_points = [
-                {"name": "Kakinada Low-Lying Industrial Neck", "lat": 16.98, "lon": 82.24},
-                {"name": "Machilipatnam Coastal Sluice", "lat": 16.18, "lon": 81.13}
+                ("Kakinada Low-Lying Industrial Neck", 16.98, 82.24),
+                ("Machilipatnam Coastal Sluice", 16.18, 81.13),
             ]
 
         choke_points_1 = []
-        for cp in raw_choke_points:
-            d_lat_km = (cp["lat"] - center_lat) * 111.0
-            d_lon_km = (cp["lon"] - center_lon) * 111.0 * math.cos(math.radians(center_lat))
+        for cp_name, cp_lat, cp_lon in raw_choke_points:
+            d_lat_km = (cp_lat - center_lat) * 111.0
+            d_lon_km = (cp_lon - center_lon) * 111.0 * math.cos(math.radians(center_lat))
             dist_km = math.sqrt(d_lat_km ** 2 + d_lon_km ** 2)
-            
+
             storm_travel_h = dist_km / 18.0
             hydraulic_lag_h = 1.2 / max(0.2, slope_deg)
             eta_h = round(max(1.0, storm_travel_h + hydraulic_lag_h), 1)
-            
+
             depth_m = round(0.4 + (accumulated_rain_mm / 300.0) * 1.5 * (1.0 / max(0.4, slope_deg)), 2)
-            
+
             if depth_m >= 2.0 or accumulated_rain_mm >= 300:
                 risk_lvl = "CRITICAL"
                 status_txt = "CRITICAL_OVERFLOW_BREACH"
@@ -233,9 +233,9 @@ class ExperimentalFloodSimulationService:
                 status_txt = "MONITORED_DISCHARGE"
 
             choke_points_1.append({
-                "name": cp["name"],
-                "lat": cp["lat"],
-                "lon": cp["lon"],
+                "name": cp_name,
+                "lat": cp_lat,
+                "lon": cp_lon,
                 "distance_km": round(dist_km, 1),
                 "eta_hours": eta_h,
                 "status": "UNVERIFIED",

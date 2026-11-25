@@ -1,7 +1,7 @@
 "use client";
 import { useStoredValue } from "@/hooks/useBrowserState";
 
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useEffect } from "react";
 
 export type SupportedLanguage = "en" | "hi" | "or" | "bn" | "te" | "ta";
 
@@ -237,6 +237,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [storedLanguage, setStoredLanguage] = useStoredValue("cyclonet_language", "en");
   const language: SupportedLanguage = storedLanguage && storedLanguage in TRANSLATIONS ? storedLanguage as SupportedLanguage : "en";
   const setLanguage = (lang: SupportedLanguage) => setStoredLanguage(lang);
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = language;
+    }
+  }, [language]);
 
   const t = (key: string): string => {
     const langDict = TRANSLATIONS[language];

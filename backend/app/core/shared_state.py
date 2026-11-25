@@ -1,7 +1,9 @@
 """Database fencing is the final authority for every production state write."""
 import json
 from datetime import datetime
+
 from sqlalchemy import update
+
 from app.core.database import SessionLocal
 from app.models.domain import ActiveCycloneState
 

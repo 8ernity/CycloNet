@@ -1,10 +1,13 @@
+import json
 import os
 import re
-import json
-import httpx
 from datetime import datetime
 from typing import Dict, List, Literal, Optional, Tuple
+
+import httpx
 from pydantic import BaseModel, ConfigDict, ValidationError
+
+from app.core.config import load_local_env
 from app.services.observation_context import basin_snapshot, source_status_text
 
 
@@ -28,26 +31,8 @@ class MeteorologicalChatService:
 
     @staticmethod
     def _load_local_env():
-        """Lightweight loader to read .env without hardcoded secrets in repository."""
-        search_paths = [
-            ".env",
-            os.path.join(os.path.dirname(__file__), "..", "..", ".env"),
-            os.path.join(os.path.dirname(__file__), "..", "..", "..", ".env")
-        ]
-        for env_path in search_paths:
-            if os.path.exists(env_path):
-                try:
-                    with open(env_path, "r", encoding="utf-8") as f:
-                        for line in f:
-                            line = line.strip()
-                            if line and not line.startswith("#") and "=" in line:
-                                k, v = line.split("=", 1)
-                                k = k.strip()
-                                v = v.strip().strip("'\"")
-                                if k and k not in os.environ:
-                                    os.environ[k] = v
-                except Exception:
-                    pass
+        """Load local .env via centralized configuration helper."""
+        load_local_env()
 
     def ask(self, message: str, history: Optional[List[Dict[str, str]]] = None, db=None, ui_context: Optional[Dict] = None) -> Dict:
         """
@@ -185,70 +170,79 @@ class MeteorologicalChatService:
         return cleaned.strip()
 
     def _call_gemini(self, query: str, history: Optional[List[Dict[str, str]]] = None, db_context: Optional[str] = None, ui_context: Optional[Dict] = None) -> Optional[str]:
-        """Select a bounded topic; never display provider-generated prose."""
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent?key={self.gemini_api_key}"
-            
-            system_prompt = (
-                "Classify the question into one educational topic. Return ONLY a JSON object with "
-                "one field: topic. Allowed values: cyclogenesis, dvorak, intensity_scales, "
-                "coastal_hazards, source_status. Select source_status for any current conditions, "
-                "personal safety, operational decisions, ambiguous requests, or requests outside "
-                "the educational topics. Do not answer the question or add other fields."
-            )
+        """Select a bounded topic using configured candidate models; never display provider-generated prose."""
+        _ = (db_context, ui_context)
+        models_to_try = list(dict.fromkeys([self.model_name, *self.candidate_models]))
+        system_prompt = (
+            "Classify the question into one educational topic. Return ONLY a JSON object with "
+            "one field: topic. Allowed values: cyclogenesis, dvorak, intensity_scales, "
+            "coastal_hazards, source_status. Select source_status for any current conditions, "
+            "personal safety, operational decisions, ambiguous requests, or requests outside "
+            "the educational topics. Do not answer the question or add other fields."
+        )
 
-            contents = []
-            if history:
-                for item in history[-6:]:
-                    role = "user" if item.get("role") == "user" else "model"
-                    contents.append({
-                        "role": role,
-                        "parts": [{"text": item.get("content", "")}]
-                    })
+        contents = []
+        if history:
+            for item in history[-6:]:
+                role = "user" if item.get("role") == "user" else "model"
+                contents.append({
+                    "role": role,
+                    "parts": [{"text": item.get("content", "")}]
+                })
 
-            contents.append({
-                "role": "user",
-                "parts": [{"text": query}]
-            })
+        contents.append({
+            "role": "user",
+            "parts": [{"text": query}]
+        })
 
-            payload = {
-                "system_instruction": {
-                    "parts": [{"text": system_prompt}]
-                },
-                "contents": contents,
-                "generationConfig": {
-                    "temperature": 0.4,
-                    "maxOutputTokens": 64,
-                    "responseMimeType": "application/json"
-                }
+        payload = {
+            "system_instruction": {
+                "parts": [{"text": system_prompt}]
+            },
+            "contents": contents,
+            "generationConfig": {
+                "temperature": 0.4,
+                "maxOutputTokens": 64,
+                "responseMimeType": "application/json"
             }
+        }
 
-            with httpx.Client(timeout=httpx.Timeout(5.0, connect=3.0)) as client:
-                with client.stream("POST", url, json=payload, headers={"Content-Type":"application/json"}) as response:
-                    response.raise_for_status()
-                    body = bytearray()
-                    for chunk in response.iter_bytes():
-                        body.extend(chunk)
-                        if len(body) > 65536:
-                            raise ValueError("AI response exceeded limit")
-                    result = json.loads(body)
-                    candidates = result.get("candidates", [])
-                    if candidates:
-                        raw_text = candidates[0]["content"]["parts"][0]["text"]
-                        if not isinstance(raw_text, str) or len(raw_text) > 256:
-                            raise ValueError("AI output exceeded limit")
-                        try:
-                            selected = EducationalTopic.model_validate_json(raw_text)
-                        except ValidationError:
-                            return source_status_text(basin_snapshot())
-                        topics = {'cyclogenesis':'cyclogenesis', 'dvorak':'dvorak',
-                                  'intensity_scales':'classification', 'coastal_hazards':'coastal'}
-                        if selected.topic == 'source_status':
-                            return source_status_text(basin_snapshot())
-                        return self._expert_reasoning(topics[selected.topic])[0]
-        except Exception as e:
-            print(f"[Gemini API Exception] {type(e).__name__}")
-            pass
+        with httpx.Client(timeout=httpx.Timeout(5.0, connect=3.0)) as client:
+            for candidate_model in models_to_try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{candidate_model}:generateContent?key={self.gemini_api_key}"
+                try:
+                    with client.stream("POST", url, json=payload, headers={"Content-Type": "application/json"}) as response:
+                        response.raise_for_status()
+                        body = bytearray()
+                        for chunk in response.iter_bytes():
+                            body.extend(chunk)
+                            if len(body) > 65536:
+                                raise ValueError("AI response exceeded limit")
+                        result = json.loads(body)
+                        candidates = result.get("candidates", [])
+                        if candidates:
+                            raw_text = candidates[0]["content"]["parts"][0]["text"]
+                            if not isinstance(raw_text, str) or len(raw_text) > 256:
+                                raise ValueError("AI output exceeded limit")
+                            try:
+                                selected = EducationalTopic.model_validate_json(raw_text)
+                            except ValidationError:
+                                return source_status_text(basin_snapshot())
+                            topics = {
+                                'cyclogenesis': 'cyclogenesis',
+                                'dvorak': 'dvorak',
+                                'intensity_scales': 'classification',
+                                'coastal_hazards': 'coastal',
+                            }
+                            if selected.topic == 'source_status':
+                                return source_status_text(basin_snapshot())
+                            return self._expert_reasoning(topics[selected.topic])[0]
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code in (404, 429, 500, 502, 503, 504):
+                        continue
+                    return None
+                except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError):
+                    return None
         return None
 
     def _expert_reasoning(self, query: str, ui_context: Optional[Dict] = None) -> Tuple[str, str, List[str]]:
@@ -370,6 +364,7 @@ class MeteorologicalChatService:
         A general vision-language model is not a calibrated Dvorak instrument.
         The separate experimental classifier exposes its validation status.
         """
+        _ = (image_bytes, mime_type, prompt)
         return {
             "status":"ANALYSIS_UNAVAILABLE", "category":"Not independently validated",
             "dvorak_t_number":None, "intensity_knots":None, "estimated_wind_kmh":None,
@@ -384,7 +379,8 @@ class MeteorologicalChatService:
     def generate_pre_landfall_briefing(self, storm_data: Dict, infrastructure_data: Dict, language: str = "en", *, mode: str = "SCENARIO") -> Dict:
         # Safety-critical summaries are deterministic: language-model output cannot
         # introduce measured hazards or operational instructions into a briefing.
-        from app.models.ai_requests import StormScenario, BriefingResponse
+        _ = infrastructure_data
+        from app.models.ai_requests import BriefingResponse, StormScenario
         fields = StormScenario.model_fields
         values = StormScenario.model_validate({k:v for k,v in storm_data.items() if k in fields}).model_dump()
         knots = values['intensity_knots']

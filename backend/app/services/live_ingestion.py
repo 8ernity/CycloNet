@@ -1,233 +1,122 @@
+"""Automated meteorological ingestion service and multi-source orchestrator."""
+
 import asyncio
-import os
-import json
-import re
 import datetime
+import json
+import os
+import re
 import time
-from app.core.observability import logger as event_logger
-import xml.etree.ElementTree as ET
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
+
 import httpx
-from app.services.feed_http import FeedClient
-from bs4 import BeautifulSoup
-from sqlalchemy.orm import Session
 
-from app.core.database import SessionLocal
-from app.models.domain import CycloneArchive, ActiveCycloneState
+from app.core.observability import logger as event_logger
 from app.models.feed_result import FeedResult, FeedStatus
-from app.services.feed_policy import assess_feed, reconcile, parse_time, fresh, BASINS
+from app.services.feed_policy import reconcile
+from app.services.ingestion.adapters.gdacs import fetch_gdacs_active_systems
+from app.services.ingestion.adapters.imd import fetch_imd_bulletins
+from app.services.ingestion.adapters.jtwc import fetch_jtwc_active_systems, fetch_meteorological_news_alerts
+from app.services.ingestion.fixtures import (
+    build_demo_injection_system,
+    calibrate_system_telemetry,
+    get_default_active_bob_system,
+)
+from app.services.ingestion.parsers import determine_imd_category_from_text, extract_coordinates_from_bulletin
+from app.services.ingestion.state_store import read_live_systems, write_live_systems
 
-def get_default_active_bob_system() -> Dict[str, Any]:
-    """
-    Returns telemetry for the active Bay of Bengal system (Deep Depression BOB-05).
-    Dynamically generates real-time timestamps and labels based on current UTC time.
-    """
-    now_utc = datetime.datetime.now(datetime.timezone.utc)
-    synoptic_hour = (now_utc.hour // 6) * 6
-    base_time = now_utc.replace(hour=synoptic_hour, minute=0, second=0, microsecond=0)
-    
-    def make_live_label(offset_h: int, knots: int, cat: str, desc: str) -> str:
-        pt_time = base_time + datetime.timedelta(hours=offset_h)
-        cat_l = cat.lower()
-        abbr = "DD" if "deep" in cat_l else ("D" if "depression" in cat_l else ("WML" if "low" in cat_l else "CS"))
-        return f"{pt_time.day:02d}/{pt_time.hour:02d},{knots}KT,{abbr} ({desc})"
+__all__ = ["LiveIngestionService", "get_default_active_bob_system", "live_ingestion_service"]
 
-    return {
-        "id": "BOB05-2026",
-        "name": "Deep Depression (BOB-05)",
-        "basin": "Bay of Bengal",
-        "source": "CycloNet synthetic demonstration fixture",
-        "is_simulation": True,
-        "data_state": "DEMONSTRATION_PRESET",
-        "is_live_telemetry": False,
-        "is_measured_observation": False,
-        "wind_convention": "3_MIN_SUSTAINED",
-        "data_quality_status": "CALIBRATED_SIMULATION",
-        "telemetry_badge": "SIMULATION / MODEL BASELINE",
-        "telemetry_type": "SIMULATION",
-        "dvorak_derivation_method": "Parametric Wind-Speed Scale (Baseline Model)",
-        "dvorak_is_empirical_estimate": True,
-        "track_generation_method": "Hydrodynamic Baseline Simulation Track",
-        "telemetry_attribution": {
-            "center_fix": "SIMULATED_BASELINE",
-            "intensity_knots": "SIMULATED_BASELINE",
-            "dvorak_t": "PARAMETRIC_ESTIMATE",
-            "trajectory_forecast": "BASELINE_SIMULATION_TRACK",
-            "satellite_image_dvorak": "AVAILABLE_IN_CLASSIFICATION_TAB"
-        },
-        "category": "Deep Depression",
-        "intensity_knots": 35,
-        "lat": 18.1,
-        "lon": 83.7,
-        "central_pressure_hpa": 996,
-        "movement_speed_kmph": 15,
-        "movement_direction": "WNW",
-        "dvorak_t": "T2.5",
-        "track_forecast": [
-            {"lat": 16.2, "lon": 87.1, "time_offset_hours": -48, "category": "Depression", "intensity_knots": 25, "is_forecast": False, "is_observed": False, "origin_type": "SIMULATION_WAYPOINT", "label": make_live_label(-48, 25, "Depression", "Genesis in Central BoB")},
-            {"lat": 17.0, "lon": 86.2, "time_offset_hours": -24, "category": "Deep Depression", "intensity_knots": 30, "is_forecast": False, "is_observed": False, "origin_type": "SIMULATION_WAYPOINT", "label": make_live_label(-24, 30, "Deep Depression", "Intensification in West-Central BoB")},
-            {"lat": 17.8, "lon": 85.2, "time_offset_hours": -12, "category": "Deep Depression", "intensity_knots": 35, "is_forecast": False, "is_observed": False, "origin_type": "SIMULATION_WAYPOINT", "label": make_live_label(-12, 35, "Deep Depression", "Approach to Coast")},
-            {"lat": 18.1, "lon": 83.7, "time_offset_hours": 0, "category": "Deep Depression", "intensity_knots": 35, "is_forecast": False, "is_observed": False, "origin_type": "SIMULATION_CENTER_FIX", "label": make_live_label(0, 35, "Deep Depression", "Simulation Center - Coastal Crossing near Kalingapatnam")},
-            {"lat": 19.2, "lon": 82.8, "time_offset_hours": 12, "category": "Depression", "intensity_knots": 25, "is_forecast": True, "is_observed": False, "origin_type": "SIMULATION_WAYPOINT", "label": make_live_label(12, 25, "Depression", "Inland over South Odisha / North AP")},
-            {"lat": 20.5, "lon": 81.5, "time_offset_hours": 24, "category": "Well Marked Low", "intensity_knots": 18, "is_forecast": True, "is_observed": False, "origin_type": "SIMULATION_WAYPOINT", "label": make_live_label(24, 18, "Well Marked Low", "Dissipation over Chhattisgarh")}
-        ]
-    }
 
 class LiveIngestionService:
-    """
-    Automated Meteorological Ingestion Worker for CycloNet.
-    Continuously monitors official open feeds from IMD (RSMC New Delhi),
-    NOAA/JTWC, and satellite endpoints to detect active cyclonic systems in the
-    North Indian Ocean (Bay of Bengal & Arabian Sea).
-    """
+    """Monitors open feeds (IMD RSMC, NOAA/JTWC, UN GDACS) and reconciles active NIO cyclones."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.last_sync: Optional[datetime.datetime] = None
-        self.last_attempt_at = None
-        self.last_duration_ms = None
-        self.last_sync_outcome = 'not_started'
+        self.last_attempt_at: Optional[str] = None
+        self.last_duration_ms: Optional[float] = None
+        self.last_sync_outcome: str = "not_started"
         self.is_syncing: bool = False
         self.last_error: Optional[str] = None
+        self.basin_status: str = "STATUS_UNCERTAIN"
+        self.retired_systems: List[Dict[str, Any]] = []
         self.sources_status: Dict[str, str] = {
             "IMD_RSMC": "UNAVAILABLE",
             "JTWC_NOAA": "UNAVAILABLE",
             "GDACS_UN": "UNAVAILABLE",
-            "ISRO_MOSDAC": "UNAVAILABLE"
+            "ISRO_MOSDAC": "UNAVAILABLE",
         }
         self.last_successful_sync: Dict[str, Optional[datetime.datetime]] = {
             "IMD_RSMC": None,
             "JTWC_NOAA": None,
             "GDACS_UN": None,
-            "ISRO_MOSDAC": None
+            "ISRO_MOSDAC": None,
         }
         self._in_memory_systems: List[Dict[str, Any]] = []
-        self._background_task: Optional[asyncio.Task] = None
+        self._background_task: Optional[asyncio.Task[Any]] = None
+        self._sync_generation: Optional[int] = None
 
     @property
     def live_systems(self) -> List[Dict[str, Any]]:
-        """
-        Retrieves active systems from persistent DB/shared storage.
-        Ensures multi-worker processes share synchronized real-time active cyclone states.
-        Fixes Problem #66 (Active cyclone state stored in process memory instead of Redis/DB).
-        """
-        try:
-            db = SessionLocal()
-            try:
-                rec = db.query(ActiveCycloneState).filter(ActiveCycloneState.id == "CURRENT_ACTIVE_SYSTEMS").first()
-                if rec and rec.systems_json:
-                    return json.loads(rec.systems_json)
-                if os.getenv('ENVIRONMENT', '').lower() == 'production':
-                    raise RuntimeError('Shared active state is missing; migration required')
-            finally:
-                db.close()
-        except Exception:
-            if os.getenv("ENVIRONMENT", "development").lower() == "production":
-                raise
-        return getattr(self, "_in_memory_systems", [])
+        """Retrieve active systems from persistent DB/shared storage."""
+        return read_live_systems(getattr(self, "_in_memory_systems", []))
 
     @live_systems.setter
-    def live_systems(self, systems: List[Dict[str, Any]]):
-        """
-        Persists active cyclone state into DB/shared storage for multi-process cross-worker synchronization.
-        """
-        if os.getenv("ENVIRONMENT", "development").lower() == "production":
-            from app.core import process_lock
-            from app.core.shared_state import commit_systems
-            generation = getattr(self, "_sync_generation", process_lock.get_leader_generation())
-            commit_systems(systems, generation, process_lock.WORKER_TOKEN, process_lock.update_worker_heartbeat)
-            self._in_memory_systems = systems
-            return
+    def live_systems(self, systems: List[Dict[str, Any]]) -> None:
+        """Persist active cyclone state into DB/shared storage across workers."""
+        write_live_systems(systems, getattr(self, "_sync_generation", None))
         self._in_memory_systems = systems
-        try:
-            db = SessionLocal()
-            try:
-                rec = db.query(ActiveCycloneState).filter(ActiveCycloneState.id == "CURRENT_ACTIVE_SYSTEMS").first()
-                if not rec:
-                    rec = ActiveCycloneState(
-                        id="CURRENT_ACTIVE_SYSTEMS",
-                        active_count=len(systems),
-                        systems_json=json.dumps(systems),
-                        last_sync=datetime.datetime.utcnow()
-                    )
-                    db.add(rec)
-                else:
-                    rec.active_count = len(systems)
-                    rec.systems_json = json.dumps(systems)
-                    rec.last_sync = datetime.datetime.utcnow()
-                db.commit()
-            finally:
-                db.close()
-        except Exception:
-            pass
 
     async def sync_all_sources(self) -> Dict[str, Any]:
-        """
-        Executes a complete synchronization pass across all meteorological sources.
-        Accurately distinguishes verified calm basin from feed failures (FIX-001, FIX-002).
-        """
+        """Execute a synchronization pass across all meteorological sources."""
         if self.is_syncing:
             return {"status": "already_syncing", "message": "Synchronization is already in progress"}
 
         from app.core import process_lock
+
         if os.getenv("ENVIRONMENT", "development").lower() == "production" and not process_lock.update_worker_heartbeat():
             raise RuntimeError("Only the active lease owner may ingest")
         self._sync_generation = process_lock.get_leader_generation()
         self.is_syncing = True
         started = time.monotonic()
         self.last_attempt_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        self.last_sync_outcome = 'failed'
+        self.last_sync_outcome = "failed"
         self.last_error = None
-        discovered_systems: List[Dict[str, Any]] = []
-
-        # Deduplication rules preserving agency provenance (LIVE-08)
-        def is_duplicate(candidate: Dict[str, Any], existing_list: List[Dict[str, Any]]) -> bool:
-            cand_id = candidate.get("id", "").strip().upper()
-            cand_name = candidate.get("name", "").strip().lower().replace("cyclone", "").strip()
-            for ex in existing_list:
-                ex_id = ex.get("id", "").strip().upper()
-                ex_name = ex.get("name", "").strip().lower().replace("cyclone", "").strip()
-                if cand_id and ex_id and cand_id == ex_id:
-                    return True
-                if cand_name and ex_name and (cand_name == ex_name):
-                    return True
-            return False
 
         try:
-            # 1. Fetch real-time global satellite observations from UN/EC GDACS
             gdacs_res = await self._fetch_gdacs_active_systems()
-
-            # 2. Fetch and parse IMD RSMC New Delhi bulletins
             imd_res = await self._fetch_imd_bulletins()
-
-            # 3. Fetch NOAA / JTWC global active tropical cyclone feeds
             jtwc_res = await self._fetch_jtwc_active_systems()
-
             results = [gdacs_res, imd_res, jtwc_res]
-            for r in results:
-                self.sources_status[r.source] = r.status.value
-                if r.status in [FeedStatus.HEALTHY, FeedStatus.NO_ACTIVE_STORMS]:
-                    self.last_successful_sync[r.source] = r.retrieved_at
-                elif r.error:
-                    self.last_error = f"{r.source}: {r.error}"
+
+            for result in results:
+                self.sources_status[result.source] = result.status.value
+                if result.status in (FeedStatus.HEALTHY, FeedStatus.NO_ACTIVE_STORMS):
+                    self.last_successful_sync[result.source] = result.retrieved_at
+                elif result.error:
+                    self.last_error = f"{result.source}: {result.error}"
 
             systems, retired = reconcile(self.live_systems, results)
             for system in systems:
                 if (system.get("name") and re.match(r"^Cyclone \d+[AB]$", system["name"])) or not system.get("name"):
-                    try:
-                        news_name = await self._fetch_meteorological_news_alerts()
-                        if news_name:
-                            system["name"] = f"Cyclone {news_name}"
-                    except Exception:
-                        pass
+                    news_name = await self._fetch_meteorological_news_alerts()
+                    if news_name:
+                        system["name"] = f"Cyclone {news_name}"
                 self._calibrate_system_telemetry(system)
+
             self.live_systems = systems
             healthy_count = sum(r.status in (FeedStatus.HEALTHY, FeedStatus.NO_ACTIVE_STORMS) for r in results)
             status_label = "success" if healthy_count == len(results) else "partial_monitoring" if healthy_count else "outage"
-            self.basin_status = "ACTIVE_VERIFIED" if any(s.get("reconciliation_status") == "ACTIVE_VERIFIED" for s in systems) else "STATUS_UNCERTAIN"
-            if not systems and all(r.status == FeedStatus.NO_ACTIVE_STORMS and r.calm_evidence and r.complete_coverage for r in results):
-                self.basin_status = "NO_ACTIVE_STORMS_VERIFIED"
-            self.retired_systems = retired
 
+            if not systems and all(
+                r.status == FeedStatus.NO_ACTIVE_STORMS and r.calm_evidence and r.complete_coverage for r in results
+            ):
+                self.basin_status = "NO_ACTIVE_STORMS_VERIFIED"
+            elif any(s.get("reconciliation_status") == "ACTIVE_VERIFIED" for s in systems):
+                self.basin_status = "ACTIVE_VERIFIED"
+            else:
+                self.basin_status = "STATUS_UNCERTAIN"
+
+            self.retired_systems = retired
             self.last_sync = datetime.datetime.utcnow()
             self.last_sync_outcome = status_label
 
@@ -237,805 +126,106 @@ class LiveIngestionService:
                 "synced_at": self.last_sync.isoformat() + "Z",
                 "active_systems_count": len(self.live_systems),
                 "systems": self.live_systems,
-                "sources_status": self.sources_status
+                "sources_status": self.sources_status,
             }
-        except Exception as e:
-            self.last_error = str(e)
-            print(f"[Live Ingestion Error] Failed during sync: {e}")
+        except Exception as exc:
+            self.last_error = str(exc)
+            event_logger.error("[Live Ingestion Error] Failed during sync: %s", exc)
             return {
                 "status": "partial" if self.live_systems else "error",
                 "synced_at": self.last_sync.isoformat() + "Z" if self.last_sync else None,
                 "active_systems_count": len(self.live_systems),
                 "systems": self.live_systems,
                 "sources_status": self.sources_status,
-                "error": str(e),
-                "note": "Synchronization encountered an unhandled error; serving cached basin telemetry."
+                "error": str(exc),
+                "note": "Synchronization encountered an unhandled error; serving cached basin telemetry.",
             }
         finally:
             self.is_syncing = False
             self.last_duration_ms = round((time.monotonic() - started) * 1000, 2)
-            event_logger.info(json.dumps({'event':'ingestion_sync','outcome':self.last_sync_outcome,
-                                         'duration_ms':self.last_duration_ms,'time':self.last_attempt_at}))
+            event_logger.info(
+                json.dumps(
+                    {
+                        "event": "ingestion_sync",
+                        "outcome": self.last_sync_outcome,
+                        "duration_ms": self.last_duration_ms,
+                        "time": self.last_attempt_at,
+                    }
+                )
+            )
 
-    def _extract_coordinates_from_bulletin(self, text: str) -> Optional[tuple]:
-        """
-        Extracts genuine center fix coordinates from meteorological bulletin text.
-        Returns (lat, lon) if verified within North Indian Ocean bounds, else None.
-        Fixes Problem #11 (hardcoded scraper coordinates).
-        """
-        patterns = [
-            r"latitude\s*(\d{1,2}(?:\.\d+)?)\s*°?\s*N\s*(?:and|,|\s+)\s*longitude\s*(\d{2,3}(?:\.\d+)?)\s*°?\s*E",
-            r"(?:near\s+)?lat(?:itude)?\.?\s*(\d{1,2}(?:\.\d+)?)\s*°?\s*N[^\d\n\r]{1,40}lon(?:g(?:itude)?)?\.?\s*(\d{2,3}(?:\.\d+)?)\s*°?\s*E",
-            r"(?:near|posit:?|position:?|at)?\s*(\d{1,2}(?:\.\d+)?)\s*°?\s*N[\s,/and]+\s*(\d{2,3}(?:\.\d+)?)\s*°?\s*E",
-            r"(\d{1,2}(?:\.\d+)?)\s*°?\s*N\s*(?:and|,|\/|\s)\s*(\d{2,3}(?:\.\d+)?)\s*°?\s*E",
-            r"center\s+at\s+(\d{1,2}(?:\.\d+)?)\s*N[,\s]+(\d{2,3}(?:\.\d+)?)\s*E",
-            r"position\s+near\s+(\d{1,2}(?:\.\d+)?)\s*N\s+(\d{2,3}(?:\.\d+)?)\s*E",
-        ]
-        for p in patterns:
-            match = re.search(p, text, re.IGNORECASE)
-            if match:
-                try:
-                    lat = float(match.group(1))
-                    lon = float(match.group(2))
-                    if 5.0 <= lat <= 30.0 and 50.0 <= lon <= 100.0:
-                        return (round(lat, 2), round(lon, 2))
-                except (ValueError, IndexError):
-                    continue
-        return None
+    def _extract_coordinates_from_bulletin(self, text: str) -> Optional[tuple[float, float]]:
+        return extract_coordinates_from_bulletin(text)
 
     async def _fetch_meteorological_news_alerts(self) -> Optional[str]:
-        """
-        Dynamically extracts active cyclone names discussed across fresh (<24h)
-        meteorological news alerts, ensuring strict bulletin lifecycle validation.
-        Fixes Problem #15 (news RSS scraper lacking bulletin lifecycle checks).
-        """
-        url = "https://news.google.com/rss/search?q=Cyclone+Bay+of+Bengal+OR+Cyclone+Arabian+Sea+when:1d&hl=en-IN&gl=IN&ceid=IN:en"
-        excluded_words = {
-            "warning", "alert", "update", "track", "news", "storm", "today", 
-            "bay", "bengal", "arabian", "sea", "india", "odisha", "andhra",
-            "tamil", "nadu", "kerala", "gujarat", "live", "landfall", "depression",
-            "deep", "severe", "super", "coast", "coastal", "forecast", "imd", "rsmc",
-            "season", "relief", "fund", "damage", "anniversary", "years", "former", "past"
-        }
-        stale_lifecycle_words = {
-            "passed", "weakened into", "former cyclone", "remnants of", "dissipated",
-            "last year", "anniversary", "historic", "in 2023", "in 2024", "in 2020",
-            "aftermath", "death toll", "rebuilding", "clearing", "reconstruction"
-        }
-        try:
-            async with FeedClient(timeout=6.0, follow_redirects=True) as client:
-                resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
-                if resp.status_code == 200:
-                    root = ET.fromstring(resp.content)
-                    for item in root.findall(".//item"):
-                        title = item.find("title").text if item.find("title") is not None else ""
-                        desc = item.find("description").text if item.find("description") is not None else ""
-                        full_txt = f"{title} {desc}".lower()
-                        
-                        # Discard dissipated or historical retrospective news
-                        if any(term in full_txt for term in stale_lifecycle_words):
-                            continue
-
-                        matches = re.findall(r"(?:Cyclone|Cyclonic Storm)\s+['\"]?([A-Z][a-z]{2,15})['\"]?", f"{title} {desc}")
-                        for candidate in matches:
-                            cand_clean = candidate.strip()
-                            if cand_clean.lower() not in excluded_words:
-                                return cand_clean.capitalize()
-        except Exception:
-            pass
-        return None
+        return await fetch_meteorological_news_alerts()
 
     async def _fetch_imd_bulletins(self) -> FeedResult:
-        """
-        Polls IMD RSMC New Delhi and Mausam portals for active tropical cyclone advisories.
-        Returns FeedResult contract distinguishing healthy, no active storms, or failures (FIX-001).
-        """
-        systems = []
-        self.sources_status["IMD_RSMC"] = "Polling"
-        url = "https://rsmcnewdelhi.imd.gov.in/"
-        
-        try:
-            async with FeedClient(timeout=8.0, follow_redirects=True) as client:
-                resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
-                if resp.status_code == 200:
-                    soup = BeautifulSoup(resp.text, "html.parser")
-                    text_content = soup.get_text()
-
-                    bulletin_indicators = [
-                        r"TROPICAL CYCLONE ADVISORY NO\.",
-                        r"CYCLONIC STORM BULLETIN NO\.",
-                        r"SPECIAL TROPICAL WEATHER OUTLOOK",
-                        r"DEEP DEPRESSION SPECIAL MESSAGE"
-                    ]
-                    has_active_bulletin = any(re.search(ind, text_content, re.IGNORECASE) for ind in bulletin_indicators)
-
-                    if has_active_bulletin:
-                        # This adapter supports one dated advisory only. A landing page
-                        # containing multiple systems/positions is not an observation.
-                        advisory_body = re.sub(r"CYCLONIC STORM BULLETIN\s+NO\.\s*\d+", "", text_content, flags=re.IGNORECASE)
-                        names = set(n.upper() for n in re.findall(r"Cyclonic Storm\s+['\"]?([A-Za-z0-9-]+)", advisory_body, re.IGNORECASE))
-                        positions = set(re.findall(r"(\d{1,2}(?:\.\d+)?)\s*°?\s*N.*?(\d{2,3}(?:\.\d+)?)\s*°?\s*E", text_content, re.IGNORECASE))
-                        dates = set(re.findall(r"20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|\+00:00)", text_content))
-                        if len(names) > 1 or len(positions) > 1 or len(dates) != 1:
-                            return assess_feed(source="IMD_RSMC", status=FeedStatus.DEGRADED,
-                                systems=[], error="Unsupported or ambiguous advisory scope", source_url=url)
-
-                        keywords = [
-                            r"Super Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
-                            r"Extremely Severe Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
-                            r"Very Severe Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
-                            r"Severe Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
-                            r"Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?",
-                            r"Deep Depression\s+over\s+([A-Za-z0-9\/\-\s]+)"
-                        ]
-
-                        doc_id = None
-                        doc_match = re.search(r"((?:TROPICAL CYCLONE ADVISORY|CYCLONIC STORM BULLETIN|SPECIAL MESSAGE)\s+NO\.\s*\d+)", text_content, re.IGNORECASE)
-                        if doc_match:
-                            doc_id = doc_match.group(1).strip()
-
-                        date_match = re.search(r"\b(20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|\+00:00))", text_content)
-                        obs_time_dt = parse_time(date_match.group(1)) if date_match else None
-
-                        for kw in keywords:
-                            match = re.search(kw, advisory_body, re.IGNORECASE)
-                            if match:
-                                matched_text = match.group(0)
-                                cat = self._determine_imd_category_from_text(matched_text)
-                                basin = "Bay of Bengal" if "bay" in text_content.lower() or "bob" in matched_text.lower() else "Arabian Sea"
-                                
-                                coords = self._extract_coordinates_from_bulletin(text_content)
-                                if not coords:
-                                    continue
-
-                                lat_extracted, lon_extracted = coords
-
-                                name_match = re.search(r"Cyclonic Storm\s+['\"]?([A-Za-z0-9\-]+)['\"]?", matched_text, re.IGNORECASE)
-                                if name_match:
-                                    final_name = f"Cyclone {name_match.group(1).strip().capitalize()}"
-                                    sys_id = f"LIVE-IMD-{name_match.group(1).strip().upper()}"
-                                else:
-                                    final_name = "Deep Depression (IMD RSMC Fix)"
-                                    sys_id = f"LIVE-IMD-{datetime.datetime.utcnow().strftime('%Y%m%d%H')}"
-
-                                p_match = re.search(r"(?:CENTRAL\s+PRESSURE|PRESSURE|ECP)\s*(?:IS|ESTIMATED\s+AT)?\s*(\d{3,4})\s*(?:HPA|MB)", text_content, re.IGNORECASE)
-                                pressure_val = int(p_match.group(1)) if p_match else None
-
-                                speed_matches = re.findall(r"(?:MOVEMENT\s+SPEED|MOVED|MOVING\s+AT)\s*(\d{1,3}(?:\.\d+)?)\s*(KMPH|KM/H|KNOTS|KT)\b", text_content, re.IGNORECASE)
-                                speed_raw, speed_unit = (float(speed_matches[0][0]), speed_matches[0][1].upper()) if len(speed_matches) == 1 else (None, None)
-                                speed_val = speed_raw * (1.852 if speed_unit in ("KT", "KNOTS") else 1) if speed_raw is not None else None
-
-                                compass = {'NORTH':'N', 'SOUTH':'S', 'EAST':'E', 'WEST':'W',
-                                    'NORTHWEST':'NW', 'NORTHEAST':'NE', 'SOUTHWEST':'SW', 'SOUTHEAST':'SE'}
-                                compass.update({d:d for d in ('N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW')})
-                                directions = re.findall(r"\b(?:DIRECTION|TOWARDS?|MOVING)\s+(" + '|'.join(compass) + r")\b", text_content, re.IGNORECASE)
-                                direction_values = {compass[d.upper()] for d in directions}
-                                dir_val = next(iter(direction_values)) if len(direction_values) == 1 else None
-
-                                w_match = re.search(r"(?:SUSTAINED\s+WINDS?|WIND\s+SPEED)\s*(?:OF)?\s*(\d{2,3})\s*(?:KT|KNOTS)", text_content, re.IGNORECASE)
-                                knots_val = int(w_match.group(1)) if w_match else None
-
-                                systems.append({
-                                    "id": sys_id,
-                                    "name": final_name,
-                                    "basin": basin,
-                                    "source": "IMD RSMC New Delhi (Live Bulletins)",
-                                    "is_live_telemetry": True,
-                                    "category": cat,
-                                    "intensity_knots": knots_val,
-                                    "lat": lat_extracted,
-                                    "lon": lon_extracted,
-                                    "central_pressure_hpa": pressure_val,
-                                    "movement_speed_kmph": speed_val,
-                                    "movement_speed_raw": speed_raw,
-                                    "movement_speed_source_unit": speed_unit,
-                                    "movement_direction": dir_val,
-                                    "wind_convention": "3_MIN_SUSTAINED" if knots_val is not None else "UNAVAILABLE",
-                                    "data_quality": {
-                                        "central_pressure": "OBSERVED" if pressure_val is not None else "UNAVAILABLE",
-                                        "movement_speed": "OBSERVED" if speed_val is not None else "UNAVAILABLE",
-                                        "movement_direction": "OBSERVED" if dir_val is not None else "UNAVAILABLE",
-                                        "wind_intensity": "OBSERVED" if knots_val is not None else "UNAVAILABLE",
-                                        "center_fix": "OBSERVED"
-                                    },
-                                    "observation_time_utc": obs_time_dt.isoformat() if obs_time_dt else None
-                                })
-                                break
-
-                        if systems:
-                            self.sources_status["IMD_RSMC"] = "HEALTHY"
-                            self.last_successful_sync["IMD_RSMC"] = datetime.datetime.utcnow()
-                            return assess_feed(source="IMD_RSMC", status=FeedStatus.HEALTHY, systems=systems,
-                                               observed_at=obs_time_dt, document_id=doc_id, source_url=url)
-                        else:
-                            self.sources_status["IMD_RSMC"] = "NO_ACTIVE_STORMS"
-                            self.last_successful_sync["IMD_RSMC"] = datetime.datetime.utcnow()
-                            return assess_feed(source="IMD_RSMC", status=FeedStatus.NO_ACTIVE_STORMS, systems=[],
-                                               observed_at=obs_time_dt, document_id=doc_id, source_url=url)
-
-                    # Real portal landing page parsing: Check for active bulletin link or banners
-                    tip = soup.find("dd", class_="tipMid")
-                    tip_text = tip.get_text() if tip else ""
-                    marquee_text = " ".join(m.get_text() for m in soup.find_all("marquee"))
-                    combined_banner = f"{tip_text} {marquee_text}".strip()
-
-                    # Find archive PDF bulletin if linked
-                    pdf_link = None
-                    if tip:
-                        a_elem = tip.find("a")
-                        if a_elem and a_elem.get("href"):
-                            pdf_link = a_elem.get("href")
-                    if not pdf_link:
-                        for a_elem in soup.find_all("a"):
-                            href = a_elem.get("href", "")
-                            if "uploads/archive" in href and href.endswith(".pdf"):
-                                pdf_link = href
-                                break
-
-                    if pdf_link:
-                        from urllib.parse import urljoin
-                        pdf_url = urljoin(url, pdf_link)
-                        try:
-                            pdf_resp = await client.get(pdf_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
-                            if pdf_resp.status_code == 200:
-                                try:
-                                    import io, pdfplumber
-                                    with pdfplumber.open(io.BytesIO(pdf_resp.content)) as pdf:
-                                        p_text = pdf.pages[0].extract_text() or ""
-                                        doc_m = re.search(r"((?:NATIONAL BULLETIN|TROPICAL CYCLONE ADVISORY|CYCLONIC STORM BULLETIN|SPECIAL MESSAGE)\s+NO\.\s*\d+(?:\s*\([^)]+\))?)", p_text, re.IGNORECASE)
-                                        p_doc_id = doc_m.group(1).strip() if doc_m else "NATIONAL BULLETIN"
-
-                                        name_m = re.search(r'(?:Cyclonic Storm|Cyclone)\s*[“"\'\‘]([A-Za-z]{3,15})[”"\'\’]', p_text, re.IGNORECASE)
-                                        if not name_m:
-                                            name_m = re.search(r'[“"\'\‘]([A-Za-z]{3,15})[”"\'\’]', p_text)
-                                        p_name = name_m.group(1).capitalize() if name_m else None
-
-                                        p_cat = "Depression"
-                                        for c in ["Super Cyclonic Storm", "Extremely Severe Cyclonic Storm", "Very Severe Cyclonic Storm", "Severe Cyclonic Storm", "Cyclonic Storm", "Deep Depression", "Depression"]:
-                                            if re.search(r'\b' + c + r'\b', p_text, re.IGNORECASE):
-                                                p_cat = c
-                                                break
-
-                                        p_coords = self._extract_coordinates_from_bulletin(p_text)
-                                        if not p_coords:
-                                            table_m = re.search(r'(\d{1,2}\.\d+)\/(\d{2,3}\.\d+)', p_text)
-                                            if table_m:
-                                                p_coords = (float(table_m.group(1)), float(table_m.group(2)))
-
-                                        p_speed_kmph = None
-                                        s_m = re.search(r'(?:speed\s+of|moved\s+at)\s*(\d{1,2})\s*kmph', p_text, re.IGNORECASE)
-                                        if s_m:
-                                            p_speed_kmph = float(s_m.group(1))
-
-                                        p_dir = None
-                                        d_m = re.search(r'moved\s+(northwards|southwards|eastwards|westwards|north-northwestward|northwestwards|northeastwards)', p_text, re.IGNORECASE)
-                                        if d_m:
-                                            dir_map = {'northwards':'N', 'southwards':'S', 'eastwards':'E', 'westwards':'W', 'northwestwards':'NW', 'northeastwards':'NE', 'north-northwestward':'NNW'}
-                                            p_dir = dir_map.get(d_m.group(1).lower())
-
-                                        p_knots = None
-                                        w_m = re.search(r'(\d{2,3})(?:-(\d{2,3}))?\s*gusting\s+to\s+(\d{2,3})', p_text, re.IGNORECASE)
-                                        if w_m:
-                                            p_kmph = float(w_m.group(2) or w_m.group(1))
-                                            p_knots = int(p_kmph / 1.852)
-
-                                        p_obs_dt = None
-                                        t_m = re.search(r'centered\s+at\s+(\d{4})\s*hours\s+IST\s+of\s+today,?\s*the\s+(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+),?\s*(\d{4})', p_text, re.IGNORECASE)
-                                        if t_m:
-                                            hhmm, day, month_str, yr = t_m.groups()
-                                            hh, mm = int(hhmm[:2]), int(hhmm[2:])
-                                            try:
-                                                m_num = datetime.datetime.strptime(month_str.capitalize(), '%B').month
-                                                ist_dt = datetime.datetime(int(yr), m_num, int(day), hh, mm, tzinfo=datetime.timezone.utc)
-                                                p_obs_dt = ist_dt - datetime.timedelta(hours=5, minutes=30)
-                                            except Exception:
-                                                p_obs_dt = None
-
-                                        if p_coords:
-                                            sys_name = f"Cyclone {p_name}" if p_name else "Deep Depression (IMD Fix)"
-                                            sys_id = f"LIVE-IMD-{p_name.upper()}" if p_name else f"LIVE-IMD-{datetime.datetime.utcnow().strftime('%Y%m%d%H')}"
-                                            systems.append({
-                                                "id": sys_id,
-                                                "name": sys_name,
-                                                "basin": "Bay of Bengal" if "bay" in p_text.lower() or "bob" in p_doc_id.lower() or p_coords[1] > 78 else "Arabian Sea",
-                                                "source": "IMD RSMC New Delhi (Official National Bulletin)",
-                                                "is_live_telemetry": True,
-                                                "category": p_cat,
-                                                "intensity_knots": p_knots,
-                                                "lat": p_coords[0],
-                                                "lon": p_coords[1],
-                                                "central_pressure_hpa": None,
-                                                "movement_speed_kmph": p_speed_kmph,
-                                                "movement_direction": p_dir,
-                                                "wind_convention": "3_MIN_SUSTAINED" if p_knots is not None else "UNAVAILABLE",
-                                                "data_quality": {
-                                                    "central_pressure": "UNAVAILABLE",
-                                                    "movement_speed": "OBSERVED" if p_speed_kmph is not None else "UNAVAILABLE",
-                                                    "movement_direction": "OBSERVED" if p_dir else "UNAVAILABLE",
-                                                    "wind_intensity": "OBSERVED" if p_knots is not None else "UNAVAILABLE",
-                                                    "center_fix": "OBSERVED"
-                                                },
-                                                "observation_time_utc": p_obs_dt.isoformat() if p_obs_dt else None
-                                            })
-                                            self.sources_status["IMD_RSMC"] = "HEALTHY"
-                                            self.last_successful_sync["IMD_RSMC"] = datetime.datetime.utcnow()
-                                            return assess_feed(source="IMD_RSMC", status=FeedStatus.HEALTHY, systems=systems,
-                                                               observed_at=p_obs_dt, document_id=p_doc_id, source_url=url)
-                                except Exception as pdf_err:
-                                    event_logger.warning(f"IMD PDF extraction error: {pdf_err}")
-                        except Exception:
-                            pass
-
-                    # If no valid active bulletin was extracted, check if dated calm is verified
-                    # Generic pages and undated text cannot verify calm (LIVE-05, FIX-001)
-                    self.sources_status["IMD_RSMC"] = "DEGRADED"
-                    return assess_feed(
-                        source="IMD_RSMC",
-                        status=FeedStatus.DEGRADED,
-                        systems=[],
-                        error="No dated authoritative evidence of basin-wide calm",
-                        source_url=url
-                    )
-                else:
-                    self.sources_status["IMD_RSMC"] = f"FAILED (HTTP {resp.status_code})"
-                    return assess_feed(
-                        source="IMD_RSMC",
-                        status=FeedStatus.FAILED,
-                        systems=[],
-                        error=f"HTTP {resp.status_code}",
-                        source_url=url
-                    )
-        except Exception as e:
-            self.sources_status["IMD_RSMC"] = f"FAILED ({type(e).__name__})"
-            self.last_error = f"IMD fetch error: {e}"
-            return assess_feed(
-                source="IMD_RSMC",
-                status=FeedStatus.FAILED,
-                systems=[],
-                error=f"{type(e).__name__}: {str(e)}",
-                source_url=url
-            )
+        return await fetch_imd_bulletins(
+            set_status=lambda status: self.sources_status.__setitem__("IMD_RSMC", status),
+            mark_success=lambda: self.last_successful_sync.__setitem__("IMD_RSMC", datetime.datetime.utcnow()),
+            set_error=lambda err: setattr(self, "last_error", err),
+        )
 
     async def _fetch_gdacs_active_systems(self) -> FeedResult:
-        """
-        Polls United Nations / European Commission GDACS live GeoRSS feed
-        (https://www.gdacs.org/xml/rss.xml). Returns FeedResult with nullable wind (FIX-001, FIX-002).
-        """
-        systems = []
-        self.sources_status["GDACS_UN"] = "Polling"
-        url = "https://www.gdacs.org/xml/rss.xml"
-        try:
-            async with FeedClient(timeout=8.0, follow_redirects=True) as client:
-                resp = await client.get(url, headers={"User-Agent": "CycloneTracker/1.0 (Cyclone Research and Monitoring; +https://github.com/8ernity/CycloneNet)"})
-                if resp.status_code == 200:
-                    content_type = resp.headers.get("content-type", "").lower()
-                    if "html" in content_type or b"<title>Request Rejected</title>" in resp.content:
-                        self.sources_status["GDACS_UN"] = "UNAVAILABLE (WAF Challenge)"
-                        return assess_feed(
-                            source="GDACS_UN",
-                            status=FeedStatus.UNAVAILABLE,
-                            systems=[],
-                            error="GDACS WAF challenge page returned",
-                            source_url=url
-                        )
-                    try:
-                        xml_str = resp.content.decode("utf-8-sig", errors="ignore").strip()
-                        root = ET.fromstring(xml_str)
-                    except Exception as parse_err:
-                        self.sources_status["GDACS_UN"] = f"FAILED (XML Parse Error: {type(parse_err).__name__})"
-                        return assess_feed(
-                            source="GDACS_UN",
-                            status=FeedStatus.FAILED,
-                            systems=[],
-                            error=f"XML parse error: {parse_err}",
-                            source_url=url
-                        )
-                    channel = root.find("channel")
-                    if root.tag != "rss" or channel is None or "gdacs" not in (channel.findtext("title") or "").lower():
-                        return assess_feed(source="GDACS_UN", status=FeedStatus.FAILED, error="Unrecognized GDACS document", source_url=url)
-                    ns_geo = "{http://www.georss.org/georss}"
-                    
-                    for item in root.findall(".//item"):
-                        title = item.find("title").text if item.find("title") is not None else ""
-                        desc = item.find("description").text if item.find("description") is not None else ""
-                        pub_elem = item.find("pubDate")
-                        obs_time_str = pub_elem.text if (pub_elem is not None and pub_elem.text) else None
-                        
-                        if "tropical cyclone" in title.lower() or "cyclone" in desc.lower():
-                            point_elem = item.find(f"{ns_geo}point")
-                            if point_elem is not None and point_elem.text:
-                                parts = point_elem.text.strip().split()
-                                if len(parts) == 2:
-                                    try:
-                                        lat_val = float(parts[0])
-                                        lon_val = float(parts[1])
-                                    except ValueError:
-                                        continue
-                                    
-                                    # Filter for North Indian Ocean basin (Bay of Bengal & Arabian Sea)
-                                    is_bob = (5.0 <= lat_val <= 26.0) and (79.0 <= lon_val <= 98.0)
-                                    is_arb = (5.0 <= lat_val <= 26.0) and (55.0 <= lon_val <= 78.0)
-                                    
-                                    if is_bob or is_arb:
-                                        basin = "Bay of Bengal" if is_bob else "Arabian Sea"
-                                        w_match = re.search(r"(\d+)\s*km/h", title + " " + desc)
-                                        if w_match:
-                                            wind_kmph = int(w_match.group(1))
-                                            knots = int(wind_kmph / 1.852)
-                                            cat = "Deep Depression" if knots < 40 else ("Cyclonic Storm" if knots < 55 else "Severe Cyclonic Storm")
-                                        else:
-                                            wind_kmph = None
-                                            knots = None
-                                            cat = "Cyclonic Disturbance (Unclassified Wind)"
-                                        
-                                        name_match = re.search(r"(?:tropical cyclone|cyclone)\s+([A-Za-z0-9\-]+)", title, re.IGNORECASE)
-                                        raw_name = name_match.group(1).strip() if name_match else "BOB-05"
-                                        clean_name = re.sub(r"-\d+$", "", raw_name).strip()
-                                        
-                                        systems.append({
-                                            "id": f"LIVE-GDACS-{clean_name.upper()}",
-                                            "name": "Deep Depression (BOB-05)" if "one" in clean_name.lower() or "bob" in clean_name.lower() else f"Cyclone {clean_name.capitalize()}",
-                                            "basin": basin,
-                                            "source": "GDACS (United Nations / EC Real-Time Satellite Feed)",
-                                            "is_live_telemetry": True,
-                                            "telemetry_badge": "LIVE SOURCE VERIFIED",
-                                            "telemetry_type": "LIVE",
-                                            "category": cat,
-                                            "intensity_knots": knots,
-                                            "wind_convention": "SOURCE_UNSPECIFIED" if knots is not None else "UNAVAILABLE",
-                                            "lat": round(lat_val, 2),
-                                            "lon": round(lon_val, 2),
-                                            "central_pressure_hpa": None,
-                                            "movement_speed_kmph": None,
-                                            "movement_direction": None,
-                                            "data_quality": {
-                                                "central_pressure": "UNAVAILABLE",
-                                                "movement_speed": "UNAVAILABLE",
-                                                "movement_direction": "UNAVAILABLE",
-                                                "wind_intensity": "OBSERVED" if knots is not None else "UNAVAILABLE",
-                                                "center_fix": "OBSERVED"
-                                            },
-                                            "observation_time_utc": obs_time_str
-                                        })
-
-                    if systems:
-                        self.sources_status["GDACS_UN"] = "HEALTHY"
-                        self.last_successful_sync["GDACS_UN"] = datetime.datetime.utcnow()
-                        return assess_feed(
-                            source="GDACS_UN",
-                            status=FeedStatus.HEALTHY,
-                            systems=systems,
-                            source_url=url
-                        )
-                    else:
-                        self.sources_status["GDACS_UN"] = "NO_ACTIVE_STORMS"
-                        self.last_successful_sync["GDACS_UN"] = datetime.datetime.utcnow()
-                        return assess_feed(
-                            source="GDACS_UN",
-                            status=FeedStatus.NO_ACTIVE_STORMS,
-                            systems=[],
-                            source_url=url
-                        )
-                else:
-                    self.sources_status["GDACS_UN"] = f"FAILED (HTTP {resp.status_code})"
-                    return assess_feed(
-                        source="GDACS_UN",
-                        status=FeedStatus.FAILED,
-                        systems=[],
-                        error=f"HTTP {resp.status_code}",
-                        source_url=url
-                    )
-        except Exception as e:
-            self.sources_status["GDACS_UN"] = f"FAILED ({type(e).__name__})"
-            return assess_feed(
-                source="GDACS_UN",
-                status=FeedStatus.FAILED,
-                systems=[],
-                error=f"{type(e).__name__}: {str(e)}",
-                source_url=url
-            )
+        return await fetch_gdacs_active_systems(
+            set_status=lambda status: self.sources_status.__setitem__("GDACS_UN", status),
+            mark_success=lambda: self.last_successful_sync.__setitem__("GDACS_UN", datetime.datetime.utcnow()),
+        )
 
     async def _fetch_jtwc_active_systems(self) -> FeedResult:
-        """
-        Polls NOAA / JTWC automated feeds for active tropical cyclones in the North Indian Ocean (IO).
-        Returns FeedResult contract with nullable values when measurements are missing (LIVE-05, FIX-001, FIX-002).
-        """
-        systems = []
-        self.sources_status["JTWC_NOAA"] = "Polling"
-        url = "https://www.metoc.navy.mil/jtwc/rss/jtwc.rss"
-
-        try:
-            async with FeedClient(timeout=8.0, follow_redirects=True) as client:
-                resp = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
-                if resp.status_code == 200:
-                    text_content = resp.text
-                    is_valid_xml = False
-                    try:
-                        xml_root = ET.fromstring(resp.content)
-                        channel = xml_root.find("channel")
-                        is_valid_xml = xml_root.tag == "rss" and channel is not None and "jtwc" in (channel.findtext("title") or "").lower()
-                    except Exception:
-                        pass
-
-                    is_valid_plain_bulletin = bool(re.search(r"Tropical Cyclone\s+\d+[AB]", text_content, re.IGNORECASE)) or ("NO ACTIVE WARNINGS" in text_content.upper())
-
-                    if not is_valid_xml and not is_valid_plain_bulletin:
-                        self.sources_status["JTWC_NOAA"] = "FAILED (Malformed Payload)"
-                        return assess_feed(
-                            source="JTWC_NOAA",
-                            status=FeedStatus.FAILED,
-                            systems=[],
-                            error="Malformed feed payload (neither valid XML RSS nor recognized JTWC bulletin)",
-                            source_url=url
-                        )
-
-                    issue = None
-                    if is_valid_xml:
-                        issue = parse_time(channel.findtext("lastBuildDate") or channel.findtext("pubDate"))
-                    io_matches = list(re.finditer(r"(Tropical Cyclone\s+(\d+[AB]))\s*(.*?)(?=(?:Tropical Cyclone\s+\d+[AB])|$)", text_content, re.IGNORECASE | re.DOTALL))
-                    for match in io_matches:
-                        full_title = match.group(1)
-                        storm_code = match.group(2).upper()
-                        item_body = match.group(3)
-                        basin = "Bay of Bengal" if storm_code.endswith("B") else "Arabian Sea"
-
-                        target_text = item_body
-                        link_m = re.search(r"href=['\"]([^'\"]*?(?:io|sh|wp)\d+web\.txt)['\"]", item_body, re.IGNORECASE)
-                        if link_m:
-                            w_url = link_m.group(1)
-                            if not w_url.startswith("http"):
-                                w_url = "https://www.metoc.navy.mil/jtwc/products/" + w_url.split("/")[-1]
-                            try:
-                                resp_w = await client.get(w_url, headers={"User-Agent": "Mozilla/5.0"})
-                                if resp_w.status_code == 200:
-                                    target_text = resp_w.text
-                            except Exception:
-                                pass
-
-                        coords = self._extract_coordinates_from_bulletin(target_text)
-                        if not coords:
-                            continue
-
-                        lat_val, lon_val = coords
-
-                        # Extract storm name
-                        name_m = re.search(r'TROPICAL CYCLONE\s+\d+[AB]\s*(?:\(([^)]+)\))?', target_text, re.IGNORECASE)
-                        named = name_m.group(1).strip() if (name_m and name_m.group(1)) else None
-                        if not named:
-                            name_m2 = re.search(r'Tropical Cyclone\s+\d+[AB]\s*\(([^)]+)\)', item_body, re.IGNORECASE)
-                            named = name_m2.group(1).strip() if name_m2 else None
-                        storm_name = f"Cyclone {named.capitalize()}" if named else f"Cyclone {storm_code}"
-
-                        w_match = re.search(r"(?:MAX(?:IMUM)?\s+SUSTAINED\s+WINDS?|WINDS?)\s*(?:-|IS)?\s*(\d{2,3})\s*KT", target_text, re.IGNORECASE)
-                        knots_val = int(w_match.group(1)) if w_match else None
-
-                        adv_match = re.search(r"WARNING\s+(?:NR|NO\.?)\s*(\d+)", target_text, re.IGNORECASE)
-                        advisory_no = adv_match.group(1) if adv_match else None
-
-                        p_match = re.search(r"(?:ESTIMATED\s+)?CENTRAL\s+PRESSURE(?:\s+AT\s+\S+)?\s+(?:IS\s+)?(\d{3,4})\s*(?:MB|HPA)", target_text, re.IGNORECASE)
-                        pressure_val = int(p_match.group(1)) if p_match else None
-
-                        m_match = re.search(r"(?:PRESENT\s+MOVEMENT|MOVEMENT\s+PAST\s+\w+\s+HOURS)\s*(?:-|TOWARD\s+)?\s*([A-Z0-9\s°]+?)\s+AT\s+(\d{1,2})\s*KTS?", target_text, re.IGNORECASE)
-                        motion_dir = m_match.group(1).strip() if m_match else None
-                        motion_speed_kmph = int(float(m_match.group(2)) * 1.852) if m_match else None
-
-                        # Extract observation timestamp
-                        obs_time_str = None
-                        pos_m = re.search(r"WARNING POSITION:\s*(\d{6}Z)", target_text, re.IGNORECASE)
-                        if pos_m:
-                            obs_time_str = pos_m.group(1)
-                        if not obs_time_str:
-                            issued_m = re.search(r"Issued at\s+(\d{1,2}/\d{4}Z)", item_body, re.IGNORECASE)
-                            if issued_m:
-                                obs_time_str = issued_m.group(1)
-                        obs_dt = parse_time(obs_time_str) if obs_time_str else (parse_time(issue) if issue else datetime.datetime.now(datetime.timezone.utc))
-
-                        cat = "Deep Depression" if (knots_val and knots_val < 40) else ("Cyclonic Storm" if (knots_val and knots_val < 55) else "Severe Cyclonic Storm") if knots_val else "Tropical Cyclone (Unclassified)"
-
-                        systems.append({
-                            "id": f"LIVE-JTWC-{storm_code}",
-                            "name": storm_name,
-                            "basin": basin,
-                            "source": "JTWC / NOAA (Official Advisory Bulletin)",
-                            "is_live_telemetry": True,
-                            "telemetry_badge": "JTWC VERIFIED",
-                            "telemetry_type": "LIVE",
-                            "category": cat,
-                            "intensity_knots": knots_val,
-                            "wind_averaging_period": "1-minute sustained" if knots_val is not None else "UNAVAILABLE",
-                            "lat": lat_val,
-                            "lon": lon_val,
-                            "central_pressure_hpa": pressure_val,
-                            "movement_speed_kmph": motion_speed_kmph,
-                            "movement_direction": motion_dir,
-                            "advisory_number": advisory_no,
-                            "data_quality": {
-                                "central_pressure": "OBSERVED" if pressure_val is not None else "UNAVAILABLE",
-                                "movement_speed": "OBSERVED" if motion_speed_kmph is not None else "UNAVAILABLE",
-                                "movement_direction": "OBSERVED" if motion_dir else "UNAVAILABLE",
-                                "wind_intensity": "OBSERVED" if knots_val is not None else "UNAVAILABLE",
-                                "center_fix": "OBSERVED"
-                            },
-                            "observation_time_utc": obs_dt.isoformat() if obs_dt else None,
-                            "source_issue_time_utc": issue.isoformat() if issue else None
-                        })
-
-                    if systems:
-                        self.sources_status["JTWC_NOAA"] = "HEALTHY"
-                        self.last_successful_sync["JTWC_NOAA"] = datetime.datetime.utcnow()
-                        return assess_feed(
-                            source="JTWC_NOAA",
-                            status=FeedStatus.HEALTHY,
-                            systems=systems,
-                            source_url=url
-                        )
-                    else:
-                        self.sources_status["JTWC_NOAA"] = "NO_ACTIVE_STORMS"
-                        self.last_successful_sync["JTWC_NOAA"] = datetime.datetime.utcnow()
-                        return assess_feed(
-                            source="JTWC_NOAA",
-                            status=FeedStatus.NO_ACTIVE_STORMS,
-                            systems=[],
-                            source_url=url
-                        )
-                else:
-                    self.sources_status["JTWC_NOAA"] = f"FAILED (HTTP {resp.status_code})"
-                    return assess_feed(
-                        source="JTWC_NOAA",
-                        status=FeedStatus.FAILED,
-                        systems=[],
-                        error=f"HTTP {resp.status_code}",
-                        source_url=url
-                    )
-        except Exception as e:
-            self.sources_status["JTWC_NOAA"] = f"FAILED ({type(e).__name__})"
-            return assess_feed(
-                source="JTWC_NOAA",
-                status=FeedStatus.FAILED,
-                systems=[],
-                error=f"{type(e).__name__}: {str(e)}",
-                source_url=url
-            )
+        return await fetch_jtwc_active_systems(
+            set_status=lambda status: self.sources_status.__setitem__("JTWC_NOAA", status),
+            mark_success=lambda: self.last_successful_sync.__setitem__("JTWC_NOAA", datetime.datetime.utcnow()),
+        )
 
     def _determine_imd_category_from_text(self, text: str) -> str:
-        t = text.lower()
-        if "super" in t:
-            return "Super Cyclonic Storm"
-        if "extremely severe" in t:
-            return "Extremely Severe Cyclonic Storm"
-        if "very severe" in t:
-            return "Very Severe Cyclonic Storm"
-        if "severe" in t:
-            return "Severe Cyclonic Storm"
-        if "deep depression" in t:
-            return "Deep Depression"
-        if "depression" in t:
-            return "Depression"
-        return "Cyclonic Storm"
+        return determine_imd_category_from_text(text)
 
-    def _calibrate_system_telemetry(self, system: Dict[str, Any]):
-        """
-        Computes Dvorak T-number (via empirical parametric wind lookup) and
-        generates trajectory forecast waypoints (using kinematic vector extrapolation).
-        Explicitly stamps metadata distinguishing between raw observed telemetry (0h fix, wind)
-        and CycloNet-derived estimates (empirical Dvorak scale, extrapolated waypoints).
-        Eliminates simulated past waypoints and false BAM forecast claims (FIX-002, FIX-003).
-        """
-        knots = system.get("intensity_knots")
-        
-        # Empirical parametric Dvorak mapping based on sustained core wind velocity
-        if knots is not None:
-            if knots >= 120:
-                dvorak_t = "T6.0+"
-            elif knots >= 90:
-                dvorak_t = "T5.5"
-            elif knots >= 65:
-                dvorak_t = "T4.5"
-            elif knots >= 45:
-                dvorak_t = "T3.5"
-            elif knots >= 30:
-                dvorak_t = "T2.5"
-            else:
-                dvorak_t = "T1.5"
-            dvorak_derivation_method = "Parametric Wind-Speed Scale (Decision Support Diagnostic Only)"
-            dvorak_is_empirical = True
-        else:
-            dvorak_t = "T-Pending"
-            dvorak_derivation_method = "Unavailable (Missing Wind Telemetry)"
-            dvorak_is_empirical = False
+    def _calibrate_system_telemetry(self, system: Dict[str, Any]) -> None:
+        calibrate_system_telemetry(system)
 
-        system["dvorak_t"] = dvorak_t
-        system["dvorak_derivation_method"] = dvorak_derivation_method
-        system["dvorak_is_empirical_estimate"] = dvorak_is_empirical
-        has_forecast = any(point.get("is_forecast") for point in system.get("track_forecast", []))
-        if has_forecast:
-            system.setdefault("track_generation_method", "Supplied track; generation method unverified")
-        else:
-            system["track_generation_method"] = "Simulation center fix only; forecast unavailable" if system.get("is_simulation") else "Source center fix only; forecast unavailable"
-        provenance = "SIMULATION" if system.get("is_simulation") else "OBSERVED_FEED"
-        system["telemetry_attribution"] = {
-            "center_fix": provenance,
-            "intensity_knots": provenance if knots is not None else "UNAVAILABLE",
-            "dvorak_t": "PARAMETRIC_ESTIMATE" if knots is not None else "UNAVAILABLE",
-            "trajectory_forecast": "UNAVAILABLE" if not has_forecast else system["track_generation_method"],
-            "track_accuracy_claim": "UNVERIFIED_EXPERIMENTAL_LAYER",
-            "satellite_image_dvorak": "AVAILABLE_IN_CLASSIFICATION_TAB"
-        }
-
-        if not system.get("track_forecast"):
-            system["track_generation_method"] = "Simulation center fix only; forecast unavailable" if system.get("is_simulation") else "Source center fix only; forecast unavailable"
-            system["track_forecast"] = [{
-                "lat": system["lat"], "lon": system["lon"], "time_offset_hours": 0,
-                "category": system["category"], "intensity_knots": knots, "is_forecast": False,
-                "is_observed": not system.get("is_simulation", False),
-                "method": "SIMULATION" if system.get("is_simulation") else "OFFICIAL_OBSERVATION",
-                "origin_type": "SIMULATION_CENTER_FIX" if system.get("is_simulation") else "OBSERVED_CENTER_FIX",
-                "label": f"Wind: {str(knots) + ' KT' if knots is not None else 'Not available'}; source time: {system.get('observation_time_utc') or 'Not available'}",
-                "issue_time_utc": system.get("observation_time_utc"), "source": system.get("source")
-            }]
-
-    def inject_test_system(self, name: str = "Shakti", basin: str = "Bay of Bengal", category: str = "Very Severe Cyclonic Storm", knots: int = 75) -> Dict[str, Any]:
-        """
-        Injects a synthetic simulation cyclone into the buffer for drills/tests without corrupting the historical database catalog (LIVE-09).
-        """
-        sys_id = f"SIM-DEMO-{name.upper()}"
+    def inject_test_system(
+        self,
+        name: str = "Shakti",
+        basin: str = "Bay of Bengal",
+        category: str = "Very Severe Cyclonic Storm",
+        knots: int = 75,
+    ) -> Dict[str, Any]:
+        """Inject a synthetic simulation cyclone for drills without modifying the catalog."""
         now_utc = datetime.datetime.utcnow()
-        system = {
-            "id": sys_id,
-            "name": f"Cyclone {name} (Demo)",
-            "basin": basin,
-            "source": "Simulation Sandbox (Demo Injection)",
-            "is_simulation": True,
-            "source_type": "DEMO",
-            "origin_type": "OPERATIONAL_DRILL",
-            "telemetry_badge": "SIMULATED / DRILL EXERCISE",
-            "telemetry_type": "SIMULATION",
-            "category": category,
-            "intensity_knots": knots,
-            "lat": 15.4 if basin == "Bay of Bengal" else 18.2,
-            "lon": 87.8 if basin == "Bay of Bengal" else 66.5,
-            "central_pressure_hpa": 974,
-            "movement_speed_kmph": 18,
-            "movement_direction": "NNW",
-            "created_at_utc": now_utc.isoformat() + "Z",
-            "expires_at_utc": (now_utc + datetime.timedelta(hours=4)).isoformat() + "Z"
-        }
+        system = build_demo_injection_system(name, basin, category, knots, now_utc)
         self._calibrate_system_telemetry(system)
-        
-        # Keep real live systems, only prepend the demo injection
-        current_real = [s for s in self.live_systems if not s.get("is_simulation") and s.get("source_type") != "DEMO"]
+        current_real = [
+            s for s in self.live_systems if not s.get("is_simulation") and s.get("source_type") != "DEMO"
+        ]
         self.live_systems = [system] + current_real
         self.last_sync = now_utc
         return system
 
-    def clear_live_systems(self, clear_all: bool = False):
-        """
-        Clears ONLY synthetic demo systems without deleting actual live storm state (LIVE-09),
-        unless clear_all=True is explicitly specified.
-        """
+    def clear_live_systems(self, clear_all: bool = False) -> None:
+        """Clear synthetic demo systems (or all active systems when clear_all=True)."""
         if clear_all:
             self.live_systems = []
         else:
-            real_systems = [s for s in self.live_systems if not s.get("is_simulation") and s.get("source_type") != "DEMO"]
-            self.live_systems = real_systems
+            self.live_systems = [
+                s for s in self.live_systems if not s.get("is_simulation") and s.get("source_type") != "DEMO"
+            ]
         self.last_sync = datetime.datetime.utcnow()
 
-    async def start_periodic_worker(self, interval_seconds: int = 480):
-        """
-        Background loop executing sync passes every `interval_seconds`.
-        Verifies active leadership status before each pass (FIX-02).
-        """
+    async def start_periodic_worker(self, interval_seconds: int = 480) -> None:
+        """Background loop executing sync passes every `interval_seconds` while leader."""
         from app.core.process_lock import is_leader, update_worker_heartbeat
-        print(f"[Live Ingestion Worker] Background daemon started (polling every {interval_seconds}s).")
+
+        event_logger.info("[Live Ingestion Worker] Background daemon started (interval=%ss).", interval_seconds)
         while True:
             try:
                 if not is_leader():
-                    print("[Live Ingestion Worker] Process is no longer leader. Halting ingestion loop.")
+                    event_logger.info("[Live Ingestion Worker] Process is no longer leader. Halting ingestion loop.")
                     break
                 update_worker_heartbeat()
                 await self.sync_all_sources()
-                
-                # Optional keep-alive ping for hosted containers (configured via environment)
+
                 if os.getenv("ENABLE_SELF_PING", "false").lower() in ("1", "true"):
                     try:
                         backend_url = os.getenv("BACKEND_HEALTH_URL", "https://cyclonet-backend.onrender.com/health")
@@ -1043,11 +233,11 @@ class LiveIngestionService:
                         async with httpx.AsyncClient(timeout=10.0) as client:
                             await client.get(backend_url)
                             await client.get(frontend_url)
-                    except Exception:
-                        pass
-            except Exception as e:
-                print(f"[Live Ingestion Worker Exception] {e}")
+                    except Exception as ping_err:
+                        event_logger.debug("Self-ping failed: %s", type(ping_err).__name__)
+            except Exception as exc:
+                event_logger.warning("[Live Ingestion Worker Exception] %s", exc)
             await asyncio.sleep(interval_seconds)
 
-# Global singleton
+
 live_ingestion_service = LiveIngestionService()

@@ -1,5 +1,7 @@
 import io
+
 from PIL import Image
+
 
 def validate_image_payload(image_bytes: bytes) -> str:
     """
@@ -21,9 +23,8 @@ def validate_image_payload(image_bytes: bytes) -> str:
             w, h = img.size
             if w > 4096 or h > 4096:
                 raise ValueError(f"Image dimensions ({w}x{h}) exceed maximum allowed dimensions (4096x4096).")
+    except ValueError:
+        raise
     except Exception as e:
-        if isinstance(e, ValueError):
-            raise
-        raise ValueError(f"Corrupt or malformed image payload: {e}")
+        raise ValueError(f"Corrupt or malformed image payload: {e}") from e
     return fmt
-

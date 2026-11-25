@@ -1,10 +1,9 @@
-import os
-import json
-import uuid
 import hashlib
+import uuid
 import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 
 class MeteorologicalReportService:
     """
@@ -34,6 +33,7 @@ class MeteorologicalReportService:
 
     def get_port_signals(self, intensity_knots: Optional[int], is_bay_of_bengal: bool) -> List[Dict[str, str]]:
         """Port signals require an actual port authority bulletin, not a wind threshold."""
+        _ = (intensity_knots, is_bay_of_bengal)
         return []
 
     def get_affected_districts(self, basin: str, lat: float, lon: float) -> List[Dict[str, str]]:

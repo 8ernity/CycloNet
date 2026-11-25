@@ -2,7 +2,23 @@ name: CycloNet verification
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject tracked bytecode and build caches
+        run: |
+          tracked=$(git ls-files '*.pyc' '*__pycache__*' '.pytest_cache*' '*.egg-info*')
+          if [ -n "$tracked" ]; then
+            echo "::error::Generated cache files must not be tracked:"
+            echo "$tracked"
+            exit 1
+          fi
+
   backend:
     runs-on: ubuntu-latest
     services:
@@ -34,14 +50,19 @@ jobs:
       - run: python -m pytest tests/ -q --junitxml=results.xml
         working-directory: backend
       - run: |
-          pip install pip-audit
+          pip install pip-audit ruff mypy
           pip-audit --no-deps --disable-pip -r backend/requirements-linux.lock
           pip-audit --no-deps --disable-pip -r backend/requirements.lock
+      - run: |
+          python -m ruff check app/ train_classifier.py train_demo_classifier.py
+          python -m mypy --explicit-package-bases app/ train_classifier.py --ignore-missing-imports
+        working-directory: backend
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: backend-test-results
           path: backend/results.xml
+
   frontend:
     runs-on: ubuntu-latest
     defaults:
@@ -80,6 +101,7 @@ jobs:
         with:
           name: browser-failures
           path: frontend/test-results
+
   secrets:
     runs-on: ubuntu-latest
     steps:

@@ -1,6 +1,6 @@
 // Only public static assets can be cached. Pages, authentication and live data stay online-only.
-const CACHE_NAME = 'cyclonet-public-static-v2';
-const STATIC_ASSETS = new Set(['/cyclone-logo.svg', '/logo.svg', '/liquid-glass.js', '/manifest.json']);
+const CACHE_NAME = 'cyclonet-public-static-v3';
+const STATIC_ASSETS = new Set(['/icon.svg', '/icon-256.png', '/liquid-glass.js', '/manifest.json']);
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', event => {
   event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('cyclonet-') && key !== CACHE_NAME).map(key => caches.delete(key)))).then(() => self.clients.claim()));

@@ -1,6 +1,7 @@
 """Read-only bounded context from backend ingestion, never from browser claims."""
 from app.services.feed_policy import fresh
 
+
 def basin_snapshot():
     from app.services.live_ingestion import live_ingestion_service as ingestion
     try:

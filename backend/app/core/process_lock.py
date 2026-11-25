@@ -1,12 +1,12 @@
-import os
-import sys
-import time
+import asyncio
 import json
 import logging
+import os
+import sys
 import tempfile
+import time
 import uuid
-import asyncio
-from typing import Optional
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -110,10 +110,11 @@ def acquire_worker_leader_lock() -> bool:
     # 1. Distributed Redis Lock (FIX 02, FIX-010)
     if _redis_client:
         try:
-            from app.core.shared_state import generation_floor, claim_generation
+            from app.core.shared_state import claim_generation, generation_floor
             floor = generation_floor() if ENVIRONMENT == "production" else 0
-            acquired = int(_redis_client.eval(ACQUIRE_LOCK_LUA, 2, LOCK_KEY, f"{LOCK_KEY}:generation",
-                                             WORKER_TOKEN, LOCK_TTL_SECONDS, floor))
+            acquired = int(cast(Any, _redis_client.eval(
+                ACQUIRE_LOCK_LUA, 2, LOCK_KEY, f"{LOCK_KEY}:generation", WORKER_TOKEN, LOCK_TTL_SECONDS, floor
+            )))
             if acquired:
                 global _leader_generation
                 _leader_generation = acquired
@@ -182,7 +183,7 @@ def update_worker_heartbeat() -> bool:
     current_pid = os.getpid()
     if _redis_client:
         try:
-            res = _redis_client.eval(RENEW_LOCK_LUA, 1, LOCK_KEY, WORKER_TOKEN, str(LOCK_TTL_SECONDS))
+            res = cast(Any, _redis_client.eval(RENEW_LOCK_LUA, 1, LOCK_KEY, WORKER_TOKEN, str(LOCK_TTL_SECONDS)))
             if int(res) == 1:
                 return True
             else:

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="frontend/public/logo.svg" width="84" height="84" alt="CycloNet logo" />
+<img src="frontend/src/app/icon.svg" width="84" height="84" alt="CycloNet logo" />
 
 # CycloNet
 
@@ -218,14 +218,14 @@ Run the backend and open [interactive API documentation](http://localhost:8000/d
 
 | Layer | Components | Explore |
 |:---|:---|:---|
-| **Interface** | Next.js 16, React 19, TypeScript 5, Tailwind CSS 4 | [`app`](frontend/src/app) · [`components`](frontend/src/components) |
+| **Interface** | Next.js 16, React 19, TypeScript 5, Tailwind CSS 4 | [`app`](frontend/src/app) · [`components`](frontend/src/components) · [`features`](frontend/src/features) |
 | **Maps, charts, motion** | Leaflet / React-Leaflet, Recharts, Framer Motion, GSAP | [`frontend/package.json`](frontend/package.json) |
-| **API and identity** | FastAPI, Pydantic, Clerk JWT verification | [`api`](backend/app/api) · [`auth`](backend/app/core/auth.py) |
+| **API and identity** | FastAPI, Pydantic, Clerk JWT verification | [`api`](backend/app/api) · [`routers`](backend/app/api/routers) · [`auth`](backend/app/core/auth.py) |
 | **Persistence** | SQLAlchemy, Alembic, PostgreSQL in production; SQLite in development | [`database`](backend/app/core/database.py) · [`migrations`](backend/alembic) |
 | **Coordination** | Redis / Key Value, quotas, admission and leader fencing | [`core`](backend/app/core) |
-| **Science** | PyTorch, Torchvision, NumPy, Pillow; manifest and evaluation gates | [`services`](backend/app/services) · [`manifests`](backend/data/manifests) |
-| **Assistant** | Optional Gemini HTTP integration; configurable model | [`chat_service.py`](backend/app/services/chat_service.py) |
-| **Verification** | pytest, real PostgreSQL/Redis, Playwright, axe-core and security scans | [`backend tests`](backend/tests) · [`frontend tests`](frontend/tests) · [CI](.github/workflows/ci.yml) |
+| **Science & ingestion** | PyTorch, Torchvision, NumPy, Pillow; modular feed adapters and manifests | [`services`](backend/app/services) · [`ingestion`](backend/app/services/ingestion) · [`manifests`](backend/data/manifests) |
+| **Assistant** | Optional Gemini HTTP integration; configurable model | [`chat_service.py`](backend/app/services/chat_service.py) · [`config.py`](backend/app/core/config.py) |
+| **Verification** | pytest, real PostgreSQL/Redis, Playwright, axe-core, ruff, mypy and security scans | [`backend tests`](backend/tests) · [`frontend tests`](frontend/tests) · [CI](.github/workflows/ci.yml) |
 | **Proposed hosting** | Render backend, frontend, PostgreSQL and Key Value | [`staging`](render.staging.yaml) · [`production proposal`](render.yaml) |
 
 Exact versions belong to the checked-in lockfiles. The assistant's current code default is `gemini-2.5-flash`; provider/account availability must be checked separately. No “Gemini 3.7” capability is asserted here.
@@ -257,7 +257,7 @@ On Linux, activate with `source .venv/bin/activate` and install the Linux lock:
 pip install --require-hashes --extra-index-url https://download.pytorch.org/whl/cpu -r requirements-linux.lock
 ```
 
-The backend reads process environment variables; creating `.env` alone does not load them. [`.env.example`](backend/.env.example) is a variable inventory, not evidence that its placeholders, model names or proposed projects are valid. Gemini is optional; omit an unavailable model override. SQLite is for local development only.
+Process environment variables take precedence; [`config.py`](backend/app/core/config.py) reads a local `.env` file only as a non-overriding fallback. [`.env.example`](backend/.env.example) is a variable inventory, not evidence that its placeholders, model names or proposed projects are valid. Gemini is optional; omit an unavailable model override. SQLite is for local development only.
 
 </details>
 

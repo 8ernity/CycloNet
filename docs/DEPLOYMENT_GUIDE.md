@@ -37,12 +37,12 @@ This guide describes how to configure, provision, and deploy CycloNet to a produ
 The platform is provisioned declaratively via the root [render.yaml](../render.yaml):
 
 1. **`cyclonet-backend` (Web Service):**
-   - **Runtime:** Python 3.11.9
-   - **Build Command:** `pip install --upgrade pip && pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt`
+   - **Runtime:** Python 3.11+
+   - **Build Command:** `pip install --require-hashes --extra-index-url https://download.pytorch.org/whl/cpu -r requirements-linux.lock`
    - **Start Command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 2. **`cyclonet-frontend` (Web Service):**
-   - **Runtime:** Node.js 20.11.0
-   - **Build Command:** `npm install --no-audit --no-fund && npm run build`
+   - **Runtime:** Node.js 22
+   - **Build Command:** `npm ci && npm run build`
    - **Start Command:** `npm run start`
 3. **`cyclonet-db` (Managed PostgreSQL):**
    - **Version:** PostgreSQL 16
@@ -84,8 +84,8 @@ The platform is provisioned declaratively via the root [render.yaml](../render.y
 
 CycloNet uses SQLAlchemy with auto-table registration and Alembic compatibility.
 
-1. When deploying to a new PostgreSQL instance, the backend automatically runs table creation in `init_db()` during container startup.
-2. Initial seed historical cyclones (Amphan, Fani, Mocha, Biparjoy) are seeded idempotently if the archive table is empty.
+1. Production deployments run `alembic upgrade head` in the pre-deploy job (and `init_db()` runs automatically only when `ENVIRONMENT=development`).
+2. Historical seed cyclones (including Amphan, Fani, Mocha, and Biparjoy) are populated idempotently when initializing an empty database via the documented initialization flow.
 3. For custom migrations, run Alembic within the backend directory:
    ```bash
    alembic revision --autogenerate -m "migration_description"

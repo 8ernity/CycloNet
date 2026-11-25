@@ -49,8 +49,8 @@ export function Header() {
   return (
     <header className="min-h-16 shrink-0 border-b border-border bg-background/50 backdrop-blur-xl sticky top-0 z-30 flex items-center justify-between gap-3 px-4 sm:px-6">
       <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-        <button aria-label="Open navigation" popoverTarget="mobile-navigation" className="lg:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary">
-          <Menu className="w-5 h-5" />
+        <button type="button" aria-label="Open navigation" popoverTarget="mobile-navigation" className="lg:hidden p-2 -ml-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary">
+          <Menu className="w-5 h-5" aria-hidden="true" />
         </button>
         <nav id="mobile-navigation" popover="auto" aria-label="Mobile navigation" className="fixed inset-auto top-16 left-4 m-0 w-[calc(100vw-2rem)] max-w-sm rounded-xl border border-border bg-card p-2 text-foreground shadow-xl">
           {navItems.map(({name,href,icon:Icon})=><a key={href} href={href} aria-current={pathname===href ? 'page' : undefined} className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm hover:bg-secondary focus-visible:outline-2 focus-visible:outline-primary"><Icon className="h-4 w-4" />{name}</a>)}
@@ -71,6 +71,7 @@ export function Header() {
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
         {/* Ask CycloNet AI Button with Animated Green Gradient Effect */}
         <button
+          type="button"
           onClick={() => {
             if (typeof window !== "undefined") {
               window.dispatchEvent(new CustomEvent("cyclonet:open-chat"));
